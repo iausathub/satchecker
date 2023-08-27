@@ -1,0 +1,16 @@
+blinker==1.6.2
+certifi==2023.7.22
+charset-normalizer==3.2.0
+click==8.1.7
+Flask==2.3.3
+idna==3.4
+itsdangerous==2.1.2
+Jinja2==3.1.2
+jplephem==2.18
+MarkupSafe==2.1.3
+numpy==1.25.2
+requests==2.31.0
+sgp4==2.22
+skyfield==1.46
+urllib3==2.0.4
+Werkzeug==2.3.7
