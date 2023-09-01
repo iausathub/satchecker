@@ -4,7 +4,7 @@ from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 import numpy as np
 import requests
-from core import app
+from core import app, models
 
 
 #Error handling
@@ -20,7 +20,6 @@ def missing_parameter(e):
 @app.route('/index')
 def root():
     return redirect('https://cps.iau.org/')
-
 
 @app.route('/name/')
 def get_ephemeris_by_name():
@@ -358,7 +357,7 @@ def get_ephemeris():
 ### HELPER FUNCTIONS NOT EXPOSED TO API
 
 
-def getTLE(targetName, tleapi='https://celestrak.org/NORAD/elements/gp.php?NAME='):
+def getTLE(targetName):
     """
     Query Two Line Element (orbital element) API and return TLE lines for propagation
     
@@ -381,13 +380,14 @@ def getTLE(targetName, tleapi='https://celestrak.org/NORAD/elements/gp.php?NAME=
     # uncomment if json output is required
     #tleapiResult=requests.get(f'{tleapi}{targetName}&FORMAT=JSON').json()	    
 
-    # we will go with the standard TLE format here
-    tleapiResult=requests.get(f'{tleapi}{targetName}&FORMAT=TLE')
-    
-    tle = tleapiResult.text.replace("%20", ' ')
+    #get from db where name matches 
+    # TO DO: test date has only 1 day of TLE data - need to check that is_supplemental is false, and most recent epoch is returned
+    tle = models.TLE.query.join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                        .filter_by(sat_name=targetName).first()
+ 
     #Retrieve the two lines
-    tleLine1 = tle[26:95]
-    tleLine2 = tle[97:166]
+    tleLine1 = tle.tle_line1
+    tleLine2 = tle.tle_line2
 
     return tleLine1, tleLine2
 

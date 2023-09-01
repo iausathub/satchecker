@@ -127,7 +127,7 @@ def main():
 
 
 # Parse TLE text file and add entries to database if they don't exist
-def add_tle_to_db(tle, constellation, connection, cursor, is_supplemental):
+def add_tle_to_db(tle, constellation, cursor, is_supplemental):
     lines = tle.text.splitlines()
     counter = 0 
     textEnd = len(lines)
