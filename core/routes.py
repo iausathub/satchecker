@@ -4,6 +4,7 @@ from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 import numpy as np
 import requests
+from sqlalchemy import desc
 from core import app, models
 
 
@@ -380,11 +381,24 @@ def getTLE(targetName):
     # uncomment if json output is required
     #tleapiResult=requests.get(f'{tleapi}{targetName}&FORMAT=JSON').json()	    
 
-    #get from db where name matches 
-    # TO DO: test date has only 1 day of TLE data - need to check that is_supplemental is false, and most recent epoch is returned
-    tle = models.TLE.query.join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_name=targetName).first()
- 
+    #use the supplemental TLE if it is the most recently collected one, otherwise use the general one
+    tle_sup = models.TLE.query.filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
+    
+
+    
+    tle_gp = models.TLE.query.filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
+    
+    tle = None
+    if(tle_sup is None and tle_gp is None):
+        abort(500)
+    elif(tle_sup is None and tle_gp is not None):
+        tle = tle_gp
+    else:
+        tle = tle_sup if tle_sup.date_collected > tle_gp.date_collected else tle_gp
+        
+
     #Retrieve the two lines
     tleLine1 = tle.tle_line1
     tleLine2 = tle.tle_line2
