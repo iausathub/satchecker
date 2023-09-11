@@ -22,7 +22,12 @@ def missing_parameter(e):
 def root():
     return redirect('https://cps.iau.org/')
 
-@app.route('/name/')
+@app.route('/health')
+def health():
+    return {'message': 'Healthy'}
+
+
+@app.route('/ephemeris/name/')
 def get_ephemeris_by_name():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -42,8 +47,6 @@ def get_ephemeris_by_name():
         Elevation in meters
     julian_date: 'float'
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    tleapi: 'str'
-        base API for query
 
     Returns
     -------
@@ -96,7 +99,7 @@ def get_ephemeris_by_name():
     return resultList
 
 
-@app.route('/namejdstep/')
+@app.route('/ephemeris/namejdstep/')
 def get_ephemeris_by_name_jdstep():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -175,8 +178,7 @@ def get_ephemeris_by_name_jdstep():
     return resultList
 
 
-#@MyApp.route('/tle/<tle>/<latitude>/<longitude>/<julian_date>', defaults={'flags': None})
-@app.route('/tle/')
+@app.route('/ephemeris/tle/')
 def read_tle_string():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -265,18 +267,20 @@ def read_tle_string():
 
     difference = satellite - currPos
     topocentric = difference.at(t)
+
     ra, dec, distance = topocentric.radec()
     alt, az, distance = topocentric.altaz()
 
+
     return {
-        'Right Ascension': ra._degrees,
-        'Declination': dec.degrees,
-        'Altitude': alt.degrees,
-        'Azimuth': az.degrees
+        "RIGHT_ASCENSION-DEG": np.round(ra._degrees,11),
+        "DECLINATION-DEG": np.round(dec.degrees,11),
+        "ALTITUDE-DEG": np.round(alt.degrees,11),
+        "AZIMUTH-DEG": np.round(az.degrees,11),
     }
 
 
-@app.route('/tle_file/')
+@app.route('/ephemeris/tle_file/')
 def read_tle_from_file():
     '''
     Returns dictionary of relative Right Ascension and Declination for all
@@ -314,7 +318,7 @@ def read_tle_from_file():
     return to_return
 
 
-@app.route('/pos/')
+@app.route('/ephemeris/pos/')
 def get_ephemeris():
     '''
     Returns the geocentric Right Ascension and Declination of the orbiting 
