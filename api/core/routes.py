@@ -1,33 +1,44 @@
 #!/usr/bin/python3
 from flask import Flask, abort, redirect, request
+import flask_limiter
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 import numpy as np
 import requests
 from sqlalchemy import desc
-from core import app, models
+from flask_limiter.util import get_remote_address
+from core import app, models, limiter
 
 
 #Error handling
 @app.errorhandler(404)
 def page_not_found(e):
-    return 'Error 404: Page not found<br />Check your spelling to ensure you are accessing the correct endpoint', 404
+    return 'Error 404: Page not found<br />Check your spelling to ensure you are accessing the correct endpoint.', 404
 @app.errorhandler(400)
 def missing_parameter(e):
-    return 'Error: Missing parameter<br />Check your request and try again', 400
+    return 'Error 400: Missing parameter<br />Check your request and try again.', 400
+@app.errorhandler(429)
+def ratelimit_handler(e):
+  return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
+@app.errorhandler(500)
+def internal_server_error(e):
+    return "Error 500: Internal server error:<br />" + e.description, 500
 
 #Redirects user to the Center for the Protection of Dark and Quiet Sky homepage
 @app.route('/')
 @app.route('/index')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def root():
     return redirect('https://cps.iau.org/')
 
 @app.route('/health')
+@limiter.exempt
 def health():
     return {'message': 'Healthy'}
 
 
 @app.route('/ephemeris/name/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -100,6 +111,7 @@ def get_ephemeris_by_name():
 
 
 @app.route('/ephemeris/namejdstep/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name_jdstep():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -179,6 +191,7 @@ def get_ephemeris_by_name_jdstep():
 
 
 @app.route('/ephemeris/tle/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def read_tle_string():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -281,6 +294,7 @@ def read_tle_string():
 
 
 @app.route('/ephemeris/tle_file/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def read_tle_from_file():
     '''
     Returns dictionary of relative Right Ascension and Declination for all
@@ -319,6 +333,7 @@ def read_tle_from_file():
 
 
 @app.route('/ephemeris/pos/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris():
     '''
     Returns the geocentric Right Ascension and Declination of the orbiting 
@@ -590,3 +605,8 @@ def icrf2radec(pos, deg=True):
     
     return ra, dec
 
+def get_forwarded_address(request):
+    forwarded_header = request.headers.get("X-Forwarded-For")
+    if forwarded_header:                                  
+        return request.headers.getlist("X-Forwarded-For")[0]
+    return get_remote_address
