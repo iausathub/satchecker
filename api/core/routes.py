@@ -88,7 +88,7 @@ def get_ephemeris_by_name():
     if [x for x in (name, latitude, longitude, elevation, julian_date) if x is None]:
         abort(400) 
     
-    tleLine1, tleLine2 = getTLE(name)
+    tleLine1, tleLine2, date_collected = getTLE(name)
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
     lat = float(latitude)
@@ -106,7 +106,7 @@ def get_ephemeris_by_name():
     resultList = []
     for d in jd:
         [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r)) 
+        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected)) 
     return resultList
 
 
@@ -165,7 +165,7 @@ def get_ephemeris_by_name_jdstep():
     if [x for x in (name, latitude, longitude, elevation, startjd, stopjd, stepjd) if x is None]:
         abort(400) 
 
-    tleLine1, tleLine2 = getTLE(name)
+    tleLine1, tleLine2, date_collected = getTLE(name)
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
     lat = float(latitude)
@@ -186,7 +186,7 @@ def get_ephemeris_by_name_jdstep():
     resultList = []
     for d in jd:
         [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r))
+        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected))
     return resultList
 
 
@@ -422,7 +422,7 @@ def getTLE(targetName):
     tleLine1 = tle.tle_line1
     tleLine2 = tle.tle_line2
 
-    return tleLine1, tleLine2
+    return tleLine1, tleLine2, tle.date_collected
 
 
 def propagateSatellite(tleLine1,tleLine2,lat,lon,elevation,jd):
@@ -510,7 +510,7 @@ def my_arange(a, b, dr, decimals=11):
     return np.asarray(res) 
 
 
-def jsonOutput(name,time,ra,dec,alt,az,r,precisionAngles=11,precisionDate=12,precisionRange=12):
+def jsonOutput(name,time,ra,dec,alt,az,r,date,precisionAngles=11,precisionDate=12,precisionRange=12):
     """
     Convert API output to JSON format
     
@@ -555,7 +555,8 @@ def jsonOutput(name,time,ra,dec,alt,az,r,precisionAngles=11,precisionDate=12,pre
             "DECLINATION-DEG": myRound(dec.degrees,precisionAngles),
             "ALTITUDE-DEG": myRound(alt.degrees,precisionAngles),
             "AZIMUTH-DEG": myRound(az.degrees,precisionAngles),
-            "RANGE-KM": myRound(r.km,precisionRange)} 
+            "RANGE-KM": myRound(r.km,precisionRange),
+            "TLE-DATE": date.strftime("%Y-%m-%d %H:%M:%S")} 
     
     return output  
 
