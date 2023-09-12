@@ -16,7 +16,7 @@ def page_not_found(e):
     return 'Error 404: Page not found<br />Check your spelling to ensure you are accessing the correct endpoint.', 404
 @app.errorhandler(400)
 def missing_parameter(e):
-    return 'Error 400: Missing parameter<br />Check your request and try again.', 400
+    return 'Error 400: Missing parameter or too many results to return<br />Check your request and try again.', 400
 @app.errorhandler(429)
 def ratelimit_handler(e):
   return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
@@ -27,7 +27,7 @@ def internal_server_error(e):
 #Redirects user to the Center for the Protection of Dark and Quiet Sky homepage
 @app.route('/')
 @app.route('/index')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def root():
     return redirect('https://cps.iau.org/')
 
@@ -38,7 +38,7 @@ def health():
 
 
 @app.route('/ephemeris/name/')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -100,18 +100,27 @@ def get_ephemeris_by_name():
    
     # Converting list elements to float
     jd = [float(i) for i in jul]
+
+    if(len(jd)>1000):
+        abort(400)
    
-    # return {'jd':jd , "TLELine1":tleLine1, "TLELine2":tleLine2 } 
     # propagation and create output
     resultList = []
     for d in jd:
-        [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected)) 
+        #Right ascension RA (deg), Declination Dec (deg), dRA/dt*cos(Dec) (deg/day), dDec/dt (deg/day),
+        # Altitude (deg), Azimuth (deg), dAlt/dt (deg/day), dAz/dt (deg/day), distance (km), range rate (km/s), phaseangle(deg), illuminated (T/F)   
+        [ra, dec, dracosdec, ddec, alt, az,  
+         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
+        
+        resultList.append(jsonOutput(name, d, ra, dec, date_collected, 
+                                    dracosdec, ddec,
+                                    alt, az, 
+                                    r, dr, phaseangle, illuminated)) 
     return resultList
 
 
 @app.route('/ephemeris/namejdstep/')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name_jdstep():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -175,165 +184,23 @@ def get_ephemeris_by_name_jdstep():
     jd0 = float(startjd)
     jd1 = float(stopjd) 
     jds = float(stepjd)
-
-    #return {'jd0':jd0,'jd1':jd1,'jds':jds}   
   
     jd = my_arange(jd0,jd1,jds)
-    #jd = np.arange(jd0,jd1,jds)
-    #jd = [2460000.5]
-    #return {'jd':jd[3]}
+
+    if(len(jd)>1000):
+        abort(400)
 
     resultList = []
     for d in jd:
-        [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected))
+        [ra, dec, dracosdec, ddec, alt, az, 
+         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
+        resultList.append(jsonOutput(name, d, ra, dec, date_collected,
+                                    dracosdec, ddec,
+                                    alt, az, 
+                                    r, dr, phaseangle, illuminated))
     return resultList
 
-
-@app.route('/ephemeris/tle/')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
-def read_tle_string():
-    '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's Two Line Element Data Set at inputted Julian Date.
-
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
-
-    Parameters
-    ---------
-    tle: 'str'
-        The Two Line Element set
-    latitude: 'float'
-        The observers latitude coordinate (positive value represents north, negative value represents south)
-    longitude: 'float'
-        The observers longitude coordinate (positive value represents east, negatie value represents west)
-    julian_date: 'float'
-        UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    flags: 'str'
-        Optional flags to be passed in. All flags begin with &, followed by the command, and then the value. Currently, the only flags supported are:
-        &jpl: 'str'
-            If 'true', will return JPL ephemeris response. If 'false', will return Skyfield ephemeris. Default is 'false'
-            This assumes that the TLE uses the ASCII representation for newline, which is '%0A'
-        &elevation: 'float'
-            The elevation of the observer in meters. Default is 0
-
-    Returns
-    -------
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    '''
-
-    tle = request.args.get('tle')
-    latitude = request.args.get('latitude')
-    longitude = request.args.get('longitude')
-    julian_date = request.args.get('julian_date')
-    flags = request.args.get('flags')
-
-    #check for mandatory parameters
-    if [x for x in (tle, latitude, longitude, julian_date) if x is None]:
-        abort(400) 
-
-    #Get rid of ASCII representation for space
-    tle = tle.replace("%20", ' ')
-    #Retrieve the two lines
-    u,w = tle[:69], tle[70:]
-
-    #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    jd = float(julian_date)
-
-    #Parse flags
-    jpl = False
-    elevation = 0
-    if flags is not None:
-        flags = flags.replace("%20", '')
-        flag_list = flags.split('&')
-        for flag in flag_list:
-            if flag[:3] == 'jpl':
-                if flag[4:] == 'true': jpl = True
-            elif flag[:9] == 'elevation':
-                elevation = float(flag[10:])
-
-    #If JPL flag is true, use JPL ephemeris
-    if jpl:
-        elevation_km = elevation/1000
-        return requests.get(f'https://ssd.jpl.nasa.gov/api/horizons.api/?format=json&COMMAND=\'TLE\'&TLE={tle}\
-            &MAKE_EPHEM=\'YES\'&TLIST=\'{jd}\'&EPHEM_TYPE=\'OBSERVER\'&CENTER=\'coord\'\
-            &SITE_COORD=\'{lon},{lat},{elevation_km}\'&COORD_TYPE=\'GEODETIC\'&ANG_FORMAT=\'DEG\'').json()
-
-    #This is the skyfield implementation
-    ts = load.timescale()
-    satellite = EarthSatellite(u,w,ts = ts)
-
-    #Get current position and find topocentric ra and dec
-    currPos = wgs84.latlon(lat, lon, elevation)
-    # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
-    if jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
-    else: t = ts.ut1_jd(jd)
-
-    difference = satellite - currPos
-    topocentric = difference.at(t)
-
-    ra, dec, distance = topocentric.radec()
-    alt, az, distance = topocentric.altaz()
-
-
-    return {
-        "RIGHT_ASCENSION-DEG": np.round(ra._degrees,11),
-        "DECLINATION-DEG": np.round(dec.degrees,11),
-        "ALTITUDE-DEG": np.round(alt.degrees,11),
-        "AZIMUTH-DEG": np.round(az.degrees,11),
-    }
-
-
-@app.route('/ephemeris/tle_file/')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
-def read_tle_from_file():
-    '''
-    Returns dictionary of relative Right Ascension and Declination for all
-    epoch times in Two Line Element data set text file
-
-    ***This function is not complete. Will need a file upload of some sort to properly
-    parse the data. This is a future project.***
-
-    Parameters
-    ---------
-    file_path: 'file_path'
-        The Two Line Element text file. This is the relative path
-
-    Returns
-    -------
-    Dictionary of values
-    '''
-    file_path = request.args.get('file_path')
-
-    #check for mandatory parameters
-    if file_path is None:
-        abort(400) 
-
-    to_return = []
-    f = open(file_path)
-    words = f.read()
-    single_lines = words.split('\n')
-    lat_lon = single_lines[0]
-    for i in range(1, len(single_lines)-1, 2):
-        u = single_lines[i]
-        w = single_lines[i+1]
-        TLE = f'{u} {w}, {lat_lon}'
-        to_return.append(read_tle_string(TLE))
-
-    return to_return
-
-
-@app.route('/ephemeris/pos/')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
+### HELPER FUNCTIONS NOT EXPOSED TO API ###
 def get_ephemeris():
     '''
     Returns the geocentric Right Ascension and Declination of the orbiting 
@@ -372,10 +239,6 @@ def get_ephemeris():
         'Right Ascension': ra,
         'Declination': dec
     }
-
-
-### HELPER FUNCTIONS NOT EXPOSED TO API
-
 
 def getTLE(targetName):
     """
@@ -425,7 +288,7 @@ def getTLE(targetName):
     return tleLine1, tleLine2, tle.date_collected
 
 
-def propagateSatellite(tleLine1,tleLine2,lat,lon,elevation,jd):
+def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html) 
      to propagate satellite and observer states.
      
@@ -472,9 +335,77 @@ def propagateSatellite(tleLine1,tleLine2,lat,lon,elevation,jd):
 
     difference = satellite - currPos
     topocentric = difference.at(t)
+    topocentricn = topocentric.position.km/np.linalg.norm(topocentric.position.km)
+    
     ra, dec, distance = topocentric.radec()
     alt, az, distance = topocentric.altaz()
-    return (ra,dec,alt,az,distance)
+    
+    secperday = 86400
+    dtday=dtsec/secperday
+    tplusdt = ts.ut1_jd(jd+dtday)
+    tminusdt = ts.ut1_jd(jd-dtday)
+
+    dtx2 = 2*dtsec 
+
+    sat = satellite.at(t).position.km
+
+    satn = sat/np.linalg.norm(sat)
+    satpdt = satellite.at(tplusdt).position.km
+    satmdt = satellite.at(tminusdt).position.km
+    vsat = (satpdt - satmdt)/dtx2
+    
+    sattop = difference.at(t).position.km
+    sattopr = np.linalg.norm(sattop)
+    sattopn = sattop/sattopr
+    sattoppdt = difference.at(tplusdt).position.km
+    sattopmdt = difference.at(tminusdt).position.km
+    
+    ratoppdt,dectoppdt = icrf2radec(sattoppdt)
+    ratopmdt,dectopmdt = icrf2radec(sattopmdt)
+    
+    vsattop = (sattoppdt - sattopmdt)/dtx2
+    
+    ddistance = np.dot(vsattop,sattopn)
+    rxy = np.dot(sattop[0:2],sattop[0:2])
+    dra = (sattop[1]*vsattop[0]-sattop[0]*vsattop[1])/rxy
+    ddec = vsattop[2]/np.sqrt(1-sattopn[2]*sattopn[2])
+    dracosdec = dra*np.cos(dec.radians)
+
+    dra = (ratoppdt - ratopmdt)/dtx2
+    ddec = (dectoppdt - dectopmdt)/dtx2
+    dracosdec = dra*np.cos(dec.radians)
+
+    drav, ddecv = icrf2radec(vsattop/sattopr, unitVector=True)
+    dracosdecv = drav*np.cos(dec.radians)
+    
+ 
+    eph = load('de430t.bsp')
+    earth = eph['Earth']
+    sun = eph['Sun']
+ 
+    earthp = earth.at(ts.ut1_jd(jd)).position.km
+    sunp = sun.at(ts.ut1_jd(jd)).position.km
+    earthsun = sunp - earthp
+    earthsunn = earthsun/np.linalg.norm(earthsun)
+    satsun =  sat - earthsun
+    satsunn = satsun/np.linalg.norm(satsun)
+    phase_angle = np.rad2deg(np.arccos(np.dot(satsunn,topocentricn)))
+    
+    #Is the satellite in Earth's Shadow?
+    r_parallel = np.dot(sat,earthsunn)*earthsunn
+    r_tangential = sat-r_parallel
+
+    illuminated = True
+
+    if(np.linalg.norm(r_parallel)<0):
+        #rearthkm
+        if(np.linalg.norm(r_tangential)<6370):
+            #print(np.linalg.norm(r_tangential),np.linalg.norm(r))
+            #yes the satellite is in Earth's shadow, no need to continue (except for the moon of course)
+            illuminated = False
+    
+    return (ra, dec, dracosdec, ddec, alt, az, 
+            distance, ddistance, phase_angle, illuminated)
 
 
 def my_arange(a, b, dr, decimals=11):
@@ -509,8 +440,26 @@ def my_arange(a, b, dr, decimals=11):
 
     return np.asarray(res) 
 
+def tle2ICRFstate(tleLine1,tleLine2,jd):
 
-def jsonOutput(name,time,ra,dec,alt,az,r,date,precisionAngles=11,precisionDate=12,precisionRange=12):
+    #This is the skyfield implementation
+    ts = load.timescale()
+    satellite = EarthSatellite(tleLine1,tleLine2,ts = ts)
+
+    # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
+    if jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
+    else: t = ts.ut1_jd(jd)
+
+    r =  satellite.at(t).position.km
+    # print(satellite.at(t))
+    v = satellite.at(t).velocity.km_per_s
+    return np.concatenate(np.array([r,v]))
+
+def jsonOutput(name,time,ra,dec,dateCollected,dracosdec,ddec, 
+               alt, az, 
+               #dalt, daz, 
+               r, dr, phaseangle, illuminated, 
+               precisionAngles=11,precisionDate=12,precisionRange=12):
     """
     Convert API output to JSON format
     
@@ -553,22 +502,28 @@ def jsonOutput(name,time,ra,dec,alt,az,r,date,precisionAngles=11,precisionDate=1
             "JULIAN_DATE": myRound(time,precisionDate),
             "RIGHT_ASCENSION-DEG": myRound(ra._degrees,precisionAngles),
             "DECLINATION-DEG": myRound(dec.degrees,precisionAngles),
+            "DRA_COSDEC-DEG_PER_SEC":  myRound(dracosdec,precisionAngles),
+            "DDEC-DEG_PER_SEC": myRound(ddec,precisionAngles),
             "ALTITUDE-DEG": myRound(alt.degrees,precisionAngles),
             "AZIMUTH-DEG": myRound(az.degrees,precisionAngles),
             "RANGE-KM": myRound(r.km,precisionRange),
-            "TLE-DATE": date.strftime("%Y-%m-%d %H:%M:%S")} 
+            "RANGE_RATE-KM_PER_SEC": myRound(dr,precisionRange),
+            "PHASE_ANGLE-DEG": myRound(phaseangle, precisionAngles),
+            "ILLUMINATED": illuminated,
+            "TLE-DATE": dateCollected.strftime("%Y-%m-%d %H:%M:%S")} 
     
     return output  
 
 
-def icrf2radec(pos, deg=True):
+def icrf2radec(pos, unitVector=False, deg=True):
     """
-    Convert ICRF xyz to Right Ascension and Declination.
+    Convert ICRF xyz or xyz unit vector to Right Ascension and Declination.
     Geometric states on unit sphere, no light travel time/aberration correction.
     
     Parameters:
     -----------
     pos ... real, dim=[n, 3], 3D vector of unit length (ICRF)
+    unitVector ... False: pos is unit vector, False: pos is not unit vector
     deg ... True: angles in degrees, False: angles in radians
     Returns:
     --------
@@ -583,13 +538,14 @@ def icrf2radec(pos, deg=True):
     modulo=np.mod
     pix2=2.*np.pi
     
+    r = 1
     if(pos.ndim>1):
-        r=norm(pos,axis=1)
+        if not unitVector: r=norm(pos,axis=1)
         xu=pos[:,0]/r
         yu=pos[:,1]/r
         zu=pos[:,2]/r
     else:
-        r=norm(pos)
+        if not unitVector: r=norm(pos)
         xu=pos[0]/r
         yu=pos[1]/r
         zu=pos[2]/r

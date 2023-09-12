@@ -48,25 +48,34 @@ Retrieve satellite ephemeris by name with JD time step
 
     [
         {
-            "ALTITUDE-DEG":-29.78246259438,
-            "AZIMUTH-DEG":238.15143403374,
-            "DECLINATION-DEG":-41.96082320669,
-            "JULIAN_DATE":2460000.1,
-            "NAME":"STARLINK-1600",
-            "RANGE-KM":7326.701930124387,
-            "RIGHT_ASCENSION-DEG":185.13183802078,
-            "TLE-DATE": "2023-09-05 16:20:25"
+            "ALTITUDE-DEG": -83.92701127488,
+            "AZIMUTH-DEG": 74.23644169397,
+            "DDEC-DEG_PER_SEC": -0.02013597761,
+            "DECLINATION-DEG": -38.21698520948,
+            "DRA_COSDEC-DEG_PER_SEC": 0.0273538424,
+            "ILLUMINATED": true,
+            "JULIAN_DATE": 2460000.1,
+            "NAME": "STARLINK-1600",
+            "PHASE_ANGLE-DEG": 75.47849642996,
+            "RANGE-KM": 13236.231719560885,
+            "RANGE_RATE-KM_PER_SEC": 0.656362193304,
+            "RIGHT_ASCENSION-DEG": 94.32142232641,
+            "TLE-DATE": "2023-09-05 16:20:37"
         },
-        
         {
-            "ALTITUDE-DEG":-42.16061726731,
-            "AZIMUTH-DEG":84.00454809553,
-            "DECLINATION-DEG":-21.92703874377,
-            "JULIAN_DATE":2460000.2,
-            "NAME":"STARLINK-1600",
-            "RANGE-KM":9350.895389533023,
-            "RIGHT_ASCENSION-DEG":85.23319796871,
-            "TLE-DATE": "2023-09-05 16:20:25"
+            "ALTITUDE-DEG": -11.8036627367,
+            "AZIMUTH-DEG": 282.38507272541,
+            "DDEC-DEG_PER_SEC": 0.05433004435,
+            "DECLINATION-DEG": 1.75807790636,
+            "DRA_COSDEC-DEG_PER_SEC": 0.00760649602,
+            "ILLUMINATED": true,
+            "JULIAN_DATE": 2460000.2,
+            "NAME": "STARLINK-1600",
+            "PHASE_ANGLE-DEG": 53.73895247174,
+            "RANGE-KM": 4328.449597815868,
+            "RANGE_RATE-KM_PER_SEC": -6.016772535669,
+            "RIGHT_ASCENSION-DEG": 210.80053185868,
+            "TLE-DATE": "2023-09-05 16:20:37"
         }
     ]
 
@@ -113,65 +122,18 @@ Retrieve satellite ephemeris by name
 
     [
         {
-            "ALTITUDE-DEG": -83.91400834026,
-            "AZIMUTH-DEG": 74.32293067711,
-            "DECLINATION-DEG": -38.21523985508,
+            "ALTITUDE-DEG": -83.92701127488,
+            "AZIMUTH-DEG": 74.23644169397,
+            "DDEC-DEG_PER_SEC": -0.02013597761,
+            "DECLINATION-DEG": -38.21698520948,
+            "DRA_COSDEC-DEG_PER_SEC": 0.0273538424,
+            "ILLUMINATED": true,
             "JULIAN_DATE": 2460000.1,
             "NAME": "STARLINK-1600",
-            "RANGE-KM": 13235.93643713937,
-            "RIGHT_ASCENSION-DEG": 94.33852620559
-        }
-    ]
-
-Retrieve ephemeris using TLE
------------------------------------------------------------
-
-.. http:get:: /tle/
-    :noindex:
-
-    Retrieve ephemeris for a satellite given a specified TLE
-
-    .. warning::
-        This is currently not working, so examples are not correct and are just included as a placeholder.
-	
-    :query tle: (*required*) -- The Two Line Element set for the specified satellite
-    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
-    :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    :query elevation: (*optional*) -- The elevation of the observer in meters. Default is 0
-    :query jpl: (*optional*) -- If 'true', will return JPL ephemeris response. If 'false', will return Skyfield ephemeris. Default is 'false'.
-            This assumes that the TLE uses the ASCII representation for newline, which is '%0A'
-
-**Example Request**
-    .. tabs::
-
-        .. code-tab:: python
-                    
-            import requests
-            import json
-
-            url = 'http://localhost:5000/ephemeris/tle/'
-            params = {'tle': '1 44238U 19029B   20173.50000000  .00000000  00000-0  00000-0 0  9999%0A2 44238  53.0000  52.0000 0001400   0.0000  90.0000 15.05500000    10',
-                            'latitude': 40.1106,
-                            'longitude': -88.2073,
-                            'julian_date': 2460000.1}
-            r = requests.get(url, params=params)
-            print(json.dumps(r.json(), indent=4))
-
-        .. code-tab:: bash
-
-            curl -X GET "http://localhost:5000/ephemeris/tle/?tle=1 44238U 19029B   20173.50000000  .00000000  00000-0  00000-0 0  9999%0A2 44238  53.0000  52.0000 0001400   0.0000  90.0000 15.05500000    10&latitude=40.1106&longitude=-88.2073&julian_date=2460000.1" -H "accept: application/json"
-
-
-**Example Response**
-
-.. sourcecode:: json
-
-    [
-        {
-            "RIGHT_ASCENSION-DEG":185.13183802078,
-            "DECLINATION-DEG":-41.96082320669,
-            "ALTITUDE-DEG":-29.78246259438,
-            "AZIMUTH-DEG":238.15143403374
+            "PHASE_ANGLE-DEG": 75.47849642996,
+            "RANGE-KM": 13236.231719560885,
+            "RANGE_RATE-KM_PER_SEC": 0.656362193304,
+            "RIGHT_ASCENSION-DEG": 94.32142232641,
+            "TLE-DATE": "2023-09-05 16:20:37"
         }
     ]
