@@ -11,7 +11,7 @@ app = Flask(__name__)
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["1 per second"]
+    default_limits=["100 per second", "2000 per minute"]
 )
 
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}:{}/{}".format(

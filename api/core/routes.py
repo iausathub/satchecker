@@ -27,7 +27,7 @@ def internal_server_error(e):
 #Redirects user to the Center for the Protection of Dark and Quiet Sky homepage
 @app.route('/')
 @app.route('/index')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def root():
     return redirect('https://cps.iau.org/')
 
@@ -38,7 +38,7 @@ def health():
 
 
 @app.route('/ephemeris/name/')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -120,7 +120,7 @@ def get_ephemeris_by_name():
 
 
 @app.route('/ephemeris/namejdstep/')
-@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name_jdstep():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
