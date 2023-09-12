@@ -119,59 +119,7 @@ Retrieve satellite ephemeris by name
             "JULIAN_DATE": 2460000.1,
             "NAME": "STARLINK-1600",
             "RANGE-KM": 13235.93643713937,
-            "RIGHT_ASCENSION-DEG": 94.33852620559
-        }
-    ]
-
-Retrieve ephemeris using TLE
------------------------------------------------------------
-
-.. http:get:: /tle/
-    :noindex:
-
-    Retrieve ephemeris for a satellite given a specified TLE
-
-    .. warning::
-        This is currently not working, so examples are not correct and are just included as a placeholder.
-	
-    :query tle: (*required*) -- The Two Line Element set for the specified satellite
-    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
-    :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    :query elevation: (*optional*) -- The elevation of the observer in meters. Default is 0
-    :query jpl: (*optional*) -- If 'true', will return JPL ephemeris response. If 'false', will return Skyfield ephemeris. Default is 'false'.
-            This assumes that the TLE uses the ASCII representation for newline, which is '%0A'
-
-**Example Request**
-    .. tabs::
-
-        .. code-tab:: python
-                    
-            import requests
-            import json
-
-            url = 'http://localhost:5000/ephemeris/tle/'
-            params = {'tle': '1 44238U 19029B   20173.50000000  .00000000  00000-0  00000-0 0  9999%0A2 44238  53.0000  52.0000 0001400   0.0000  90.0000 15.05500000    10',
-                            'latitude': 40.1106,
-                            'longitude': -88.2073,
-                            'julian_date': 2460000.1}
-            r = requests.get(url, params=params)
-            print(json.dumps(r.json(), indent=4))
-
-        .. code-tab:: bash
-
-            curl -X GET "http://localhost:5000/ephemeris/tle/?tle=1 44238U 19029B   20173.50000000  .00000000  00000-0  00000-0 0  9999%0A2 44238  53.0000  52.0000 0001400   0.0000  90.0000 15.05500000    10&latitude=40.1106&longitude=-88.2073&julian_date=2460000.1" -H "accept: application/json"
-
-
-**Example Response**
-
-.. sourcecode:: json
-
-    [
-        {
-            "RIGHT_ASCENSION-DEG":185.13183802078,
-            "DECLINATION-DEG":-41.96082320669,
-            "ALTITUDE-DEG":-29.78246259438,
-            "AZIMUTH-DEG":238.15143403374
+            "RIGHT_ASCENSION-DEG": 94.33852620559,
+            "TLE-DATE": "2023-09-05 16:20:25"
         }
     ]
