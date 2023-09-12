@@ -16,7 +16,7 @@ def page_not_found(e):
     return 'Error 404: Page not found<br />Check your spelling to ensure you are accessing the correct endpoint.', 404
 @app.errorhandler(400)
 def missing_parameter(e):
-    return 'Error 400: Missing parameter<br />Check your request and try again.', 400
+    return 'Error 400: Missing parameter or too many results to return<br />Check your request and try again.', 400
 @app.errorhandler(429)
 def ratelimit_handler(e):
   return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
@@ -100,13 +100,22 @@ def get_ephemeris_by_name():
    
     # Converting list elements to float
     jd = [float(i) for i in jul]
+
+    if(len(jd)>1000):
+        abort(400)
    
-    # return {'jd':jd , "TLELine1":tleLine1, "TLELine2":tleLine2 } 
     # propagation and create output
     resultList = []
     for d in jd:
-        [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected)) 
+        #Right ascension RA (deg), Declination Dec (deg), dRA/dt*cos(Dec) (deg/day), dDec/dt (deg/day),
+        # Altitude (deg), Azimuth (deg), dAlt/dt (deg/day), dAz/dt (deg/day), distance (km), range rate (km/s), phaseangle(deg), illuminated (T/F)   
+        [ra, dec, dracosdec, ddec, alt, az,  
+         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
+        
+        resultList.append(jsonOutput(name, d, ra, dec, date_collected, 
+                                    dracosdec, ddec,
+                                    alt, az, 
+                                    r, dr, phaseangle, illuminated)) 
     return resultList
 
 
@@ -175,18 +184,20 @@ def get_ephemeris_by_name_jdstep():
     jd0 = float(startjd)
     jd1 = float(stopjd) 
     jds = float(stepjd)
-
-    #return {'jd0':jd0,'jd1':jd1,'jds':jds}   
   
     jd = my_arange(jd0,jd1,jds)
-    #jd = np.arange(jd0,jd1,jds)
-    #jd = [2460000.5]
-    #return {'jd':jd[3]}
+
+    if(len(jd)>1000):
+        abort(400)
 
     resultList = []
     for d in jd:
-        [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected))
+        [ra, dec, dracosdec, ddec, alt, az, 
+         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
+        resultList.append(jsonOutput(name, d, ra, dec, date_collected,
+                                    dracosdec, ddec,
+                                    alt, az, 
+                                    r, dr, phaseangle, illuminated))
     return resultList
 
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
@@ -277,7 +288,7 @@ def getTLE(targetName):
     return tleLine1, tleLine2, tle.date_collected
 
 
-def propagateSatellite(tleLine1,tleLine2,lat,lon,elevation,jd):
+def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html) 
      to propagate satellite and observer states.
      
@@ -324,9 +335,77 @@ def propagateSatellite(tleLine1,tleLine2,lat,lon,elevation,jd):
 
     difference = satellite - currPos
     topocentric = difference.at(t)
+    topocentricn = topocentric.position.km/np.linalg.norm(topocentric.position.km)
+    
     ra, dec, distance = topocentric.radec()
     alt, az, distance = topocentric.altaz()
-    return (ra,dec,alt,az,distance)
+    
+    secperday = 86400
+    dtday=dtsec/secperday
+    tplusdt = ts.ut1_jd(jd+dtday)
+    tminusdt = ts.ut1_jd(jd-dtday)
+
+    dtx2 = 2*dtsec 
+
+    sat = satellite.at(t).position.km
+
+    satn = sat/np.linalg.norm(sat)
+    satpdt = satellite.at(tplusdt).position.km
+    satmdt = satellite.at(tminusdt).position.km
+    vsat = (satpdt - satmdt)/dtx2
+    
+    sattop = difference.at(t).position.km
+    sattopr = np.linalg.norm(sattop)
+    sattopn = sattop/sattopr
+    sattoppdt = difference.at(tplusdt).position.km
+    sattopmdt = difference.at(tminusdt).position.km
+    
+    ratoppdt,dectoppdt = icrf2radec(sattoppdt)
+    ratopmdt,dectopmdt = icrf2radec(sattopmdt)
+    
+    vsattop = (sattoppdt - sattopmdt)/dtx2
+    
+    ddistance = np.dot(vsattop,sattopn)
+    rxy = np.dot(sattop[0:2],sattop[0:2])
+    dra = (sattop[1]*vsattop[0]-sattop[0]*vsattop[1])/rxy
+    ddec = vsattop[2]/np.sqrt(1-sattopn[2]*sattopn[2])
+    dracosdec = dra*np.cos(dec.radians)
+
+    dra = (ratoppdt - ratopmdt)/dtx2
+    ddec = (dectoppdt - dectopmdt)/dtx2
+    dracosdec = dra*np.cos(dec.radians)
+
+    drav, ddecv = icrf2radec(vsattop/sattopr, unitVector=True)
+    dracosdecv = drav*np.cos(dec.radians)
+    
+ 
+    eph = load('de430t.bsp')
+    earth = eph['Earth']
+    sun = eph['Sun']
+ 
+    earthp = earth.at(ts.ut1_jd(jd)).position.km
+    sunp = sun.at(ts.ut1_jd(jd)).position.km
+    earthsun = sunp - earthp
+    earthsunn = earthsun/np.linalg.norm(earthsun)
+    satsun =  sat - earthsun
+    satsunn = satsun/np.linalg.norm(satsun)
+    phase_angle = np.rad2deg(np.arccos(np.dot(satsunn,topocentricn)))
+    
+    #Is the satellite in Earth's Shadow?
+    r_parallel = np.dot(sat,earthsunn)*earthsunn
+    r_tangential = sat-r_parallel
+
+    illuminated = True
+
+    if(np.linalg.norm(r_parallel)<0):
+        #rearthkm
+        if(np.linalg.norm(r_tangential)<6370):
+            #print(np.linalg.norm(r_tangential),np.linalg.norm(r))
+            #yes the satellite is in Earth's shadow, no need to continue (except for the moon of course)
+            illuminated = False
+    
+    return (ra, dec, dracosdec, ddec, alt, az, 
+            distance, ddistance, phase_angle, illuminated)
 
 
 def my_arange(a, b, dr, decimals=11):
@@ -361,8 +440,26 @@ def my_arange(a, b, dr, decimals=11):
 
     return np.asarray(res) 
 
+def tle2ICRFstate(tleLine1,tleLine2,jd):
 
-def jsonOutput(name,time,ra,dec,alt,az,r,date,precisionAngles=11,precisionDate=12,precisionRange=12):
+    #This is the skyfield implementation
+    ts = load.timescale()
+    satellite = EarthSatellite(tleLine1,tleLine2,ts = ts)
+
+    # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
+    if jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
+    else: t = ts.ut1_jd(jd)
+
+    r =  satellite.at(t).position.km
+    # print(satellite.at(t))
+    v = satellite.at(t).velocity.km_per_s
+    return np.concatenate(np.array([r,v]))
+
+def jsonOutput(name,time,ra,dec,dateCollected,dracosdec,ddec, 
+               alt, az, 
+               #dalt, daz, 
+               r, dr, phaseangle, illuminated, 
+               precisionAngles=11,precisionDate=12,precisionRange=12):
     """
     Convert API output to JSON format
     
@@ -405,22 +502,28 @@ def jsonOutput(name,time,ra,dec,alt,az,r,date,precisionAngles=11,precisionDate=1
             "JULIAN_DATE": myRound(time,precisionDate),
             "RIGHT_ASCENSION-DEG": myRound(ra._degrees,precisionAngles),
             "DECLINATION-DEG": myRound(dec.degrees,precisionAngles),
+            "DRA_COSDEC-DEG_PER_SEC":  myRound(dracosdec,precisionAngles),
+            "DDEC-DEG_PER_SEC": myRound(ddec,precisionAngles),
             "ALTITUDE-DEG": myRound(alt.degrees,precisionAngles),
             "AZIMUTH-DEG": myRound(az.degrees,precisionAngles),
             "RANGE-KM": myRound(r.km,precisionRange),
-            "TLE-DATE": date.strftime("%Y-%m-%d %H:%M:%S")} 
+            "RANGE_RATE-KM_PER_SEC": myRound(dr,precisionRange),
+            "PHASE_ANGLE-DEG": myRound(phaseangle, precisionAngles),
+            "ILLUMINATED": illuminated,
+            "TLE-DATE": dateCollected.strftime("%Y-%m-%d %H:%M:%S")} 
     
     return output  
 
 
-def icrf2radec(pos, deg=True):
+def icrf2radec(pos, unitVector=False, deg=True):
     """
-    Convert ICRF xyz to Right Ascension and Declination.
+    Convert ICRF xyz or xyz unit vector to Right Ascension and Declination.
     Geometric states on unit sphere, no light travel time/aberration correction.
     
     Parameters:
     -----------
     pos ... real, dim=[n, 3], 3D vector of unit length (ICRF)
+    unitVector ... False: pos is unit vector, False: pos is not unit vector
     deg ... True: angles in degrees, False: angles in radians
     Returns:
     --------
@@ -435,13 +538,14 @@ def icrf2radec(pos, deg=True):
     modulo=np.mod
     pix2=2.*np.pi
     
+    r = 1
     if(pos.ndim>1):
-        r=norm(pos,axis=1)
+        if not unitVector: r=norm(pos,axis=1)
         xu=pos[:,0]/r
         yu=pos[:,1]/r
         zu=pos[:,2]/r
     else:
-        r=norm(pos)
+        if not unitVector: r=norm(pos)
         xu=pos[0]/r
         yu=pos[1]/r
         zu=pos[2]/r
