@@ -1,33 +1,44 @@
 #!/usr/bin/python3
 from flask import Flask, abort, redirect, request
+import flask_limiter
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 import numpy as np
 import requests
 from sqlalchemy import desc
-from core import app, models
+from flask_limiter.util import get_remote_address
+from core import app, models, limiter
 
 
 #Error handling
 @app.errorhandler(404)
 def page_not_found(e):
-    return 'Error 404: Page not found<br />Check your spelling to ensure you are accessing the correct endpoint', 404
+    return 'Error 404: Page not found<br />Check your spelling to ensure you are accessing the correct endpoint.', 404
 @app.errorhandler(400)
 def missing_parameter(e):
-    return 'Error: Missing parameter<br />Check your request and try again', 400
+    return 'Error 400: Missing parameter<br />Check your request and try again.', 400
+@app.errorhandler(429)
+def ratelimit_handler(e):
+  return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
+@app.errorhandler(500)
+def internal_server_error(e):
+    return "Error 500: Internal server error:<br />" + e.description, 500
 
 #Redirects user to the Center for the Protection of Dark and Quiet Sky homepage
 @app.route('/')
 @app.route('/index')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def root():
     return redirect('https://cps.iau.org/')
 
 @app.route('/health')
+@limiter.exempt
 def health():
     return {'message': 'Healthy'}
 
 
 @app.route('/ephemeris/name/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -77,7 +88,7 @@ def get_ephemeris_by_name():
     if [x for x in (name, latitude, longitude, elevation, julian_date) if x is None]:
         abort(400) 
     
-    tleLine1, tleLine2 = getTLE(name)
+    tleLine1, tleLine2, date_collected = getTLE(name)
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
     lat = float(latitude)
@@ -95,11 +106,12 @@ def get_ephemeris_by_name():
     resultList = []
     for d in jd:
         [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r)) 
+        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected)) 
     return resultList
 
 
 @app.route('/ephemeris/namejdstep/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name_jdstep():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -153,7 +165,7 @@ def get_ephemeris_by_name_jdstep():
     if [x for x in (name, latitude, longitude, elevation, startjd, stopjd, stepjd) if x is None]:
         abort(400) 
 
-    tleLine1, tleLine2 = getTLE(name)
+    tleLine1, tleLine2, date_collected = getTLE(name)
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
     lat = float(latitude)
@@ -174,11 +186,12 @@ def get_ephemeris_by_name_jdstep():
     resultList = []
     for d in jd:
         [ra,dec,alt,az,r] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
-        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r))
+        resultList.append(jsonOutput(name,d,ra,dec,alt,az,r,date_collected))
     return resultList
 
 
 @app.route('/ephemeris/tle/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def read_tle_string():
     '''
     Returns the Right Ascension and Declination relative to the observer's coordinates
@@ -281,6 +294,7 @@ def read_tle_string():
 
 
 @app.route('/ephemeris/tle_file/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def read_tle_from_file():
     '''
     Returns dictionary of relative Right Ascension and Declination for all
@@ -319,6 +333,7 @@ def read_tle_from_file():
 
 
 @app.route('/ephemeris/pos/')
+@limiter.limit("1 per second", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris():
     '''
     Returns the geocentric Right Ascension and Declination of the orbiting 
@@ -407,7 +422,7 @@ def getTLE(targetName):
     tleLine1 = tle.tle_line1
     tleLine2 = tle.tle_line2
 
-    return tleLine1, tleLine2
+    return tleLine1, tleLine2, tle.date_collected
 
 
 def propagateSatellite(tleLine1,tleLine2,lat,lon,elevation,jd):
@@ -495,7 +510,7 @@ def my_arange(a, b, dr, decimals=11):
     return np.asarray(res) 
 
 
-def jsonOutput(name,time,ra,dec,alt,az,r,precisionAngles=11,precisionDate=12,precisionRange=12):
+def jsonOutput(name,time,ra,dec,alt,az,r,date,precisionAngles=11,precisionDate=12,precisionRange=12):
     """
     Convert API output to JSON format
     
@@ -540,7 +555,8 @@ def jsonOutput(name,time,ra,dec,alt,az,r,precisionAngles=11,precisionDate=12,pre
             "DECLINATION-DEG": myRound(dec.degrees,precisionAngles),
             "ALTITUDE-DEG": myRound(alt.degrees,precisionAngles),
             "AZIMUTH-DEG": myRound(az.degrees,precisionAngles),
-            "RANGE-KM": myRound(r.km,precisionRange)} 
+            "RANGE-KM": myRound(r.km,precisionRange),
+            "TLE-DATE": date.strftime("%Y-%m-%d %H:%M:%S")} 
     
     return output  
 
@@ -590,3 +606,8 @@ def icrf2radec(pos, deg=True):
     
     return ra, dec
 
+def get_forwarded_address(request):
+    forwarded_header = request.headers.get("X-Forwarded-For")
+    if forwarded_header:                                  
+        return request.headers.getlist("X-Forwarded-For")[0]
+    return get_remote_address

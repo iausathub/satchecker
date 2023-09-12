@@ -54,7 +54,8 @@ Retrieve satellite ephemeris by name with JD time step
             "JULIAN_DATE":2460000.1,
             "NAME":"STARLINK-1600",
             "RANGE-KM":7326.701930124387,
-            "RIGHT_ASCENSION-DEG":185.13183802078
+            "RIGHT_ASCENSION-DEG":185.13183802078,
+            "TLE-DATE": "2023-09-05 16:20:25"
         },
         
         {
@@ -64,7 +65,8 @@ Retrieve satellite ephemeris by name with JD time step
             "JULIAN_DATE":2460000.2,
             "NAME":"STARLINK-1600",
             "RANGE-KM":9350.895389533023,
-            "RIGHT_ASCENSION-DEG":85.23319796871
+            "RIGHT_ASCENSION-DEG":85.23319796871,
+            "TLE-DATE": "2023-09-05 16:20:25"
         }
     ]
 
