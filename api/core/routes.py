@@ -7,7 +7,9 @@ import numpy as np
 import requests
 from sqlalchemy import desc
 from flask_limiter.util import get_remote_address
-from core import app, models, limiter
+from core import app, limiter
+from core.database import models
+from core.extensions import db
 
 
 #Error handling
@@ -88,7 +90,7 @@ def get_ephemeris_by_name():
     if [x for x in (name, latitude, longitude, elevation, julian_date) if x is None]:
         abort(400) 
     
-    tleLine1, tleLine2, date_collected = getTLE(name)
+    tleLine1, tleLine2, date_collected, name = get_TLE_by_name(name)
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
     lat = float(latitude)
@@ -174,7 +176,7 @@ def get_ephemeris_by_name_jdstep():
     if [x for x in (name, latitude, longitude, elevation, startjd, stopjd, stepjd) if x is None]:
         abort(400) 
 
-    tleLine1, tleLine2, date_collected = getTLE(name)
+    tleLine1, tleLine2, date_collected, name = get_TLE_by_name(name)
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
     lat = float(latitude)
@@ -198,6 +200,87 @@ def get_ephemeris_by_name_jdstep():
                                     dracosdec, ddec,
                                     alt, az, 
                                     r, dr, phaseangle, illuminated))
+    return resultList
+
+@app.route('/ephemeris/catalog_number/')
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
+def get_ephemeris_by_catalog_number():
+    '''
+    Returns the Right Ascension and Declination relative to the observer's coordinates
+    for the given satellite's catalog number using the Two Line Element Data Set at inputted Julian Date.
+
+    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+
+    Parameters
+    ---------
+    catalog_number: 'str'
+        Satellite Catalog Number of object
+    latitude: 'float'
+        The observers latitude coordinate (positive value represents north, negative value represents south)
+    longitude: 'float'
+        The observers longitude coordinate (positive value represents east, negatie value represents west)
+    elevation: 'float'
+        Elevation in meters
+    julian_date: 'float'
+        UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+
+    Returns
+    -------
+    Name: 'str'
+        The name of the query object
+    JulianDate: 'float' or list of 'float'
+        UT1 Universal Time Julian Date. 
+    Right Ascension: 'float'
+        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
+    Declination: 'float'
+        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
+    Altitude: 'float'
+        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
+    Azimuth: 'float'
+        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
+    Range: 'float'
+        Range to object in km
+    '''
+
+    
+    catalog_number = request.args.get('catalog_number')
+    latitude = request.args.get('latitude')
+    longitude = request.args.get('longitude')
+    elevation = request.args.get('elevation')
+    julian_date = request.args.get('julian_date')
+
+    #check for mandatory parameters
+    if [x for x in (catalog_number, latitude, longitude, elevation, julian_date) if x is None]:
+        abort(400) 
+    
+    tleLine1, tleLine2, date_collected, name = get_TLE_by_catalog_number(catalog_number)
+
+    #Cast the latitude, longitude, and jd to floats (request parses as a string)
+    lat = float(latitude)
+    lon = float(longitude)
+    ele = float(elevation)
+    
+    # Converting string to list
+    jul = str(julian_date).replace("%20", ' ').strip('][').split(', ')
+   
+    # Converting list elements to float
+    jd = [float(i) for i in jul]
+
+    if(len(jd)>1000):
+        abort(400)
+   
+    # propagation and create output
+    resultList = []
+    for d in jd:
+        #Right ascension RA (deg), Declination Dec (deg), dRA/dt*cos(Dec) (deg/day), dDec/dt (deg/day),
+        # Altitude (deg), Azimuth (deg), dAlt/dt (deg/day), dAz/dt (deg/day), distance (km), range rate (km/s), phaseangle(deg), illuminated (T/F)   
+        [ra, dec, dracosdec, ddec, alt, az,  
+         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
+        
+        resultList.append(jsonOutput(name, d, ra, dec, date_collected, 
+                                    dracosdec, ddec,
+                                    alt, az, 
+                                    r, dr, phaseangle, illuminated)) 
     return resultList
 
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
@@ -240,7 +323,7 @@ def get_ephemeris():
         'Declination': dec
     }
 
-def getTLE(targetName):
+def get_TLE_by_name(targetName):
     """
     Query Two Line Element (orbital element) API and return TLE lines for propagation
     
@@ -248,9 +331,32 @@ def getTLE(targetName):
     ------------
     targetName: 'str'
         Name of satellite as displayed in TLE file
-    tleapi: 'str'
-        URL of TLE API
-        
+     
+    Returns:
+    --------
+    tleLine1: 'str'
+        TLE line 1
+    tleLine2: 'str'
+        TLE line 2
+    """
+
+    #use the supplemental TLE if it is the most recently collected one, otherwise use the general one
+    tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
+    
+    tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
+    
+    return return_TLE(tle_sup, tle_gp)
+
+def get_TLE_by_catalog_number(targetNumber):
+    """
+    Query Two Line Element (orbital element) API and return TLE lines for propagation
+    
+    Paremeters:
+    ------------
+    targetNumber: 'str'
+        Catalog number of satellite as displayed in TLE file   
         
     Returns:
     --------
@@ -260,33 +366,32 @@ def getTLE(targetName):
         TLE line 2
     """
 
-    # uncomment if json output is required
-    #tleapiResult=requests.get(f'{tleapi}{targetName}&FORMAT=JSON').json()	    
-
     #use the supplemental TLE if it is the most recently collected one, otherwise use the general one
-    tle_sup = models.TLE.query.filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
+    tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                        .filter_by(sat_number=targetNumber).order_by(desc('date_collected')).first()
     
+    tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                        .filter_by(sat_number=targetNumber).order_by(desc('date_collected')).first()
+    
+    return return_TLE(tle_sup, tle_gp)
 
-    
-    tle_gp = models.TLE.query.filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
-    
+
+def return_TLE(tle_sup, tle_gp):
     tle = None
+    satellite = None
     if(tle_sup is None and tle_gp is None):
         abort(500)
     elif(tle_sup is None and tle_gp is not None):
-        tle = tle_gp
+        tle = tle_gp[0]
+        satellite = tle_gp[1]
     else:
-        tle = tle_sup if tle_sup.date_collected > tle_gp.date_collected else tle_gp
-        
+        tle, satellite = (tle_sup[0], tle_sup[1]) if tle_sup.date_collected > tle_gp.date_collected else (tle_gp[0], tle_gp[1])        
 
     #Retrieve the two lines
     tleLine1 = tle.tle_line1
     tleLine2 = tle.tle_line2
 
-    return tleLine1, tleLine2, tle.date_collected
-
+    return tleLine1, tleLine2, tle.date_collected, satellite.sat_name
 
 def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html) 
