@@ -24,8 +24,6 @@ from skyfield.api import EarthSatellite, load
 def main():
 
     #define the logging file
-    logging.basicConfig(filename=os.path.join(os.getcwd(),'SAVE_TLE_LOGFILE.txt'), encoding='utf-8', level=logging.INFO)    
-
     parser = argparse.ArgumentParser(description='Retrieve TLEs from celestrak.com')
     parser.add_argument('-m', '--mode', 
                         type=str, 

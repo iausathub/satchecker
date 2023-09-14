@@ -2,12 +2,18 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import logging
 from core import utils
 from core.extensions import db
 
-#db_login = utils.get_db_login()
+db_login = utils.get_db_login()
 
 app = Flask(__name__)
+
+if __name__ != '__main__':
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
 
 limiter = Limiter(
     app=app,
@@ -16,9 +22,9 @@ limiter = Limiter(
 )
 
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}:{}/{}".format(
-    #db_login[0], db_login[1], db_login[2], db_login[3], db_login[4]) 
+    db_login[0], db_login[1], db_login[2], db_login[3], db_login[4]) 
     #test
-    "postgres", "sat123", "localhost", "5432", "postgres") 
+    #"postgres", "sat123", "localhost", "5432", "postgres") 
 db.init_app(app)
 
 from core import routes

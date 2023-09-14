@@ -88,6 +88,7 @@ def get_ephemeris_by_name():
 
     #check for mandatory parameters
     if [x for x in (name, latitude, longitude, elevation, julian_date) if x is None]:
+
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
@@ -102,6 +103,7 @@ def get_ephemeris_by_name():
     jd = [float(i) for i in jul]
 
     if(len(jd)>1000):
+        app.logger.info("Too many results requested")
         abort(400)
     return create_result_list(lat, lon, ele, jd, name, False)
 
@@ -311,6 +313,7 @@ def get_ephemeris_by_catalog_number_jdstep():
     jd = my_arange(jd0,jd1,jds)
 
     if(len(jd)>1000):
+        app.logger.info("Too many results requested")
         abort(400)
 
     return create_result_list(lat, lon, ele, jd, catalog, True)
