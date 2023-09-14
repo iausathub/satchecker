@@ -6,8 +6,6 @@ import logging
 from core import utils
 from core.extensions import db
 
-db_login = utils.get_db_login()
-
 app = Flask(__name__)
 
 if __name__ != '__main__':
@@ -21,10 +19,10 @@ limiter = Limiter(
     default_limits=["100 per second", "2000 per minute"]
 )
 
+db_login = utils.get_db_login()
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}:{}/{}".format(
     db_login[0], db_login[1], db_login[2], db_login[3], db_login[4]) 
-    #test
-    #"postgres", "sat123", "localhost", "5432", "postgres") 
+   
 db.init_app(app)
 
 from core import routes
