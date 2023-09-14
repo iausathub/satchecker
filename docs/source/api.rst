@@ -141,12 +141,12 @@ Retrieve satellite ephemeris by name
 Retrieve satellite ephemeris by catalog number
 -----------------------------------------------------------
 
-.. http:get:: /catalog_number/
+.. http:get:: /catalog-number/
     :noindex:
-
+ 
     Retrieve ephemeris for specified satellite
 	
-    :query catalog_number: (*required*) -- Satellite catalog number (NORAD ID)
+    :query catalog: (*required*) -- Satellite catalog number (NORAD ID)
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
@@ -160,8 +160,8 @@ Retrieve satellite ephemeris by catalog number
             import requests
             import json
 
-            url = 'http://localhost:5000/ephemeris/catalog_number/'
-            params = {'catalog_number': '25544',
+            url = 'http://localhost:5000/ephemeris/catalog-number/'
+            params = {'catalog': '25544',
                             'latitude': 40.1106,
                             'longitude': -88.2073,
                             'elevation': 222,
@@ -171,7 +171,7 @@ Retrieve satellite ephemeris by catalog number
 
         .. code-tab:: bash
 
-            curl -X GET "http://localhost:5000/ephemeris/catalog_number/?catalog_number=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1" -H "accept: application/json"
+            curl -X GET "http://localhost:5000/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1" -H "accept: application/json"
 
 
 **Example Response**
@@ -192,6 +192,84 @@ Retrieve satellite ephemeris by catalog number
             "RANGE-KM": 11477.324789805665,
             "RANGE_RATE-KM_PER_SEC": -3.431545486776,
             "RIGHT_ASCENSION-DEG": 134.21602941437,
+            "TLE-DATE": "2023-09-05 16:21:29"
+        }
+    ]
+
+
+Retrieve satellite ephemeris by catalog number with JD time step
+-----------------------------------------------------------------
+
+.. http:get:: /catalog-number-jdstep/
+    :noindex:
+ 
+    Retrieve ephemeris for specified satellite
+	
+    :query catalog: (*required*) -- Satellite catalog number (NORAD ID)
+    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
+    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+    :query startjd: (*required*) -- UT1 Julian Start Date
+    :query stopjd: (*required*) -- UT1 Julian End Date (not included)
+    :query stepjd: (*required*) -- UT1 time step in Julian Days for ephemeris generation
+
+**Example Request**
+    .. tabs::
+
+        .. code-tab:: python
+                    
+            import requests
+            import json
+
+            url = 'http://localhost:5000/ephemeris/catalog-number-jdstep/'
+            params = {'catalog': '25544',
+                            'latitude': 40.1106,
+                            'longitude': -88.2073,
+                            'elevation': 222,
+                            'startjd': 2460000.1,
+                            'stopjd': 2460000.3,
+                            'stepjd': 0.1}
+            r = requests.get(url, params=params)
+            print(json.dumps(r.json(), indent=4))
+
+        .. code-tab:: bash
+
+            curl -X GET "http://localhost:5000/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1" -H "accept: application/json"
+
+
+**Example Response**
+
+.. sourcecode:: json
+
+    [
+        {
+            "ALTITUDE-DEG": -59.42992120557,
+            "AZIMUTH-DEG": 288.04620638774,
+            "DDEC-DEG_PER_SEC": 0.02460147584,
+            "DECLINATION-DEG": -25.64785198072,
+            "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
+            "ILLUMINATED": true,
+            "JULIAN_DATE": 2460000.1,
+            "NAME": "ISS (ZARYA)",
+            "PHASE_ANGLE-DEG": 41.69217956408,
+            "RANGE-KM": 11477.324789805665,
+            "RANGE_RATE-KM_PER_SEC": -3.431545486776,
+            "RIGHT_ASCENSION-DEG": 134.21602941437,
+            "TLE-DATE": "2023-09-05 16:21:29"
+        },
+        {
+            "ALTITUDE-DEG": -22.86735389391,
+            "AZIMUTH-DEG": 142.33553116822,
+            "DDEC-DEG_PER_SEC": -0.01420767889,
+            "DECLINATION-DEG": -54.03105192755,
+            "DRA_COSDEC-DEG_PER_SEC": 0.03650863588,
+            "ILLUMINATED": true,
+            "JULIAN_DATE": 2460000.2,
+            "NAME": "ISS (ZARYA)",
+            "PHASE_ANGLE-DEG": 118.54352293428,
+            "RANGE-KM": 5908.636912798003,
+            "RANGE_RATE-KM_PER_SEC": 6.290602878885,
+            "RIGHT_ASCENSION-DEG": 30.83552022903,
             "TLE-DATE": "2023-09-05 16:21:29"
         }
     ]
