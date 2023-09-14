@@ -395,10 +395,10 @@ def get_TLE_by_name(targetName):
 
     #use the supplemental TLE if it is the most recently collected one, otherwise use the general one
     tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
+                        .filter_by(sat_name=targetName).order_by(desc(models.TLE.date_collected)).first()
     
     tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_name=targetName).order_by(desc('date_collected')).first()
+                        .filter_by(sat_name=targetName).order_by(desc(models.TLE.date_collected)).first()
     
     return return_TLE(tle_sup, tle_gp)
 
@@ -421,10 +421,10 @@ def get_TLE_by_catalog_number(targetNumber):
 
     #use the supplemental TLE if it is the most recently collected one, otherwise use the general one
     tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_number=targetNumber).order_by(desc('date_collected')).first()
+                        .filter_by(sat_number=targetNumber).order_by(desc(models.TLE.date_collected)).first()
     
     tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_number=targetNumber).order_by(desc('date_collected')).first()
+                        .filter_by(sat_number=targetNumber).order_by(desc(models.TLE.date_collected)).first()
     
     return return_TLE(tle_sup, tle_gp)
 
@@ -438,7 +438,7 @@ def return_TLE(tle_sup, tle_gp):
         tle = tle_gp[0]
         satellite = tle_gp[1]
     else:
-        tle, satellite = (tle_sup[0], tle_sup[1]) if tle_sup.date_collected > tle_gp.date_collected else (tle_gp[0], tle_gp[1])        
+        tle, satellite = (tle_sup[0], tle_sup[1]) if tle_sup[0].date_collected > tle_gp[0].date_collected else (tle_gp[0], tle_gp[1])        
 
     #Retrieve the two lines
     tleLine1 = tle.tle_line1
