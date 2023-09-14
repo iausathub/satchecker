@@ -137,3 +137,61 @@ Retrieve satellite ephemeris by name
             "TLE-DATE": "2023-09-05 16:20:37"
         }
     ]
+
+Retrieve satellite ephemeris by catalog number
+-----------------------------------------------------------
+
+.. http:get:: /catalog_number/
+    :noindex:
+
+    Retrieve ephemeris for specified satellite
+	
+    :query catalog_number: (*required*) -- Satellite catalog number (NORAD ID)
+    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
+    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+    :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+
+**Example Request**
+    .. tabs::
+
+        .. code-tab:: python
+                    
+            import requests
+            import json
+
+            url = 'http://localhost:5000/ephemeris/catalog_number/'
+            params = {'catalog_number': '25544',
+                            'latitude': 40.1106,
+                            'longitude': -88.2073,
+                            'elevation': 222,
+                            'julian_date': 2460000.1}
+            r = requests.get(url, params=params)
+            print(json.dumps(r.json(), indent=4))
+
+        .. code-tab:: bash
+
+            curl -X GET "http://localhost:5000/ephemeris/catalog_number/?catalog_number=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1" -H "accept: application/json"
+
+
+**Example Response**
+
+.. sourcecode:: json
+
+    [
+        {
+            "ALTITUDE-DEG": -59.42992120557,
+            "AZIMUTH-DEG": 288.04620638774,
+            "DDEC-DEG_PER_SEC": 0.02460147584,
+            "DECLINATION-DEG": -25.64785198072,
+            "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
+            "ILLUMINATED": true,
+            "JULIAN_DATE": 2460000.1,
+            "NAME": "ISS (ZARYA)",
+            "PHASE_ANGLE-DEG": 41.69217956408,
+            "RANGE-KM": 11477.324789805665,
+            "RANGE_RATE-KM_PER_SEC": -3.431545486776,
+            "RIGHT_ASCENSION-DEG": 134.21602941437,
+            "TLE-DATE": "2023-09-05 16:21:29"
+        }
+    ]
