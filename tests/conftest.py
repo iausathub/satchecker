@@ -8,6 +8,7 @@ def app():
     app = satchecker.app
     app.config.update({
         "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": "sqlite://"
     })
 
     yield app
