@@ -18,7 +18,7 @@ def page_not_found(e):
     return 'Error 404: Page not found<br />Check your spelling to ensure you are accessing the correct endpoint.', 404
 @app.errorhandler(400)
 def missing_parameter(e):
-    return 'Error 400: Missing parameter or too many results to return<br />Check your request and try again.', 400
+    return 'Error 400: Incorrect parameters or too many results to return<br />Check your request and try again.', 400
 @app.errorhandler(429)
 def ratelimit_handler(e):
   return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
@@ -31,7 +31,7 @@ def internal_server_error(e):
 @app.route('/index')
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def root():
-    return redirect('https://cps.iau.org/')
+    return redirect('https://satchecker.readthedocs.io/en/latest/')
 
 @app.route('/health')
 @limiter.exempt
@@ -321,7 +321,8 @@ def get_ephemeris_by_catalog_number_jdstep():
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
 
 def create_result_list(lat, lon, ele, jd, identifier, use_catalog_number):
-    tleLine1, tleLine2, date_collected, name = get_TLE_by_catalog_number(identifier) if use_catalog_number else get_TLE_by_name(identifier)
+    recent_TLE_sup, recent_TLE_gp = get_TLE_by_catalog_number(identifier) if use_catalog_number else get_TLE_by_name(identifier)
+    tleLine1, tleLine2, date_collected, name = get_recent_TLE(recent_TLE_sup, recent_TLE_gp)
 
     # propagation and create output
     resultList = []
@@ -400,7 +401,7 @@ def get_TLE_by_name(targetName):
     tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
                         .filter_by(sat_name=targetName).order_by(desc(models.TLE.date_collected)).first()
     
-    return return_TLE(tle_sup, tle_gp)
+    return tle_sup, tle_gp
 
 def get_TLE_by_catalog_number(targetNumber):
     """
@@ -426,10 +427,10 @@ def get_TLE_by_catalog_number(targetNumber):
     tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
                         .filter_by(sat_number=targetNumber).order_by(desc(models.TLE.date_collected)).first()
     
-    return return_TLE(tle_sup, tle_gp)
+    return tle_sup, tle_gp
 
 
-def return_TLE(tle_sup, tle_gp):
+def get_recent_TLE(tle_sup, tle_gp):
     tle = None
     satellite = None
     if(tle_sup is None and tle_gp is None):
@@ -437,6 +438,9 @@ def return_TLE(tle_sup, tle_gp):
     elif(tle_sup is None and tle_gp is not None):
         tle = tle_gp[0]
         satellite = tle_gp[1]
+    elif(tle_sup is not None and tle_gp is None):
+        tle = tle_sup[0]
+        satellite = tle_sup[1]
     else:
         tle, satellite = (tle_sup[0], tle_sup[1]) if tle_sup[0].date_collected > tle_gp[0].date_collected else (tle_gp[0], tle_gp[1])        
 
