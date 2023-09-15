@@ -1,7 +1,7 @@
 import pytest
 import datetime
 import api.core
-import api.core.database.models
+
 
 def test_get_ephemeris_by_name(client, mocker):
     mocker.patch.object(api.core.routes,"get_recent_TLE", return_value=get_mock_TLE())
