@@ -8,11 +8,15 @@ def get_db_login():
     region_name = "us-east-1"
 
     # Create a Secrets Manager client
-    session = boto3.session.Session()
-    client = session.client(
-        service_name='secretsmanager',
-        region_name=region_name
-    )
+    try:
+        session = boto3.session.Session()
+        client = session.client(
+            service_name='secretsmanager',
+            region_name=region_name
+        )
+    except Exception as e:
+        username, password, host, port, dbname = "postgres", "sat123", "localhost", "5432", "postgres"
+        return[username, password, host, port, dbname]
 
     get_secret_value_response = None
     try:
