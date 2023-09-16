@@ -395,12 +395,14 @@ def get_TLE_by_name(targetName):
     """
 
     #use the supplemental TLE if it is the most recently collected one, otherwise use the general one
-    tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+    try:
+        tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
                         .filter_by(sat_name=targetName).order_by(desc(models.TLE.date_collected)).first()
     
-    tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+        tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
                         .filter_by(sat_name=targetName).order_by(desc(models.TLE.date_collected)).first()
-    
+    except:
+        return None, None
     return tle_sup, tle_gp
 
 def get_TLE_by_catalog_number(targetNumber):
@@ -421,12 +423,15 @@ def get_TLE_by_catalog_number(targetNumber):
     """
 
     #use the supplemental TLE if it is the most recently collected one, otherwise use the general one
-    tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_number=targetNumber).order_by(desc(models.TLE.date_collected)).first()
-    
-    tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
-                        .filter_by(sat_number=targetNumber).order_by(desc(models.TLE.date_collected)).first()
-    
+    try:
+        tle_sup = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='true').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                            .filter_by(sat_number=targetNumber).order_by(desc(models.TLE.date_collected)).first()
+        
+        tle_gp = db.session.query(models.TLE, models.Satellite).filter_by(is_supplemental='false').join(models.Satellite, models.TLE.sat_id == models.Satellite.id)\
+                            .filter_by(sat_number=targetNumber).order_by(desc(models.TLE.date_collected)).first()
+    except:
+        return None, None
+     
     return tle_sup, tle_gp
 
 
