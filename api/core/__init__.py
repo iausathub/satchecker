@@ -6,7 +6,18 @@ import logging
 from core import utils
 from core.extensions import db
 
-app = Flask(__name__)
+def create_app():
+
+    app = Flask(__name__)
+
+    db_login = utils.get_db_login()
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}:{}/{}".format(
+        db_login[0], db_login[1], db_login[2], db_login[3], db_login[4]) 
+
+    return app
+
+app = create_app()
 
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -19,10 +30,6 @@ limiter = Limiter(
     default_limits=["100 per second", "2000 per minute"]
 )
 
-db_login = utils.get_db_login()
-app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://{}:{}@{}:{}/{}".format(
-    db_login[0], db_login[1], db_login[2], db_login[3], db_login[4]) 
-   
 db.init_app(app)
 
 from core import routes
