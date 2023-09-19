@@ -13,9 +13,9 @@ Retrieve satellite ephemeris by name with JD time step
    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
-   :query jdstart: (*required*) -- UT1 Julian Start Date
-   :query jdstop: (*required*) -- UT1 Julian End Date (not included)
-   :query jdstep: (*required*) -- UT1 time step in Julian Days for ephemeris generation
+   :query startjd: (*required*) -- UT1 Julian Start Date
+   :query stopjd: (*required*) -- UT1 Julian End Date (not included)
+   :query stepjd: (*required*) -- UT1 time step in Julian Days for ephemeris generation
 
 
 **Example Request**
