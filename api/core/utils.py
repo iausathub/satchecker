@@ -19,10 +19,11 @@ def get_db_login():
         get_secret_value_response = client.get_secret_value(
             SecretId=secret_name
         )
-    except ClientError as e:
+    except Exception as e:
         # For a list of exceptions thrown, see
         # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-        raise e
+        username, password, host, port, dbname = "postgres", "sat123", "localhost", "5432", "postgres"
+        return[username, password, host, port, dbname]
 
     if(get_secret_value_response is None):
         raise Exception("No secret value response")

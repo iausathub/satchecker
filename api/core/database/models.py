@@ -26,7 +26,7 @@ class TLE(db.Model):
     tle_line2 = db.Column(db.String())
     is_supplemental = db.Column(db.Boolean())
     epoch = db.Column(db.DateTime())
-    satellite = db.relationship("Satellite",lazy='joined')
+    tle_satellite = db.relationship("database.models.Satellite",lazy='joined')
 
 
     def __init__(self, sat_id, date_collected, tle_line1, tle_line2, is_supplemental, epoch):
@@ -38,4 +38,4 @@ class TLE(db.Model):
         self.epoch = epoch
 
     def __repr__(self):
-        return f"<TLE {self.satellite}>"
+        return f"<TLE {self.tle_satellite}>"
