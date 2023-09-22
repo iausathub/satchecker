@@ -3,6 +3,7 @@ from flask import Flask, abort, redirect, request
 import flask_limiter
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
+from astropy.time import Time, TimeDelta
 import numpy as np
 import requests
 from sqlalchemy import desc
@@ -97,15 +98,12 @@ def get_ephemeris_by_name():
     ele = float(elevation)
     
     # Converting string to list
-    jul = str(julian_date).replace("%20", ' ').strip('][').split(', ')
-   
-    # Converting list elements to float
-    jd = [float(i) for i in jul]
+    try:
+        jd = Time(julian_date, format='jd', scale='ut1')
+    except:
+        abort(500)
 
-    if(len(jd)>1000):
-        app.logger.info("Too many results requested")
-        abort(400)
-    return create_result_list(lat, lon, ele, jd, name, False)
+    return create_result_list(lat, lon, ele, [jd], name, False)
 
 
 @app.route('/ephemeris/namejdstep/')
@@ -172,7 +170,7 @@ def get_ephemeris_by_name_jdstep():
     jd1 = float(stopjd) 
     jds = float(stepjd)
   
-    jd = my_arange(jd0,jd1,jds)
+    jd = jd_arange(jd0,jd1,jds)
 
     if(len(jd)>1000):
         abort(400)
@@ -236,15 +234,12 @@ def get_ephemeris_by_catalog_number():
     ele = float(elevation)
     
     # Converting string to list
-    jul = str(julian_date).replace("%20", ' ').strip('][').split(', ')
-   
-    # Converting list elements to float
-    jd = [float(i) for i in jul]
+    try:
+        jd = Time(julian_date, format='jd', scale='ut1')
+    except:
+        abort(500)
 
-    if(len(jd)>1000):
-        abort(400)
-   
-    return create_result_list(lat, lon, ele, jd, catalog, True)
+    return create_result_list(lat, lon, ele, [jd], catalog, True)
 
 @app.route('/ephemeris/catalog-number-jdstep/')
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
@@ -310,7 +305,7 @@ def get_ephemeris_by_catalog_number_jdstep():
     jd1 = float(stopjd) 
     jds = float(stepjd)
   
-    jd = my_arange(jd0,jd1,jds)
+    jd = jd_arange(jd0,jd1,jds)
 
     if(len(jd)>1000):
         app.logger.info("Too many results requested")
@@ -332,7 +327,7 @@ def create_result_list(lat, lon, ele, jd, identifier, use_catalog_number):
         [ra, dec, dracosdec, ddec, alt, az,  
          r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
         
-        resultList.append(jsonOutput(name, d, ra, dec, date_collected, 
+        resultList.append(jsonOutput(name, d.jd, ra, dec, date_collected, 
                                     dracosdec, ddec,
                                     alt, az, 
                                     r, dr, phaseangle, illuminated)) 
@@ -497,8 +492,9 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     #Get current position and find topocentric ra and dec
     currPos = wgs84.latlon(lat, lon, elevation)
     # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
-    if jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
-    else: t = ts.ut1_jd(jd)
+    # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses astropy.Time.TT.jd instead of UT1
+    if jd.jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
+    else: t = ts.ut1_jd(jd.jd)
 
     difference = satellite - currPos
     topocentric = difference.at(t)
@@ -507,10 +503,9 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     ra, dec, distance = topocentric.radec()
     alt, az, distance = topocentric.altaz()
     
-    secperday = 86400
-    dtday=dtsec/secperday
-    tplusdt = ts.ut1_jd(jd+dtday)
-    tminusdt = ts.ut1_jd(jd-dtday)
+    dtday = TimeDelta(1, format='sec') 
+    tplusdt = ts.ut1_jd((jd + dtday).jd)
+    tminusdt = ts.ut1_jd((jd - dtday).jd)
 
     dtx2 = 2*dtsec 
 
@@ -550,8 +545,8 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     earth = eph['Earth']
     sun = eph['Sun']
  
-    earthp = earth.at(ts.ut1_jd(jd)).position.km
-    sunp = sun.at(ts.ut1_jd(jd)).position.km
+    earthp = earth.at(t).position.km
+    sunp = sun.at(t).position.km
     earthsun = sunp - earthp
     earthsunn = earthsun/np.linalg.norm(earthsun)
     satsun =  sat - earthsun
@@ -575,7 +570,7 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
             distance, ddistance, phase_angle, illuminated)
 
 
-def my_arange(a, b, dr, decimals=11):
+def jd_arange(a, b, dr, decimals=11):
     """
     Better arange function that compensates for round-off errors.
     
@@ -604,8 +599,14 @@ def my_arange(a, b, dr, decimals=11):
             break   
         res.append(tmp)
         k+=1
+    dates = np.asarray(res)
 
-    return np.asarray(res) 
+    try:
+        results = Time(dates, format='jd', scale='ut1')
+    except:
+        abort(500) 
+    
+    return results 
 
 def tle2ICRFstate(tleLine1,tleLine2,jd):
 
@@ -615,7 +616,7 @@ def tle2ICRFstate(tleLine1,tleLine2,jd):
 
     # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
     if jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
-    else: t = ts.ut1_jd(jd)
+    else: t = ts.ut1_jd(jd.jd)
 
     r =  satellite.at(t).position.km
     # print(satellite.at(t))
