@@ -1,11 +1,11 @@
 #!/usr/bin/python3
-from flask import Flask, abort, redirect, request
-import flask_limiter
+from flask import abort, redirect, request
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
 from astropy.time import Time, TimeDelta
+from astropy.coordinates import EarthLocation
+import astropy.units as u
 import numpy as np
-import requests
 from sqlalchemy import desc
 from flask_limiter.util import get_remote_address
 from core import app, limiter
@@ -93,9 +93,7 @@ def get_ephemeris_by_name():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
+    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
     
     # Converting string to list
     try:
@@ -103,7 +101,7 @@ def get_ephemeris_by_name():
     except:
         abort(500)
 
-    return create_result_list(lat, lon, ele, [jd], name, False)
+    return create_result_list(location, [jd], name, False)
 
 
 @app.route('/ephemeris/namejdstep/')
@@ -162,9 +160,7 @@ def get_ephemeris_by_name_jdstep():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
+    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
     
     jd0 = float(startjd)
     jd1 = float(stopjd) 
@@ -175,7 +171,7 @@ def get_ephemeris_by_name_jdstep():
     if(len(jd)>1000):
         abort(400)
 
-    return create_result_list(lat, lon, ele, jd, name, False)
+    return create_result_list(location, jd, name, False)
 
 @app.route('/ephemeris/catalog-number/')
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
@@ -229,9 +225,7 @@ def get_ephemeris_by_catalog_number():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
+    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
     
     # Converting string to list
     try:
@@ -239,7 +233,7 @@ def get_ephemeris_by_catalog_number():
     except:
         abort(500)
 
-    return create_result_list(lat, lon, ele, [jd], catalog, True)
+    return create_result_list(location, [jd], catalog, True)
 
 @app.route('/ephemeris/catalog-number-jdstep/')
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
@@ -297,9 +291,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
+    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
     
     jd0 = float(startjd)
     jd1 = float(stopjd) 
@@ -311,11 +303,11 @@ def get_ephemeris_by_catalog_number_jdstep():
         app.logger.info("Too many results requested")
         abort(400)
 
-    return create_result_list(lat, lon, ele, jd, catalog, True)
+    return create_result_list(location, jd, catalog, True)
 
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
 
-def create_result_list(lat, lon, ele, jd, identifier, use_catalog_number):
+def create_result_list(location, jd, identifier, use_catalog_number):
     recent_TLE_sup, recent_TLE_gp = get_TLE_by_catalog_number(identifier) if use_catalog_number else get_TLE_by_name(identifier)
     tleLine1, tleLine2, date_collected, name = get_recent_TLE(recent_TLE_sup, recent_TLE_gp)
 
@@ -325,7 +317,7 @@ def create_result_list(lat, lon, ele, jd, identifier, use_catalog_number):
         #Right ascension RA (deg), Declination Dec (deg), dRA/dt*cos(Dec) (deg/day), dDec/dt (deg/day),
         # Altitude (deg), Azimuth (deg), dAlt/dt (deg/day), dAz/dt (deg/day), distance (km), range rate (km/s), phaseangle(deg), illuminated (T/F)   
         [ra, dec, dracosdec, ddec, alt, az,  
-         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
+         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,location,d)
         
         resultList.append(jsonOutput(name, d.jd, ra, dec, date_collected, 
                                     dracosdec, ddec,
@@ -450,7 +442,7 @@ def get_recent_TLE(tle_sup, tle_gp):
 
     return tleLine1, tleLine2, tle.date_collected, satellite.sat_name
 
-def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
+def propagateSatellite(tleLine1, tleLine2, location, jd, dtsec=1):
     """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html) 
      to propagate satellite and observer states.
      
@@ -490,7 +482,7 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     satellite = EarthSatellite(tleLine1,tleLine2,ts = ts)
 
     #Get current position and find topocentric ra and dec
-    currPos = wgs84.latlon(lat, lon, elevation)
+    currPos = wgs84.latlon(location.lat.value, location.lon.value, location.height.value)
     # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
     # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses astropy.Time.TT.jd instead of UT1
     if jd.jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
