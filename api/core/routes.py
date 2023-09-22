@@ -93,13 +93,16 @@ def get_ephemeris_by_name():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
-    
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
+
     # Converting string to list
     try:
         jd = Time(julian_date, format='jd', scale='ut1')
     except:
-        abort(500)
+        abort(500, "Error: Invalid Julian Date")
 
     return create_result_list(location, [jd], name, False)
 
@@ -160,8 +163,10 @@ def get_ephemeris_by_name_jdstep():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
-    
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
     jd0 = float(startjd)
     jd1 = float(stopjd) 
     jds = float(stepjd)
@@ -225,13 +230,15 @@ def get_ephemeris_by_catalog_number():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
-    
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
     # Converting string to list
     try:
         jd = Time(julian_date, format='jd', scale='ut1')
     except:
-        abort(500)
+        abort(500, "Error: Invalid Julian Date")
 
     return create_result_list(location, [jd], catalog, True)
 
@@ -291,7 +298,10 @@ def get_ephemeris_by_catalog_number_jdstep():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
     
     jd0 = float(startjd)
     jd1 = float(stopjd) 
@@ -596,7 +606,7 @@ def jd_arange(a, b, dr, decimals=11):
     try:
         results = Time(dates, format='jd', scale='ut1')
     except:
-        abort(500) 
+        abort(500, "Error: Invalid Julian Date") 
     
     return results 
 
