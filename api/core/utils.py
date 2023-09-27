@@ -4,7 +4,7 @@ import json
 
 def get_db_login():
 
-    secret_name = "satchecker-pg-test-proxy"
+    secret_name = "satchecker-prod-db-cred"
     region_name = "us-east-1"
 
     # Create a Secrets Manager client
