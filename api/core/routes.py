@@ -46,10 +46,10 @@ def health():
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's Two Line Element Data Set at a specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -66,20 +66,8 @@ def get_ephemeris_by_name():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
 
     
@@ -114,10 +102,10 @@ def get_ephemeris_by_name():
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name_jdstep():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's name with the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's name with the Two Line Element Data Set at a specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -138,20 +126,8 @@ def get_ephemeris_by_name_jdstep():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
     name = request.args.get('name')
     latitude = request.args.get('latitude')
@@ -186,14 +162,14 @@ def get_ephemeris_by_name_jdstep():
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_catalog_number():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's catalog number using the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's catalog number using the Two Line Element Data Set at the specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
-    catalog_number: 'str'
+    catalog: 'str'
         Satellite Catalog Number of object
     latitude: 'float'
         The observers latitude coordinate (positive value represents north, negative value represents south)
@@ -206,20 +182,8 @@ def get_ephemeris_by_catalog_number():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
 
     
@@ -251,10 +215,10 @@ def get_ephemeris_by_catalog_number():
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_catalog_number_jdstep():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's catalog number with the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's catalog number with the Two Line Element Data Set at the specfied Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -275,20 +239,8 @@ def get_ephemeris_by_catalog_number_jdstep():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
     catalog = request.args.get('catalog')
     latitude = request.args.get('latitude')
@@ -325,10 +277,10 @@ def get_ephemeris_by_catalog_number_jdstep():
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_tle():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's catalog number using the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for a given Two Line Element Data Set at the specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -345,20 +297,8 @@ def get_ephemeris_by_tle():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
 
     
@@ -391,10 +331,10 @@ def get_ephemeris_by_tle():
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_tle_jdstep():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's catalog number using the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's catalog number using the Two Line Element Data Set at a specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -406,25 +346,17 @@ def get_ephemeris_by_tle_jdstep():
         The observers longitude coordinate (positive value represents east, negatie value represents west)
     elevation: 'float'
         Elevation in meters
-    julian_date: 'float'
-        UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+    startjd: 'float'
+        UT1 Universal Time Julian Date to start ephmeris calculation.
+    stopjd: 'float'
+        UT1 Universal Time Julian Date to stop ephmeris calculation.
+    stepjd: 'float'
+        UT1 Universal Time Julian Date timestep.
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
 
     
