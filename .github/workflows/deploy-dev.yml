@@ -42,7 +42,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v4.7.1
       with:
-        python-version: 3.11
+        python-version: '3.11'
 
     - name: Install dependencies
       run: |
