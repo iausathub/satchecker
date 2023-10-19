@@ -1,5 +1,4 @@
-# This is an example of how to use the API with the python requests library - until the API has a
-# final URL, you can request the temporary URL from the team.
+# This is an example of how to use the API with the python requests library
 
 import requests
 
@@ -31,7 +30,7 @@ not_visible_satellites = []
 
 for satellite in satellite_list:
     info = requests.get(
-        f"http://main_url_here/ephemeris/namejdstep/?name={satellite}&elevation={observer_elevation}&latitude={observer_latitude}&longitude={observer_longitude}&startjd={start_jd}&stopjd={stop_jd}&stepjd={step_jd}"
+        f"https://cps.iau.org/tools/satchecker/api/ephemeris/namejdstep/?name={satellite}&elevation={observer_elevation}&latitude={observer_latitude}&longitude={observer_longitude}&startjd={start_jd}&stopjd={stop_jd}&stepjd={step_jd}"
     )
 
     visible = False
