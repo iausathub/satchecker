@@ -1,11 +1,9 @@
-import pytest
-from api import satchecker
-
-from api.core.extensions import db
-
 # import api.core
-
 import os
+
+import pytest
+
+from api import satchecker
 
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
 

@@ -15,3 +15,6 @@ exclude = '''
   | test2.py
 )/
 '''
+
+[tool.ruff]
+select = ["E", "F", "I", "N", "UP", "S", "B"]

@@ -17,7 +17,8 @@
 # -- Project information -----------------------------------------------------
 
 project = "SatChecker"
-copyright = "2023, IAU Centre for the Protection of Dark and Quiet Sky from Satellite Constellation Interference"
+copyright = "2023, IAU Centre for the Protection of Dark and Quiet Sky from \
+    Satellite Constellation Interference"
 author = "IAU CPS"
 
 # The full version, including alpha/beta/rc tags

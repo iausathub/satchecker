@@ -1,15 +1,18 @@
-import pytest
+# ruff: noqa: S101
 import datetime
-import urllib.parse
+
+import pytest
+
 import api.core
 
 assert_precision = 0.0000000001
 
 
 def test_get_ephemeris_by_name(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_TLE", return_value=get_mock_TLE())
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
-        "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167"
+        "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
+            &julian_date=2460193.104167"
     )
 
     # Check that the response was returned without error
@@ -21,9 +24,10 @@ def test_get_ephemeris_by_name(client, mocker):
 
 
 def test_get_ephemeris_by_name_jdstep(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_TLE", return_value=get_mock_TLE())
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
-        "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
+        "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32\
+            &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
     )
 
     # Check that the response was returned without error
@@ -35,7 +39,7 @@ def test_get_ephemeris_by_name_jdstep(client, mocker):
 
 
 def test_get_ephemeris_by_catalog_number(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_TLE", return_value=get_mock_TLE())
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167"
     )
@@ -49,9 +53,10 @@ def test_get_ephemeris_by_catalog_number(client, mocker):
 
 
 def test_get_ephemeris_by_catalog_number_jdstep(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_TLE", return_value=get_mock_TLE())
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
-        "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
+        "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32\
+        &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
     )
 
     # Check that the response was returned without error
@@ -63,7 +68,9 @@ def test_get_ephemeris_by_catalog_number_jdstep(client, mocker):
 
 
 def test_get_ephemeris_by_tle(client, mocker):
-    tle = "ISS (ZARYA) \\n 1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
+    tle = "ISS (ZARYA) \\n \
+            1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
+            2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     response = client.get(
         "/ephemeris/tle/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&tle="
         + tle
@@ -78,9 +85,12 @@ def test_get_ephemeris_by_tle(client, mocker):
 
 
 def test_get_ephemeris_by_tle_jdstep(client):
-    tle = "ISS (ZARYA) \\n 1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
+    tle = "ISS (ZARYA) \\n\
+            1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
+            2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     response = client.get(
-        "/ephemeris/tle-jdstep/?elevation=150&latitude=32&longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&tle="
+        "/ephemeris/tle-jdstep/?elevation=150&latitude=32&longitude=-110\
+            &startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&tle="
         + tle
     )
 
@@ -92,13 +102,13 @@ def test_get_ephemeris_by_tle_jdstep(client):
     assert_jd_step(data)
 
 
-def get_mock_TLE():
-    tleLine1 = "1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997"
-    tleLine2 = "2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
+def get_mock_tle():
+    tle_line_1 = "1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997"
+    tle_line_2 = "2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     date_collected = datetime.datetime(2023, 9, 5, 16, 21, 29)
     sat_name = "ISS (ZARYA)"
 
-    return (tleLine1, tleLine2, date_collected, sat_name)
+    return (tle_line_1, tle_line_2, date_collected, sat_name)
 
 
 def assert_single_jd(data):
@@ -109,7 +119,7 @@ def assert_single_jd(data):
     assert data[0]["DRA_COSDEC-DEG_PER_SEC"] == pytest.approx(
         0.05809617341, assert_precision
     )
-    assert data[0]["ILLUMINATED"] == True
+    assert data[0]["ILLUMINATED"] is True
     assert data[0]["JULIAN_DATE"] == 2460193.104167
     assert data[0]["NAME"] == "ISS (ZARYA)"
     assert data[0]["PHASE_ANGLE-DEG"] == pytest.approx(33.59995261255, assert_precision)
@@ -130,7 +140,7 @@ def assert_jd_step(data):
     assert data[0]["DRA_COSDEC-DEG_PER_SEC"] == pytest.approx(
         0.03480327715, assert_precision
     )
-    assert data[0]["ILLUMINATED"] == True
+    assert data[0]["ILLUMINATED"] is True
     assert data[0]["JULIAN_DATE"] == 2460193.1
     assert data[0]["NAME"] == "ISS (ZARYA)"
     assert data[0]["PHASE_ANGLE-DEG"] == pytest.approx(38.23308559305, assert_precision)
@@ -151,7 +161,7 @@ def assert_jd_step(data):
     assert data[1]["DRA_COSDEC-DEG_PER_SEC"] == pytest.approx(
         0.02033564678, assert_precision
     )
-    assert data[1]["ILLUMINATED"] == True
+    assert data[1]["ILLUMINATED"] is True
     assert data[1]["JULIAN_DATE"] == 2460193.2
     assert data[1]["NAME"] == "ISS (ZARYA)"
     assert data[1]["PHASE_ANGLE-DEG"] == pytest.approx(72.93173570671, assert_precision)

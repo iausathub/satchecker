@@ -1,1 +1,1 @@
-from core import app
+from core import app  # noqa: F401, I001

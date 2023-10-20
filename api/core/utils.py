@@ -1,10 +1,10 @@
-import boto3
-from botocore.exceptions import ClientError
 import json
+
+import boto3
 
 
 def get_db_login():
-    secret_name = "satchecker-prod-db-cred"
+    secret_name = "satchecker-prod-db-cred"  # noqa: S105
     region_name = "us-east-1"
 
     # Create a Secrets Manager client
@@ -14,7 +14,7 @@ def get_db_login():
     get_secret_value_response = None
     try:
         get_secret_value_response = client.get_secret_value(SecretId=secret_name)
-    except Exception as e:
+    except Exception:
         # For a list of exceptions thrown, see
         # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
         username, password, host, port, dbname = (

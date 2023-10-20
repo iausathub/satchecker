@@ -1,8 +1,9 @@
+import logging
+
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import logging
+
 from core import utils
 from core.extensions import db
 
@@ -34,4 +35,4 @@ limiter = Limiter(
 
 db.init_app(app)
 
-from core import routes
+from core import routes  # noqa: E402, F401, I001
