@@ -1,0 +1,17 @@
+[tool.black]
+line-length = 88
+target-version = ['py311']
+exclude = '''
+/(
+    \.git
+  | \.github
+  | \.pytest_cache
+  | \.vscode
+  | \.venv
+  | satenv
+  | nginx
+  | docs
+  | test.py
+  | test2.py
+)/
+'''

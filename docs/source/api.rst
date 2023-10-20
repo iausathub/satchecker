@@ -8,10 +8,10 @@ Retrieve satellite ephemeris by name with JD time step
    :noindex:
 
     Retrieve ephemeris over a JD range at a specified time step
-	
+
    :query name: (*required*) -- Name of satellite as displayed in CelesTrak TLE files
    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-   :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+   :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
    :query startjd: (*required*) -- UT1 Julian Start Date
    :query stopjd: (*required*) -- UT1 Julian End Date (not included)
@@ -22,7 +22,7 @@ Retrieve satellite ephemeris by name with JD time step
     .. tabs::
 
         .. code-tab:: python
-                    
+
             import requests
             import json
 
@@ -87,10 +87,10 @@ Retrieve satellite ephemeris by name
     :noindex:
 
     Retrieve ephemeris for specified satellite
-	
+
     :query name: (*required*) -- Name of satellite as displayed in CelesTrak TLE files
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
 
@@ -98,7 +98,7 @@ Retrieve satellite ephemeris by name
     .. tabs::
 
         .. code-tab:: python
-                    
+
             import requests
             import json
 
@@ -144,12 +144,12 @@ Retrieve satellite ephemeris by catalog number with JD time step
 
 .. http:get:: /catalog-number-jdstep/
     :noindex:
- 
+
     Retrieve ephemeris for specified satellite
-	
+
     :query catalog: (*required*) -- Satellite catalog number (NORAD ID)
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query startjd: (*required*) -- UT1 Julian Start Date
     :query stopjd: (*required*) -- UT1 Julian End Date (not included)
@@ -159,7 +159,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
     .. tabs::
 
         .. code-tab:: python
-                    
+
             import requests
             import json
 
@@ -222,12 +222,12 @@ Retrieve satellite ephemeris by catalog number
 
 .. http:get:: /catalog-number/
     :noindex:
- 
+
     Retrieve ephemeris for specified satellite
-	
+
     :query catalog: (*required*) -- Satellite catalog number (NORAD ID)
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
 
@@ -235,7 +235,7 @@ Retrieve satellite ephemeris by catalog number
     .. tabs::
 
         .. code-tab:: python
-                    
+
             import requests
             import json
 
@@ -283,10 +283,10 @@ Retrieve satellite ephemeris given a TLE with JD time step
    :noindex:
 
     Retrieve ephemeris over a JD range at a specified time step
-	
-   :query tle: (*required*) -- Two line element set 
+
+   :query tle: (*required*) -- Two line element set
    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-   :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+   :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
    :query startjd: (*required*) -- UT1 Julian Start Date
    :query stopjd: (*required*) -- UT1 Julian End Date (not included)
@@ -297,7 +297,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
     .. tabs::
 
         .. code-tab:: python
-                    
+
             import requests
             import json
 
@@ -362,10 +362,10 @@ Retrieve satellite ephemeris with a given TLE
     :noindex:
 
     Retrieve ephemeris for specified satellite
-	
+
     :query tle: (*required*) -- Two line element set
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
-    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg) 
+    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
 
@@ -373,7 +373,7 @@ Retrieve satellite ephemeris with a given TLE
     .. tabs::
 
         .. code-tab:: python
-                    
+
             import requests
             import json
 

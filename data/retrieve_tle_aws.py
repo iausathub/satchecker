@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-This script retrieves TLEs from celestrak.com and saves them to a PostgreSQL database. It can be run in one of two modes: 
-either once per day to retrieve the daily TLEs, or once per hour to retrieve the supplemental TLEs. 
+This script retrieves TLEs from celestrak.com and saves them to a PostgreSQL database. It can be run in one of two modes:
+either once per day to retrieve the daily TLEs, or once per hour to retrieve the supplemental TLEs.
 The script should be run with the following command line arguments:
     -m, --mode: Determines which TLEs to download and save: use "gp" for daily TLEs, "sup" for supplemental TLEs.
     -h, --help: Show help message including the above info and exit.
@@ -145,7 +145,7 @@ def add_tle_to_db(tle, constellation, cursor, is_supplemental):
             constellation,
             str(satellite.model.satnum),
         )
-        satellite_insert_query = """ WITH e AS( INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION) VALUES (%s,%s,%s) ON CONFLICT (SAT_NUMBER) DO NOTHING RETURNING id) 
+        satellite_insert_query = """ WITH e AS( INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION) VALUES (%s,%s,%s) ON CONFLICT (SAT_NUMBER) DO NOTHING RETURNING id)
         SELECT * FROM e UNION SELECT id FROM satellites WHERE SAT_NUMBER=%s;"""
         cursor.execute(satellite_insert_query, sat_to_insert)
         sat_id = cursor.fetchone()[0]
