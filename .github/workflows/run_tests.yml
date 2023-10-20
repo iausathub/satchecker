@@ -16,6 +16,9 @@ jobs:
       - uses: psf/black@stable
         with:
           options: "--check --verbose"
+      - uses: chartboost/ruff-action@v1
+        with:
+          args: "--output-format=github"
       - name: Set up Python 3.11
         uses: actions/setup-python@v3
         with:
