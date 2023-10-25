@@ -568,41 +568,6 @@ def parse_tle(tle):
     return tle_line_1, tle_line_2, None, name
 
 
-def get_ephemeris():
-    """Returns the geocentric Right Ascension and Declination of the orbiting
-    mass given the geocentric position vector
-
-    Parameters
-    ----------
-    x: 'float'
-        The x position of the orbiting mass in km
-    y: 'float'
-        The y position of the orbiting mass in km
-    z: 'float'
-        The z position of the orbiting mass in km
-
-
-    Returns
-    -------
-    Right Ascension: 'float'
-        The geocentric right ascension of the satellite in degrees
-    Declination: 'float'
-        The geocentric declination of the satellite in degrees
-    """
-    pos_str = request.args.get("pos_str")
-
-    # check for mandatory parameters
-    if pos_str is None:
-        abort(400)
-
-    standardized_pos = pos_str.replace("%20", "")
-    x, y, z = standardized_pos.split(",")
-    position = np.array([float(x), float(y), float(z)])
-    ra, dec = icrf2radec(position)
-
-    return {"Right Ascension": ra, "Declination": dec}
-
-
 def get_tle_by_name(target_name):
     """Query Two Line Element (orbital element) API and return TLE lines for propagation
 

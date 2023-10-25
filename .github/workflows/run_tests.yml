@@ -18,8 +18,17 @@ jobs:
           options: "--check --verbose"
       - uses: chartboost/ruff-action@v1
         with:
-          args: "check --output-format=github ."
-          
+          args: "check --output-format=github"
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r api/requirements.txt
+
+
   test:
 
     runs-on: ubuntu-latest
@@ -36,7 +45,29 @@ jobs:
         pip install -r api/requirements.txt
     - name: Install dependencies
       run: |
-        pip install pytest pytest-mock
+        pip install pytest pytest-mock pytest-cov
     - name: Test with pytest
       run: |
-        pytest
+        pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. tests/
+    - name: Pytest coverage comment
+      id: coverageComment
+      uses: MishaKav/pytest-coverage-comment@main
+      with:
+        pytest-coverage-path: ./pytest-coverage.txt
+        junitxml-path: ./pytest.xml
+
+    - name: Check the output coverage
+      run: |
+        echo "Coverage Percantage - ${{ steps.coverageComment.outputs.coverage }}"
+        echo "Coverage Color - ${{ steps.coverageComment.outputs.color }}"
+        echo "Coverage Html - ${{ steps.coverageComment.outputs.coverageHtml }}"
+        echo "Summary Report - ${{ steps.coverageComment.outputs.summaryReport }}"
+
+        echo "Coverage Warnings - ${{ steps.coverageComment.outputs.warnings }}"
+
+        echo "Coverage Errors - ${{ steps.coverageComment.outputs.errors }}"
+        echo "Coverage Failures - ${{ steps.coverageComment.outputs.failures }}"
+        echo "Coverage Skipped - ${{ steps.coverageComment.outputs.skipped }}"
+        echo "Coverage Tests - ${{ steps.coverageComment.outputs.tests }}"
+        echo "Coverage Time - ${{ steps.coverageComment.outputs.time }}"
+        echo "Not Success Test Info - ${{ steps.coverageComment.outputs.notSuccessTestInfo }}"
