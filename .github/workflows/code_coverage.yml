@@ -1,6 +1,6 @@
 # This workflow will run code coverage and add a comment to the pull request
 
-name: Run tests
+name: Code coverage - pull request
 
 on:
   pull_request:
