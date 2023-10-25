@@ -1,6 +1,6 @@
 # This workflow will install dependencies and run tests
 
-name: Code coverage - pull request
+name: Run tests
 
 on:
   push:
