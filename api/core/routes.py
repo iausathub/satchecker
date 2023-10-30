@@ -1,15 +1,18 @@
 #!/usr/bin/python3
-from flask import Flask, abort, redirect, request
-import flask_limiter
+import re
+from flask import abort, redirect, request
 from skyfield.api import EarthSatellite
 from skyfield.api import load, wgs84
+from astropy.time import Time, TimeDelta
+from astropy.coordinates import EarthLocation
+import astropy.units as u
 import numpy as np
-import requests
 from sqlalchemy import desc
 from flask_limiter.util import get_remote_address
 from core import app, limiter
 from core.database import models
 from core.extensions import db
+import datetime
 
 
 #Error handling
@@ -43,10 +46,10 @@ def health():
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's Two Line Element Data Set at a specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -63,20 +66,8 @@ def get_ephemeris_by_name():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
 
     
@@ -92,30 +83,29 @@ def get_ephemeris_by_name():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
-    
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
+
     # Converting string to list
-    jul = str(julian_date).replace("%20", ' ').strip('][').split(', ')
-   
-    # Converting list elements to float
-    jd = [float(i) for i in jul]
+    try:
+        jd = Time(julian_date, format='jd', scale='ut1')
+    except:
+        abort(500, "Error: Invalid Julian Date")
 
-    if(len(jd)>1000):
-        app.logger.info("Too many results requested")
-        abort(400)
-    return create_result_list(lat, lon, ele, jd, name, False)
+    tleLine1, tleLine2, date_collected, name = get_TLE(name, False)
+    return create_result_list(location, [jd], tleLine1, tleLine2, date_collected, name)
 
 
-@app.route('/ephemeris/namejdstep/')
+@app.route('/ephemeris/name-jdstep/')
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_name_jdstep():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's name with the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's name with the Two Line Element Data Set at a specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -136,20 +126,8 @@ def get_ephemeris_by_name_jdstep():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
     name = request.args.get('name')
     latitude = request.args.get('latitude')
@@ -164,33 +142,34 @@ def get_ephemeris_by_name_jdstep():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
-    
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
     jd0 = float(startjd)
     jd1 = float(stopjd) 
     jds = float(stepjd)
   
-    jd = my_arange(jd0,jd1,jds)
+    jd = jd_arange(jd0,jd1,jds)
 
     if(len(jd)>1000):
         abort(400)
 
-    return create_result_list(lat, lon, ele, jd, name, False)
+    tleLine1, tleLine2, date_collected, name = get_TLE(name, False)
+    return create_result_list(location, jd, tleLine1, tleLine2, date_collected, name)
 
 @app.route('/ephemeris/catalog-number/')
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_catalog_number():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's catalog number using the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's catalog number using the Two Line Element Data Set at the specified Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
-    catalog_number: 'str'
+    catalog: 'str'
         Satellite Catalog Number of object
     latitude: 'float'
         The observers latitude coordinate (positive value represents north, negative value represents south)
@@ -203,20 +182,8 @@ def get_ephemeris_by_catalog_number():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
 
     
@@ -231,29 +198,27 @@ def get_ephemeris_by_catalog_number():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
-    
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
     # Converting string to list
-    jul = str(julian_date).replace("%20", ' ').strip('][').split(', ')
-   
-    # Converting list elements to float
-    jd = [float(i) for i in jul]
+    try:
+        jd = Time(julian_date, format='jd', scale='ut1')
+    except:
+        abort(500, "Error: Invalid Julian Date")
 
-    if(len(jd)>1000):
-        abort(400)
-   
-    return create_result_list(lat, lon, ele, jd, catalog, True)
+    tleLine1, tleLine2, date_collected, name = get_TLE(catalog, True)
+    return create_result_list(location, [jd], tleLine1, tleLine2, date_collected, name)
 
 @app.route('/ephemeris/catalog-number-jdstep/')
 @limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
 def get_ephemeris_by_catalog_number_jdstep():
     '''
-    Returns the Right Ascension and Declination relative to the observer's coordinates
-    for the given satellite's catalog number with the Two Line Element Data Set at inputted Julian Date.
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's catalog number with the Two Line Element Data Set at the specfied Julian Date.
 
-    **Please note, for the most accurate results, an inputted Julian Date close to the TLE epoch is necessary.
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
 
     Parameters
     ---------
@@ -274,20 +239,8 @@ def get_ephemeris_by_catalog_number_jdstep():
 
     Returns
     -------
-    Name: 'str'
-        The name of the query object
-    JulianDate: 'float' or list of 'float'
-        UT1 Universal Time Julian Date. 
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference frame in degrees. Range of response is [0,360)
-    Range: 'float'
-        Range to object in km
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
     '''
     catalog = request.args.get('catalog')
     latitude = request.args.get('latitude')
@@ -302,41 +255,194 @@ def get_ephemeris_by_catalog_number_jdstep():
         abort(400) 
 
     #Cast the latitude, longitude, and jd to floats (request parses as a string)
-    lat = float(latitude)
-    lon = float(longitude)
-    ele = float(elevation)
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
     
     jd0 = float(startjd)
     jd1 = float(stopjd) 
     jds = float(stepjd)
   
-    jd = my_arange(jd0,jd1,jds)
+    jd = jd_arange(jd0,jd1,jds)
 
     if(len(jd)>1000):
         app.logger.info("Too many results requested")
         abort(400)
 
-    return create_result_list(lat, lon, ele, jd, catalog, True)
+    tleLine1, tleLine2, date_collected, name = get_TLE(catalog, True)
+    return create_result_list(location, jd, tleLine1, tleLine2, date_collected, name)
+
+@app.route('/ephemeris/tle/')
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
+def get_ephemeris_by_tle():
+    '''
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for a given Two Line Element Data Set at the specified Julian Date.
+
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
+
+    Parameters
+    ---------
+    tle: 'str'
+        Two line element set of object
+    latitude: 'float'
+        The observers latitude coordinate (positive value represents north, negative value represents south)
+    longitude: 'float'
+        The observers longitude coordinate (positive value represents east, negatie value represents west)
+    elevation: 'float'
+        Elevation in meters
+    julian_date: 'float'
+        UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+
+    Returns
+    -------
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
+    '''
+
+    
+    tle = request.args.get('tle')
+    latitude = request.args.get('latitude')
+    longitude = request.args.get('longitude')
+    elevation = request.args.get('elevation')
+    julian_date = request.args.get('julian_date')
+
+    #check for mandatory parameters
+    if [x for x in (latitude, longitude, elevation, julian_date) if x is None]:
+        abort(400) 
+
+    #Cast the latitude, longitude, and jd to floats (request parses as a string)
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
+    # Converting string to list
+    try:
+        jd = Time(julian_date, format='jd', scale='ut1')
+    except:
+        abort(500, "Error: Invalid Julian Date")
+
+    tleLine1, tleLine2, date_collected, name = parse_tle(tle)
+    return create_result_list(location, [jd], tleLine1, tleLine2, date_collected, name)
+
+
+@app.route('/ephemeris/tle-jdstep/')
+@limiter.limit("100 per second, 2000 per minute", key_func=lambda:get_forwarded_address(request))
+def get_ephemeris_by_tle_jdstep():
+    '''
+    Returns satellite location and velocity information relative to the observer's coordinates
+    for the given satellite's catalog number using the Two Line Element Data Set at a specified Julian Date.
+
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch is necessary.
+
+    Parameters
+    ---------
+    tle: 'str'
+        Two line element set of object
+    latitude: 'float'
+        The observers latitude coordinate (positive value represents north, negative value represents south)
+    longitude: 'float'
+        The observers longitude coordinate (positive value represents east, negatie value represents west)
+    elevation: 'float'
+        Elevation in meters
+    startjd: 'float'
+        UT1 Universal Time Julian Date to start ephmeris calculation.
+    stopjd: 'float'
+        UT1 Universal Time Julian Date to stop ephmeris calculation.
+    stepjd: 'float'
+        UT1 Universal Time Julian Date timestep.
+
+    Returns
+    -------
+    response: 'dictionary'
+        JSON output with satellite information - see jsonOutput() for format
+    '''
+
+    
+    tle = request.args.get('tle')
+    latitude = request.args.get('latitude')
+    longitude = request.args.get('longitude')
+    elevation = request.args.get('elevation')
+    startjd = request.args.get('startjd')
+    stopjd = request.args.get('stopjd')
+    stepjd = request.args.get('stepjd')
+    
+
+    #check for mandatory parameters
+    if [x for x in (latitude, longitude, elevation, startjd, stopjd, stepjd) if x is None]:
+        abort(400) 
+
+    #Cast the latitude, longitude, and jd to floats (request parses as a string)
+    try:
+        location = EarthLocation(lat=float(latitude)*u.deg, lon=float(longitude)*u.deg, height=float(elevation)*u.m)
+    except:
+        abort(500, "Error: Invalid location parameters")
+    
+    jd0 = float(startjd)
+    jd1 = float(stopjd) 
+    jds = float(stepjd)
+  
+    jd = jd_arange(jd0,jd1,jds)
+
+    if(len(jd)>1000):
+        app.logger.info("Too many results requested")
+        abort(400)
+
+    tleLine1, tleLine2, date_collected, name = parse_tle(tle)
+    return create_result_list(location, jd, tleLine1, tleLine2, date_collected, name)
+
 
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
 
-def create_result_list(lat, lon, ele, jd, identifier, use_catalog_number):
+def get_TLE(identifier, use_catalog_number):
     recent_TLE_sup, recent_TLE_gp = get_TLE_by_catalog_number(identifier) if use_catalog_number else get_TLE_by_name(identifier)
     tleLine1, tleLine2, date_collected, name = get_recent_TLE(recent_TLE_sup, recent_TLE_gp)
+    return tleLine1, tleLine2, date_collected, name
 
+
+def create_result_list(location, jd, tleLine1, tleLine2, date_collected, name):
     # propagation and create output
     resultList = []
     for d in jd:
         #Right ascension RA (deg), Declination Dec (deg), dRA/dt*cos(Dec) (deg/day), dDec/dt (deg/day),
         # Altitude (deg), Azimuth (deg), dAlt/dt (deg/day), dAz/dt (deg/day), distance (km), range rate (km/s), phaseangle(deg), illuminated (T/F)   
         [ra, dec, dracosdec, ddec, alt, az,  
-         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,lat,lon,ele,d)
+         r, dr, phaseangle, illuminated] = propagateSatellite(tleLine1,tleLine2,location,d)
         
-        resultList.append(jsonOutput(name, d, ra, dec, date_collected, 
+        resultList.append(jsonOutput(name, d.jd, ra, dec, date_collected, 
                                     dracosdec, ddec,
                                     alt, az, 
                                     r, dr, phaseangle, illuminated)) 
     return resultList
+
+def parse_tle(tle):
+    #parse url encoded parameter to string to remove space encoding
+    tle = tle.replace("%20", ' ')
+    
+    #split string into three lines based on url encoded space character
+    try:
+        pattern = re.compile(r'\\n|\n')
+        tle_data = pattern.split(tle)
+    except:
+        abort(500, "Incorrect TLE format")
+    
+    if(len(tle_data) == 3):
+        name = tle_data[0].strip()
+        tleLine1 = tle_data[1].strip()
+        tleLine2 = tle_data[2].strip()
+    else:
+        name = None
+        tleLine1 = tle_data[0].strip()
+        tleLine2 = tle_data[1].strip()
+
+    #if any are null throw error
+    test1 = len(tleLine1)
+    test2 = len(tleLine2)
+    if [x for x in (tleLine1, tleLine2) if x is None] or len(tleLine1) != 69 or len(tleLine2) != 69:
+        abort(500, "Incorrect TLE format")
+
+    return tleLine1, tleLine2, None, name
 
 def get_ephemeris():
     '''
@@ -439,7 +545,7 @@ def get_recent_TLE(tle_sup, tle_gp):
     tle = None
     satellite = None
     if(tle_sup is None and tle_gp is None):
-        abort(500)
+        abort(500, "No TLE found")
     elif(tle_sup is None and tle_gp is not None):
         tle = tle_gp[0]
         satellite = tle_gp[1]
@@ -455,7 +561,7 @@ def get_recent_TLE(tle_sup, tle_gp):
 
     return tleLine1, tleLine2, tle.date_collected, satellite.sat_name
 
-def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
+def propagateSatellite(tleLine1, tleLine2, location, jd, dtsec=1):
     """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html) 
      to propagate satellite and observer states.
      
@@ -495,10 +601,11 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     satellite = EarthSatellite(tleLine1,tleLine2,ts = ts)
 
     #Get current position and find topocentric ra and dec
-    currPos = wgs84.latlon(lat, lon, elevation)
+    currPos = wgs84.latlon(location.lat.value, location.lon.value, location.height.value)
     # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
-    if jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
-    else: t = ts.ut1_jd(jd)
+    # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses astropy.Time.TT.jd instead of UT1
+    if jd.jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
+    else: t = ts.ut1_jd(jd.jd)
 
     difference = satellite - currPos
     topocentric = difference.at(t)
@@ -507,10 +614,9 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     ra, dec, distance = topocentric.radec()
     alt, az, distance = topocentric.altaz()
     
-    secperday = 86400
-    dtday=dtsec/secperday
-    tplusdt = ts.ut1_jd(jd+dtday)
-    tminusdt = ts.ut1_jd(jd-dtday)
+    dtday = TimeDelta(1, format='sec') 
+    tplusdt = ts.ut1_jd((jd + dtday).jd)
+    tminusdt = ts.ut1_jd((jd - dtday).jd)
 
     dtx2 = 2*dtsec 
 
@@ -550,8 +656,8 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
     earth = eph['Earth']
     sun = eph['Sun']
  
-    earthp = earth.at(ts.ut1_jd(jd)).position.km
-    sunp = sun.at(ts.ut1_jd(jd)).position.km
+    earthp = earth.at(t).position.km
+    sunp = sun.at(t).position.km
     earthsun = sunp - earthp
     earthsunn = earthsun/np.linalg.norm(earthsun)
     satsun =  sat - earthsun
@@ -575,7 +681,7 @@ def propagateSatellite(tleLine1, tleLine2, lat, lon, elevation, jd, dtsec=1):
             distance, ddistance, phase_angle, illuminated)
 
 
-def my_arange(a, b, dr, decimals=11):
+def jd_arange(a, b, dr, decimals=11):
     """
     Better arange function that compensates for round-off errors.
     
@@ -604,8 +710,14 @@ def my_arange(a, b, dr, decimals=11):
             break   
         res.append(tmp)
         k+=1
+    dates = np.asarray(res)
 
-    return np.asarray(res) 
+    try:
+        results = Time(dates, format='jd', scale='ut1')
+    except:
+        abort(500, "Error: Invalid Julian Date") 
+    
+    return results 
 
 def tle2ICRFstate(tleLine1,tleLine2,jd):
 
@@ -615,7 +727,7 @@ def tle2ICRFstate(tleLine1,tleLine2,jd):
 
     # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
     if jd == 0: t = ts.ut1_jd(satellite.model.jdsatepoch)
-    else: t = ts.ut1_jd(jd)
+    else: t = ts.ut1_jd(jd.jd)
 
     r =  satellite.at(t).position.km
     # print(satellite.at(t))
@@ -663,7 +775,9 @@ def jsonOutput(name,time,ra,dec,dateCollected,dracosdec,ddec,
     
     #looking up the numpy round function once instead of multiple times makes things a little faster
     myRound = np.round
-    
+
+    tle_date = dateCollected.strftime("%Y-%m-%d %H:%M:%S") if dateCollected is not None else dateCollected
+        
     
     output= {"NAME": name,
             "JULIAN_DATE": myRound(time,precisionDate),
@@ -677,7 +791,7 @@ def jsonOutput(name,time,ra,dec,dateCollected,dracosdec,ddec,
             "RANGE_RATE-KM_PER_SEC": myRound(dr,precisionRange),
             "PHASE_ANGLE-DEG": myRound(phaseangle, precisionAngles),
             "ILLUMINATED": illuminated,
-            "TLE-DATE": dateCollected.strftime("%Y-%m-%d %H:%M:%S")} 
+            "TLE-DATE": tle_date} 
     
     return output  
 
