@@ -5,7 +5,7 @@ import boto3
 
 
 def get_db_login():
-    if os.environ["LOCAL_DB"] == "1":
+    if os.environ.get("LOCAL_DB") == "1":
         username, password, host, port, dbname = (
             "postgres",
             "sat123",
