@@ -1,2 +1,3 @@
 FLASK_APP=satchecker.py
 FLASK_DEBUG=0
+LOCAL_DB=0

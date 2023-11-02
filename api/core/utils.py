@@ -1,9 +1,20 @@
 import json
+import os
 
 import boto3
 
 
 def get_db_login():
+    if os.environ["LOCAL_DB"] == "1":
+        username, password, host, port, dbname = (
+            "postgres",
+            "sat123",
+            "localhost",
+            "5432",
+            "postgres",
+        )
+        return [username, password, host, port, dbname]
+
     secret_name = "satchecker-prod-db-cred"  # noqa: S105
     region_name = "us-east-1"
 
