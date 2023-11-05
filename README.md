@@ -94,6 +94,18 @@ The code coverage report is generated in html by default, and can be found at sa
 
 The documentation will be built automatically when you push to the `main` branch. You can view the latest version [here](https://satchecker.readthedocs.io/en/latest/).
 
+## Tools
+### Formatting and Linting
+Right now the code is set up to use [Black](https://black.readthedocs.io/en/stable/) for code formatting and [Ruff](https://docs.astral.sh/ruff/) for linting with the following rules turned on:
+* E (pycodestyle errors)
+* F (Pyflakes)
+* I (isort)
+* N (pep8-naming)
+* UP (pyupgrade)
+* S (flake8-bandit)
+* B (flake8-bugbear)
+
+Ruff and Black can be set up to run as pre-commit hooks, but they are also run on every push to a branch in the run_tests.yml workflow (which also runs all the tests)
 ## Deployment & Infrastructure
 
 ### AWS
