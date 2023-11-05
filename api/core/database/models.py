@@ -1,7 +1,8 @@
 from core import db
 
+
 class Satellite(db.Model):
-    __tablename__ = 'satellites'
+    __tablename__ = "satellites"
 
     id = db.Column(db.Integer, primary_key=True)
     sat_number = db.Column(db.String())
@@ -16,20 +17,22 @@ class Satellite(db.Model):
     def __repr__(self):
         return f"<Satellite {self.sat_name}>"
 
+
 class TLE(db.Model):
-    __tablename__ = 'tle'
+    __tablename__ = "tle"
 
     id = db.Column(db.Integer, primary_key=True)
-    sat_id = db.Column(db.Integer(), db.ForeignKey('satellites.id'))
+    sat_id = db.Column(db.Integer(), db.ForeignKey("satellites.id"))
     date_collected = db.Column(db.DateTime())
     tle_line1 = db.Column(db.String())
     tle_line2 = db.Column(db.String())
     is_supplemental = db.Column(db.Boolean())
     epoch = db.Column(db.DateTime())
-    tle_satellite = db.relationship("database.models.Satellite",lazy='joined')
+    tle_satellite = db.relationship("database.models.Satellite", lazy="joined")
 
-
-    def __init__(self, sat_id, date_collected, tle_line1, tle_line2, is_supplemental, epoch):
+    def __init__(
+        self, sat_id, date_collected, tle_line1, tle_line2, is_supplemental, epoch
+    ):
         self.sat_id = sat_id
         self.date_collected = date_collected
         self.tle_line1 = tle_line1
