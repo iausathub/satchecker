@@ -10,4 +10,5 @@ SatChecker Ephemeris API Documentation
    :maxdepth: 2
 
    api
+   notes
    .. notebooks/demo

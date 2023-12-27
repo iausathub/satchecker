@@ -1,5 +1,6 @@
 # ruff: noqa: S101
 import datetime
+from collections import namedtuple
 
 import pytest
 
@@ -12,7 +13,7 @@ def test_get_ephemeris_by_name(client, mocker):
     mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
-            &julian_date=2460193.104167"
+            &julian_date=2460193.104167&min_altitude=-90"
     )
 
     # Check that the response was returned without error
@@ -27,7 +28,7 @@ def test_get_ephemeris_by_name_jdstep(client, mocker):
     mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32\
-            &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
+            &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90"
     )
 
     # Check that the response was returned without error
@@ -41,7 +42,7 @@ def test_get_ephemeris_by_name_jdstep(client, mocker):
 def test_get_ephemeris_by_catalog_number(client, mocker):
     mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
-        "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167"
+        "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90"
     )
 
     # Check that the response was returned without error
@@ -56,7 +57,7 @@ def test_get_ephemeris_by_catalog_number_jdstep(client, mocker):
     mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32\
-        &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
+        &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90"
     )
 
     # Check that the response was returned without error
@@ -72,7 +73,8 @@ def test_get_ephemeris_by_tle(client, mocker):
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     response = client.get(
-        "/ephemeris/tle/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&tle="
+        "/ephemeris/tle/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167\
+            &min_altitude=-90&tle="
         + tle
     )
 
@@ -90,7 +92,7 @@ def test_get_ephemeris_by_tle_jdstep(client):
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     response = client.get(
         "/ephemeris/tle-jdstep/?elevation=150&latitude=32&longitude=-110\
-            &startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&tle="
+            &startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90&tle="
         + tle
     )
 
@@ -102,13 +104,143 @@ def test_get_ephemeris_by_tle_jdstep(client):
     assert_jd_step(data)
 
 
+def test_min_max_alt_name(client, mocker):
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    response = client.get(
+        "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
+            &julian_date=2460193.104167"
+    )
+
+    # Check that the response was correct
+    data = response.json
+    assert data == []
+
+    response = client.get(
+        "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
+            &julian_date=2460193.104167&min_altitude=-90"
+    )
+    # Check that the response was correct
+    data = response.json
+    assert_single_jd(data)
+
+
+def test_min_max_alt_name_jdstep(client, mocker):
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    response = client.get(
+        "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32\
+            &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
+    )
+
+    # Check that the response was correct
+    data = response.json
+    assert data == []
+
+    response = client.get(
+        "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32\
+            &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90"
+    )
+    # Check that the response was correct
+    data = response.json
+    assert_jd_step(data)
+
+
+def test_min_max_alt_catalog(client, mocker):
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    response = client.get(
+        "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110\
+            &julian_date=2460193.104167"
+    )
+
+    # Check that the response was correct
+    data = response.json
+    assert data == []
+
+    response = client.get(
+        "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110\
+            &julian_date=2460193.104167&min_altitude=-90"
+    )
+    # Check that the response was correct
+    data = response.json
+    assert_single_jd(data)
+
+
+def test_min_max_alt_catalog_jdstep(client, mocker):
+    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    response = client.get(
+        "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32\
+        &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
+    )
+
+    # Check that the response was correct
+    data = response.json
+    assert data == []
+
+    response = client.get(
+        "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32\
+        &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90"
+    )
+    # Check that the response was correct
+    data = response.json
+    assert_jd_step(data)
+
+
+def test_min_max_alt_tle(client, mocker):
+    tle = "ISS (ZARYA) \\n \
+            1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
+            2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
+    response = client.get(
+        "/ephemeris/tle/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&tle="
+        + tle
+    )
+
+    # Check that the response was correct
+    data = response.json
+    assert data == []
+
+    response = client.get(
+        "/ephemeris/tle/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167\
+            &min_altitude=-90&tle="
+        + tle
+    )
+    # Check that the response was correct
+    data = response.json
+    assert_single_jd(data)
+
+
+def test_min_max_alt_tle_jdstep(client, mocker):
+    tle = "ISS (ZARYA) \\n \
+            1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
+            2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
+    response = client.get(
+        "/ephemeris/tle-jdstep/?elevation=150&latitude=32&longitude=-110\
+            &startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&tle="
+        + tle
+    )
+
+    # Check that the response was correct
+    data = response.json
+    assert data == []
+
+    response = client.get(
+        "/ephemeris/tle-jdstep/?elevation=150&latitude=32&longitude=-110\
+            &startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90&tle="
+        + tle
+    )
+    # Check that the response was correct
+    data = response.json
+    assert_jd_step(data)
+
+
 def get_mock_tle():
-    tle_line_1 = "1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997"
-    tle_line_2 = "2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
+    tle_line1 = "1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997"
+    tle_line2 = "2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     date_collected = datetime.datetime(2023, 9, 5, 16, 21, 29)
     sat_name = "ISS (ZARYA)"
 
-    return (tle_line_1, tle_line_2, date_collected, sat_name)
+    tle = namedtuple(
+        "tle", ["tle_line_1", "tle_line_2", "date_collected", "name", "catalog"]
+    )
+    return tle(tle_line1, tle_line2, date_collected, sat_name, 25544)
 
 
 def assert_single_jd(data):
