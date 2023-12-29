@@ -15,7 +15,7 @@ Retrieve satellite ephemeris by name with JD time step
    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
    :query startjd: (*required*) -- UT1 Julian Start Date
    :query stopjd: (*required*) -- UT1 Julian End Date (not included)
-   :query stepjd: (*required*) -- UT1 time step in Julian Days for ephemeris generation
+   :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
    :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
    :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
 
@@ -160,7 +160,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query startjd: (*required*) -- UT1 Julian Start Date
     :query stopjd: (*required*) -- UT1 Julian End Date (not included)
-    :query stepjd: (*required*) -- UT1 time step in Julian Days for ephemeris generation
+    :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
 
@@ -304,7 +304,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query startjd: (*required*) -- UT1 Julian Start Date
     :query stopjd: (*required*) -- UT1 Julian End Date (not included)
-    :query stepjd: (*required*) -- UT1 time step in Julian Days for ephemeris generation
+    :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
 
