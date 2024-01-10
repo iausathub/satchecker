@@ -230,7 +230,7 @@ def get_ephemeris_by_name_jdstep():
     jd0 = float(startjd)
     jd1 = float(stopjd)
 
-    jds = 0.05 if stepjd is None else float(stepjd)  # default to 1.2 hours
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 
@@ -419,7 +419,7 @@ def get_ephemeris_by_catalog_number_jdstep():
     jd0 = float(startjd)
     jd1 = float(stopjd)
 
-    jds = 0.05 if stepjd is None else float(stepjd)  # default to 1.2 hours
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 
@@ -605,7 +605,7 @@ def get_ephemeris_by_tle_jdstep():
     jd0 = float(startjd)
     jd1 = float(stopjd)
 
-    jds = 0.05 if stepjd is None else float(stepjd)  # default to 1.2 hours
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 

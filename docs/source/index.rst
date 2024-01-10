@@ -11,4 +11,6 @@ SatChecker Ephemeris API Documentation
 
    api
    notes
+   release
+   acknowledgements
    .. notebooks/demo
