@@ -4,6 +4,7 @@ from collections import namedtuple
 
 import astropy.units as u
 import numpy as np
+import requests
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
 from flask import abort, redirect, request
@@ -59,7 +60,13 @@ def root():
 @app.route("/health")
 @limiter.exempt
 def health():
-    return {"message": "Healthy"}
+    try:
+        response = requests.get("https://cps.iau.org/tools/satchecker/api/", timeout=10)
+        response.raise_for_status()
+    except Exception:
+        abort(503, "Error: Unable to connect to IAU CPS URL")
+    else:
+        return {"message": "Healthy"}
 
 
 @app.route("/ephemeris/name/")
