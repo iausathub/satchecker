@@ -4,6 +4,7 @@ from collections import namedtuple
 
 import astropy.units as u
 import numpy as np
+import requests
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
 from flask import abort, redirect, request
@@ -59,7 +60,13 @@ def root():
 @app.route("/health")
 @limiter.exempt
 def health():
-    return {"message": "Healthy"}
+    try:
+        response = requests.get("https://cps.iau.org/tools/satchecker/api/", timeout=10)
+        response.raise_for_status()
+    except Exception:
+        abort(503, "Error: Unable to connect to IAU CPS URL")
+    else:
+        return {"message": "Healthy"}
 
 
 @app.route("/ephemeris/name/")
@@ -203,9 +210,7 @@ def get_ephemeris_by_name_jdstep():
 
     # check for mandatory parameters
     if [
-        x
-        for x in (name, latitude, longitude, elevation, startjd, stopjd, stepjd)
-        if x is None
+        x for x in (name, latitude, longitude, elevation, startjd, stopjd) if x is None
     ]:
         abort(400)
 
@@ -231,7 +236,8 @@ def get_ephemeris_by_name_jdstep():
 
     jd0 = float(startjd)
     jd1 = float(stopjd)
-    jds = float(stepjd)
+
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 
@@ -392,7 +398,7 @@ def get_ephemeris_by_catalog_number_jdstep():
     # check for mandatory parameters
     if [
         x
-        for x in (catalog, latitude, longitude, elevation, startjd, stopjd, stepjd)
+        for x in (catalog, latitude, longitude, elevation, startjd, stopjd)
         if x is None
     ]:
         abort(400)
@@ -419,7 +425,8 @@ def get_ephemeris_by_catalog_number_jdstep():
 
     jd0 = float(startjd)
     jd1 = float(stopjd)
-    jds = float(stepjd)
+
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 
@@ -579,11 +586,7 @@ def get_ephemeris_by_tle_jdstep():
     max_altitude = request.args.get("max_altitude")
 
     # check for mandatory parameters
-    if [
-        x
-        for x in (latitude, longitude, elevation, startjd, stopjd, stepjd)
-        if x is None
-    ]:
+    if [x for x in (latitude, longitude, elevation, startjd, stopjd) if x is None]:
         abort(400)
 
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
@@ -608,7 +611,8 @@ def get_ephemeris_by_tle_jdstep():
 
     jd0 = float(startjd)
     jd1 = float(stopjd)
-    jds = float(stepjd)
+
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 

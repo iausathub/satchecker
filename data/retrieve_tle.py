@@ -107,33 +107,19 @@ def main():
 
     # Download and save the daily TLEs
     if args.mode.upper() == "GP":
-        files = {}
-        files["oneweb"] = requests.get(
-            "https://celestrak.com/NORAD/elements/oneweb.txt", timeout=10
-        )
-        files["starlink"] = requests.get(
-            "https://celestrak.org/NORAD/elements/starlink.txt", timeout=10
-        )
-        files["AC"] = requests.get(
-            "https://celestrak.com/NORAD/elements/active.txt", timeout=10
-        )
-        files["GEO"] = requests.get(
-            "https://celestrak.com/NORAD/elements/geo.txt", timeout=10
-        )
-
-        # go through each TLE file and save info to the database
-
         # open each response and read in 3 lines at a time
-        for category in files:
-            log_time = datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
-            logging.info(log_time + "\t" + "Loading %s TLEs..." % category)
-            constellation = (
-                category
-                if (category == "starlink" or category == "oneweb")
-                else "other"
+        groups = ["starlink", "oneweb", "geo", "active"]
+        for group in groups:
+            tle = requests.get(
+                "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"
+                % group,
+                timeout=10,
             )
             try:
-                add_tle_to_db(files[category], constellation, cursor, "false")
+                constellation = (
+                    group if (group == "starlink" or group == "oneweb") else "other"
+                )
+                add_tle_to_db(tle, constellation, cursor, "false")
             except Exception as err:
                 log_time = (
                     datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -187,26 +173,30 @@ def add_tle_to_db(tle, constellation, cursor, is_supplemental):
         tle_line_2 = lines[counter + 2]
 
         satellite = EarthSatellite(tle_line_1, tle_line_2, name=name, ts=ts)
+        current_date_time = datetime.datetime.now(datetime.timezone.utc)
 
         # add satellite to database if it doesn't already exist
         sat_to_insert = (
             satellite.model.satnum,
             name,
             constellation,
+            current_date_time,
+            current_date_time,
             str(satellite.model.satnum),
         )
         satellite_insert_query = """ WITH e AS(
-        INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION) VALUES (%s,%s,%s)
-        ON CONFLICT (SAT_NUMBER) DO NOTHING RETURNING id)
+        INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
+        DATE_ADDED, DATE_MODIFIED) VALUES (%s,%s,%s,%s,%s)
+        ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
         SELECT * FROM e UNION SELECT id FROM satellites WHERE SAT_NUMBER=%s;"""
         cursor.execute(satellite_insert_query, sat_to_insert)
         sat_id = cursor.fetchone()[0]
 
         # add TLE to database
-        current_date_time = datetime.datetime.now(datetime.timezone.utc)
+
         tle_insert_query = """
         INSERT INTO tle (SAT_ID, DATE_COLLECTED, TLE_LINE1, TLE_LINE2, \
-            EPOCH, IS_SUPPLEMENTAL) VALUES (%s,%s,%s,%s,%s,%s)
+            EPOCH, IS_SUPPLEMENTAL, DATA_SOURCE) VALUES (%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT (SAT_ID, EPOCH) DO NOTHING;"""
         record_to_insert = (
             sat_id,
@@ -215,6 +205,7 @@ def add_tle_to_db(tle, constellation, cursor, is_supplemental):
             tle_line_2,
             satellite.epoch.utc_datetime(),
             is_supplemental,
+            "celestrak",
         )
         cursor.execute(tle_insert_query, record_to_insert)
 
