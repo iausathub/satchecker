@@ -3,12 +3,27 @@ SatChecker is a satellite position prediction tool from the [IAU CPS](https://cp
 
 #### [API Documentation](https://satchecker.readthedocs.io/en/latest/)
 
+- [Installation](#installation)
+    * [Dependencies](#dependencies)
+    * [Setup](#setup)
+    * [Local Database](#local-database)
+- [Running Tests](#running-tests)
+- [Building RTD Documentation](#building-rtd-documentation)
+- [Tools](#tools)
+- [Deployment & Infrastructure](#deployment-infrastructure)
+- [License](#license)
+
+<a name="installation"></a>
+## Installation
+
+<a name="dependencies"></a>
 ### Dependencies
 * Python 3.11.4
 * Docker (for running local database if desired)
 * PGAdmin (optional, for viewing postgres database)
 
-## Setup
+<a name="setup"></a>
+### Setup
 1. Navigate to the directory where you want to install SatChecker and clone the repo:
 ```bash
 git clone https://github.com/iausathub/satchecker.git
@@ -29,7 +44,8 @@ flask run
 ```
 6. http://localhost:5000 should now redirect to the API documentation - actual API endpoints require a local test database to be set up.
 
-## Local Database
+<a name="local-database"></a>
+### Local Database
 The steps below are to set up the database to run in a Docker container for easier setup/cleanup, but you can use the `db.sql` file to set up the PostgreSQL database on your machine if you prefer.
 
 You can populate the test database with the `retrieve_TLE.py` script in the `satchecker/data` directory. Since there isn't a pre-determined set of test data, it will differ for each machine but that shouldn't matter.
@@ -71,6 +87,7 @@ You can populate the test database with the `retrieve_TLE.py` script in the `sat
     http://localhost:5000/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1
     ```
 
+<a name="running-tests"></a>
 ## Running Tests
 If you are in the main `satchecker` directory, run the following command to run the pytest tests with code coverage:
 
@@ -80,6 +97,7 @@ python -m pytest
 
 The code coverage report is generated in html by default, and can be found at satchecker/htmlcov/index.html after running the tests. Edit the pytest.ini if you need to change the code coverage report format.
 
+<a name="building-rtd-documentation"></a>
 ## Building RTD Documentation
 1. Navigate to `satchecker/docs` and run the following command to install the required packages:
     ```bash
@@ -94,7 +112,9 @@ The code coverage report is generated in html by default, and can be found at sa
 
 The documentation will be built automatically when you push to the `main` branch. You can view the latest version [here](https://satchecker.readthedocs.io/en/latest/).
 
+<a name="tools"></a>
 ## Tools
+
 ### Formatting and Linting
 Right now the code is set up to use [Black](https://black.readthedocs.io/en/stable/) for code formatting and [Ruff](https://docs.astral.sh/ruff/) for linting with the following rules turned on:
 * E (pycodestyle errors)
@@ -106,6 +126,8 @@ Right now the code is set up to use [Black](https://black.readthedocs.io/en/stab
 * B (flake8-bugbear)
 
 Ruff and Black can be set up to run as pre-commit hooks, but they are also run on every push to a branch in the run_tests.yml workflow (which also runs all the tests)
+
+<a name="deployment-infrastructure"></a>
 ## Deployment & Infrastructure
 
 ### AWS
@@ -115,7 +137,7 @@ Ruff and Black can be set up to run as pre-commit hooks, but they are also run o
 [AWS Services](setup/aws/satchecker_AWS_services.drawio.png)
 
 
-
+<a name="license"></a>
 ## License
 [![CC BY 4.0][cc-by-shield]][cc-by]
 

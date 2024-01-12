@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 import re
+from collections import namedtuple
 
 import astropy.units as u
 import numpy as np
+import requests
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
 from flask import abort, redirect, request
@@ -28,7 +30,8 @@ def page_not_found(e):
 @app.errorhandler(400)
 def missing_parameter(e):
     return (
-        "Error 400: Incorrect parameters or too many results to return<br /> \
+        "Error 400: Incorrect parameters or too many results to return \
+        (maximum of 1000 in a single request)<br /> \
         Check your request and try again.",
         400,
     )
@@ -57,7 +60,13 @@ def root():
 @app.route("/health")
 @limiter.exempt
 def health():
-    return {"message": "Healthy"}
+    try:
+        response = requests.get("https://cps.iau.org/tools/satchecker/api/", timeout=10)
+        response.raise_for_status()
+    except Exception:
+        abort(503, "Error: Unable to connect to IAU CPS URL")
+    else:
+        return {"message": "Healthy"}
 
 
 @app.route("/ephemeris/name/")
@@ -86,6 +95,10 @@ def get_ephemeris_by_name():
         Elevation in meters
     julian_date: 'float'
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+    min_altitude: 'float'
+        Minimum satellite altitude in degrees
+    max_altitude: 'float'
+        Maximum satellite altitude in degrees
 
     Returns
     -------
@@ -97,6 +110,8 @@ def get_ephemeris_by_name():
     longitude = request.args.get("longitude")
     elevation = request.args.get("elevation")
     julian_date = request.args.get("julian_date")
+    min_altitude = request.args.get("min_altitude")
+    max_altitude = request.args.get("max_altitude")
 
     # check for mandatory parameters
     if [x for x in (name, latitude, longitude, elevation, julian_date) if x is None]:
@@ -112,15 +127,34 @@ def get_ephemeris_by_name():
     except Exception:
         abort(500, "Error: Invalid location parameters")
 
+    try:
+        # if min_altitude is not none convert to float
+        min_altitude = float(min_altitude) if min_altitude is not None else None
+        max_altitude = float(max_altitude) if max_altitude is not None else None
+        if min_altitude is None:
+            min_altitude = 0
+        if max_altitude is None:
+            max_altitude = 90
+    except Exception:
+        abort(500, "Error: Invalid parameter format")
+
     # Converting string to list
     try:
         jd = Time(julian_date, format="jd", scale="ut1")
     except Exception:
         abort(500, "Error: Invalid Julian Date")
 
-    tle_line_1, tle_line_2, date_collected, name = get_tle(name, False)
+    tle = get_tle(name, False)
     return create_result_list(
-        location, [jd], tle_line_1, tle_line_2, date_collected, name
+        location,
+        [jd],
+        tle.tle_line_1,
+        tle.tle_line_2,
+        tle.date_collected,
+        name,
+        min_altitude,
+        max_altitude,
+        tle.catalog,
     )
 
 
@@ -154,6 +188,10 @@ def get_ephemeris_by_name_jdstep():
         UT1 Universal Time Julian Date to stop ephmeris calculation.
     stepjd: 'float'
         UT1 Universal Time Julian Date timestep.
+    min_altitude: 'float'
+        Minimum satellite altitude in degrees
+    max_altitude: 'float'
+        Maximum satellite altitude in degrees
 
     Returns
     -------
@@ -167,12 +205,12 @@ def get_ephemeris_by_name_jdstep():
     startjd = request.args.get("startjd")
     stopjd = request.args.get("stopjd")
     stepjd = request.args.get("stepjd")
+    min_altitude = request.args.get("min_altitude")
+    max_altitude = request.args.get("max_altitude")
 
     # check for mandatory parameters
     if [
-        x
-        for x in (name, latitude, longitude, elevation, startjd, stopjd, stepjd)
-        if x is None
+        x for x in (name, latitude, longitude, elevation, startjd, stopjd) if x is None
     ]:
         abort(400)
 
@@ -185,18 +223,38 @@ def get_ephemeris_by_name_jdstep():
         )
     except Exception:
         abort(500, "Error: Invalid location parameters")
+
+    try:
+        min_altitude = float(min_altitude) if min_altitude is not None else None
+        max_altitude = float(max_altitude) if max_altitude is not None else None
+        if min_altitude is None:
+            min_altitude = 0
+        if max_altitude is None:
+            max_altitude = 90
+    except Exception:
+        abort(500, "Error: Invalid parameter format")
+
     jd0 = float(startjd)
     jd1 = float(stopjd)
-    jds = float(stepjd)
+
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 
     if len(jd) > 1000:
         abort(400)
 
-    tle_line_1, tle_line_2, date_collected, name = get_tle(name, False)
+    tle = get_tle(name, False)
     return create_result_list(
-        location, jd, tle_line_1, tle_line_2, date_collected, name
+        location,
+        jd,
+        tle.tle_line_1,
+        tle.tle_line_2,
+        tle.date_collected,
+        name,
+        min_altitude,
+        max_altitude,
+        tle.catalog,
     )
 
 
@@ -226,7 +284,10 @@ def get_ephemeris_by_catalog_number():
         Elevation in meters
     julian_date: 'float'
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-
+    min_altitude: 'float'
+        Minimum satellite altitude in degrees
+    max_altitude: 'float'
+        Maximum satellite altitude in degrees
     Returns
     -------
     response: 'dictionary'
@@ -237,6 +298,8 @@ def get_ephemeris_by_catalog_number():
     longitude = request.args.get("longitude")
     elevation = request.args.get("elevation")
     julian_date = request.args.get("julian_date")
+    min_altitude = request.args.get("min_altitude")
+    max_altitude = request.args.get("max_altitude")
 
     # check for mandatory parameters
     if [x for x in (catalog, latitude, longitude, elevation, julian_date) if x is None]:
@@ -251,15 +314,34 @@ def get_ephemeris_by_catalog_number():
         )
     except Exception:
         abort(500, "Error: Invalid location parameters")
+
+    try:
+        min_altitude = float(min_altitude) if min_altitude is not None else None
+        max_altitude = float(max_altitude) if max_altitude is not None else None
+        if min_altitude is None:
+            min_altitude = 0
+        if max_altitude is None:
+            max_altitude = 90
+    except Exception:
+        abort(500, "Error: Invalid parameter format")
+
     # Converting string to list
     try:
         jd = Time(julian_date, format="jd", scale="ut1")
     except Exception:
         abort(500, "Error: Invalid Julian Date")
 
-    tle_line_1, tle_line_2, date_collected, name = get_tle(catalog, True)
+    tle = get_tle(catalog, True)
     return create_result_list(
-        location, [jd], tle_line_1, tle_line_2, date_collected, name
+        location,
+        [jd],
+        tle.tle_line_1,
+        tle.tle_line_2,
+        tle.date_collected,
+        tle.name,
+        min_altitude,
+        max_altitude,
+        tle.catalog,
     )
 
 
@@ -293,6 +375,10 @@ def get_ephemeris_by_catalog_number_jdstep():
         UT1 Universal Time Julian Date to stop ephmeris calculation.
     stepjd: 'float'
         UT1 Universal Time Julian Date timestep.
+    min_altitude: 'float'
+        Minimum satellite altitude in degrees
+    max_altitude: 'float'
+        Maximum satellite altitude in degrees
 
     Returns
     -------
@@ -306,11 +392,13 @@ def get_ephemeris_by_catalog_number_jdstep():
     startjd = request.args.get("startjd")
     stopjd = request.args.get("stopjd")
     stepjd = request.args.get("stepjd")
+    min_altitude = request.args.get("min_altitude")
+    max_altitude = request.args.get("max_altitude")
 
     # check for mandatory parameters
     if [
         x
-        for x in (catalog, latitude, longitude, elevation, startjd, stopjd, stepjd)
+        for x in (catalog, latitude, longitude, elevation, startjd, stopjd)
         if x is None
     ]:
         abort(400)
@@ -325,9 +413,20 @@ def get_ephemeris_by_catalog_number_jdstep():
     except Exception:
         abort(500, "Error: Invalid location parameters")
 
+    try:
+        min_altitude = float(min_altitude) if min_altitude is not None else None
+        max_altitude = float(max_altitude) if max_altitude is not None else None
+        if min_altitude is None:
+            min_altitude = 0
+        if max_altitude is None:
+            max_altitude = 90
+    except Exception:
+        abort(500, "Error: Invalid parameter format")
+
     jd0 = float(startjd)
     jd1 = float(stopjd)
-    jds = float(stepjd)
+
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 
@@ -335,9 +434,17 @@ def get_ephemeris_by_catalog_number_jdstep():
         app.logger.info("Too many results requested")
         abort(400)
 
-    tle_line_1, tle_line_2, date_collected, name = get_tle(catalog, True)
+    tle = get_tle(catalog, True)
     return create_result_list(
-        location, jd, tle_line_1, tle_line_2, date_collected, name
+        location,
+        jd,
+        tle.tle_line_1,
+        tle.tle_line_2,
+        tle.date_collected,
+        tle.name,
+        min_altitude,
+        max_altitude,
+        tle.catalog,
     )
 
 
@@ -366,6 +473,10 @@ def get_ephemeris_by_tle():
         Elevation in meters
     julian_date: 'float'
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+    min_altitude: 'float'
+        Minimum satellite altitude in degrees
+    max_altitude: 'float'
+        Maximum satellite altitude in degrees
 
     Returns
     -------
@@ -377,6 +488,8 @@ def get_ephemeris_by_tle():
     longitude = request.args.get("longitude")
     elevation = request.args.get("elevation")
     julian_date = request.args.get("julian_date")
+    min_altitude = request.args.get("min_altitude")
+    max_altitude = request.args.get("max_altitude")
 
     # check for mandatory parameters
     if [x for x in (latitude, longitude, elevation, julian_date) if x is None]:
@@ -391,15 +504,34 @@ def get_ephemeris_by_tle():
         )
     except Exception:
         abort(500, "Error: Invalid location parameters")
+
+    try:
+        min_altitude = float(min_altitude) if min_altitude is not None else None
+        max_altitude = float(max_altitude) if max_altitude is not None else None
+        if min_altitude is None:
+            min_altitude = 0
+        if max_altitude is None:
+            max_altitude = 90
+    except Exception:
+        abort(500, "Error: Invalid parameter format")
+
     # Converting string to list
     try:
         jd = Time(julian_date, format="jd", scale="ut1")
     except Exception:
         abort(500, "Error: Invalid Julian Date")
 
-    tle_line_1, tle_line_2, date_collected, name = parse_tle(tle)
+    tle = parse_tle(tle)
     return create_result_list(
-        location, [jd], tle_line_1, tle_line_2, date_collected, name
+        location,
+        [jd],
+        tle.tle_line_1,
+        tle.tle_line_2,
+        tle.date_collected,
+        tle.name,
+        min_altitude,
+        max_altitude,
+        tle.catalog,
     )
 
 
@@ -433,6 +565,10 @@ def get_ephemeris_by_tle_jdstep():
         UT1 Universal Time Julian Date to stop ephmeris calculation.
     stepjd: 'float'
         UT1 Universal Time Julian Date timestep.
+    min_altitude: 'float'
+        Minimum satellite altitude in degrees
+    max_altitude: 'float'
+        Maximum satellite altitude in degrees
 
     Returns
     -------
@@ -446,13 +582,11 @@ def get_ephemeris_by_tle_jdstep():
     startjd = request.args.get("startjd")
     stopjd = request.args.get("stopjd")
     stepjd = request.args.get("stepjd")
+    min_altitude = request.args.get("min_altitude")
+    max_altitude = request.args.get("max_altitude")
 
     # check for mandatory parameters
-    if [
-        x
-        for x in (latitude, longitude, elevation, startjd, stopjd, stepjd)
-        if x is None
-    ]:
+    if [x for x in (latitude, longitude, elevation, startjd, stopjd) if x is None]:
         abort(400)
 
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
@@ -465,9 +599,20 @@ def get_ephemeris_by_tle_jdstep():
     except Exception:
         abort(500, "Error: Invalid location parameters")
 
+    try:
+        min_altitude = float(min_altitude) if min_altitude is not None else None
+        max_altitude = float(max_altitude) if max_altitude is not None else None
+        if min_altitude is None:
+            min_altitude = 0
+        if max_altitude is None:
+            max_altitude = 90
+    except Exception:
+        abort(500, "Error: Invalid parameter format")
+
     jd0 = float(startjd)
     jd1 = float(stopjd)
-    jds = float(stepjd)
+
+    jds = 0.00138889 if stepjd is None else float(stepjd)  # default to 2 min
 
     jd = jd_arange(jd0, jd1, jds)
 
@@ -475,9 +620,17 @@ def get_ephemeris_by_tle_jdstep():
         app.logger.info("Too many results requested")
         abort(400)
 
-    tle_line_1, tle_line_2, date_collected, name = parse_tle(tle)
+    tle = parse_tle(tle)
     return create_result_list(
-        location, jd, tle_line_1, tle_line_2, date_collected, name
+        location,
+        jd,
+        tle.tle_line_1,
+        tle.tle_line_2,
+        tle.date_collected,
+        tle.name,
+        min_altitude,
+        max_altitude,
+        tle.catalog,
     )
 
 
@@ -490,13 +643,21 @@ def get_tle(identifier, use_catalog_number):
         if use_catalog_number
         else get_tle_by_name(identifier)
     )
-    tle_line_1, tle_line_2, date_collected, name = get_recent_tle(
-        recent_tle_sup, recent_tle_gp
-    )
-    return tle_line_1, tle_line_2, date_collected, name
+    tle = get_recent_tle(recent_tle_sup, recent_tle_gp)
+    return tle
 
 
-def create_result_list(location, jd, tle_line_1, tle_line_2, date_collected, name):
+def create_result_list(
+    location,
+    jd,
+    tle_line_1,
+    tle_line_2,
+    date_collected,
+    name,
+    min_altitude,
+    max_altitude,
+    catalog_id="",
+):
     # propagation and create output
     result_list = []
     for d in jd:
@@ -504,36 +665,30 @@ def create_result_list(location, jd, tle_line_1, tle_line_2, date_collected, nam
         # dDec/dt (deg/day), Altitude (deg), Azimuth (deg), dAlt/dt (deg/day),
         # dAz/dt (deg/day), distance (km), range rate (km/s), phaseangle(deg),
         # illuminated (T/F)
-        [
-            ra,
-            dec,
-            dracosdec,
-            ddec,
-            alt,
-            az,
-            r,
-            dr,
-            phaseangle,
-            illuminated,
-        ] = propagate_satellite(tle_line_1, tle_line_2, location, d)
+        satellite_position = propagate_satellite(tle_line_1, tle_line_2, location, d)
 
-        result_list.append(
-            json_output(
-                name,
-                d.jd,
-                ra,
-                dec,
-                date_collected,
-                dracosdec,
-                ddec,
-                alt,
-                az,
-                r,
-                dr,
-                phaseangle,
-                illuminated,
+        if (
+            satellite_position.alt.degrees > min_altitude
+            and satellite_position.alt.degrees < max_altitude
+        ):
+            result_list.append(
+                json_output(
+                    name,
+                    catalog_id,
+                    d.jd,
+                    satellite_position.ra,
+                    satellite_position.dec,
+                    date_collected,
+                    satellite_position.dracosdec,
+                    satellite_position.ddec,
+                    satellite_position.alt,
+                    satellite_position.az,
+                    satellite_position.distance,
+                    satellite_position.ddistance,
+                    satellite_position.phase_angle,
+                    satellite_position.illuminated,
+                )
             )
-        )
     return result_list
 
 
@@ -565,7 +720,12 @@ def parse_tle(tle):
     ):
         abort(500, "Incorrect TLE format")
 
-    return tle_line_1, tle_line_2, None, name
+    catalog = tle_line_1[2:6]
+
+    tle = namedtuple(
+        "tle", ["tle_line_1", "tle_line_2", "date_collected", "name", "catalog"]
+    )
+    return tle(tle_line_1, tle_line_2, None, name, catalog)
 
 
 def get_tle_by_name(target_name):
@@ -672,7 +832,16 @@ def get_recent_tle(tle_sup, tle_gp):
     tle_line_1 = tle.tle_line1
     tle_line_2 = tle.tle_line2
 
-    return tle_line_1, tle_line_2, tle.date_collected, satellite.sat_name
+    recent_tle = namedtuple(
+        "tle", ["tle_line_1", "tle_line_2", "date_collected", "name", "catalog"]
+    )
+    return recent_tle(
+        tle_line_1,
+        tle_line_2,
+        tle.date_collected,
+        satellite.sat_name,
+        satellite.sat_number,
+    )
 
 
 def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
@@ -799,18 +968,23 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
             # yes the satellite is in Earth's shadow, no need to continue
             # (except for the moon of course)
             illuminated = False
-
-    return (
-        ra,
-        dec,
-        dracosdec,
-        ddec,
-        alt,
-        az,
-        distance,
-        ddistance,
-        phase_angle,
-        illuminated,
+    satellite_position = namedtuple(
+        "satellite_position",
+        [
+            "ra",
+            "dec",
+            "dracosdec",
+            "ddec",
+            "alt",
+            "az",
+            "distance",
+            "ddistance",
+            "phase_angle",
+            "illuminated",
+        ],
+    )
+    return satellite_position(
+        ra, dec, dracosdec, ddec, alt, az, distance, ddistance, phase_angle, illuminated
     )
 
 
@@ -870,6 +1044,7 @@ def tle_to_icrf_state(tle_line_1, tle_line_2, jd):
 
 def json_output(
     name,
+    catalog_id,
     time,
     ra,
     dec,
@@ -930,6 +1105,7 @@ def json_output(
 
     output = {
         "NAME": name,
+        "CATALOG_ID": catalog_id,
         "JULIAN_DATE": my_round(time, precision_date),
         "RIGHT_ASCENSION-DEG": my_round(ra._degrees, precision_angles),
         "DECLINATION-DEG": my_round(dec.degrees, precision_angles),
