@@ -99,6 +99,8 @@ def get_ephemeris_by_name():
         Minimum satellite altitude in degrees
     max_altitude: 'float'
         Maximum satellite altitude in degrees
+    data_source: 'str'
+        Original source of TLE data (celestrak or spacetrack)
 
     Returns
     -------
@@ -112,6 +114,7 @@ def get_ephemeris_by_name():
     julian_date = request.args.get("julian_date")
     min_altitude = request.args.get("min_altitude")
     max_altitude = request.args.get("max_altitude")
+    data_source = request.args.get("data_source")
 
     # check for mandatory parameters
     if [x for x in (name, latitude, longitude, elevation, julian_date) if x is None]:
@@ -144,7 +147,16 @@ def get_ephemeris_by_name():
     except Exception:
         abort(500, "Error: Invalid Julian Date")
 
-    tle = get_tle(name, False)
+    try:
+        data_source = data_source.lower() if data_source is not None else None
+        if data_source is None:
+            data_source = "spacetrack"
+        if data_source not in ["celestrak", "spacetrack"]:
+            raise Exception
+    except Exception:
+        abort(500, "Error: Invalid data source")
+
+    tle = get_tle(name, False, data_source)
     return create_result_list(
         location,
         [jd],
@@ -155,6 +167,7 @@ def get_ephemeris_by_name():
         min_altitude,
         max_altitude,
         tle.catalog,
+        data_source,
     )
 
 
@@ -192,6 +205,8 @@ def get_ephemeris_by_name_jdstep():
         Minimum satellite altitude in degrees
     max_altitude: 'float'
         Maximum satellite altitude in degrees
+    data_source: 'str'
+        Original source of TLE data (celestrak or spacetrack)
 
     Returns
     -------
@@ -207,6 +222,7 @@ def get_ephemeris_by_name_jdstep():
     stepjd = request.args.get("stepjd")
     min_altitude = request.args.get("min_altitude")
     max_altitude = request.args.get("max_altitude")
+    data_source = request.args.get("data_source")
 
     # check for mandatory parameters
     if [
@@ -234,6 +250,15 @@ def get_ephemeris_by_name_jdstep():
     except Exception:
         abort(500, "Error: Invalid parameter format")
 
+    try:
+        data_source = data_source.lower() if data_source is not None else None
+        if data_source is None:
+            data_source = "spacetrack"
+        if data_source not in ["celestrak", "spacetrack"]:
+            raise Exception
+    except Exception:
+        abort(500, "Error: Invalid data source")
+
     jd0 = float(startjd)
     jd1 = float(stopjd)
 
@@ -244,7 +269,7 @@ def get_ephemeris_by_name_jdstep():
     if len(jd) > 1000:
         abort(400)
 
-    tle = get_tle(name, False)
+    tle = get_tle(name, False, data_source)
     return create_result_list(
         location,
         jd,
@@ -255,6 +280,7 @@ def get_ephemeris_by_name_jdstep():
         min_altitude,
         max_altitude,
         tle.catalog,
+        data_source,
     )
 
 
@@ -288,6 +314,9 @@ def get_ephemeris_by_catalog_number():
         Minimum satellite altitude in degrees
     max_altitude: 'float'
         Maximum satellite altitude in degrees
+    data_source: 'str'
+        Original source of TLE data (celestrak or spacetrack)
+
     Returns
     -------
     response: 'dictionary'
@@ -300,6 +329,7 @@ def get_ephemeris_by_catalog_number():
     julian_date = request.args.get("julian_date")
     min_altitude = request.args.get("min_altitude")
     max_altitude = request.args.get("max_altitude")
+    data_source = request.args.get("data_source")
 
     # check for mandatory parameters
     if [x for x in (catalog, latitude, longitude, elevation, julian_date) if x is None]:
@@ -331,7 +361,16 @@ def get_ephemeris_by_catalog_number():
     except Exception:
         abort(500, "Error: Invalid Julian Date")
 
-    tle = get_tle(catalog, True)
+    try:
+        data_source = data_source.lower() if data_source is not None else None
+        if data_source is None:
+            data_source = "spacetrack"
+        if data_source not in ["celestrak", "spacetrack"]:
+            raise Exception
+    except Exception:
+        abort(500, "Error: Invalid data source")
+
+    tle = get_tle(catalog, True, data_source)
     return create_result_list(
         location,
         [jd],
@@ -342,6 +381,7 @@ def get_ephemeris_by_catalog_number():
         min_altitude,
         max_altitude,
         tle.catalog,
+        data_source,
     )
 
 
@@ -379,6 +419,8 @@ def get_ephemeris_by_catalog_number_jdstep():
         Minimum satellite altitude in degrees
     max_altitude: 'float'
         Maximum satellite altitude in degrees
+    data_source: 'str'
+        Original source of TLE data (celestrak or spacetrack)
 
     Returns
     -------
@@ -394,6 +436,7 @@ def get_ephemeris_by_catalog_number_jdstep():
     stepjd = request.args.get("stepjd")
     min_altitude = request.args.get("min_altitude")
     max_altitude = request.args.get("max_altitude")
+    data_source = request.args.get("data_source")
 
     # check for mandatory parameters
     if [
@@ -423,6 +466,15 @@ def get_ephemeris_by_catalog_number_jdstep():
     except Exception:
         abort(500, "Error: Invalid parameter format")
 
+    try:
+        data_source = data_source.lower() if data_source is not None else None
+        if data_source is None:
+            data_source = "spacetrack"
+        if data_source not in ["celestrak", "spacetrack"]:
+            raise Exception
+    except Exception:
+        abort(500, "Error: Invalid data source")
+
     jd0 = float(startjd)
     jd1 = float(stopjd)
 
@@ -434,7 +486,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         app.logger.info("Too many results requested")
         abort(400)
 
-    tle = get_tle(catalog, True)
+    tle = get_tle(catalog, True, data_source)
     return create_result_list(
         location,
         jd,
@@ -445,6 +497,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         min_altitude,
         max_altitude,
         tle.catalog,
+        data_source,
     )
 
 
@@ -532,6 +585,7 @@ def get_ephemeris_by_tle():
         min_altitude,
         max_altitude,
         tle.catalog,
+        "user",
     )
 
 
@@ -631,17 +685,18 @@ def get_ephemeris_by_tle_jdstep():
         min_altitude,
         max_altitude,
         tle.catalog,
+        "user",
     )
 
 
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
 
 
-def get_tle(identifier, use_catalog_number):
+def get_tle(identifier, use_catalog_number, data_source):
     recent_tle_sup, recent_tle_gp = (
-        get_tle_by_catalog_number(identifier)
+        get_tle_by_catalog_number(identifier, data_source)
         if use_catalog_number
-        else get_tle_by_name(identifier)
+        else get_tle_by_name(identifier, data_source)
     )
     tle = get_recent_tle(recent_tle_sup, recent_tle_gp)
     return tle
@@ -657,6 +712,7 @@ def create_result_list(
     min_altitude,
     max_altitude,
     catalog_id="",
+    data_source="",
 ):
     # propagation and create output
     result_list = []
@@ -687,6 +743,7 @@ def create_result_list(
                     satellite_position.ddistance,
                     satellite_position.phase_angle,
                     satellite_position.illuminated,
+                    data_source,
                 )
             )
     return result_list
@@ -728,7 +785,7 @@ def parse_tle(tle):
     return tle(tle_line_1, tle_line_2, None, name, catalog)
 
 
-def get_tle_by_name(target_name):
+def get_tle_by_name(target_name, data_source):
     """Query Two Line Element (orbital element) API and return TLE lines for propagation
 
     Paremeters:
@@ -748,7 +805,7 @@ def get_tle_by_name(target_name):
     try:
         tle_sup = (
             db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="true")
+            .filter_by(is_supplemental="true", data_source=data_source)
             .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
             .filter_by(sat_name=target_name)
             .order_by(desc(models.TLE.date_collected))
@@ -757,7 +814,7 @@ def get_tle_by_name(target_name):
 
         tle_gp = (
             db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="false")
+            .filter_by(is_supplemental="false", data_source=data_source)
             .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
             .filter_by(sat_name=target_name)
             .order_by(desc(models.TLE.date_collected))
@@ -769,7 +826,7 @@ def get_tle_by_name(target_name):
     return tle_sup, tle_gp
 
 
-def get_tle_by_catalog_number(target_number):
+def get_tle_by_catalog_number(target_number, data_source):
     """Query Two Line Element (orbital element) API and return TLE lines for propagation
 
     Paremeters:
@@ -789,7 +846,7 @@ def get_tle_by_catalog_number(target_number):
     try:
         tle_sup = (
             db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="true")
+            .filter_by(is_supplemental="true", data_source=data_source)
             .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
             .filter_by(sat_number=target_number)
             .order_by(desc(models.TLE.date_collected))
@@ -798,13 +855,14 @@ def get_tle_by_catalog_number(target_number):
 
         tle_gp = (
             db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="false")
+            .filter_by(is_supplemental="false", data_source=data_source)
             .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
             .filter_by(sat_number=target_number)
             .order_by(desc(models.TLE.date_collected))
             .first()
         )
-    except Exception:
+    except Exception as e:
+        print(e)
         return None, None
 
     return tle_sup, tle_gp
@@ -1058,6 +1116,7 @@ def json_output(
     dr,
     phaseangle,
     illuminated,
+    data_source,
     precision_angles=11,
     precision_date=12,
     precision_range=12,
@@ -1118,6 +1177,7 @@ def json_output(
         "PHASE_ANGLE-DEG": my_round(phaseangle, precision_angles),
         "ILLUMINATED": illuminated,
         "TLE-DATE": tle_date,
+        "DATA_SOURCE": data_source,
     }
 
     return output

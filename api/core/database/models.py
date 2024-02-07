@@ -27,17 +27,26 @@ class TLE(db.Model):
     tle_line1 = db.Column(db.String())
     tle_line2 = db.Column(db.String())
     is_supplemental = db.Column(db.Boolean())
+    data_source = db.Column(db.String())
     epoch = db.Column(db.DateTime())
     tle_satellite = db.relationship("database.models.Satellite", lazy="joined")
 
     def __init__(
-        self, sat_id, date_collected, tle_line1, tle_line2, is_supplemental, epoch
+        self,
+        sat_id,
+        date_collected,
+        tle_line1,
+        tle_line2,
+        is_supplemental,
+        epoch,
+        data_source,
     ):
         self.sat_id = sat_id
         self.date_collected = date_collected
         self.tle_line1 = tle_line1
         self.tle_line2 = tle_line2
         self.is_supplemental = is_supplemental
+        self.data_source = data_source
         self.epoch = epoch
 
     def __repr__(self):
