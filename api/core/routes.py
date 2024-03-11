@@ -156,7 +156,7 @@ def get_ephemeris_by_name():
     except Exception:
         abort(500, "Error: Invalid data source")
 
-    tle = get_tle(name, False, data_source, jd)
+    tle = get_tle(name, False, data_source, jd.to_datetime())
     return create_result_list(
         location,
         [jd],
@@ -269,7 +269,7 @@ def get_ephemeris_by_name_jdstep():
     if len(jd) > 1000:
         abort(400)
 
-    tle = get_tle(name, False, data_source, jd[0])
+    tle = get_tle(name, False, data_source, jd[0].to_datetime())
     return create_result_list(
         location,
         jd,
@@ -811,7 +811,6 @@ def get_tle_by_name(target_name, data_source, date):
             .filter_by(data_source=data_source)
             .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
             .filter_by(sat_name=target_name)
-            .filter(models.TLE.date_collected <= date)
             .order_by(
                 func.abs(
                     func.extract("epoch", models.TLE.date_collected)
