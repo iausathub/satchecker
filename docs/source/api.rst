@@ -18,6 +18,7 @@ Retrieve satellite ephemeris by name with JD time step
    :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
    :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
    :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
+   :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
 
 
 **Example Request**
@@ -53,6 +54,7 @@ Retrieve satellite ephemeris by name with JD time step
             "ALTITUDE-DEG": -83.92701127488,
             "AZIMUTH-DEG": 74.23644169397,
             "CATALOG_ID": 46161,
+            "DATA_SOURCE": "spacetrack",
             "DDEC-DEG_PER_SEC": -0.02013597761,
             "DECLINATION-DEG": -38.21698520948,
             "DRA_COSDEC-DEG_PER_SEC": 0.0273538424,
@@ -69,6 +71,7 @@ Retrieve satellite ephemeris by name with JD time step
             "ALTITUDE-DEG": -11.8036627367,
             "AZIMUTH-DEG": 282.38507272541,
             "CATALOG_ID": 46161,
+            "DATA_SOURCE": "spacetrack",
             "DDEC-DEG_PER_SEC": 0.05433004435,
             "DECLINATION-DEG": 1.75807790636,
             "DRA_COSDEC-DEG_PER_SEC": 0.00760649602,
@@ -99,6 +102,7 @@ Retrieve satellite ephemeris by name
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
+    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
 
 **Example Request**
     .. tabs::
@@ -131,6 +135,7 @@ Retrieve satellite ephemeris by name
             "ALTITUDE-DEG": -83.92701127488,
             "AZIMUTH-DEG": 74.23644169397,
             "CATALOG_ID": 46161,
+            "DATA_SOURCE": "spacetrack",
             "DDEC-DEG_PER_SEC": -0.02013597761,
             "DECLINATION-DEG": -38.21698520948,
             "DRA_COSDEC-DEG_PER_SEC": 0.0273538424,
@@ -163,6 +168,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
     :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
+    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
 
 **Example Request**
     .. tabs::
@@ -197,6 +203,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
             "ALTITUDE-DEG": -59.42992120557,
             "AZIMUTH-DEG": 288.04620638774,
             "CATALOG_ID": 25544,
+            "DATA_SOURCE": "spacetrack",
             "DDEC-DEG_PER_SEC": 0.02460147584,
             "DECLINATION-DEG": -25.64785198072,
             "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
@@ -213,6 +220,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
             "ALTITUDE-DEG": -22.86735389391,
             "AZIMUTH-DEG": 142.33553116822,
             "CATALOG_ID": 25544,
+            "DATA_SOURCE": "spacetrack",
             "DDEC-DEG_PER_SEC": -0.01420767889,
             "DECLINATION-DEG": -54.03105192755,
             "DRA_COSDEC-DEG_PER_SEC": 0.03650863588,
@@ -243,6 +251,7 @@ Retrieve satellite ephemeris by catalog number
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
+    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
 
 **Example Request**
     .. tabs::
@@ -275,6 +284,7 @@ Retrieve satellite ephemeris by catalog number
             "ALTITUDE-DEG": -59.42992120557,
             "AZIMUTH-DEG": 288.04620638774,
             "CATALOG_ID": 25544,
+            "DATA_SOURCE": "spacetrack",
             "DDEC-DEG_PER_SEC": 0.02460147584,
             "DECLINATION-DEG": -25.64785198072,
             "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
@@ -341,6 +351,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
             "ALTITUDE-DEG": -59.42992120557,
             "AZIMUTH-DEG": 288.04620638774,
             "CATALOG_ID": 25544,
+            "DATA_SOURCE": "user",
             "DDEC-DEG_PER_SEC": 0.02460147584,
             "DECLINATION-DEG": -25.64785198072,
             "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
@@ -357,6 +368,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
             "ALTITUDE-DEG": -22.86735389391,
             "AZIMUTH-DEG": 142.33553116822,
             "CATALOG_ID": 25544,
+            "DATA_SOURCE": "user",
             "DDEC-DEG_PER_SEC": -0.01420767889,
             "DECLINATION-DEG": -54.03105192755,
             "DRA_COSDEC-DEG_PER_SEC": 0.03650863588,
@@ -419,6 +431,7 @@ Retrieve satellite ephemeris with a given TLE
             "ALTITUDE-DEG": -59.42992120557,
             "AZIMUTH-DEG": 288.04620638774,
             "CATALOG_ID": 25544,
+            "DATA_SOURCE": "user",
             "DDEC-DEG_PER_SEC": 0.02460147584,
             "DECLINATION-DEG": -25.64785198072,
             "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
