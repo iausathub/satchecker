@@ -10,7 +10,7 @@ from astropy.time import Time, TimeDelta
 from flask import abort, redirect, request
 from flask_limiter.util import get_remote_address
 from skyfield.api import EarthSatellite, load, wgs84
-from sqlalchemy import desc
+from sqlalchemy import func
 
 from core import app, limiter
 from core.database import models
@@ -141,7 +141,7 @@ def get_ephemeris_by_name():
     except Exception:
         abort(500, "Error: Invalid parameter format")
 
-    # Converting string to list
+    # Test JD format
     try:
         jd = Time(julian_date, format="jd", scale="ut1")
     except Exception:
@@ -156,17 +156,17 @@ def get_ephemeris_by_name():
     except Exception:
         abort(500, "Error: Invalid data source")
 
-    tle = get_tle(name, False, data_source)
+    tle = get_tle(name, False, data_source, jd)
     return create_result_list(
         location,
         [jd],
-        tle.tle_line_1,
-        tle.tle_line_2,
-        tle.date_collected,
+        tle[0].tle_line1,
+        tle[0].tle_line2,
+        tle[0].date_collected,
         name,
         min_altitude,
         max_altitude,
-        tle.catalog,
+        tle[1].sat_number,
         data_source,
     )
 
@@ -269,17 +269,17 @@ def get_ephemeris_by_name_jdstep():
     if len(jd) > 1000:
         abort(400)
 
-    tle = get_tle(name, False, data_source)
+    tle = get_tle(name, False, data_source, jd[0])
     return create_result_list(
         location,
         jd,
-        tle.tle_line_1,
-        tle.tle_line_2,
-        tle.date_collected,
+        tle[0].tle_line1,
+        tle[0].tle_line2,
+        tle[0].date_collected,
         name,
         min_altitude,
         max_altitude,
-        tle.catalog,
+        tle[1].sat_number,
         data_source,
     )
 
@@ -370,17 +370,17 @@ def get_ephemeris_by_catalog_number():
     except Exception:
         abort(500, "Error: Invalid data source")
 
-    tle = get_tle(catalog, True, data_source)
+    tle = get_tle(catalog, True, data_source, jd.to_datetime())
     return create_result_list(
         location,
         [jd],
-        tle.tle_line_1,
-        tle.tle_line_2,
-        tle.date_collected,
-        tle.name,
+        tle[0].tle_line1,
+        tle[0].tle_line2,
+        tle[0].date_collected,
+        tle[1].sat_name,
         min_altitude,
         max_altitude,
-        tle.catalog,
+        tle[1].sat_number,
         data_source,
     )
 
@@ -486,17 +486,17 @@ def get_ephemeris_by_catalog_number_jdstep():
         app.logger.info("Too many results requested")
         abort(400)
 
-    tle = get_tle(catalog, True, data_source)
+    tle = get_tle(catalog, True, data_source, jd[0].to_datetime())
     return create_result_list(
         location,
         jd,
-        tle.tle_line_1,
-        tle.tle_line_2,
-        tle.date_collected,
-        tle.name,
+        tle[0].tle_line1,
+        tle[0].tle_line2,
+        tle[0].date_collected,
+        tle[1].sat_name,
         min_altitude,
         max_altitude,
-        tle.catalog,
+        tle[1].sat_number,
         data_source,
     )
 
@@ -578,8 +578,8 @@ def get_ephemeris_by_tle():
     return create_result_list(
         location,
         [jd],
-        tle.tle_line_1,
-        tle.tle_line_2,
+        tle.tle_line1,
+        tle.tle_line2,
         tle.date_collected,
         tle.name,
         min_altitude,
@@ -678,8 +678,8 @@ def get_ephemeris_by_tle_jdstep():
     return create_result_list(
         location,
         jd,
-        tle.tle_line_1,
-        tle.tle_line_2,
+        tle.tle_line1,
+        tle.tle_line2,
         tle.date_collected,
         tle.name,
         min_altitude,
@@ -692,14 +692,16 @@ def get_ephemeris_by_tle_jdstep():
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
 
 
-def get_tle(identifier, use_catalog_number, data_source):
-    recent_tle_sup, recent_tle_gp = (
-        get_tle_by_catalog_number(identifier, data_source)
+def get_tle(identifier, use_catalog_number, data_source, date):
+    tle_sat = (
+        get_tle_by_catalog_number(identifier, data_source, date)
         if use_catalog_number
-        else get_tle_by_name(identifier, data_source)
+        else get_tle_by_name(identifier, data_source, date)
     )
-    tle = get_recent_tle(recent_tle_sup, recent_tle_gp)
-    return tle
+    if not tle_sat:
+        abort(500, "No TLE found")
+
+    return tle_sat
 
 
 def create_result_list(
@@ -780,126 +782,88 @@ def parse_tle(tle):
     catalog = tle_line_1[2:6]
 
     tle = namedtuple(
-        "tle", ["tle_line_1", "tle_line_2", "date_collected", "name", "catalog"]
+        "tle", ["tle_line1", "tle_line2", "date_collected", "name", "catalog"]
     )
     return tle(tle_line_1, tle_line_2, None, name, catalog)
 
 
-def get_tle_by_name(target_name, data_source):
+def get_tle_by_name(target_name, data_source, date):
     """Query Two Line Element (orbital element) API and return TLE lines for propagation
 
     Paremeters:
     ------------
     target_name: 'str'
         Name of satellite as displayed in TLE file
+    data_source: 'str'
+        Original source of TLE data (celestrak or spacetrack)
+    date: 'datetime'
+        Date to query TLE data
 
     Returns
     -------
-    tle_line_1: 'str'
-        TLE line 1
-    tle_line_2: 'str'
-        TLE line 2
+    tle_sat: 'TLE, Satellite'
+        tuple with TLE and Satellite objects
     """
-    # use the supplemental TLE if it is the most recently collected one,
-    # otherwise use the general one
+    # use the tle closest to the date given (at the same time or before)
     try:
-        tle_sup = (
+        tle_sat = (
             db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="true", data_source=data_source)
+            .filter_by(data_source=data_source)
             .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
             .filter_by(sat_name=target_name)
-            .order_by(desc(models.TLE.date_collected))
-            .first()
-        )
-
-        tle_gp = (
-            db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="false", data_source=data_source)
-            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
-            .filter_by(sat_name=target_name)
-            .order_by(desc(models.TLE.date_collected))
+            .filter(models.TLE.date_collected <= date)
+            .order_by(
+                func.abs(
+                    func.extract("epoch", models.TLE.date_collected)
+                    - func.extract("epoch", date)
+                )
+            )
             .first()
         )
     except Exception as e:
         app.logger.error(e)
-        return None, None
-    return tle_sup, tle_gp
+        return None
+
+    return tle_sat
 
 
-def get_tle_by_catalog_number(target_number, data_source):
+def get_tle_by_catalog_number(target_number, data_source, date):
     """Query Two Line Element (orbital element) API and return TLE lines for propagation
 
     Paremeters:
     ------------
     target_number: 'str'
         Catalog number of satellite as displayed in TLE file
+    data_source: 'str'
+        Original source of TLE data (celestrak or spacetrack)
+    date: 'datetime'
+        Date to query TLE data
 
     Returns
     -------
-    tle_line_1: 'str'
-        TLE line 1
-    tle_line_2: 'str'
-        TLE line 2
+    tle_sat: 'TLE, Satellite'
+        tuple with TLE and Satellite objects
     """
-    # use the supplemental TLE if it is the most recently collected one,
-    # otherwise use the general one
+    # use the tle closest to the date given (at the same time or before)
     try:
-        tle_sup = (
+        tle_sat = (
             db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="true", data_source=data_source)
+            .filter_by(data_source=data_source)
             .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
             .filter_by(sat_number=target_number)
-            .order_by(desc(models.TLE.date_collected))
-            .first()
-        )
-
-        tle_gp = (
-            db.session.query(models.TLE, models.Satellite)
-            .filter_by(is_supplemental="false", data_source=data_source)
-            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
-            .filter_by(sat_number=target_number)
-            .order_by(desc(models.TLE.date_collected))
+            .order_by(
+                func.abs(
+                    func.extract("epoch", models.TLE.date_collected)
+                    - func.extract("epoch", date)
+                )
+            )
             .first()
         )
     except Exception as e:
-        print(e)
-        return None, None
+        app.logger.error(e)
+        return None
 
-    return tle_sup, tle_gp
-
-
-def get_recent_tle(tle_sup, tle_gp):
-    tle = None
-    satellite = None
-    if tle_sup is None and tle_gp is None:
-        abort(500, "No TLE found")
-    elif tle_sup is None and tle_gp is not None:
-        tle = tle_gp[0]
-        satellite = tle_gp[1]
-    elif tle_sup is not None and tle_gp is None:
-        tle = tle_sup[0]
-        satellite = tle_sup[1]
-    else:
-        tle, satellite = (
-            (tle_sup[0], tle_sup[1])
-            if tle_sup[0].date_collected > tle_gp[0].date_collected
-            else (tle_gp[0], tle_gp[1])
-        )
-
-    # Retrieve the two lines
-    tle_line_1 = tle.tle_line1
-    tle_line_2 = tle.tle_line2
-
-    recent_tle = namedtuple(
-        "tle", ["tle_line_1", "tle_line_2", "date_collected", "name", "catalog"]
-    )
-    return recent_tle(
-        tle_line_1,
-        tle_line_2,
-        tle.date_collected,
-        satellite.sat_name,
-        satellite.sat_number,
-    )
+    return tle_sat
 
 
 def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
