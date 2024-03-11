@@ -17,4 +17,4 @@ exclude = '''
 '''
 
 [tool.ruff]
-select = ["E", "F", "I", "N", "UP", "S", "B"]
+lint.select = ["E", "F", "I", "N", "UP", "S", "B"]
