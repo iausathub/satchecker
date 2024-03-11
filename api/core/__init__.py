@@ -13,9 +13,11 @@ def create_app():
 
     db_login = utils.get_db_login()
 
+    # fmt: off
     app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://{}:{}@{}:{}/{}".format(
         db_login[0], db_login[1], db_login[2], db_login[3], db_login[4]
     )
+    # fmt: on
 
     return app
 
