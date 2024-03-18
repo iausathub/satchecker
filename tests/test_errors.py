@@ -20,7 +20,7 @@ def test_missing_parameter(client):
 
 
 def test_missing_data(client, mocker):
-    mocker.patch.object(api.core.routes, "get_tle_by_name", return_value=(None, None))
+    mocker.patch.object(api.core.routes, "get_tle_by_name", return_value=None)
     response = client.get(
         "/ephemeris/name/?name=test_sat123&elevation=150&latitude=32&longitude=-110&julian_date=2459000.5"
     )

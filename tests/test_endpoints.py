@@ -4,13 +4,13 @@ from collections import namedtuple
 
 import pytest
 
-import api.core
+from api.core import routes
 
 assert_precision = 0.0000000001
 
 
 def test_get_ephemeris_by_name(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
             &julian_date=2460193.104167&min_altitude=-90"
@@ -25,7 +25,7 @@ def test_get_ephemeris_by_name(client, mocker):
 
 
 def test_get_ephemeris_by_name_jdstep(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32\
             &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90"
@@ -40,7 +40,7 @@ def test_get_ephemeris_by_name_jdstep(client, mocker):
 
 
 def test_get_ephemeris_by_catalog_number(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90"
     )
@@ -54,7 +54,7 @@ def test_get_ephemeris_by_catalog_number(client, mocker):
 
 
 def test_get_ephemeris_by_catalog_number_jdstep(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32\
         &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1&min_altitude=-90"
@@ -105,7 +105,7 @@ def test_get_ephemeris_by_tle_jdstep(client):
 
 
 def test_min_max_alt_name(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
             &julian_date=2460193.104167"
@@ -125,7 +125,7 @@ def test_min_max_alt_name(client, mocker):
 
 
 def test_min_max_alt_name_jdstep(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32\
             &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
@@ -145,7 +145,7 @@ def test_min_max_alt_name_jdstep(client, mocker):
 
 
 def test_min_max_alt_catalog(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110\
             &julian_date=2460193.104167"
@@ -165,7 +165,7 @@ def test_min_max_alt_catalog(client, mocker):
 
 
 def test_min_max_alt_catalog_jdstep(client, mocker):
-    mocker.patch.object(api.core.routes, "get_recent_tle", return_value=get_mock_tle())
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32\
         &longitude=-110&startjd=2460193.1&stopjd=2460193.2&stepjd=0.1"
@@ -237,10 +237,13 @@ def get_mock_tle():
     date_collected = datetime.datetime(2023, 9, 5, 16, 21, 29)
     sat_name = "ISS (ZARYA)"
 
-    tle = namedtuple(
-        "tle", ["tle_line_1", "tle_line_2", "date_collected", "name", "catalog"]
-    )
-    return tle(tle_line1, tle_line2, date_collected, sat_name, 25544)
+    tle_tuple = namedtuple("tle", ["tle_line1", "tle_line2", "date_collected"])
+    satellite_tuple = namedtuple("satellite", ["sat_name", "sat_number"])
+
+    tle = tle_tuple(tle_line1, tle_line2, date_collected)
+    satellite = satellite_tuple(sat_name, 25544)
+
+    return tle, satellite
 
 
 def assert_single_jd(data):

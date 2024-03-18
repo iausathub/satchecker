@@ -7,6 +7,14 @@ The coordinate system used for the RA/Dec coordinate results is
 the IRCF (International Reference Celestial Frame), which is almost
 identical to J2000 with possible minute differences.
 
+Validation
+-----------------------------------------------------------
+SatChecker has been validated with a preliminary set of observations done with
+DECam/Blanco by Guillermo Damke to verify that a given set of satellites appeared
+in the expected location at the expected time (Starlink Gen 2s). The results were
+consistent with the expected positions.
+
+
 Satellite IDs
 -----------------------------------------------------------
 Satellites are assigned a temporary ID after launch, which can be used

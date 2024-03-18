@@ -20,7 +20,7 @@ CREATE TABLE tle(
    data_source TEXT NOT NULL,
    FOREIGN KEY (sat_id)
       REFERENCES satellites (id),
-   UNIQUE (sat_id, epoch)
+   UNIQUE (sat_id, epoch, data_source)
 );
 
 
@@ -42,3 +42,11 @@ ADD CONSTRAINT unique_sat UNIQUE (sat_number, sat_name);
 
 ALTER TABLE public.tle
 ADD COLUMN data_source TEXT NOT NULL DEFAULT 'celestrak';
+
+
+-- Changes: 2-6-24
+ALTER TABLE public.tle
+DROP CONSTRAINT tle_sat_id_epoch_key;
+
+ALTER TABLE public.tle
+ADD CONSTRAINT unique_tle UNIQUE (sat_id, epoch, data_source);
