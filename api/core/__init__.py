@@ -13,10 +13,10 @@ def create_app():
 
     db_login = utils.get_db_login()
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://{}:{}@{}:{}/{}".format(
-        db_login[0], db_login[1], db_login[2], db_login[3], db_login[4]
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        f"postgresql://{db_login[0]}:{db_login[1]}@"
+        f"{db_login[2]}:{db_login[3]}/{db_login[4]}"
     )
-
     return app
 
 
@@ -25,7 +25,7 @@ app = create_app()
 if __name__ != "__main__":
     gunicorn_logger = logging.getLogger("gunicorn.error")
     app.logger.handlers = gunicorn_logger.handlers
-    app.logger.setLevel(gunicorn_logger.level)
+    app.logger.setLevel(logging.INFO)
 
 limiter = Limiter(
     app=app,
