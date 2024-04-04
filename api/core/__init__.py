@@ -31,6 +31,8 @@ def create_app():
         CELERY=dict(
             broker_url="redis://localhost:6379/0",
             result_backend="redis://localhost:6379/0",
+            task_ignore_result=False,
+            task_track_started=True,
         ),
     )
 

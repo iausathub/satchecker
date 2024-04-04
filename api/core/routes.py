@@ -69,6 +69,15 @@ def health():
         return {"message": "Healthy"}
 
 
+@app.route("/fov_test/")
+def fov_test():
+    # task = tasks.profile_function.apply()
+    # return task.get()
+    result_list_task = tasks.compare.apply()
+    result_list = result_list_task.get()
+    return result_list
+
+
 @app.route("/ephemeris/name/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
