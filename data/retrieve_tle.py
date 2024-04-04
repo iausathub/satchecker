@@ -177,7 +177,6 @@ def main():
     # SPACE-TRACK
     ######################
     elif args.source.upper() == "SPACETRACK":
-
         with requests.Session() as session:
             site_cred = {"identity": "email", "password": "password"}
             base_uri = "https://www.space-track.org"

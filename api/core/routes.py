@@ -748,6 +748,8 @@ def create_result_list(
                     data_source,
                 )
             )
+    if not result_list:
+        return {"info": "No position information found with this criteria"}
     return result_list
 
 
