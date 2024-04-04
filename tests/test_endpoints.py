@@ -113,7 +113,7 @@ def test_min_max_alt_name(client, mocker):
 
     # Check that the response was correct
     data = response.json
-    assert data == []
+    assert data == {"info": "No position information found with this criteria"}
 
     response = client.get(
         "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
@@ -133,7 +133,7 @@ def test_min_max_alt_name_jdstep(client, mocker):
 
     # Check that the response was correct
     data = response.json
-    assert data == []
+    assert data == {"info": "No position information found with this criteria"}
 
     response = client.get(
         "/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32\
@@ -153,7 +153,7 @@ def test_min_max_alt_catalog(client, mocker):
 
     # Check that the response was correct
     data = response.json
-    assert data == []
+    assert data == {"info": "No position information found with this criteria"}
 
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110\
@@ -173,7 +173,7 @@ def test_min_max_alt_catalog_jdstep(client, mocker):
 
     # Check that the response was correct
     data = response.json
-    assert data == []
+    assert data == {"info": "No position information found with this criteria"}
 
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32\
@@ -195,7 +195,7 @@ def test_min_max_alt_tle(client, mocker):
 
     # Check that the response was correct
     data = response.json
-    assert data == []
+    assert data == {"info": "No position information found with this criteria"}
 
     response = client.get(
         "/ephemeris/tle/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167\
@@ -219,7 +219,7 @@ def test_min_max_alt_tle_jdstep(client, mocker):
 
     # Check that the response was correct
     data = response.json
-    assert data == []
+    assert data == {"info": "No position information found with this criteria"}
 
     response = client.get(
         "/ephemeris/tle-jdstep/?elevation=150&latitude=32&longitude=-110\
