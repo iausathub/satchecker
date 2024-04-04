@@ -24,6 +24,17 @@ uses the ones from CelesTrak. Satellites can be found by searching by
 any of their IDs, including the temporary ones, but only the most recent ID
 will be displayed in the results.
 
+TLE Dates
+-----------------------------------------------------------
+TLEs are only good for a maximum of two weeks as far as prediction accuracy goes, so
+using a TLE closest to the date requested gives the most accurate postion information.
+SatChecker will automatically select the most relevant TLE available for the requested date,
+but will still be constrained by the data_source parameter. This means that by default, Space-Track
+TLEs will be checked unless otherwise specified. This is relevant in two primary cases:
+
+1. If there is a supplemental TLE available from CelesTrak that is newer than what has been retrieved from Space-Track, using CelesTrak as the data source will provide the most accurate position information.
+2. Eventually, when archival TLEs are available, these will all be from Space-Track, so using CelesTrak as a data source will likely give a less timely result.
+
 Other Notes
 -----------------------------------------------------------
 * Results are limited to 1000 points per request.
