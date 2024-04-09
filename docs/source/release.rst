@@ -3,6 +3,18 @@ Release History
 
 See the full changelog `here <https://github.com/iausathub/satchecker/releases>`_.
 
+v0.4.0-beta
+------------
+* Change response when no position data is found to return a relevant message
+* Extend timeout to retrieve Space-Track TLEs
+* Update documentation and example links
+* Add observer and satellite GCRS positions to the response
+
+v0.3.0-beta
+------------
+* Pass in datetime instead of astropy.Time
+* Add spacetrack as a new data source, chose TLE closest to given date
+
 v0.2.1-beta
 ------------
 * Temporarily remove service stability check

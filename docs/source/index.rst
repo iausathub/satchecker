@@ -13,6 +13,9 @@ to provide predictions of satellite positions at a given time and location.
 It also provides additional information like range, on-sky velocity, and an
 "illuminated" flag for each prediction point.
 
+SatChecker uses the TLE with the closest epoch date available to the date specified
+in the API parameters - currently available TLEs go back to October 2023.
+
 
 .. toctree::
    :caption: Ephemeris API

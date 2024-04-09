@@ -177,7 +177,6 @@ def main():
     # SPACE-TRACK
     ######################
     elif args.source.upper() == "SPACETRACK":
-
         with requests.Session() as session:
             site_cred = {"identity": "email", "password": "password"}
             base_uri = "https://www.space-track.org"
@@ -186,7 +185,7 @@ def main():
                 raise Exception(resp, "failed on login")
             tle = session.get(
                 "https://www.space-track.org/basicspacedata/query/class/gp/decay_date/null-val/epoch/%3Enow-30/orderby/norad_cat_id/format/json",
-                timeout=10,
+                timeout=60,
             )
 
             try:
