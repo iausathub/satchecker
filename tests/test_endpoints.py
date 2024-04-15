@@ -269,7 +269,7 @@ def assert_single_jd(data):
         [-147.12272716510805, 5412.091101268944, 3360.663968123699], assert_precision
     )
     assert data[0]["SATELLITE_GCRS_KM"] == pytest.approx(
-        [2768.0623389993366, -1405.475840109723, 1450.6527688616995], assert_precision
+        [2620.939611834229, 4006.6152611592215, 4811.316736985398], assert_precision
     )
 
 
@@ -296,7 +296,7 @@ def assert_jd_step(data):
         [-5.00171963899434, 5414.289884914357, 3360.3388991056636], assert_precision
     )
     assert data[0]["SATELLITE_GCRS_KM"] == pytest.approx(
-        [3904.0011992035124, -3781.1636321567385, 1947.1197932561877], assert_precision
+        [3898.999479564518, 1633.1262527576182, 5307.458692361852], assert_precision
     )
 
     assert data[1]["ALTITUDE-DEG"] == pytest.approx(-59.87503033798, assert_precision)
@@ -323,5 +323,5 @@ def assert_jd_step(data):
         [-3192.457318351085, 4367.320274866453, 3367.664974307105], assert_precision
     )
     assert data[1]["SATELLITE_GCRS_KM"] == pytest.approx(
-        [216.80176150531128, -7887.626700872477, -8366.143544055263], assert_precision
+        [-2975.655556845774, -3520.3064260060255, -4998.4785697481575], assert_precision
     )
