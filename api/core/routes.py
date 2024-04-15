@@ -937,7 +937,7 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
 
     dtx2 = 2 * dtsec
 
-    sat = satellite.at(t).position.km
+    sat_gcrs = satellite.at(t).position.km
 
     # satn = sat / np.linalg.norm(sat)
     # satpdt = satellite.at(tplusdt).position.km
@@ -976,17 +976,16 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
     sunp = sun.at(t).position.km
     earthsun = sunp - earthp
     earthsunn = earthsun / np.linalg.norm(earthsun)
-    satsun = sat - earthsun
+    satsun = sat_gcrs - earthsun
     satsunn = satsun / np.linalg.norm(satsun)
     phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
 
     # Is the satellite in Earth's Shadow?
-    r_parallel = np.dot(sat, earthsunn) * earthsunn
-    r_tangential = sat - r_parallel
+    r_parallel = np.dot(sat_gcrs, earthsunn) * earthsunn
+    r_tangential = sat_gcrs - r_parallel
 
     illuminated = True
 
-    sat_gcrs = topocentric.position.km
     obs_gcrs = curr_pos.at(t).position.km
 
     if np.linalg.norm(r_parallel) < 0:
