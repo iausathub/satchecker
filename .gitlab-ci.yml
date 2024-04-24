@@ -34,6 +34,7 @@ Merge request test api:
 #   stage: test
 #   rules:
 #     - if: $CI_COMMIT_BRANCH == "develop"
+#
 
 Development, build api image:
   extends: .build_image
