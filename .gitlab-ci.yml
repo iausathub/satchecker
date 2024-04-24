@@ -42,6 +42,7 @@ Merge request test api:
   stage: test
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
 
 # Development, test api:
 #   extends: .test
@@ -60,6 +61,7 @@ Development, build api image:
     ENVIRONMENT: "dev"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
+    - if: external_pull_requests
 
 Development, push api container tag to EKS Workloads:
   extends: .push_tag
