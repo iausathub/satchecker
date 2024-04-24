@@ -42,6 +42,7 @@ Merge request test api:
   stage: test
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
 
 # Development, test api:
 #   extends: .test
