@@ -24,7 +24,7 @@ Retrieve satellite ephemeris by name with JD time step
 **Example Request**
     .. tabs::
 
-        .. code-tab:: python
+        .. code-tab:: Python
 
             import requests
             import json
@@ -36,14 +36,22 @@ Retrieve satellite ephemeris by name with JD time step
                             'elevation': 222,
                             'startjd': 2460000.1,
                             'stopjd': 2460000.3,
-                            'stepjd': 0.1}
+                            'stepjd': 0.1,
+                            'min_altitude': -90}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
-        .. code-tab:: bash
+        .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1" -H "accept: application/json"
+            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90" -H "accept: application/json"
 
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90" -H "accept: application/json"
+
+        .. tab:: Link
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
 
 **Example Response**
 
@@ -51,38 +59,58 @@ Retrieve satellite ephemeris by name with JD time step
 
     [
         {
-            "ALTITUDE-DEG": -83.92701127488,
-            "AZIMUTH-DEG": 74.23644169397,
+            "ALTITUDE-DEG": -9.80971257652,
+            "AZIMUTH-DEG": 55.15478730961,
             "CATALOG_ID": 46161,
             "DATA_SOURCE": "spacetrack",
-            "DDEC-DEG_PER_SEC": -0.02013597761,
-            "DECLINATION-DEG": -38.21698520948,
-            "DRA_COSDEC-DEG_PER_SEC": 0.0273538424,
+            "DDEC-DEG_PER_SEC": -0.05070574412,
+            "DECLINATION-DEG": 18.61796683006,
+            "DRA_COSDEC-DEG_PER_SEC": 0.01019243518,
             "ILLUMINATED": true,
             "JULIAN_DATE": 2460000.1,
             "NAME": "STARLINK-1600",
-            "PHASE_ANGLE-DEG": 75.47849642996,
-            "RANGE-KM": 13236.231719560885,
-            "RANGE_RATE-KM_PER_SEC": 0.656362193304,
-            "RIGHT_ASCENSION-DEG": 94.32142232641,
-            "TLE-DATE": "2023-09-05 16:20:37"
+            "OBSERVER_GCRS_KM": [
+            1000.044906440929,
+            -4783.283201527772,
+            4085.459180326725
+            ],
+            "PHASE_ANGLE-DEG": 109.24612785799,
+            "RANGE-KM": 4095.040926172063,
+            "RANGE_RATE-KM_PER_SEC": 6.284422469172,
+            "RIGHT_ASCENSION-DEG": 43.04367601256,
+            "SATELLITE_GCRS_KM": [
+            2836.175695292651,
+            2648.8215197690492,
+            1307.3684135941762
+            ],
+            "TLE-DATE": "2024-02-05 16:12:42"
         },
         {
-            "ALTITUDE-DEG": -11.8036627367,
-            "AZIMUTH-DEG": 282.38507272541,
+            "ALTITUDE-DEG": -83.13771686839,
+            "AZIMUTH-DEG": 208.61161584252,
             "CATALOG_ID": 46161,
             "DATA_SOURCE": "spacetrack",
-            "DDEC-DEG_PER_SEC": 0.05433004435,
-            "DECLINATION-DEG": 1.75807790636,
-            "DRA_COSDEC-DEG_PER_SEC": 0.00760649602,
+            "DDEC-DEG_PER_SEC": 0.00663582343,
+            "DECLINATION-DEG": -45.94348488944,
+            "DRA_COSDEC-DEG_PER_SEC": 0.03354248225,
             "ILLUMINATED": true,
             "JULIAN_DATE": 2460000.2,
             "NAME": "STARLINK-1600",
-            "PHASE_ANGLE-DEG": 53.73895247174,
-            "RANGE-KM": 4328.449597815868,
-            "RANGE_RATE-KM_PER_SEC": -6.016772535669,
-            "RIGHT_ASCENSION-DEG": 210.80053185868,
-            "TLE-DATE": "2023-09-05 16:20:37"
+            "OBSERVER_GCRS_KM": [
+            3628.0577317280786,
+            -3281.0604185873253,
+            4079.547075333211
+            ],
+            "PHASE_ANGLE-DEG": 56.98343683301,
+            "RANGE-KM": 13245.443279043235,
+            "RANGE_RATE-KM_PER_SEC": -0.265606961091,
+            "RIGHT_ASCENSION-DEG": 142.61268227652,
+            "SATELLITE_GCRS_KM": [
+            -7318.155592415026,
+            5592.586129513591,
+            -9518.894198777909
+            ],
+            "TLE-DATE": "2024-02-05 16:12:42"
         }
     ]
 
@@ -107,7 +135,7 @@ Retrieve satellite ephemeris by name
 **Example Request**
     .. tabs::
 
-        .. code-tab:: python
+        .. code-tab:: Python
 
             import requests
             import json
@@ -117,14 +145,22 @@ Retrieve satellite ephemeris by name
                             'latitude': 40.1106,
                             'longitude': -88.2073,
                             'elevation': 222,
-                            'julian_date': 2460000.1}
+                            'julian_date': 2460000.1,
+                            'min_altitude': -90}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
-        .. code-tab:: bash
+        .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1" -H "accept: application/json"
+            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
 
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
+
+        .. tab:: Link
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
 
 **Example Response**
 
@@ -132,21 +168,31 @@ Retrieve satellite ephemeris by name
 
     [
         {
-            "ALTITUDE-DEG": -83.92701127488,
-            "AZIMUTH-DEG": 74.23644169397,
-            "CATALOG_ID": 46161,
-            "DATA_SOURCE": "spacetrack",
-            "DDEC-DEG_PER_SEC": -0.02013597761,
-            "DECLINATION-DEG": -38.21698520948,
-            "DRA_COSDEC-DEG_PER_SEC": 0.0273538424,
-            "ILLUMINATED": true,
-            "JULIAN_DATE": 2460000.1,
-            "NAME": "STARLINK-1600",
-            "PHASE_ANGLE-DEG": 75.47849642996,
-            "RANGE-KM": 13236.231719560885,
-            "RANGE_RATE-KM_PER_SEC": 0.656362193304,
-            "RIGHT_ASCENSION-DEG": 94.32142232641,
-            "TLE-DATE": "2023-09-05 16:20:37"
+        "ALTITUDE-DEG": -9.80971257652,
+        "AZIMUTH-DEG": 55.15478730961,
+        "CATALOG_ID": 46161,
+        "DATA_SOURCE": "spacetrack",
+        "DDEC-DEG_PER_SEC": -0.05070574412,
+        "DECLINATION-DEG": 18.61796683006,
+        "DRA_COSDEC-DEG_PER_SEC": 0.01019243518,
+        "ILLUMINATED": true,
+        "JULIAN_DATE": 2460000.1,
+        "NAME": "STARLINK-1600",
+        "OBSERVER_GCRS_KM": [
+        1000.044906440929,
+        -4783.283201527772,
+        4085.459180326725
+        ],
+        "PHASE_ANGLE-DEG": 109.24612785799,
+        "RANGE-KM": 4095.040926172063,
+        "RANGE_RATE-KM_PER_SEC": 6.284422469172,
+        "RIGHT_ASCENSION-DEG": 43.04367601256,
+        "SATELLITE_GCRS_KM": [
+        2836.175695292651,
+        2648.8215197690492,
+        1307.3684135941762
+        ],
+        "TLE-DATE": "2024-02-05 16:12:42"
         }
     ]
 
@@ -173,7 +219,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
 **Example Request**
     .. tabs::
 
-        .. code-tab:: python
+        .. code-tab:: Python
 
             import requests
             import json
@@ -185,14 +231,22 @@ Retrieve satellite ephemeris by catalog number with JD time step
                             'elevation': 222,
                             'startjd': 2460000.1,
                             'stopjd': 2460000.3,
-                            'stepjd': 0.1}
+                            'stepjd': 0.1,
+                            'min_altitude': -90}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
-        .. code-tab:: bash
+        .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1" -H "accept: application/json"
+            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90" -H "accept: application/json"
 
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90" -H "accept: application/json"
+
+        .. tab:: Link
+
+                https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
 
 **Example Response**
 
@@ -200,38 +254,58 @@ Retrieve satellite ephemeris by catalog number with JD time step
 
     [
         {
-            "ALTITUDE-DEG": -59.42992120557,
-            "AZIMUTH-DEG": 288.04620638774,
-            "CATALOG_ID": 25544,
-            "DATA_SOURCE": "spacetrack",
-            "DDEC-DEG_PER_SEC": 0.02460147584,
-            "DECLINATION-DEG": -25.64785198072,
-            "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
-            "ILLUMINATED": true,
-            "JULIAN_DATE": 2460000.1,
-            "NAME": "ISS (ZARYA)",
-            "PHASE_ANGLE-DEG": 41.69217956408,
-            "RANGE-KM": 11477.324789805665,
-            "RANGE_RATE-KM_PER_SEC": -3.431545486776,
-            "RIGHT_ASCENSION-DEG": 134.21602941437,
-            "TLE-DATE": "2023-09-05 16:21:29"
+        "ALTITUDE-DEG": -38.53633089073,
+        "AZIMUTH-DEG": 118.05686288053,
+        "CATALOG_ID": 25544,
+        "DATA_SOURCE": "spacetrack",
+        "DDEC-DEG_PER_SEC": -0.0182556905,
+        "DECLINATION-DEG": -43.1707018844,
+        "DRA_COSDEC-DEG_PER_SEC": 0.03127755027,
+        "ILLUMINATED": true,
+        "JULIAN_DATE": 2460000.1,
+        "NAME": "ISS (ZARYA)",
+        "OBSERVER_GCRS_KM": [
+        1000.044906440929,
+        -4783.283201527772,
+        4085.459180326725
+        ],
+        "PHASE_ANGLE-DEG": 122.63076525818,
+        "RANGE-KM": 8616.09765998085,
+        "RANGE_RATE-KM_PER_SEC": 5.327592257625,
+        "RIGHT_ASCENSION-DEG": 30.89434330729,
+        "SATELLITE_GCRS_KM": [
+        5392.295524240439,
+        3226.4992801338067,
+        -5894.912235214352
+        ],
+        "TLE-DATE": "2024-02-05 16:12:40"
         },
         {
-            "ALTITUDE-DEG": -22.86735389391,
-            "AZIMUTH-DEG": 142.33553116822,
-            "CATALOG_ID": 25544,
-            "DATA_SOURCE": "spacetrack",
-            "DDEC-DEG_PER_SEC": -0.01420767889,
-            "DECLINATION-DEG": -54.03105192755,
-            "DRA_COSDEC-DEG_PER_SEC": 0.03650863588,
-            "ILLUMINATED": true,
-            "JULIAN_DATE": 2460000.2,
-            "NAME": "ISS (ZARYA)",
-            "PHASE_ANGLE-DEG": 118.54352293428,
-            "RANGE-KM": 5908.636912798003,
-            "RANGE_RATE-KM_PER_SEC": 6.290602878885,
-            "RIGHT_ASCENSION-DEG": 30.83552022903,
-            "TLE-DATE": "2023-09-05 16:21:29"
+        "ALTITUDE-DEG": -50.46812397947,
+        "AZIMUTH-DEG": 324.71176684274,
+        "CATALOG_ID": 25544,
+        "DATA_SOURCE": "spacetrack",
+        "DDEC-DEG_PER_SEC": 0.02490119298,
+        "DECLINATION-DEG": -5.59399390423,
+        "DRA_COSDEC-DEG_PER_SEC": 0.02567883796,
+        "ILLUMINATED": true,
+        "JULIAN_DATE": 2460000.2,
+        "NAME": "ISS (ZARYA)",
+        "OBSERVER_GCRS_KM": [
+        3628.0577317280786,
+        -3281.0604185873253,
+        4079.547075333211
+        ],
+        "PHASE_ANGLE-DEG": 15.24978839577,
+        "RANGE-KM": 10411.732621192474,
+        "RANGE_RATE-KM_PER_SEC": -4.272868987599,
+        "RIGHT_ASCENSION-DEG": 159.49416406581,
+        "SATELLITE_GCRS_KM": [
+        -9705.566206822945,
+        3629.8893184499234,
+        -1014.9208422252426
+        ],
+        "TLE-DATE": "2024-02-05 16:12:40"
         }
     ]
 
@@ -256,7 +330,7 @@ Retrieve satellite ephemeris by catalog number
 **Example Request**
     .. tabs::
 
-        .. code-tab:: python
+        .. code-tab:: Python
 
             import requests
             import json
@@ -266,14 +340,22 @@ Retrieve satellite ephemeris by catalog number
                             'latitude': 40.1106,
                             'longitude': -88.2073,
                             'elevation': 222,
-                            'julian_date': 2460000.1}
+                            'julian_date': 2460000.1,
+                            'min_altitude': -90}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
-        .. code-tab:: bash
+        .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1" -H "accept: application/json"
+            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
 
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
+
+        .. tab:: Link
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
 
 **Example Response**
 
@@ -281,21 +363,31 @@ Retrieve satellite ephemeris by catalog number
 
     [
         {
-            "ALTITUDE-DEG": -59.42992120557,
-            "AZIMUTH-DEG": 288.04620638774,
-            "CATALOG_ID": 25544,
-            "DATA_SOURCE": "spacetrack",
-            "DDEC-DEG_PER_SEC": 0.02460147584,
-            "DECLINATION-DEG": -25.64785198072,
-            "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
-            "ILLUMINATED": true,
-            "JULIAN_DATE": 2460000.1,
-            "NAME": "ISS (ZARYA)",
-            "PHASE_ANGLE-DEG": 41.69217956408,
-            "RANGE-KM": 11477.324789805665,
-            "RANGE_RATE-KM_PER_SEC": -3.431545486776,
-            "RIGHT_ASCENSION-DEG": 134.21602941437,
-            "TLE-DATE": "2023-09-05 16:21:29"
+        "ALTITUDE-DEG": -38.53633089073,
+        "AZIMUTH-DEG": 118.05686288053,
+        "CATALOG_ID": 25544,
+        "DATA_SOURCE": "spacetrack",
+        "DDEC-DEG_PER_SEC": -0.0182556905,
+        "DECLINATION-DEG": -43.1707018844,
+        "DRA_COSDEC-DEG_PER_SEC": 0.03127755027,
+        "ILLUMINATED": true,
+        "JULIAN_DATE": 2460000.1,
+        "NAME": "ISS (ZARYA)",
+        "OBSERVER_GCRS_KM": [
+        1000.044906440929,
+        -4783.283201527772,
+        4085.459180326725
+        ],
+        "PHASE_ANGLE-DEG": 122.63076525818,
+        "RANGE-KM": 8616.09765998085,
+        "RANGE_RATE-KM_PER_SEC": 5.327592257625,
+        "RIGHT_ASCENSION-DEG": 30.89434330729,
+        "SATELLITE_GCRS_KM": [
+        5392.295524240439,
+        3226.4992801338067,
+        -5894.912235214352
+        ],
+        "TLE-DATE": "2024-02-05 16:12:40"
         }
     ]
 
@@ -321,7 +413,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
 **Example Request**
     .. tabs::
 
-        .. code-tab:: python
+        .. code-tab:: Python
 
             import requests
             import json
@@ -333,14 +425,22 @@ Retrieve satellite ephemeris given a TLE with JD time step
                             'elevation': 222,
                             'startjd': 2460000.1,
                             'stopjd': 2460000.3,
-                            'stepjd': 0.1}
+                            'stepjd': 0.1
+                            'min_altitude': -90}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
-        .. code-tab:: bash
+        .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1" -H "accept: application/json"
+            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.01&min_altitude=-90" -H "accept: application/json"
 
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.01&min_altitude=-90" -H "accept: application/json"
+
+        .. tab:: Link
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
 
 **Example Response**
 
@@ -348,38 +448,58 @@ Retrieve satellite ephemeris given a TLE with JD time step
 
     [
         {
-            "ALTITUDE-DEG": -59.42992120557,
-            "AZIMUTH-DEG": 288.04620638774,
-            "CATALOG_ID": 25544,
-            "DATA_SOURCE": "user",
-            "DDEC-DEG_PER_SEC": 0.02460147584,
-            "DECLINATION-DEG": -25.64785198072,
-            "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
-            "ILLUMINATED": true,
-            "JULIAN_DATE": 2460000.1,
-            "NAME": "ISS (ZARYA)",
-            "PHASE_ANGLE-DEG": 41.69217956408,
-            "RANGE-KM": 11477.324789805663,
-            "RANGE_RATE-KM_PER_SEC": -3.431545486777,
-            "RIGHT_ASCENSION-DEG": 134.21602941437,
-            "TLE-DATE": null
+        "ALTITUDE-DEG": -59.42992120557,
+        "AZIMUTH-DEG": 288.04620638774,
+        "CATALOG_ID": "2554",
+        "DATA_SOURCE": "user",
+        "DDEC-DEG_PER_SEC": 0.02460147584,
+        "DECLINATION-DEG": -25.64785198072,
+        "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
+        "ILLUMINATED": true,
+        "JULIAN_DATE": 2460000.1,
+        "NAME": "ISS (ZARYA)",
+        "OBSERVER_GCRS_KM": [
+        1000.044906440929,
+        -4783.283201527772,
+        4085.459180326725
+        ],
+        "PHASE_ANGLE-DEG": 41.69217956408,
+        "RANGE-KM": 11477.324789805663,
+        "RANGE_RATE-KM_PER_SEC": -3.431545486777,
+        "RIGHT_ASCENSION-DEG": 134.21602941437,
+        "SATELLITE_GCRS_KM": [
+        -7215.27926739175,
+        7415.482543610055,
+        -4967.831324597148
+        ],
+        "TLE-DATE": null
         },
         {
-            "ALTITUDE-DEG": -22.86735389391,
-            "AZIMUTH-DEG": 142.33553116822,
-            "CATALOG_ID": 25544,
-            "DATA_SOURCE": "user",
-            "DDEC-DEG_PER_SEC": -0.01420767889,
-            "DECLINATION-DEG": -54.03105192755,
-            "DRA_COSDEC-DEG_PER_SEC": 0.03650863588,
-            "ILLUMINATED": true,
-            "JULIAN_DATE": 2460000.2,
-            "NAME": "ISS (ZARYA)",
-            "PHASE_ANGLE-DEG": 118.54352293428,
-            "RANGE-KM": 5908.636912798006,
-            "RANGE_RATE-KM_PER_SEC": 6.290602878885,
-            "RIGHT_ASCENSION-DEG": 30.83552022903,
-            "TLE-DATE": null
+        "ALTITUDE-DEG": -22.86735389391,
+        "AZIMUTH-DEG": 142.33553116822,
+        "CATALOG_ID": "2554",
+        "DATA_SOURCE": "user",
+        "DDEC-DEG_PER_SEC": -0.01420767889,
+        "DECLINATION-DEG": -54.03105192755,
+        "DRA_COSDEC-DEG_PER_SEC": 0.03650863588,
+        "ILLUMINATED": true,
+        "JULIAN_DATE": 2460000.2,
+        "NAME": "ISS (ZARYA)",
+        "OBSERVER_GCRS_KM": [
+        3628.0577317280786,
+        -3281.0604185873253,
+        4079.547075333211
+        ],
+        "PHASE_ANGLE-DEG": 118.54352293428,
+        "RANGE-KM": 5908.636912798006,
+        "RANGE_RATE-KM_PER_SEC": 6.290602878885,
+        "RIGHT_ASCENSION-DEG": 30.83552022903,
+        "SATELLITE_GCRS_KM": [
+        2979.848070910431,
+        1778.8506970166927,
+        -4782.069200596504
+        ],
+        "TLE-DATE": null
         }
     ]
 
@@ -403,7 +523,7 @@ Retrieve satellite ephemeris with a given TLE
 **Example Request**
     .. tabs::
 
-        .. code-tab:: python
+        .. code-tab:: Python
 
             import requests
             import json
@@ -413,14 +533,22 @@ Retrieve satellite ephemeris with a given TLE
                             'latitude': 40.1106,
                             'longitude': -88.2073,
                             'elevation': 222,
-                            'julian_date': 2460000.1}
+                            'julian_date': 2460000.1,
+                            'min_altitude': -90}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
-        .. code-tab:: bash
+        .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1" -H "accept: application/json"
+            curl -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
 
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
+
+        .. tab:: Link
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
 
 **Example Response**
 
@@ -428,20 +556,30 @@ Retrieve satellite ephemeris with a given TLE
 
     [
         {
-            "ALTITUDE-DEG": -59.42992120557,
-            "AZIMUTH-DEG": 288.04620638774,
-            "CATALOG_ID": 25544,
-            "DATA_SOURCE": "user",
-            "DDEC-DEG_PER_SEC": 0.02460147584,
-            "DECLINATION-DEG": -25.64785198072,
-            "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
-            "ILLUMINATED": true,
-            "JULIAN_DATE": 2460000.1,
-            "NAME": "ISS (ZARYA)",
-            "PHASE_ANGLE-DEG": 41.69217956408,
-            "RANGE-KM": 11477.324789805663,
-            "RANGE_RATE-KM_PER_SEC": -3.431545486777,
-            "RIGHT_ASCENSION-DEG": 134.21602941437,
-            "TLE-DATE": null
+        "ALTITUDE-DEG": -59.42992120557,
+        "AZIMUTH-DEG": 288.04620638774,
+        "CATALOG_ID": "2554",
+        "DATA_SOURCE": "user",
+        "DDEC-DEG_PER_SEC": 0.02460147584,
+        "DECLINATION-DEG": -25.64785198072,
+        "DRA_COSDEC-DEG_PER_SEC": 0.02499960249,
+        "ILLUMINATED": true,
+        "JULIAN_DATE": 2460000.1,
+        "NAME": "ISS (ZARYA)",
+        "OBSERVER_GCRS_KM": [
+        1000.044906440929,
+        -4783.283201527772,
+        4085.459180326725
+        ],
+        "PHASE_ANGLE-DEG": 41.69217956408,
+        "RANGE-KM": 11477.324789805663,
+        "RANGE_RATE-KM_PER_SEC": -3.431545486777,
+        "RIGHT_ASCENSION-DEG": 134.21602941437,
+        "SATELLITE_GCRS_KM": [
+        -7215.27926739175,
+        7415.482543610055,
+        -4967.831324597148
+        ],
+        "TLE-DATE": null
         }
     ]

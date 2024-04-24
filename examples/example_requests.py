@@ -35,7 +35,6 @@ for satellite in satellite_list:
     )
     visible = False
     for point in info.json():
-
         if point["ALTITUDE-DEG"] > 0:
             visible_satellites.append(point)
             visible = True

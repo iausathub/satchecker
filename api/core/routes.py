@@ -746,8 +746,12 @@ def create_result_list(
                     satellite_position.phase_angle,
                     satellite_position.illuminated,
                     data_source,
+                    satellite_position.satellite_gcrs,
+                    satellite_position.observer_gcrs,
                 )
             )
+    if not result_list:
+        return {"info": "No position information found with this criteria"}
     return result_list
 
 
@@ -933,7 +937,7 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
 
     dtx2 = 2 * dtsec
 
-    sat = satellite.at(t).position.km
+    sat_gcrs = satellite.at(t).position.km
 
     # satn = sat / np.linalg.norm(sat)
     # satpdt = satellite.at(tplusdt).position.km
@@ -972,15 +976,17 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
     sunp = sun.at(t).position.km
     earthsun = sunp - earthp
     earthsunn = earthsun / np.linalg.norm(earthsun)
-    satsun = sat - earthsun
+    satsun = sat_gcrs - earthsun
     satsunn = satsun / np.linalg.norm(satsun)
     phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
 
     # Is the satellite in Earth's Shadow?
-    r_parallel = np.dot(sat, earthsunn) * earthsunn
-    r_tangential = sat - r_parallel
+    r_parallel = np.dot(sat_gcrs, earthsunn) * earthsunn
+    r_tangential = sat_gcrs - r_parallel
 
     illuminated = True
+
+    obs_gcrs = curr_pos.at(t).position.km
 
     if np.linalg.norm(r_parallel) < 0:
         # rearthkm
@@ -1002,10 +1008,23 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
             "ddistance",
             "phase_angle",
             "illuminated",
+            "satellite_gcrs",
+            "observer_gcrs",
         ],
     )
     return satellite_position(
-        ra, dec, dracosdec, ddec, alt, az, distance, ddistance, phase_angle, illuminated
+        ra,
+        dec,
+        dracosdec,
+        ddec,
+        alt,
+        az,
+        distance,
+        ddistance,
+        phase_angle,
+        illuminated,
+        sat_gcrs,
+        obs_gcrs,
     )
 
 
@@ -1080,6 +1099,8 @@ def json_output(
     phaseangle,
     illuminated,
     data_source,
+    satellite_gcrs,
+    observer_gcrs,
     precision_angles=11,
     precision_date=12,
     precision_range=12,
@@ -1141,6 +1162,8 @@ def json_output(
         "ILLUMINATED": illuminated,
         "TLE-DATE": tle_date,
         "DATA_SOURCE": data_source,
+        "SATELLITE_GCRS_KM": satellite_gcrs.tolist(),
+        "OBSERVER_GCRS_KM": observer_gcrs.tolist(),
     }
 
     return output
