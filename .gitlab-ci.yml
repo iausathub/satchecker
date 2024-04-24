@@ -23,6 +23,7 @@ except-pull-requests:
   except:
     - external_pull_requests
 
+
 .test:
   image: python:3.11
   before_script:
