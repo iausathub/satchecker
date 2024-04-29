@@ -224,11 +224,15 @@ def insert_records(
         current_date_time,
         str(satellite.model.satnum),
     )
+
     satellite_insert_query = """ WITH e AS(
     INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
     DATE_ADDED, DATE_MODIFIED) VALUES (%s,%s,%s,%s,%s)
     ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
-    SELECT * FROM e UNION SELECT id FROM satellites WHERE SAT_NUMBER=%s;"""
+    SELECT * FROM e
+    UNION ALL
+    (SELECT id FROM satellites WHERE SAT_NUMBER=%s order by date_added desc);"""
+
     cursor.execute(satellite_insert_query, sat_to_insert)
     sat_id = cursor.fetchone()[0]
     # add TLE to database

@@ -11,7 +11,7 @@ should be run with the following command line arguments:
     -d, --database: Name of the PostgreSQL database to save the TLEs to.
     -u, --user: PostgreSQL username with rights to make changes to the database.
     -pw, --password: PostgreSQL password.
-    -sr, --source: Source of the TLEs: use "celestrak" for celestrak.com, "spacetrack"
+    -sc, --source: Source of the TLEs: use "celestrak" for celestrak.com, "spacetrack"
                 for space-track.org.
     -h, --help: Show help message including the above info and exit.
 """
@@ -269,9 +269,12 @@ def insert_records(
     INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
     DATE_ADDED, DATE_MODIFIED) VALUES (%s,%s,%s,%s,%s)
     ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
-    SELECT * FROM e UNION SELECT id FROM satellites WHERE SAT_NUMBER=%s;"""
+    SELECT * FROM e
+    UNION ALL
+    (SELECT id FROM satellites WHERE SAT_NUMBER=%s order by date_added desc);"""
     cursor.execute(satellite_insert_query, sat_to_insert)
     sat_id = cursor.fetchone()[0]
+
     # add TLE to database
     tle_insert_query = """
     INSERT INTO tle (SAT_ID, DATE_COLLECTED, TLE_LINE1, TLE_LINE2, \
