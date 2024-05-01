@@ -83,7 +83,7 @@ def main():
                     "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"
                     % group,
                     timeout=10,
-                )
+                )  # noqa: UP031
                 tle.raise_for_status()
                 try:
                     constellation = (
@@ -109,7 +109,7 @@ def main():
             constellations = ["starlink", "oneweb"]
             for constellation in constellations:
                 tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=%s&FORMAT=tle"
+                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=%s&FORMAT=tle"  # noqa: UP031
                     % constellation,
                     timeout=10,
                 )

@@ -124,7 +124,7 @@ def main():
             groups = ["starlink", "oneweb", "geo", "active"]
             for group in groups:
                 tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"
+                    "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"  # noqa: UP031
                     % group,
                     timeout=10,
                 )
@@ -151,12 +151,13 @@ def main():
         if args.mode.upper() == "SUP":
             constellations = ["starlink", "oneweb"]
             for constellation in constellations:
+
                 tle = requests.get(
                     "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php\
                     ?FILE=%s&FORMAT=tle"
                     % constellation,
                     timeout=10,
-                )
+                )  # noqa: UP031
 
                 try:
                     add_tle_to_db(tle, constellation, cursor, "true", "celestrak")
