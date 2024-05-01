@@ -80,7 +80,7 @@ def main():
             groups = ["starlink", "oneweb", "geo", "active"]
             for group in groups:
                 tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"
+                    "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"  # noqa: UP031
                     % group,
                     timeout=10,
                 )
@@ -109,7 +109,7 @@ def main():
             constellations = ["starlink", "oneweb"]
             for constellation in constellations:
                 tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=%s&FORMAT=tle"
+                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=%s&FORMAT=tle"  # noqa: UP031
                     % constellation,
                     timeout=10,
                 )
@@ -224,11 +224,15 @@ def insert_records(
         current_date_time,
         str(satellite.model.satnum),
     )
+
     satellite_insert_query = """ WITH e AS(
     INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
     DATE_ADDED, DATE_MODIFIED) VALUES (%s,%s,%s,%s,%s)
     ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
-    SELECT * FROM e UNION SELECT id FROM satellites WHERE SAT_NUMBER=%s;"""
+    SELECT * FROM e
+    UNION ALL
+    (SELECT id FROM satellites WHERE SAT_NUMBER=%s order by date_added desc);"""
+
     cursor.execute(satellite_insert_query, sat_to_insert)
     sat_id = cursor.fetchone()[0]
     # add TLE to database
