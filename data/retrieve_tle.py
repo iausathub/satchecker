@@ -153,8 +153,8 @@ def main():
             for constellation in constellations:
 
                 tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"
-                    "?FILE=%s&FORMAT=tle" % constellation,  # noqa: UP031
+                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"  # noqa: UP031
+                    "?FILE=%s&FORMAT=tle" % constellation,
                     timeout=10,
                 )
                 print(tle.url)
