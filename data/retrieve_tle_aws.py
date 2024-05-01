@@ -80,10 +80,10 @@ def main():
             groups = ["starlink", "oneweb", "geo", "active"]
             for group in groups:
                 tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"
+                    "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"  # noqa: UP031
                     % group,
                     timeout=10,
-                )  # noqa: UP031
+                )
                 tle.raise_for_status()
                 try:
                     constellation = (

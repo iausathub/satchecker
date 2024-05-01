@@ -153,11 +153,11 @@ def main():
             for constellation in constellations:
 
                 tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php\
-                    ?FILE=%s&FORMAT=tle"
-                    % constellation,
+                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"
+                    "?FILE=%s&FORMAT=tle" % constellation,  # noqa: UP031
                     timeout=10,
-                )  # noqa: UP031
+                )
+                print(tle.url)
 
                 try:
                     add_tle_to_db(tle, constellation, cursor, "true", "celestrak")
