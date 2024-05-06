@@ -1,4 +1,8 @@
+from datetime import datetime
+
 from core import db
+from sqlalchemy import DateTime
+from zoneinfo import ZoneInfo
 
 
 class Satellite(db.Model):
@@ -8,6 +12,7 @@ class Satellite(db.Model):
     sat_number = db.Column(db.String())
     sat_name = db.Column(db.String())
     constellation = db.Column(db.String())
+    date_added = db.Column(DateTime, default=datetime.now(ZoneInfo("UTC")))
 
     def __init__(self, sat_number, sat_name, constellation):
         self.sat_number = sat_number
