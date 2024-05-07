@@ -11,7 +11,8 @@ from astropy.time import Time, TimeDelta
 from flask import abort, jsonify, redirect, request
 from flask_limiter.util import get_remote_address
 from skyfield.api import EarthSatellite, load, wgs84
-from sqlalchemy import func
+from sqlalchemy import and_, func
+from sqlalchemy.exc import DataError
 
 from core import app, limiter
 from core.database import models
@@ -21,6 +22,7 @@ INVALID_LOCATION = "Error: Invalid location parameters"
 INVALID_PARAMETER = "Error: Invalid parameter format"
 INVALID_JD = "Error: Invalid Julian Date"
 INVALID_SOURCE = "Error: Invalid data source"
+NO_TLE_FOUND = "Error: No TLE found"
 
 
 # Error handling
@@ -715,6 +717,9 @@ def get_norad_ids_from_name():
     """
     satellite_name = request.args.get("name")
 
+    if satellite_name is None:
+        abort(400)
+
     try:
         norad_ids_and_dates = (
             db.session.query(
@@ -759,6 +764,8 @@ def get_names_from_norad_id():
         list: A list of satellite names in JSON format, or None if an error occurs.
     """
     satellite_id = request.args.get("id")
+    if satellite_id is None:
+        abort(400)
 
     try:
         satellite_names_and_dates = (
@@ -788,6 +795,87 @@ def get_names_from_norad_id():
         return None
 
 
+@app.route("/tools/get-tle-data/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_tle_data():
+    satellite_id = request.args.get("id")
+    id_type = request.args.get("id_type")
+    start_date = request.args.get("start_date_jd")
+    end_date = request.args.get("end_date_jd")
+
+    if satellite_id is None:
+        abort(400)
+
+    if id_type != "catalog" and id_type != "name":
+        abort(400)
+
+    start_date = (
+        Time(start_date, format="jd", scale="ut1")
+        .to_datetime()
+        .replace(tzinfo=timezone.utc)
+        if start_date
+        else None
+    )
+    end_date = (
+        Time(end_date, format="jd", scale="ut1")
+        .to_datetime()
+        .replace(tzinfo=timezone.utc)
+        if end_date
+        else None
+    )
+
+    # Define the date filter
+    date_filter = []
+    if start_date is not None:
+        date_filter.append(models.TLE.date_collected >= start_date)
+    if end_date is not None:
+        date_filter.append(models.TLE.date_collected <= end_date)
+
+    # if there is no start date or end date for the date range, return all data
+    if not date_filter:
+        date_filter.append(True)
+
+    # Define the satellite filter
+    satellite_filter = []
+    if id_type == "catalog":
+        satellite_filter.append(models.Satellite.sat_number == satellite_id)
+    elif id_type == "name":
+        satellite_filter.append(models.Satellite.sat_name == satellite_id)
+
+    try:
+        tle_data = (
+            db.session.query(models.TLE)
+            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
+            .filter(and_(*satellite_filter))
+            .filter(and_(*date_filter))
+            .order_by(models.TLE.date_collected.desc())
+            .all()
+        )
+
+        # Extract the TLE data from the result set
+        tle_data = [
+            {
+                "satellite_name": tle.tle_satellite.sat_name,
+                "satellite_id": tle.tle_satellite.sat_number,
+                "tle_line1": tle.tle_line1,
+                "tle_line2": tle.tle_line2,
+                "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            }
+            for tle in tle_data
+        ]
+
+        return jsonify(tle_data)
+
+    except Exception as e:
+        if isinstance(e, DataError):
+            abort(500, NO_TLE_FOUND)
+        app.logger.error(e)
+        return None
+
+
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
 
 
@@ -798,7 +886,7 @@ def get_tle(identifier, use_catalog_number, data_source, date):
         else get_tle_by_name(identifier, data_source, date)
     )
     if not tle_sat:
-        abort(500, "No TLE found")
+        abort(500, NO_TLE_FOUND)
 
     return tle_sat
 
