@@ -1,20 +1,28 @@
 #!/usr/bin/python3
 import re
 from collections import namedtuple
+from datetime import timezone
 
 import astropy.units as u
 import numpy as np
 import requests
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
-from flask import abort, redirect, request
+from flask import abort, jsonify, redirect, request
 from flask_limiter.util import get_remote_address
 from skyfield.api import EarthSatellite, load, wgs84
-from sqlalchemy import func
+from sqlalchemy import and_, func
+from sqlalchemy.exc import DataError
 
 from core import app, limiter
 from core.database import models
 from core.extensions import db
+
+INVALID_LOCATION = "Error: Invalid location parameters"
+INVALID_PARAMETER = "Error: Invalid parameter format"
+INVALID_JD = "Error: Invalid Julian Date"
+INVALID_SOURCE = "Error: Invalid data source"
+NO_TLE_FOUND = "Error: No TLE found"
 
 
 # Error handling
@@ -128,7 +136,7 @@ def get_ephemeris_by_name():
             height=float(elevation) * u.m,
         )
     except Exception:
-        abort(500, "Error: Invalid location parameters")
+        abort(500, INVALID_LOCATION)
 
     try:
         # if min_altitude is not none convert to float
@@ -139,13 +147,13 @@ def get_ephemeris_by_name():
         if max_altitude is None:
             max_altitude = 90
     except Exception:
-        abort(500, "Error: Invalid parameter format")
+        abort(500, INVALID_PARAMETER)
 
     # Test JD format
     try:
         jd = Time(julian_date, format="jd", scale="ut1")
     except Exception:
-        abort(500, "Error: Invalid Julian Date")
+        abort(500, INVALID_JD)
 
     try:
         data_source = data_source.lower() if data_source is not None else None
@@ -154,7 +162,7 @@ def get_ephemeris_by_name():
         if data_source not in ["celestrak", "spacetrack"]:
             raise Exception
     except Exception:
-        abort(500, "Error: Invalid data source")
+        abort(500, INVALID_SOURCE)
 
     tle = get_tle(name, False, data_source, jd.to_datetime())
     return create_result_list(
@@ -238,7 +246,7 @@ def get_ephemeris_by_name_jdstep():
             height=float(elevation) * u.m,
         )
     except Exception:
-        abort(500, "Error: Invalid location parameters")
+        abort(500, INVALID_LOCATION)
 
     try:
         min_altitude = float(min_altitude) if min_altitude is not None else None
@@ -248,7 +256,7 @@ def get_ephemeris_by_name_jdstep():
         if max_altitude is None:
             max_altitude = 90
     except Exception:
-        abort(500, "Error: Invalid parameter format")
+        abort(500, INVALID_PARAMETER)
 
     try:
         data_source = data_source.lower() if data_source is not None else None
@@ -257,7 +265,7 @@ def get_ephemeris_by_name_jdstep():
         if data_source not in ["celestrak", "spacetrack"]:
             raise Exception
     except Exception:
-        abort(500, "Error: Invalid data source")
+        abort(500, INVALID_SOURCE)
 
     jd0 = float(startjd)
     jd1 = float(stopjd)
@@ -343,7 +351,7 @@ def get_ephemeris_by_catalog_number():
             height=float(elevation) * u.m,
         )
     except Exception:
-        abort(500, "Error: Invalid location parameters")
+        abort(500, INVALID_LOCATION)
 
     try:
         min_altitude = float(min_altitude) if min_altitude is not None else None
@@ -353,13 +361,13 @@ def get_ephemeris_by_catalog_number():
         if max_altitude is None:
             max_altitude = 90
     except Exception:
-        abort(500, "Error: Invalid parameter format")
+        abort(500, INVALID_PARAMETER)
 
     # Converting string to list
     try:
         jd = Time(julian_date, format="jd", scale="ut1")
     except Exception:
-        abort(500, "Error: Invalid Julian Date")
+        abort(500, INVALID_JD)
 
     try:
         data_source = data_source.lower() if data_source is not None else None
@@ -368,7 +376,7 @@ def get_ephemeris_by_catalog_number():
         if data_source not in ["celestrak", "spacetrack"]:
             raise Exception
     except Exception:
-        abort(500, "Error: Invalid data source")
+        abort(500, INVALID_SOURCE)
 
     tle = get_tle(catalog, True, data_source, jd.to_datetime())
     return create_result_list(
@@ -454,7 +462,7 @@ def get_ephemeris_by_catalog_number_jdstep():
             height=float(elevation) * u.m,
         )
     except Exception:
-        abort(500, "Error: Invalid location parameters")
+        abort(500, INVALID_LOCATION)
 
     try:
         min_altitude = float(min_altitude) if min_altitude is not None else None
@@ -464,7 +472,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         if max_altitude is None:
             max_altitude = 90
     except Exception:
-        abort(500, "Error: Invalid parameter format")
+        abort(500, INVALID_PARAMETER)
 
     try:
         data_source = data_source.lower() if data_source is not None else None
@@ -473,7 +481,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         if data_source not in ["celestrak", "spacetrack"]:
             raise Exception
     except Exception:
-        abort(500, "Error: Invalid data source")
+        abort(500, INVALID_SOURCE)
 
     jd0 = float(startjd)
     jd1 = float(stopjd)
@@ -556,7 +564,7 @@ def get_ephemeris_by_tle():
             height=float(elevation) * u.m,
         )
     except Exception:
-        abort(500, "Error: Invalid location parameters")
+        abort(500, INVALID_LOCATION)
 
     try:
         min_altitude = float(min_altitude) if min_altitude is not None else None
@@ -566,13 +574,13 @@ def get_ephemeris_by_tle():
         if max_altitude is None:
             max_altitude = 90
     except Exception:
-        abort(500, "Error: Invalid parameter format")
+        abort(500, INVALID_PARAMETER)
 
     # Converting string to list
     try:
         jd = Time(julian_date, format="jd", scale="ut1")
     except Exception:
-        abort(500, "Error: Invalid Julian Date")
+        abort(500, INVALID_JD)
 
     tle = parse_tle(tle)
     return create_result_list(
@@ -651,7 +659,7 @@ def get_ephemeris_by_tle_jdstep():
             height=float(elevation) * u.m,
         )
     except Exception:
-        abort(500, "Error: Invalid location parameters")
+        abort(500, INVALID_LOCATION)
 
     try:
         min_altitude = float(min_altitude) if min_altitude is not None else None
@@ -661,7 +669,7 @@ def get_ephemeris_by_tle_jdstep():
         if max_altitude is None:
             max_altitude = 90
     except Exception:
-        abort(500, "Error: Invalid parameter format")
+        abort(500, INVALID_PARAMETER)
 
     jd0 = float(startjd)
     jd1 = float(stopjd)
@@ -689,6 +697,185 @@ def get_ephemeris_by_tle_jdstep():
     )
 
 
+@app.route("/tools/norad-ids-from-name/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_norad_ids_from_name():
+    """
+    Returns the NORAD ID(s) for a given satellite name.
+
+    Parameters
+    ----------
+    name: 'str'
+        The name of the satellite.
+
+    Returns
+    -------
+    response: 'list'
+        A list of NORAD IDs associated with the given satellite name.
+    """
+    satellite_name = request.args.get("name")
+
+    if satellite_name is None:
+        abort(400)
+
+    try:
+        norad_ids_and_dates = (
+            db.session.query(
+                models.Satellite.sat_number,
+                models.Satellite.date_added,
+            )
+            .filter(models.Satellite.sat_name == satellite_name)
+            .order_by(models.Satellite.date_added.desc())
+            .all()
+        )
+
+        # Extract the IDs from the result set
+        norad_ids_and_dates = [
+            {
+                "norad_id": id_date[0],
+                "date_added": id_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+            }
+            for id_date in norad_ids_and_dates
+        ]
+
+        return jsonify(norad_ids_and_dates)
+    except Exception as e:
+        app.logger.error(e)
+        return None
+
+
+@app.route("/tools/names-from-norad-id/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_names_from_norad_id():
+    """
+    Retrieves any satellite names associated with a NORAD ID.
+
+    This function queries the database for satellites that match the provided NORAD ID,
+    which is retrieved from the request arguments. The names of the matching satellites
+    are then returned in a JSON format.
+
+    If an error occurs during the process, the error is logged and None is returned.
+
+    Returns:
+        list: A list of satellite names in JSON format, or None if an error occurs.
+    """
+    satellite_id = request.args.get("id")
+    if satellite_id is None:
+        abort(400)
+
+    try:
+        satellite_names_and_dates = (
+            db.session.query(models.Satellite.sat_name, models.Satellite.date_added)
+            .filter(models.Satellite.sat_number == satellite_id)
+            .order_by(models.Satellite.date_added.desc())
+            .all()
+        )
+
+        # Extract the names from the result set
+        names_and_dates = [
+            {
+                "name": name_date[0],
+                "date_added": name_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+            }
+            for name_date in satellite_names_and_dates
+        ]
+
+        for name, date_added in satellite_names_and_dates:
+            # Convert date_added to UTC before printing it
+            date_added_utc = date_added.astimezone(timezone.utc)
+            print(name, date_added_utc)
+
+        return jsonify(names_and_dates)
+    except Exception as e:
+        app.logger.error(e)
+        return None
+
+
+@app.route("/tools/get-tle-data/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_tle_data():
+    satellite_id = request.args.get("id")
+    id_type = request.args.get("id_type")
+    start_date = request.args.get("start_date_jd")
+    end_date = request.args.get("end_date_jd")
+
+    if satellite_id is None:
+        abort(400)
+
+    if id_type != "catalog" and id_type != "name":
+        abort(400)
+
+    start_date = (
+        Time(start_date, format="jd", scale="ut1")
+        .to_datetime()
+        .replace(tzinfo=timezone.utc)
+        if start_date
+        else None
+    )
+    end_date = (
+        Time(end_date, format="jd", scale="ut1")
+        .to_datetime()
+        .replace(tzinfo=timezone.utc)
+        if end_date
+        else None
+    )
+
+    # Define the date filter
+    date_filter = []
+    if start_date is not None:
+        date_filter.append(models.TLE.date_collected >= start_date)
+    if end_date is not None:
+        date_filter.append(models.TLE.date_collected <= end_date)
+
+    # if there is no start date or end date for the date range, return all data
+    if not date_filter:
+        date_filter.append(True)
+
+    # Define the satellite filter
+    satellite_filter = []
+    if id_type == "catalog":
+        satellite_filter.append(models.Satellite.sat_number == satellite_id)
+    elif id_type == "name":
+        satellite_filter.append(models.Satellite.sat_name == satellite_id)
+
+    try:
+        tle_data = (
+            db.session.query(models.TLE)
+            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
+            .filter(and_(*satellite_filter))
+            .filter(and_(*date_filter))
+            .order_by(models.TLE.date_collected.desc())
+            .all()
+        )
+
+        # Extract the TLE data from the result set
+        tle_data = [
+            {
+                "satellite_name": tle.tle_satellite.sat_name,
+                "satellite_id": tle.tle_satellite.sat_number,
+                "tle_line1": tle.tle_line1,
+                "tle_line2": tle.tle_line2,
+                "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            }
+            for tle in tle_data
+        ]
+
+        return jsonify(tle_data)
+
+    except Exception as e:
+        if isinstance(e, DataError):
+            abort(500, NO_TLE_FOUND)
+        app.logger.error(e)
+        return None
+
+
 ### HELPER FUNCTIONS NOT EXPOSED TO API ###
 
 
@@ -699,7 +886,7 @@ def get_tle(identifier, use_catalog_number, data_source, date):
         else get_tle_by_name(identifier, data_source, date)
     )
     if not tle_sat:
-        abort(500, "No TLE found")
+        abort(500, NO_TLE_FOUND)
 
     return tle_sat
 
@@ -1060,7 +1247,7 @@ def jd_arange(a, b, dr, decimals=11):
     try:
         results = Time(dates, format="jd", scale="ut1")
     except Exception:
-        abort(500, "Error: Invalid Julian Date")
+        abort(500, INVALID_JD)
 
     return results
 
