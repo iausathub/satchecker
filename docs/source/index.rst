@@ -27,6 +27,13 @@ in the API parameters - currently available TLEs go back to October 2023.
    notes
 
 .. toctree::
+   :caption: Tools API
+   :maxdepth: 3
+   :hidden:
+
+   tools
+
+.. toctree::
    :caption: Examples
    :maxdepth: 3
    :hidden:
