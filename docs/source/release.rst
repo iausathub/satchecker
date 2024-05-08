@@ -5,6 +5,11 @@ See the full changelog `here <https://github.com/iausathub/satchecker/releases>`
 
 v0.4.0-beta
 ------------
+* Add new endpoints for satellite name/id lookup: get-names-from-norad-id and get-norad-ids-from-name
+* Add new endpoint to get all available TLE data for a given satellite over a given date range
+
+v0.3.1-beta
+------------
 * Change response when no position data is found to return a relevant message
 * Extend timeout to retrieve Space-Track TLEs
 * Update documentation and example links
