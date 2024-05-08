@@ -17,12 +17,12 @@
 # -- Project information -----------------------------------------------------
 
 project = "SatChecker"
-copyright = "2023, IAU Centre for the Protection of Dark and Quiet Sky from \
+copyright = "2024, IAU Centre for the Protection of Dark and Quiet Sky from \
     Satellite Constellation Interference"
 author = "IAU CPS"
 
 # The full version, including alpha/beta/rc tags
-release = "0.2.1-beta"
+release = "0.4.0-beta"
 
 
 # -- General configuration ---------------------------------------------------
