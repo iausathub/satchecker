@@ -734,6 +734,7 @@ def get_norad_ids_from_name():
         # Extract the IDs from the result set
         norad_ids_and_dates = [
             {
+                "name": satellite_name,
                 "norad_id": id_date[0],
                 "date_added": id_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
             }
@@ -779,6 +780,7 @@ def get_names_from_norad_id():
         names_and_dates = [
             {
                 "name": name_date[0],
+                "norad_id": satellite_id,
                 "date_added": name_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
             }
             for name_date in satellite_names_and_dates
