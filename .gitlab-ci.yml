@@ -125,6 +125,8 @@ Development, build data container image:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         - "data/**/*"
+        #
+        #
 # Push data container tag to EKS Workloads:
 #   extends: .push_tag
 #   stage: push
