@@ -6,7 +6,7 @@ stages:
 
 include:
   - project: "noirlab/ci-cd-common"
-    file: 
+    file:
       - "jobs/build-container-image.tpl.yml"
       - "jobs/k8s-update-tag.tpl.yml"
 
@@ -22,7 +22,6 @@ include:
 #   script: echo 'this should not run on pull requests'
 #   except:
 #     - external_pull_requests
-
 
 .test:
   image: python:3.11
@@ -63,12 +62,11 @@ Development, build api image:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
 
-
 Development, push api container tag to EKS Workloads:
   extends: .push_tag
   stage: push
   variables:
-    APP_NAME: "iau-cps-satchecker-dev"
+    APP_NAME: "itops-cps-satchecker-dev"
   dependencies:
     - Development, build api image
   rules:
@@ -90,7 +88,7 @@ Production, build api image:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "production"
   rules:
-    - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
+    - if: $CI_COMMIT_TAG # Run this job when a tag is created
 
 Production, push api container tag to EKS Workloads:
   extends: .push_tag
@@ -100,7 +98,7 @@ Production, push api container tag to EKS Workloads:
   dependencies:
     - Production, build api image
   rules:
-    - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
+    - if: $CI_COMMIT_TAG # Run this job when a tag is created
 
 Production, create release from tag:
   stage: release
@@ -109,11 +107,11 @@ Production, create release from tag:
     - echo "Creating release from tag $CI_COMMIT_TAG"
   dependencies:
     - Production, build api image
-  release:                               # See https://docs.gitlab.com/ee/ci/yaml/#release for available properties
-    tag_name: '$CI_COMMIT_TAG'
-    description: '$CI_COMMIT_TAG'
+  release: # See https://docs.gitlab.com/ee/ci/yaml/#release for available properties
+    tag_name: "$CI_COMMIT_TAG"
+    description: "$CI_COMMIT_TAG"
   rules:
-    - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
+    - if: $CI_COMMIT_TAG # Run this job when a tag is created
 
 Development, build data container image:
   extends: .build_image
@@ -126,8 +124,9 @@ Development, build data container image:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
-      - "data/**/*"
-
+        - "data/**/*"
+        #
+        #
 # Push data container tag to EKS Workloads:
 #   extends: .push_tag
 #   stage: push
