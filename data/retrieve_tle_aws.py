@@ -250,6 +250,17 @@ def insert_records(
 
 
 def get_db_login():
+
+    if os.environ.get("DB_HOST") is not None:
+        username, password, host, port, dbname = (
+            os.environ.get("DB_USERNAME"),
+            os.environ.get("DB_PASSWORD"),
+            os.environ.get("DB_HOST"),
+            os.environ.get("DB_PORT"),
+            os.environ.get("DB_NAME"),
+        )
+        return [username, password, host, port, dbname]
+
     secret_name = "satchecker-prod-db-cred"  # noqa: S105
 
     secrets = get_secret(secret_name)
