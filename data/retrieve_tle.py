@@ -183,7 +183,7 @@ def main():
             base_uri = "https://www.space-track.org"
             resp = session.post(base_uri + "/ajaxauth/login", data=site_cred)
             if resp.status_code != 200:
-                raise Exception(resp, "failed on login")
+                raise requests.HTTPError(resp, "failed on login")
             tle = session.get(
                 "https://www.space-track.org/basicspacedata/query/class/gp/decay_date/null-val/epoch/%3Enow-30/orderby/norad_cat_id/format/json",
                 timeout=60,
