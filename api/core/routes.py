@@ -715,7 +715,7 @@ def get_norad_ids_from_name():
     response: 'list'
         A list of NORAD IDs associated with the given satellite name.
     """
-    satellite_name = request.args.get("name")
+    satellite_name = request.args.get("name").upper()
 
     if satellite_name is None:
         abort(400)

@@ -24,6 +24,10 @@ Retrieve satellite ephemeris by name with JD time step
 **Example Request**
     .. tabs::
 
+        .. tab:: Browser
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
+
         .. code-tab:: Python
 
             import requests
@@ -48,10 +52,6 @@ Retrieve satellite ephemeris by name with JD time step
         .. code-tab:: Powershell
 
             curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90" -H "accept: application/json"
-
-        .. tab:: Link
-
-            https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
 
 **Example Response**
 
@@ -135,6 +135,10 @@ Retrieve satellite ephemeris by name
 **Example Request**
     .. tabs::
 
+        .. tab:: Browser
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
+
         .. code-tab:: Python
 
             import requests
@@ -157,10 +161,6 @@ Retrieve satellite ephemeris by name
         .. code-tab:: Powershell
 
             curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
-
-        .. tab:: Link
-
-            https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=STARLINK-1600&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
 
 **Example Response**
 
@@ -219,6 +219,10 @@ Retrieve satellite ephemeris by catalog number with JD time step
 **Example Request**
     .. tabs::
 
+        .. tab:: Browser
+
+                https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
+
         .. code-tab:: Python
 
             import requests
@@ -243,10 +247,6 @@ Retrieve satellite ephemeris by catalog number with JD time step
         .. code-tab:: Powershell
 
             curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90" -H "accept: application/json"
-
-        .. tab:: Link
-
-                https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
 
 **Example Response**
 
@@ -330,6 +330,10 @@ Retrieve satellite ephemeris by catalog number
 **Example Request**
     .. tabs::
 
+        .. tab:: Browser
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
+
         .. code-tab:: Python
 
             import requests
@@ -352,10 +356,6 @@ Retrieve satellite ephemeris by catalog number
         .. code-tab:: Powershell
 
             curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
-
-        .. tab:: Link
-
-            https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
 
 **Example Response**
 
@@ -413,6 +413,10 @@ Retrieve satellite ephemeris given a TLE with JD time step
 **Example Request**
     .. tabs::
 
+        .. tab:: Browser
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
+
         .. code-tab:: Python
 
             import requests
@@ -437,10 +441,6 @@ Retrieve satellite ephemeris given a TLE with JD time step
         .. code-tab:: Powershell
 
             curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.01&min_altitude=-90" -H "accept: application/json"
-
-        .. tab:: Link
-
-            https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90
 
 **Example Response**
 
@@ -523,6 +523,10 @@ Retrieve satellite ephemeris with a given TLE
 **Example Request**
     .. tabs::
 
+        .. tab:: Browser
+
+            https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
+
         .. code-tab:: Python
 
             import requests
@@ -545,10 +549,6 @@ Retrieve satellite ephemeris with a given TLE
         .. code-tab:: Powershell
 
             curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90" -H "accept: application/json"
-
-        .. tab:: Link
-
-            https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90
 
 **Example Response**
 
