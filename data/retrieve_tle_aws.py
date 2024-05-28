@@ -13,8 +13,8 @@ import argparse
 import datetime
 import json
 import logging
-import sys
 import os
+import sys
 
 import boto3
 import psycopg2
