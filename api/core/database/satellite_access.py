@@ -33,7 +33,6 @@ def get_names_for_satellite_id(satellite_id):
 
 
 def get_tles(satellite_id, id_type, start_date, end_date):
-
     # Define the date filter
     date_filter = []
     if start_date is not None:

@@ -151,7 +151,6 @@ def main():
         if args.mode.upper() == "SUP":
             constellations = ["starlink", "oneweb"]
             for constellation in constellations:
-
                 tle = requests.get(
                     "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"  # noqa: UP031
                     "?FILE=%s&FORMAT=tle" % constellation,

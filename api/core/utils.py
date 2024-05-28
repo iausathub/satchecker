@@ -323,7 +323,7 @@ def validate_parameters(parameters, required_parameters):
     """
     print(parameters)
     for param in required_parameters:
-        if param not in parameters.keys():
+        if param not in parameters.keys() or parameters[param] is None:
             print(f"Missing parameter: {param}")
             abort(400)
 

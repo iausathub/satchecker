@@ -1,13 +1,11 @@
-# ruff: noqa: S101
-import api.core
-
-
 def test_index_redirect(client):
     response = client.get("/index")
     # Check that there was one redirect response.
-    assert response.status_code == 302
+    if response.status_code != 302:
+        raise AssertionError("Incorrect status code returned")
     # Check that the redirect was to the correct location.
-    assert response.location == "https://satchecker.readthedocs.io/en/latest/"
+    if response.location != "https://satchecker.readthedocs.io/en/latest/":
+        raise AssertionError("Incorrect redirect location")
 
 
 def test_missing_parameter(client):
@@ -15,18 +13,21 @@ def test_missing_parameter(client):
         "/ephemeris/name/?name=test_sat&elevation=150&latitude=32&longitude=-110"
     )
     # Check that the correct error code was returned.
-    assert response.status_code == 400
-    assert response.text.find("Incorrect parameters") != -1
+    if response.status_code != 400:
+        raise AssertionError("Incorrect error code returned")
+    if response.text.find("Incorrect parameters") == -1:
+        raise AssertionError("Incorrect error message returned")
 
 
 def test_missing_data(client, mocker):
-    mocker.patch.object(api.core.routes, "get_tle_by_name", return_value=None)
     response = client.get(
         "/ephemeris/name/?name=test_sat123&elevation=150&latitude=32&longitude=-110&julian_date=2459000.5"
     )
     # Check that the correct error code was returned.
-    assert response.status_code == 500
-    assert response.text.find("No TLE found") != -1
+    if response.status_code != 500:
+        raise AssertionError("Incorrect error code returned")
+    if response.text.find("No TLE found") == -1:
+        raise AssertionError("Incorrect error message returned")
 
 
 def test_incorrect_tle(client):
@@ -37,5 +38,7 @@ def test_incorrect_tle(client):
         + tle
     )
     # Check that the correct error code was returned.
-    assert response.status_code == 500
-    assert response.text.find("Incorrect TLE format") != -1
+    if response.status_code != 500:
+        raise AssertionError("Incorrect error code returned")
+    if response.text.find("Incorrect TLE format") == -1:
+        raise AssertionError("Incorrect error message returned")
