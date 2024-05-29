@@ -83,7 +83,7 @@ Retrieve satellite ephemeris by name with JD time step
             2648.8215197690492,
             1307.3684135941762
             ],
-            "TLE_DATE": "2024-02-05 16:12:42"
+            "TLE_DATE-UTC": "2024-02-05 16:12:42"
         },
         {
             "ALTITUDE-DEG": -83.13771686839,
@@ -110,7 +110,7 @@ Retrieve satellite ephemeris by name with JD time step
             5592.586129513591,
             -9518.894198777909
             ],
-            "TLE_DATE": "2024-02-05 16:12:42"
+            "TLE_DATE-UTC": "2024-02-05 16:12:42"
         }
     ]
 
@@ -192,7 +192,7 @@ Retrieve satellite ephemeris by name
         2648.8215197690492,
         1307.3684135941762
         ],
-        "TLE_DATE": "2024-02-05 16:12:42"
+        "TLE_DATE-UTC": "2024-02-05 16:12:42"
         }
     ]
 
@@ -278,7 +278,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
         3226.4992801338067,
         -5894.912235214352
         ],
-        "TLE_DATE": "2024-02-05 16:12:40"
+        "TLE_DATE-UTC": "2024-02-05 16:12:40"
         },
         {
         "ALTITUDE-DEG": -50.46812397947,
@@ -305,7 +305,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
         3629.8893184499234,
         -1014.9208422252426
         ],
-        "TLE_DATE": "2024-02-05 16:12:40"
+        "TLE_DATE-UTC": "2024-02-05 16:12:40"
         }
     ]
 
@@ -387,7 +387,7 @@ Retrieve satellite ephemeris by catalog number
         3226.4992801338067,
         -5894.912235214352
         ],
-        "TLE_DATE": "2024-02-05 16:12:40"
+        "TLE_DATE-UTC": "2024-02-05 16:12:40"
         }
     ]
 
@@ -472,7 +472,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
         7415.482543610055,
         -4967.831324597148
         ],
-        "TLE_DATE": null
+        "TLE_DATE-UTC": null
         },
         {
         "ALTITUDE-DEG": -22.86735389391,
@@ -499,7 +499,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
         1778.8506970166927,
         -4782.069200596504
         ],
-        "TLE_DATE": null
+        "TLE_DATE-UTC": null
         }
     ]
 
@@ -580,6 +580,6 @@ Retrieve satellite ephemeris with a given TLE
         7415.482543610055,
         -4967.831324597148
         ],
-        "TLE_DATE": null
+        "TLE_DATE-UTC": null
         }
     ]
