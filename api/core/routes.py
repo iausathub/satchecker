@@ -40,9 +40,9 @@ def page_not_found(e):
 @app.errorhandler(400)
 def missing_parameter(e):
     return (
-        "Error 400: Incorrect parameters or too many results to return \
+        f"Error 400: Incorrect parameters or too many results to return \
         (maximum of 1000 in a single request)<br /> \
-        Check your request and try again.",
+        Check your request and try again.<br /><br />{str(e)}",
         400,
     )
 

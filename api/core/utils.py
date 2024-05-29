@@ -321,11 +321,9 @@ def validate_parameters(parameters, required_parameters):
     HTTPException: If a required parameter is missing, if the location parameters are
     invalid, if the altitude parameters are invalid, or if the data source is invalid.
     """
-    print(parameters)
     for param in required_parameters:
         if param not in parameters.keys() or parameters[param] is None:
-            print(f"Missing parameter: {param}")
-            abort(400)
+            abort(400, f"Missing parameter: {param}")
 
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
     try:
