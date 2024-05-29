@@ -7,23 +7,23 @@ the University of Illinois Urbana-Champaign, and Imperial College London.
 
 .. raw:: html
 
-   <img src="_images/CPS_Logo_Col_Alt.png" alt="IAU CPS Logo" style="width:200px; margin-bottom:20px; margin-right:30px;">
+   <img src="../_images/CPS_Logo_Col_Alt.png" alt="IAU CPS Logo" style="width:200px; margin-bottom:20px; margin-right:30px;">
 
 .. raw:: html
 
-   <img src="_images/noirlab_logo.png" alt="NOIRLab Logo" style="width:200px; margin-bottom:20px; margin-right:30px;">
+   <img src="../_images/noirlab_logo.png" alt="NOIRLab Logo" style="width:200px; margin-bottom:20px; margin-right:30px;">
 
 .. raw:: html
 
-   <img src="_images/UIUC_logo.png" alt="University of Illinois Urbana-Champaign Logo" style="width:200px; margin-bottom:20px;">
+   <img src="../_images/UIUC_logo.png" alt="University of Illinois Urbana-Champaign Logo" style="width:200px; margin-bottom:20px;">
 
 .. raw:: html
 
-   <img src="_images/UW_logo.png" alt="UW Logo" style="width:200px; margin-right:50px;">
+   <img src="../_images/UW_logo.png" alt="UW Logo" style="width:200px; margin-right:50px;">
 
 .. raw:: html
 
-   <img src="_images/Imperial_logo.png" alt="Imperial College London Logo" style="width:200px;">
+   <img src="../_images/Imperial_logo.png" alt="Imperial College London Logo" style="width:200px;">
 
 
 SatChecker development was also supported in part by
