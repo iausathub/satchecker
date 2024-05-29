@@ -213,7 +213,7 @@ def json_output(
     my_round = np.round
 
     tle_date = (
-        date_collected.strftime("%Y-%m-%d %H:%M:%S")
+        date_collected.strftime("%Y-%m-%d %H:%M:%S %Z")
         if date_collected is not None
         else date_collected
     )
@@ -232,7 +232,7 @@ def json_output(
         "RANGE_RATE-KM_PER_SEC": my_round(dr, precision_velocity),
         "PHASE_ANGLE-DEG": my_round(phaseangle, precision_angles),
         "ILLUMINATED": illuminated,
-        "TLE_DATE-UTC": tle_date,
+        "TLE_DATE": tle_date,
         "DATA_SOURCE": data_source,
         "SATELLITE_GCRS-KM": satellite_gcrs.tolist(),
         "OBSERVER_GCRS-KM": observer_gcrs.tolist(),
