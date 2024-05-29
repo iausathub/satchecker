@@ -172,9 +172,10 @@ def json_output(
     data_source,
     satellite_gcrs,
     observer_gcrs,
-    precision_angles=11,
-    precision_date=12,
-    precision_range=12,
+    precision_angles=8,
+    precision_date=8,
+    precision_range=6,
+    precision_velocity=12,
 ):
     """Convert API output to JSON format
 
@@ -228,13 +229,13 @@ def json_output(
         "ALTITUDE-DEG": my_round(alt.degrees, precision_angles),
         "AZIMUTH-DEG": my_round(az.degrees, precision_angles),
         "RANGE-KM": my_round(r.km, precision_range),
-        "RANGE_RATE-KM_PER_SEC": my_round(dr, precision_range),
+        "RANGE_RATE-KM_PER_SEC": my_round(dr, precision_velocity),
         "PHASE_ANGLE-DEG": my_round(phaseangle, precision_angles),
         "ILLUMINATED": illuminated,
-        "TLE-DATE": tle_date,
+        "TLE_DATE": tle_date,
         "DATA_SOURCE": data_source,
-        "SATELLITE_GCRS_KM": satellite_gcrs.tolist(),
-        "OBSERVER_GCRS_KM": observer_gcrs.tolist(),
+        "SATELLITE_GCRS-KM": satellite_gcrs.tolist(),
+        "OBSERVER_GCRS-KM": observer_gcrs.tolist(),
     }
 
     return output

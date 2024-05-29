@@ -69,7 +69,7 @@ Retrieve satellite ephemeris by name with JD time step
             "ILLUMINATED": true,
             "JULIAN_DATE": 2460000.1,
             "NAME": "STARLINK-1600",
-            "OBSERVER_GCRS_KM": [
+            "OBSERVER_GCRS-KM": [
             1000.044906440929,
             -4783.283201527772,
             4085.459180326725
@@ -78,12 +78,12 @@ Retrieve satellite ephemeris by name with JD time step
             "RANGE-KM": 4095.040926172063,
             "RANGE_RATE-KM_PER_SEC": 6.284422469172,
             "RIGHT_ASCENSION-DEG": 43.04367601256,
-            "SATELLITE_GCRS_KM": [
+            "SATELLITE_GCRS-KM": [
             2836.175695292651,
             2648.8215197690492,
             1307.3684135941762
             ],
-            "TLE-DATE": "2024-02-05 16:12:42"
+            "TLE_DATE": "2024-02-05 16:12:42"
         },
         {
             "ALTITUDE-DEG": -83.13771686839,
@@ -96,7 +96,7 @@ Retrieve satellite ephemeris by name with JD time step
             "ILLUMINATED": true,
             "JULIAN_DATE": 2460000.2,
             "NAME": "STARLINK-1600",
-            "OBSERVER_GCRS_KM": [
+            "OBSERVER_GCRS-KM": [
             3628.0577317280786,
             -3281.0604185873253,
             4079.547075333211
@@ -105,12 +105,12 @@ Retrieve satellite ephemeris by name with JD time step
             "RANGE-KM": 13245.443279043235,
             "RANGE_RATE-KM_PER_SEC": -0.265606961091,
             "RIGHT_ASCENSION-DEG": 142.61268227652,
-            "SATELLITE_GCRS_KM": [
+            "SATELLITE_GCRS-KM": [
             -7318.155592415026,
             5592.586129513591,
             -9518.894198777909
             ],
-            "TLE-DATE": "2024-02-05 16:12:42"
+            "TLE_DATE": "2024-02-05 16:12:42"
         }
     ]
 
@@ -178,7 +178,7 @@ Retrieve satellite ephemeris by name
         "ILLUMINATED": true,
         "JULIAN_DATE": 2460000.1,
         "NAME": "STARLINK-1600",
-        "OBSERVER_GCRS_KM": [
+        "OBSERVER_GCRS-KM": [
         1000.044906440929,
         -4783.283201527772,
         4085.459180326725
@@ -187,12 +187,12 @@ Retrieve satellite ephemeris by name
         "RANGE-KM": 4095.040926172063,
         "RANGE_RATE-KM_PER_SEC": 6.284422469172,
         "RIGHT_ASCENSION-DEG": 43.04367601256,
-        "SATELLITE_GCRS_KM": [
+        "SATELLITE_GCRS-KM": [
         2836.175695292651,
         2648.8215197690492,
         1307.3684135941762
         ],
-        "TLE-DATE": "2024-02-05 16:12:42"
+        "TLE_DATE": "2024-02-05 16:12:42"
         }
     ]
 
@@ -264,7 +264,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
         "ILLUMINATED": true,
         "JULIAN_DATE": 2460000.1,
         "NAME": "ISS (ZARYA)",
-        "OBSERVER_GCRS_KM": [
+        "OBSERVER_GCRS-KM": [
         1000.044906440929,
         -4783.283201527772,
         4085.459180326725
@@ -273,12 +273,12 @@ Retrieve satellite ephemeris by catalog number with JD time step
         "RANGE-KM": 8616.09765998085,
         "RANGE_RATE-KM_PER_SEC": 5.327592257625,
         "RIGHT_ASCENSION-DEG": 30.89434330729,
-        "SATELLITE_GCRS_KM": [
+        "SATELLITE_GCRS-KM": [
         5392.295524240439,
         3226.4992801338067,
         -5894.912235214352
         ],
-        "TLE-DATE": "2024-02-05 16:12:40"
+        "TLE_DATE": "2024-02-05 16:12:40"
         },
         {
         "ALTITUDE-DEG": -50.46812397947,
@@ -291,7 +291,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
         "ILLUMINATED": true,
         "JULIAN_DATE": 2460000.2,
         "NAME": "ISS (ZARYA)",
-        "OBSERVER_GCRS_KM": [
+        "OBSERVER_GCRS-KM": [
         3628.0577317280786,
         -3281.0604185873253,
         4079.547075333211
@@ -300,12 +300,12 @@ Retrieve satellite ephemeris by catalog number with JD time step
         "RANGE-KM": 10411.732621192474,
         "RANGE_RATE-KM_PER_SEC": -4.272868987599,
         "RIGHT_ASCENSION-DEG": 159.49416406581,
-        "SATELLITE_GCRS_KM": [
+        "SATELLITE_GCRS-KM": [
         -9705.566206822945,
         3629.8893184499234,
         -1014.9208422252426
         ],
-        "TLE-DATE": "2024-02-05 16:12:40"
+        "TLE_DATE": "2024-02-05 16:12:40"
         }
     ]
 
@@ -373,7 +373,7 @@ Retrieve satellite ephemeris by catalog number
         "ILLUMINATED": true,
         "JULIAN_DATE": 2460000.1,
         "NAME": "ISS (ZARYA)",
-        "OBSERVER_GCRS_KM": [
+        "OBSERVER_GCRS-KM": [
         1000.044906440929,
         -4783.283201527772,
         4085.459180326725
@@ -382,12 +382,12 @@ Retrieve satellite ephemeris by catalog number
         "RANGE-KM": 8616.09765998085,
         "RANGE_RATE-KM_PER_SEC": 5.327592257625,
         "RIGHT_ASCENSION-DEG": 30.89434330729,
-        "SATELLITE_GCRS_KM": [
+        "SATELLITE_GCRS-KM": [
         5392.295524240439,
         3226.4992801338067,
         -5894.912235214352
         ],
-        "TLE-DATE": "2024-02-05 16:12:40"
+        "TLE_DATE": "2024-02-05 16:12:40"
         }
     ]
 
@@ -458,7 +458,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
         "ILLUMINATED": true,
         "JULIAN_DATE": 2460000.1,
         "NAME": "ISS (ZARYA)",
-        "OBSERVER_GCRS_KM": [
+        "OBSERVER_GCRS-KM": [
         1000.044906440929,
         -4783.283201527772,
         4085.459180326725
@@ -467,12 +467,12 @@ Retrieve satellite ephemeris given a TLE with JD time step
         "RANGE-KM": 11477.324789805663,
         "RANGE_RATE-KM_PER_SEC": -3.431545486777,
         "RIGHT_ASCENSION-DEG": 134.21602941437,
-        "SATELLITE_GCRS_KM": [
+        "SATELLITE_GCRS-KM": [
         -7215.27926739175,
         7415.482543610055,
         -4967.831324597148
         ],
-        "TLE-DATE": null
+        "TLE_DATE": null
         },
         {
         "ALTITUDE-DEG": -22.86735389391,
@@ -485,7 +485,7 @@ Retrieve satellite ephemeris given a TLE with JD time step
         "ILLUMINATED": true,
         "JULIAN_DATE": 2460000.2,
         "NAME": "ISS (ZARYA)",
-        "OBSERVER_GCRS_KM": [
+        "OBSERVER_GCRS-KM": [
         3628.0577317280786,
         -3281.0604185873253,
         4079.547075333211
@@ -494,12 +494,12 @@ Retrieve satellite ephemeris given a TLE with JD time step
         "RANGE-KM": 5908.636912798006,
         "RANGE_RATE-KM_PER_SEC": 6.290602878885,
         "RIGHT_ASCENSION-DEG": 30.83552022903,
-        "SATELLITE_GCRS_KM": [
+        "SATELLITE_GCRS-KM": [
         2979.848070910431,
         1778.8506970166927,
         -4782.069200596504
         ],
-        "TLE-DATE": null
+        "TLE_DATE": null
         }
     ]
 
@@ -566,7 +566,7 @@ Retrieve satellite ephemeris with a given TLE
         "ILLUMINATED": true,
         "JULIAN_DATE": 2460000.1,
         "NAME": "ISS (ZARYA)",
-        "OBSERVER_GCRS_KM": [
+        "OBSERVER_GCRS-KM": [
         1000.044906440929,
         -4783.283201527772,
         4085.459180326725
@@ -575,11 +575,11 @@ Retrieve satellite ephemeris with a given TLE
         "RANGE-KM": 11477.324789805663,
         "RANGE_RATE-KM_PER_SEC": -3.431545486777,
         "RIGHT_ASCENSION-DEG": 134.21602941437,
-        "SATELLITE_GCRS_KM": [
+        "SATELLITE_GCRS-KM": [
         -7215.27926739175,
         7415.482543610055,
         -4967.831324597148
         ],
-        "TLE-DATE": null
+        "TLE_DATE": null
         }
     ]
