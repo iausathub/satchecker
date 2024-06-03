@@ -19,14 +19,15 @@ should be run with the following command line arguments:
 import argparse
 import datetime
 import logging
-import os
 import sys
 
 import psycopg2
-import requests
 from psycopg2 import OperationalError
-from skyfield.api import load
-from tle_utils import insert_records
+from tle_utils import (
+    get_celestrak_general_tles,
+    get_celestrak_supplemental_tles,
+    get_spacetrack_tles,
+)
 
 
 def main():
@@ -86,7 +87,7 @@ def main():
     )
 
     args = parser.parse_args()
-    log_time = datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
     if args.mode:
         logging.info(log_time + "\t" + "Mode: " + args.mode)
 
@@ -100,7 +101,7 @@ def main():
             password=args.password,
         )
     except OperationalError as err:
-        log_time = datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
         logging.error(log_time + "\t" + "Database ERROR: %s", err)
         sys.exit()
     cursor = connection.cursor()
@@ -109,136 +110,34 @@ def main():
     # CELESTRAK
     ######################
     if args.source.upper() == "CELESTRAK":
-        # check if the server is up
-        response = os.system("ping -c 1 celestrak.com")  # noqa: S605, S607
-        log_time = datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        if response == 1:
-            logging.error(log_time + "\t" + "Server not pingable. Exiting...")
-            sys.exit()
-
-        else:
-            logging.info(log_time + "\t" + "Server ping successful.")
-
         # Download and save the daily TLEs
         if args.mode.upper() == "GP":
-            # open each response and read in 3 lines at a time
-            groups = ["starlink", "oneweb", "geo", "active"]
-            for group in groups:
-                tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"  # noqa: UP031
-                    % group,
-                    timeout=10,
-                )
-                try:
-                    constellation = (
-                        group if (group == "starlink" or group == "oneweb") else "other"
-                    )
-                    add_tle_to_db(tle, constellation, cursor, "false", "celestrak")
-                except Exception as err:
-                    log_time = (
-                        datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                    )
-                    logging.error(log_time + "\t" + "database ERROR:", err)
-                    connection.rollback()
+            get_celestrak_general_tles(cursor, connection)
 
-            connection.commit()
-            cursor.close()
-            connection.close()
-            log_time = datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
             logging.info(log_time + "\t" + "Daily GP save successful.")
 
         # Download and save the supplemental TLEs if any new ones have been added since
         # the last check
         if args.mode.upper() == "SUP":
-            constellations = ["starlink", "oneweb"]
-            for constellation in constellations:
-                tle = requests.get(
-                    "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"  # noqa: UP031
-                    "?FILE=%s&FORMAT=tle" % constellation,
-                    timeout=10,
-                )
-                print(tle.url)
+            get_celestrak_supplemental_tles(cursor, connection)
 
-                try:
-                    add_tle_to_db(tle, constellation, cursor, "true", "celestrak")
-                except Exception as err:
-                    log_time = (
-                        datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                    )
-                    logging.error(log_time + "\t" + "database ERROR:", err)
-                    connection.rollback()
-
-            connection.commit()
-            cursor.close()
-            connection.close()
-            log_time = datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
             logging.info(log_time + "\t" + "Hourly SUP save successful.")
-
-    ######################
-    # SPACE-TRACK
-    ######################
-    elif args.source.upper() == "SPACETRACK":
-        with requests.Session() as session:
-            site_cred = {"identity": "email", "password": "password"}
-            base_uri = "https://www.space-track.org"
-            resp = session.post(base_uri + "/ajaxauth/login", data=site_cred)
-            if resp.status_code != 200:
-                raise requests.HTTPError(resp, "failed on login")
-            tle = session.get(
-                "https://www.space-track.org/basicspacedata/query/class/gp/decay_date/null-val/epoch/%3Enow-30/orderby/norad_cat_id/format/json",
-                timeout=60,
-            )
-
-            try:
-                add_tle_to_db(tle, "", cursor, "false", "spacetrack")
-            except Exception as err:
-                log_time = (
-                    datetime.datetime.now().utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                )
-                logging.error(log_time + "\t" + "database ERROR:", err)
-                connection.rollback()
 
         connection.commit()
         cursor.close()
         connection.close()
 
+    ######################
+    # SPACE-TRACK
+    ######################
+    elif args.source.upper() == "SPACETRACK":
+        get_spacetrack_tles(cursor, connection)
 
-# Parse TLE list and add entries to database if they don't exist
-def add_tle_to_db(tle, constellation, cursor, is_supplemental, source):
-    if source == "celestrak":
-        lines = tle.text.splitlines()
-        counter = 0
-        text_end = len(lines)
-        ts = load.timescale()
-
-        while counter < text_end - 2:
-            record = {}
-
-            record["OBJECT_NAME"] = lines[counter].strip()
-            record["TLE_LINE1"] = lines[counter + 1]
-            record["TLE_LINE2"] = lines[counter + 2]
-
-            insert_records(
-                record,
-                ts,
-                cursor,
-                constellation,
-                is_supplemental,
-                source,
-            )
-            counter += 3
-    elif source == "spacetrack":
-        tle_json = tle.json()
-        ts = load.timescale()
-        for record in tle_json:
-            insert_records(
-                record,
-                ts,
-                cursor,
-                constellation,
-                is_supplemental,
-                source,
-            )
+        connection.commit()
+        cursor.close()
+        connection.close()
 
 
 if __name__ == "__main__":
