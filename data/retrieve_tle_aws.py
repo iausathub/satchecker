@@ -13,6 +13,7 @@ import argparse
 import datetime
 import json
 import logging
+import os
 import sys
 
 import boto3
@@ -201,6 +202,17 @@ def add_tle_to_db(tle, constellation, cursor, is_supplemental, source):
 
 
 def get_db_login():
+
+    if os.environ.get("DB_HOST") is not None:
+        username, password, host, port, dbname = (
+            os.environ.get("DB_USERNAME"),
+            os.environ.get("DB_PASSWORD"),
+            os.environ.get("DB_HOST"),
+            os.environ.get("DB_PORT"),
+            os.environ.get("DB_NAME"),
+        )
+        return [username, password, host, port, dbname]
+
     secret_name = "satchecker-prod-db-cred"  # noqa: S105
 
     secrets = get_secret(secret_name)

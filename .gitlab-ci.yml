@@ -1,0 +1,141 @@
+stages:
+  - test
+  - build
+  - release
+  - push
+
+include:
+  - project: "noirlab/ci-cd-common"
+    file:
+      - "jobs/build-container-image.tpl.yml"
+      - "jobs/k8s-update-tag.tpl.yml"
+
+# always-run:
+#   script: echo 'this should always run'
+#
+# on-pull-requests:
+#   script: echo 'this should run on pull requests'
+#   only:
+#     - external_pull_requests
+#
+# except-pull-requests:
+#   script: echo 'this should not run on pull requests'
+#   except:
+#     - external_pull_requests
+
+.test:
+  image: python:3.11
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install pytest pytest-mock
+    - pip install -r api/requirements.txt;
+  script:
+    - pytest
+  artifacts:
+    expose_as: "Pytest coverage report"
+    paths:
+      - htmlcov
+
+Merge request test api:
+  extends: .test
+  stage: test
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    # - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    # - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+
+# Development, test api:
+#   extends: .test
+#   stage: test
+#   rules:
+#     - if: $CI_COMMIT_BRANCH == "develop"
+#
+
+Development, build api image:
+  extends: .build_image
+  stage: build
+  variables:
+    REGISTRY_SUBPATH: "api-dev"
+    CONTAINERFILE: "Dockerfile"
+    CONTAINER_CONTEXT: "api"
+    ENVIRONMENT: "dev"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+Development, push api container tag to EKS Workloads:
+  extends: .push_tag
+  stage: push
+  variables:
+    APP_NAME: "itops-cps-satchecker-dev"
+  dependencies:
+    - Development, build api image
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+####### PRODUCTION #######
+# Production, test api:
+#   extends: .test
+#   stage: test
+#   rules:
+#     - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
+
+Production, build api image:
+  extends: .build_image
+  stage: build
+  variables:
+    REGISTRY_SUBPATH: "api"
+    CONTAINERFILE: "Dockerfile"
+    CONTAINER_CONTEXT: "api"
+    ENVIRONMENT: "production"
+  rules:
+    - if: $CI_COMMIT_TAG # Run this job when a tag is created
+
+Production, push api container tag to EKS Workloads:
+  extends: .push_tag
+  stage: push
+  variables:
+    APP_NAME: "iau-cps-satchecker"
+  dependencies:
+    - Production, build api image
+  rules:
+    - if: $CI_COMMIT_TAG # Run this job when a tag is created
+
+Production, create release from tag:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Creating release from tag $CI_COMMIT_TAG"
+  dependencies:
+    - Production, build api image
+  release: # See https://docs.gitlab.com/ee/ci/yaml/#release for available properties
+    tag_name: "$CI_COMMIT_TAG"
+    description: "$CI_COMMIT_TAG"
+  rules:
+    - if: $CI_COMMIT_TAG # Run this job when a tag is created
+
+Development, build data container image:
+  extends: .build_image
+  stage: build
+  variables:
+    REGISTRY_SUBPATH: "data"
+    CONTAINERFILE: "Dockerfile"
+    CONTAINER_CONTEXT: "data"
+    ENVIRONMENT: "prod"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+      changes:
+        - "data/**/*"
+        #
+        #
+# Push data container tag to EKS Workloads:
+#   extends: .push_tag
+#   stage: push
+#   variables:
+#     APP_NAME: "iau-cps-satchecker"
+#   dependencies:
+#     - Build data container image
+#   rules:
+#     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+#       changes:
+#       - "data/**/*"
+
