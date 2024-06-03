@@ -20,7 +20,8 @@ import psycopg2
 import requests
 from botocore.exceptions import ClientError
 from psycopg2 import OperationalError
-from skyfield.api import EarthSatellite, load
+from skyfield.api import load
+from tle_utils import insert_records
 
 
 def main():
@@ -170,13 +171,14 @@ def add_tle_to_db(tle, constellation, cursor, is_supplemental, source):
         ts = load.timescale()
 
         while counter < text_end - 2:
-            name = lines[counter].strip()
-            tle_line_1 = lines[counter + 1]
-            tle_line_2 = lines[counter + 2]
+            record = {}
+
+            record["OBJECT_NAME"] = lines[counter].strip()
+            record["TLE_LINE1"] = lines[counter + 1]
+            record["TLE_LINE2"] = lines[counter + 2]
+
             insert_records(
-                name,
-                tle_line_1,
-                tle_line_2,
+                record,
                 ts,
                 cursor,
                 constellation,
@@ -188,69 +190,14 @@ def add_tle_to_db(tle, constellation, cursor, is_supplemental, source):
         tle_json = tle.json()
         ts = load.timescale()
         for record in tle_json:
-            name = record["OBJECT_NAME"]
-            tle_line_1 = record["TLE_LINE1"]
-            tle_line_2 = record["TLE_LINE2"]
             insert_records(
-                name,
-                tle_line_1,
-                tle_line_2,
+                record,
                 ts,
                 cursor,
                 constellation,
                 is_supplemental,
                 source,
             )
-
-
-def insert_records(
-    name,
-    tle_line_1,
-    tle_line_2,
-    timescale,
-    cursor,
-    constellation,
-    is_supplemental,
-    source,
-):
-    satellite = EarthSatellite(tle_line_1, tle_line_2, name=name, ts=timescale)
-    current_date_time = datetime.datetime.now(datetime.timezone.utc)
-    # add satellite to database if it doesn't already exist
-    sat_to_insert = (
-        satellite.model.satnum,
-        name,
-        constellation,
-        current_date_time,
-        current_date_time,
-        str(satellite.model.satnum),
-    )
-
-    satellite_insert_query = """ WITH e AS(
-    INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
-    DATE_ADDED, DATE_MODIFIED) VALUES (%s,%s,%s,%s,%s)
-    ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
-    SELECT * FROM e
-    UNION ALL
-    (SELECT id FROM satellites WHERE SAT_NUMBER=%s order by date_added desc);"""
-
-    cursor.execute(satellite_insert_query, sat_to_insert)
-    sat_id = cursor.fetchone()[0]
-    # add TLE to database
-    tle_insert_query = """
-    INSERT INTO tle (SAT_ID, DATE_COLLECTED, TLE_LINE1, TLE_LINE2, \
-        EPOCH, IS_SUPPLEMENTAL, DATA_SOURCE) VALUES (%s,%s,%s,%s,%s,%s,%s)
-        ON CONFLICT (SAT_ID, EPOCH, DATA_SOURCE) DO NOTHING;"""
-    record_to_insert = (
-        sat_id,
-        current_date_time,
-        tle_line_1,
-        tle_line_2,
-        satellite.epoch.utc_datetime(),
-        is_supplemental,
-        source,
-    )
-
-    cursor.execute(tle_insert_query, record_to_insert)
 
 
 def get_db_login():
