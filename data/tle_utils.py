@@ -44,6 +44,13 @@ def insert_records(
     name = record["OBJECT_NAME"]
     tle_line_1 = record["TLE_LINE1"]
     tle_line_2 = record["TLE_LINE2"]
+
+    rcs_size = record.get("RCS_SIZE", None)
+    launch_date = record.get("LAUNCH_DATE", None)
+    decay_date = record.get("DECAY_DATE", None)
+    object_id = record.get("OBJECT_ID", None)
+    object_type = record.get("OBJECT_TYPE", None)
+
     satellite = EarthSatellite(tle_line_1, tle_line_2, name=name, ts=timescale)
     current_date_time = datetime.datetime.now(datetime.timezone.utc)
     # add satellite to database if it doesn't already exist
@@ -53,11 +60,18 @@ def insert_records(
         constellation,
         current_date_time,
         current_date_time,
+        rcs_size,
+        launch_date,
+        decay_date,
+        object_id,
+        object_type,
         str(satellite.model.satnum),
     )
     satellite_insert_query = """ WITH e AS(
     INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
-    DATE_ADDED, DATE_MODIFIED) VALUES (%s,%s,%s,%s,%s)
+    DATE_ADDED, DATE_MODIFIED, RCS_SIZE, LAUNCH_DATE, DECAY_DATE, OBJECT_ID,
+    OBJECT_TYPE)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
     SELECT * FROM e
     UNION ALL
