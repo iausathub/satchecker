@@ -123,5 +123,5 @@ typing_extensions==4.7.1
 urllib3==1.26.16
 wcwidth==0.2.6
 webencodings==0.5.1
-Werkzeug==2.3.7
+Werkzeug==3.0.3
 wrapt==1.15.0
