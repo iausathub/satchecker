@@ -34,7 +34,7 @@ Flask-Limiter==3.5.0
 Flask-Migrate==4.0.4
 Flask-SQLAlchemy==3.0.5
 greenlet==2.0.2
-gunicorn==21.2.0
+gunicorn==22.0.0
 identify==2.5.30
 idna==3.4
 imagesize==1.4.1
