@@ -2,11 +2,11 @@
 from datetime import timezone
 
 import requests
-import tasks
 from astropy.time import Time
 from flask import abort, jsonify, redirect, request
 from sqlalchemy.exc import DataError
 
+import core.tasks as tasks
 from core import app, limiter
 from core.database.satellite_access import (
     get_ids_for_satelltite_name,
