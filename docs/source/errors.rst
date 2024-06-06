@@ -9,8 +9,9 @@ The request was successful.
 
 400 - Incorrect parameters or too many results to return
 ---------------------------------------------------------
-This error occurs if a mandaroty parameter is missing, an incorrect parameter is used, or
+This error occurs if a mandatory parameter is missing, an incorrect parameter is used, or
 the request would return more than 1000 results. Use a larger time step or a shorter time range.
+If there is a missing parameter, it should be provided in the error text.
 
 404 - Page not found
 --------------------
@@ -23,10 +24,10 @@ You have exceeded the rate limit for the API. Please wait a few minutes before t
 
 500 - Internal Server Error
 ---------------------------
-This one is used for any other error that may occur. Below are the current reasons it may occur:
+This one is used for any other error that may occur. Below are the current reasons and error message text:
 
-* **Invalid parameter format:** Format of the location or min/max altitude parameters is not correct.
+* **Invalid parameter format:** Format of the observer location or min/max altitude parameters is not correct.
 * **Invalid date format:** Anything other than Julian date will fail.
 * **Invalid data source:** Anything other than 'celestrak' or 'spacetrack' will fail.
-* **Incorrect TLE format:** Check to make sure the TLE string used is in the correct format, and doesn't include any extra characters)
-* **No TLE found:** No data found for that satellite - if this occurs, try a different data sourceor check the spelling of the satellite name. If the satellite is new, it may not be in the database yet. If none of these work, please contact us with the details of the issue.
+* **Incorrect TLE format:** Check to make sure the TLE string used is in the correct format, and doesn't include any extra characters
+* **No TLE found:** No data found for that satellite - if this occurs, try a different data source or check the spelling of the satellite name. If the satellite is new, it may not be in the database yet. If none of these work, please contact us with the details of the issue.

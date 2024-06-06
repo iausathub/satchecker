@@ -34,7 +34,7 @@ Flask-Limiter==3.5.0
 Flask-Migrate==4.0.4
 Flask-SQLAlchemy==3.0.5
 greenlet==2.0.2
-gunicorn==21.2.0
+gunicorn==22.0.0
 identify==2.5.30
 idna==3.4
 imagesize==1.4.1
@@ -65,7 +65,7 @@ nbconvert==7.8.0
 nbformat==5.9.2
 nbsphinx==0.9.3
 nest-asyncio==1.5.7
-numpy==1.25.2
+numpy==1.26.4
 ordered-set==4.1.0
 packaging==23.1
 pandocfilters==1.5.0
@@ -91,7 +91,7 @@ python-dotenv==1.0.0
 PyYAML==6.0.1
 pyzmq==25.1.1
 referencing==0.30.2
-requests==2.31.0
+requests==2.32.2
 rich==13.5.2
 rpds-py==0.10.2
 ruff==0.1.1
@@ -123,5 +123,5 @@ typing_extensions==4.7.1
 urllib3==1.26.16
 wcwidth==0.2.6
 webencodings==0.5.1
-Werkzeug==2.3.7
+Werkzeug==3.0.3
 wrapt==1.15.0
