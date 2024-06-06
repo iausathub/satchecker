@@ -3,7 +3,7 @@ SatChecker is a satellite position prediction tool from the [IAU CPS](https://cp
 
 #### [API Documentation](https://satchecker.readthedocs.io/en/latest/)
 
-- [Installation](#installation)
+- [Local Installation](#installation)
     * [Dependencies](#dependencies)
     * [Setup](#setup)
     * [Local Database](#local-database)
@@ -11,10 +11,11 @@ SatChecker is a satellite position prediction tool from the [IAU CPS](https://cp
 - [Building RTD Documentation](#building-rtd-documentation)
 - [Tools](#tools)
 - [Deployment & Infrastructure](#deployment-infrastructure)
+- [Architecture](#architecture)
 - [License](#license)
 
 <a name="installation"></a>
-## Installation
+## Local Installation
 
 <a name="dependencies"></a>
 ### Dependencies
@@ -74,11 +75,11 @@ You can populate the test database with the `retrieve_TLE.py` script in the `sat
 6. Run the retrieve_TLE.py script in both modes to populate the database with supplemental and general TLE data:
 
    ```bash
-   python retrieve_TLE.py -m gp -s localhost -p 5432 -d postgres -u postgres -pw sat123
+   python retrieve_TLE.py -m gp -s localhost -p 5432 -d postgres -u postgres -pw sat123 -sc celestrak
    ```
 
    ```bash
-   python retrieve_TLE.py -m sup -s localhost -p 5432 -d postgres -u postgres -pw sat123
+   python retrieve_TLE.py -m sup -s localhost -p 5432 -d postgres -u postgres -pw sat123 -sc celestrak
     ```
 
 7. You can now connect to the database using your preferred PostgreSQL client to verify the data was loaded correctly. If you changed any of the database setup fields, you'll have to update them in `utils.py` in the SatChecker code to match.
@@ -129,12 +130,20 @@ Ruff and Black can be set up to run as pre-commit hooks, but they are also run o
 
 <a name="deployment-infrastructure"></a>
 ## Deployment & Infrastructure
+All active development takes place in GitHub. The main branch is the one that’s deployed to production; develop is the one that is deployed to test. Pull requests merged into develop are automatically deployed to the test environment, but main is only deployed
+upon a release.
+
+Service deployment and network management is done by NOIRLab's IT department. Pull requests and merges must be approved by an IAU CPS repo maintainer before they can be merged into the main or develop branches.
 
 ### AWS
 
 [Network Organization](setup/aws/satchecker_AWS_network.drawio.png)
 
 [AWS Services](setup/aws/satchecker_AWS_services.drawio.png)
+
+
+<a name="architecture"></a>
+## Architecture
 
 
 <a name="license"></a>
