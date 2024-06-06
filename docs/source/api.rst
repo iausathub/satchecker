@@ -7,14 +7,15 @@ Retrieve satellite ephemeris by name with JD time step
 .. http:get:: /name-jdstep/
    :noindex:
 
-    Retrieve ephemeris over a JD range at a specified time step
+    Retrieve the satellite ephemeris over a JD range at a specified time step. The time step is the interval between each ephemeris point, and
+    is specified as a Julian Day (JD) value. *.05 JD* is approximately 1.2 hours.
 
    :query name: (*required*) -- Name of satellite as displayed in CelesTrak TLE files
    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
    :query startjd: (*required*) -- UT1 Julian Start Date
-   :query stopjd: (*required*) -- UT1 Julian End Date (not included)
+   :query stopjd: (*required*) -- UT1 Julian End Date
    :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
    :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
    :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
@@ -121,7 +122,7 @@ Retrieve satellite ephemeris by name
 .. http:get:: /name/
     :noindex:
 
-    Retrieve ephemeris for specified satellite
+    Retrieve the ephemeris for specified satellite at a specific Julian Date given its name
 
     :query name: (*required*) -- Name of satellite as displayed in CelesTrak TLE files
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
@@ -203,14 +204,15 @@ Retrieve satellite ephemeris by catalog number with JD time step
 .. http:get:: /catalog-number-jdstep/
     :noindex:
 
-    Retrieve ephemeris for specified satellite
+    Retrieve the satellite ephemeris over a JD range at a specified time step (optional). The time step is the interval between each ephemeris point, and
+    is specified as a Julian Day (JD) value. *.05 JD* is approximately 1.2 hours. The catalog number is the NORAD ID of the satellite.
 
     :query catalog: (*required*) -- Satellite catalog number (NORAD ID)
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query startjd: (*required*) -- UT1 Julian Start Date
-    :query stopjd: (*required*) -- UT1 Julian End Date (not included)
+    :query stopjd: (*required*) -- UT1 Julian End Date
     :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
@@ -316,7 +318,7 @@ Retrieve satellite ephemeris by catalog number
 .. http:get:: /catalog-number/
     :noindex:
 
-    Retrieve ephemeris for specified satellite
+    Retrieve the ephemeris for a satellite at a specific Julian Date given its catalog number (NORAD ID)
 
     :query catalog: (*required*) -- Satellite catalog number (NORAD ID)
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
@@ -392,20 +394,20 @@ Retrieve satellite ephemeris by catalog number
     ]
 
 
-Retrieve satellite ephemeris given a TLE with JD time step
+Calculate satellite ephemeris given a TLE with JD time step
 -----------------------------------------------------------
 
 .. http:get:: /tle-jdstep/
    :noindex:
 
-    Retrieve ephemeris over a JD range at a specified time step
+    Calculate satellite ephemeris with a user-specified TLE over a JD range at a specified time step
 
     :query tle: (*required*) -- Two line element set
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
     :query startjd: (*required*) -- UT1 Julian Start Date
-    :query stopjd: (*required*) -- UT1 Julian End Date (not included)
+    :query stopjd: (*required*) -- UT1 Julian End Date
     :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
@@ -504,13 +506,13 @@ Retrieve satellite ephemeris given a TLE with JD time step
     ]
 
 
-Retrieve satellite ephemeris with a given TLE
+Calculate satellite ephemeris with a given TLE
 -----------------------------------------------------------
 
 .. http:get:: /tle/
     :noindex:
 
-    Retrieve ephemeris for specified satellite
+    Calculate satellite ephemeris with a user-specified TLE at a specific Julian Date
 
     :query tle: (*required*) -- Two line element set
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
