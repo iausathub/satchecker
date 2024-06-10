@@ -62,3 +62,7 @@ jobs:
         pytest
       env:
         REDIS_URL: redis://localhost:6379/0
+    - name: TODO to Issue
+      uses: alstr/todo-to-issue-action@v4.13.1
+      env:
+        PROJECTS_SECRET: ${{ secrets.TODO_TO_ISSUE }}
