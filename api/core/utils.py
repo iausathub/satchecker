@@ -278,7 +278,7 @@ def json_output(
         data.append(
             [
                 name,
-                catalog_id,
+                int(catalog_id),
                 my_round(time, precision_date),
                 satellite_gcrs,
                 my_round(ra, precision_angles),
