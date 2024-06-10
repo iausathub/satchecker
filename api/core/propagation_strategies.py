@@ -190,7 +190,7 @@ class SGP4PropagationStrategy:
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
     ):
         # new function
-        # TODO - SCK-62: pull out the observer location to a level above this so it
+        # TODO:  SCK-62: pull out the observer location to a level above this so it
         # doesn't get recalculated every time
         observer_location = EarthLocation(
             lat=latitude * u.deg, lon=longitude * u.deg, height=elevation * u.m
