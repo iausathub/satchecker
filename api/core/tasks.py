@@ -1,8 +1,6 @@
 import datetime
-import functools
 import logging
 import time
-from collections import namedtuple
 from typing import Tuple
 
 import numpy as np
@@ -12,281 +10,34 @@ from astropy.coordinates import (
     EarthLocation,
     SkyCoord,
 )
-from astropy.time import Time, TimeDelta
+from astropy.time import Time
 from celery import chord
 from flask import current_app
 from sgp4.api import Satrec
-from skyfield.api import EarthSatellite, load, wgs84
+from skyfield.api import EarthSatellite, load
 from skyfield.framelib import itrs as sk_itrs
 from skyfield.nutationlib import iau2000b
 from skyfield.sgp4lib import TEME as sk_TEME  # noqa: N811
 from sqlalchemy import and_, func
+from utils.coordinate_systems import (
+    az_el_to_ra_dec,
+    ecef_to_enu,
+    enu_to_az_el,
+    teme_to_ecef,
+)
+from utils.time_utils import jd_to_gst
 
 from core import celery, utils
 from core.database import models
 from core.extensions import db
+from core.propagation_strategies import (
+    PropagationInfo,
+    SGP4PropagationStrategy,
+    SkyfieldPropagationStrategy,
+    TestPropagationStrategy,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def teme_to_ecef(r_teme: list[float], theta_gst: float) -> np.ndarray:
-    """
-    Convert TEME (True Equator, Mean Equinox) coordinates to ECEF (Earth-Centered,
-    Earth-Fixed) coordinates.
-
-    This function applies a rotation matrix to transform the coordinates from the
-    TEME frame to the ECEF frame.
-
-    Args:
-        r_teme (list[float]): The TEME coordinates.
-        theta_gst (float): The Greenwich Sidereal Time angle.
-
-    Returns:
-        np.ndarray: The ECEF coordinates.
-    """
-    # Rotation matrix from TEME to ECEF
-    R = np.array(  # noqa: N806
-        [
-            [np.cos(theta_gst), np.sin(theta_gst), 0],
-            [-np.sin(theta_gst), np.cos(theta_gst), 0],
-            [0, 0, 1],
-        ]
-    )
-
-    # Convert TEME to ECEF
-    r_ecef = R @ r_teme
-
-    return r_ecef
-
-
-def ecef_to_enu(r_ecef: list[float], lat: float, lon: float) -> np.ndarray:
-    """
-    Convert ECEF (Earth-Centered, Earth-Fixed) coordinates to ENU (East, North, Up)
-    coordinates.
-
-    This function applies a rotation matrix to transform the coordinates from the
-    ECEF frame to the ENU frame.
-
-    Args:
-        r_ecef (list[float]): The ECEF coordinates.
-        lat (float): The latitude of the location.
-        lon (float): The longitude of the location.
-
-    Returns:
-        np.ndarray: The ENU coordinates.
-    """
-    # Convert to radians
-    lat = np.deg2rad(lat)
-    lon = np.deg2rad(lon)
-
-    # Rotation matrix from ECEF to ENU
-    R = np.array(  # noqa: N806
-        [
-            [-np.sin(lon), np.cos(lon), 0],
-            [-np.sin(lat) * np.cos(lon), -np.sin(lat) * np.sin(lon), np.cos(lat)],
-            [np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)],
-        ]
-    )
-
-    # Convert ECEF to ENU
-    r_enu = R @ r_ecef
-
-    return r_enu
-
-
-def enu_to_az_el(r_enu: np.ndarray) -> Tuple[float, float]:
-    """
-    Convert ENU (East, North, Up) coordinates to azimuth and elevation.
-
-    This function calculates the azimuth and elevation based on the ENU coordinates.
-
-    Args:
-        r_enu (np.ndarray): The ENU coordinates.
-
-    Returns:
-        Tuple[float, float]: The azimuth and elevation in degrees.
-    """
-    # Calculate horizontal distance
-    p = np.hypot(r_enu[0], r_enu[1])
-
-    # Calculate azimuth
-    az = np.arctan2(r_enu[0], r_enu[1])
-
-    # Calculate elevation
-    el = np.arctan2(r_enu[2], p)
-
-    # Convert azimuth from [-pi, pi] to [0, 2*pi]
-    if az < 0:
-        az += 2 * np.pi
-
-    return np.rad2deg(az), np.rad2deg(el)
-
-
-def jd_to_gst(jd: float, nutation: float) -> float:
-    """
-    Convert Julian Day (JD) to Greenwich Apparent Sidereal Time (GAST).
-
-    This function calculates the GAST based on the JD and nutation.
-
-    Args:
-        jd (float): The Julian Day.
-        nutation (float): The nutation in degrees.
-
-    Returns:
-        float: The GAST in radians.
-    """
-    # Approximate Delta T (in days)
-    delta_t_days = 32.184 / (24 * 60 * 60)
-
-    # Convert JD(UT) to JD(TT)
-    jd_tt = jd + delta_t_days
-    # Julian centuries since J2000.0
-    t = (jd_tt - 2451545.0) / 36525.0
-
-    # Greenwich Mean Sidereal Time (GMST) at 0h UT
-    theta_gmst = (
-        280.46061837
-        + 360.98564736629 * (jd - 2451545.0)
-        + 0.000387933 * t**2
-        - t**3 / 38710000.0
-    )
-
-    # Wrap GMST to [0, 360) range
-    theta_gmst = theta_gmst % 360
-
-    # Convert nutation from arcseconds to degrees
-    # nutation = nutation / 3600
-
-    # Calculate Greenwich Apparent Sidereal Time (GAST)
-    theta_gast = theta_gmst + nutation
-
-    # Wrap GAST to [0, 360) range
-    theta_gast = theta_gast % 360
-
-    # Convert to radians
-    theta_gast = np.deg2rad(theta_gast)
-
-    return theta_gast
-
-
-def ecef_to_eci(r_ecef: list[float], theta_gst: float) -> np.ndarray:
-    """
-    Convert ECEF (Earth-Centered, Earth-Fixed) coordinates to ECI (Earth-Centered
-    Inertial) coordinates.
-
-    This function applies a rotation matrix to transform the coordinates from the ECEF
-    frame to the ECI frame.
-
-    Args:
-        r_ecef (list[float]): The ECEF coordinates.
-        theta_gst (float): The Greenwich Sidereal Time angle in degrees.
-
-    Returns:
-        np.ndarray: The ECI coordinates.
-    """
-    # Convert GST from degrees to radians
-    theta_gst_rad = np.deg2rad(theta_gst)
-
-    # Rotation matrix
-    R = np.array(  # noqa: N806
-        [
-            [np.cos(theta_gst_rad), np.sin(theta_gst_rad), 0],
-            [-np.sin(theta_gst_rad), np.cos(theta_gst_rad), 0],
-            [0, 0, 1],
-        ]
-    )
-
-    # Convert from ECEF to ECI
-    r_eci = R @ r_ecef
-
-    return r_eci
-
-
-def calculate_lst(longitude: float, jd: float) -> float:
-    """
-    Calculate Local Sidereal Time (LST) based on longitude and Julian Day (JD).
-
-    This function calculates the Greenwich Sidereal Time (GST) and then adjusts it
-    based on the given longitude to calculate the LST.
-
-    Args:
-        longitude (float): The longitude in degrees.
-        jd (float): The Julian Day.
-
-    Returns:
-        float: The LST in radians.
-    """
-    # Calculate the Julian centuries since J2000.0
-    T = (jd - 2451545.0) / 36525.0  # noqa: N806
-
-    # Calculate the GST in degrees
-    gst = (
-        280.46061837
-        + 360.98564736629 * (jd - 2451545.0)
-        + 0.000387933 * T**2
-        - T**3 / 38710000.0
-    )
-
-    # Convert GST to range 0-360
-    gst = gst % 360
-
-    longitude = longitude * np.pi / 180.0  # Convert longitude to radians
-    # Convert longitude to degrees
-    longitude_deg = longitude * 180.0 / np.pi
-
-    # Calculate LST in degrees
-    lst_deg = gst + longitude_deg
-
-    # Convert LST to range 0-360
-    lst_deg = lst_deg % 360
-
-    # Convert LST from degrees to radians
-    lst = np.radians(lst_deg)
-
-    return lst
-
-
-def az_el_to_ra_dec(
-    az: float, el: float, lat: float, lon: float, jd: float
-) -> Tuple[float, float]:
-    """
-    Convert azimuth and elevation to right ascension and declination.
-
-    This function calculates the right ascension and declination based on the azimuth,
-    elevation, latitude, longitude, and Julian Day.
-
-    Args:
-        az (float): The azimuth in degrees.
-        el (float): The elevation in degrees.
-        lat (float): The latitude in degrees.
-        lon (float): The longitude in degrees.
-        jd (float): The Julian Day.
-
-    Returns:
-        Tuple[float, float]: The right ascension and declination in degrees.
-    """
-    lst = calculate_lst(lon, jd)
-    # Convert to radians
-    az = np.deg2rad(az)
-    el = np.deg2rad(el)
-    lat = np.deg2rad(lat)
-
-    # Calculate declination
-    dec = np.arcsin(np.sin(el) * np.sin(lat) + np.cos(el) * np.cos(lat) * np.cos(az))
-
-    # Calculate hour angle
-    ha = np.arccos(
-        (np.sin(el) - np.sin(lat) * np.sin(dec)) / (np.cos(lat) * np.cos(dec))
-    )
-
-    # Convert hour angle to right ascension
-    ra = lst - ha
-
-    # Convert to degrees
-    ra = np.rad2deg(ra) % 360
-    dec = np.rad2deg(dec)
-
-    return ra, dec
 
 
 @celery.task
@@ -459,14 +210,14 @@ def test_fov():
         lat=33 * u.deg, lon=-117 * u.deg, height=0 * u.m
     )  # Replace with actual location
     observer_time = Time("2024-04-02T2:43:27", scale="utc")  # Replace with actual time
-    location_itrs = observer_location.itrs.cartesian.xyz.value / 1000
+    # location_itrs = observer_location.itrs.cartesian.xyz.value / 1000
     target_altaz = c1.transform_to(
         AltAz(obstime=observer_time, location=observer_location)
     )
 
     for tle, sat in results:
         position = propagate_satellite_sgp4(
-            tle.tle_line1, tle.tle_line2, 33, -117, location_itrs, jd
+            tle.tle_line1, tle.tle_line2, 33, -117, 0, jd
         )
 
         if (
@@ -529,33 +280,25 @@ def process_results(
     Returns:
         list[utils.data_point]: The processed results.
     """
-    current_app.logger.error("process results started")
+    current_app.logger.info("process results started")
     # Filter out results that are not within the altitude range
-    results = [result for result in tles if min_altitude <= result[1] <= max_altitude]
+    results = [result for result in tles if min_altitude <= result[4] <= max_altitude]
+    api_source = "IAU CPS SatChecker"
+    version = "0.4"
+
+    if not results:
+        return {
+            "info": "No position information found with this criteria",
+            "api_source": api_source,
+            "version": version,
+        }
 
     # Add remaining metadata to results
-    data_set = []
-    for result in results:
-        data_set.append(
-            utils.data_point(
-                "0",
-                "0",
-                "0",
-                "0",
-                result[1],
-                result[0],
-                "0",
-                "0",
-                "0",
-                "0",
-                "0",
-                date_collected,
-                name,
-                catalog_id,
-                data_source,
-            )
-        )
-    current_app.logger.error("process results complete")
+    data_set = utils.json_output(
+        name, catalog_id, date_collected, data_source, results, api_source, version
+    )
+
+    current_app.logger.info("process results complete")
     return data_set
 
 
@@ -593,17 +336,17 @@ def create_result_list(
     Returns:
         list[dict]: A list of results for the given satellite and date range.
     """
-    location_itrs = location.itrs.cartesian.xyz.value / 1000
+    # location_itrs = location.itrs.cartesian.xyz.value / 1000
     # Create a chord that will propagate the satellite for
     # each date and then process the results
     tasks = chord(
         (
-            propagate_satellite_sgp4.s(
+            propagate_satellite_skyfield.s(
                 tle_line_1,
                 tle_line_2,
                 location.lat.value,
                 location.lon.value,
-                location_itrs.tolist(),
+                location.height.value,
                 date.jd,
             )
             for date in dates
@@ -613,403 +356,31 @@ def create_result_list(
         ),
     )()
     results = tasks.get()
+    if not results:
+        return {"info": "No position information found with this criteria"}
     return results
-
-
-@functools.lru_cache(maxsize=128)
-def calculate_current_position(lat, long, height):
-    curr_pos = wgs84.latlon(lat, long, height)
-    return curr_pos
-
-
-ts = load.timescale()
-eph = load("de430t.bsp")
-earth = eph["Earth"]
-sun = eph["Sun"]
 
 
 @celery.task
 def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
-    """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
-     to propagate satellite and observer states.
-
-    Parameters
-    ----------
-    tle_line_1: 'str'
-        TLE line 1
-    tle_line_2: 'str'
-         TLE line 2
-    lat: 'float'
-        The observer WGS84 latitude in degrees
-    lon: 'float'
-        The observers WGS84 longitude in degrees (positive value represents east,
-        negative value represents west)
-    elevation: 'float'
-        The observer elevation above WGS84 ellipsoid in meters
-    julian_date: 'float'
-        UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    tleapi: 'str'
-        base API for query
-
-    Returns
-    -------
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference
-        frame in degrees. Range of response is [0,360)
-    distance: 'float'
-        Range from observer to object in km
-    """
-    # This is the skyfield implementation
-    ts = load.timescale()
-    eph = load("de430t.bsp")
-    earth = eph["Earth"]
-    sun = eph["Sun"]
-    satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
-    # Get current position and find topocentric ra and dec
-    curr_pos = calculate_current_position(lat, long, height)
-    # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
-    # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
-    # astropy.Time.TT.jd instead of UT1
-    jd = Time(jd, format="jd", scale="ut1")
-    if jd.jd == 0:
-        t = ts.ut1_jd(satellite.model.jdsatepoch)
-    else:
-        t = ts.ut1_jd(jd.jd)
-
-    difference = satellite - curr_pos
-    topocentric = difference.at(t)
-    topocentricn = topocentric.position.km / np.linalg.norm(topocentric.position.km)
-
-    ra, dec, distance = topocentric.radec()
-    alt, az, distance = topocentric.altaz()
-
-    dtday = TimeDelta(1, format="sec")
-    tplusdt = ts.ut1_jd((jd + dtday).jd)
-    tminusdt = ts.ut1_jd((jd - dtday).jd)
-
-    # haven't had the need to change this but leaving it here for clarity purposes
-    dtsec = 1
-    dtx2 = 2 * dtsec
-
-    sat = satellite.at(t).position.km
-
-    # satn = sat / np.linalg.norm(sat)
-    # satpdt = satellite.at(tplusdt).position.km
-    # satmdt = satellite.at(tminusdt).position.km
-    # vsat = (satpdt - satmdt) / dtx2
-
-    sattop = difference.at(t).position.km
-    sattopr = np.linalg.norm(sattop)
-    sattopn = sattop / sattopr
-    sattoppdt = difference.at(tplusdt).position.km
-    sattopmdt = difference.at(tminusdt).position.km
-
-    ratoppdt, dectoppdt = icrf2radec(sattoppdt)
-    ratopmdt, dectopmdt = icrf2radec(sattopmdt)
-
-    vsattop = (sattoppdt - sattopmdt) / dtx2
-
-    ddistance = np.dot(vsattop, sattopn)
-    rxy = np.dot(sattop[0:2], sattop[0:2])
-    dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
-    ddec = vsattop[2] / np.sqrt(1 - sattopn[2] * sattopn[2])
-    dracosdec = dra * np.cos(dec.radians)
-
-    dra = (ratoppdt - ratopmdt) / dtx2
-    ddec = (dectoppdt - dectopmdt) / dtx2
-    dracosdec = dra * np.cos(dec.radians)
-
-    # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
-    # dracosdecv = drav * np.cos(dec.radians)
-
-    earthp = earth.at(t).position.km
-    sunp = sun.at(t).position.km
-    # earthp, sunp = calculate_earth_sun(t)
-    earthsun = sunp - earthp
-    earthsunn = earthsun / np.linalg.norm(earthsun)
-    satsun = sat - earthsun
-    satsunn = satsun / np.linalg.norm(satsun)
-    phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
-
-    # Is the satellite in Earth's Shadow?
-    r_parallel = np.dot(sat, earthsunn) * earthsunn
-    r_tangential = sat - r_parallel
-
-    illuminated = True
-
-    if np.linalg.norm(r_parallel) < 0:
-        # rearthkm
-        if np.linalg.norm(r_tangential) < 6370:
-            # print(np.linalg.norm(r_tangential),np.linalg.norm(r))
-            # yes the satellite is in Earth's shadow, no need to continue
-            # (except for the moon of course)
-            illuminated = False
-    satellite_position = namedtuple(
-        "satellite_position",
-        [
-            "ra",
-            "dec",
-            "dracosdec",
-            "ddec",
-            "alt",
-            "az",
-            "distance",
-            "ddistance",
-            "phase_angle",
-            "illuminated",
-            "jd",
-        ],
+    propagation_info = PropagationInfo(
+        SkyfieldPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
     )
-    return satellite_position(
-        ra._degrees,
-        dec.degrees,
-        dracosdec,
-        ddec,
-        alt.degrees,
-        az.degrees,
-        distance.km,
-        ddistance,
-        phase_angle,
-        illuminated,
-        jd.jd,
-    )
+    return propagation_info.propagate()
 
 
 # Only returns azimuth and altitude for quick calulations
 @celery.task
-def propagate_satellite_sgp4(tle_line_1, tle_line_2, lat, long, location_itrs, jd):
-    # new function
-    # Compute the x, y coordinates of the CIP (Celestial Intermediate Pole)
-    dpsi, deps = iau2000b(jd)
-
-    # Compute the nutation in longitude
-    nutation_arcsec = dpsi / 10000000  # Convert from arcseconds to degrees
-    nutation = nutation_arcsec / 3600
-
-    location_itrs = np.array(location_itrs)
-    theta_gst = jd_to_gst(jd, nutation)
-
-    satellite = Satrec.twoline2rv(tle_line_1, tle_line_2)
-    error, r, v = satellite.sgp4(jd, 0)
-
-    r_ecef = teme_to_ecef(r, theta_gst)
-    difference = r_ecef - location_itrs
-    r_enu = ecef_to_enu(difference, lat, long)
-    az, el = enu_to_az_el(r_enu)
-    ra, dec = az_el_to_ra_dec(az, el, lat, long, jd)
-
-    return az, el, ra, dec
+def propagate_satellite_sgp4(tle_line_1, tle_line_2, lat, long, height, jd):
+    propagation_info = PropagationInfo(
+        SGP4PropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
+    )
+    return propagation_info.propagate()
 
 
 @celery.task
 def propagate_satellite_new(tle_line_1, tle_line_2, lat, long, height, jd):
-    """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
-     to propagate satellite and observer states.
-
-    Parameters
-    ----------
-    tle_line_1: 'str'
-        TLE line 1
-    tle_line_2: 'str'
-         TLE line 2
-    lat: 'float'
-        The observer WGS84 latitude in degrees
-    lon: 'float'
-        The observers WGS84 longitude in degrees (positive value represents east,
-        negative value represents west)
-    elevation: 'float'
-        The observer elevation above WGS84 ellipsoid in meters
-    julian_date: 'float'
-        UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    tleapi: 'str'
-        base API for query
-
-    Returns
-    -------
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference
-        frame in degrees. Range of response is [0,360)
-    distance: 'float'
-        Range from observer to object in km
-    """
-    # This is the skyfield implementation
-    ts = load.timescale()
-    eph = load("de430t.bsp")
-    earth = eph["Earth"]
-    sun = eph["Sun"]
-    satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
-    # Get current position and find topocentric ra and dec
-    curr_pos = calculate_current_position(lat, long, height)
-    # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
-    # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
-    # astropy.Time.TT.jd instead of UT1
-    jd = Time(jd, format="jd", scale="ut1")
-    if jd.jd == 0:
-        t = ts.ut1_jd(satellite.model.jdsatepoch)
-    else:
-        t = ts.ut1_jd(jd.jd)
-
-    difference = satellite - curr_pos
-    topocentric = difference.at(t)
-    topocentricn = topocentric.position.km / np.linalg.norm(topocentric.position.km)
-
-    ra, dec, distance = topocentric.radec()
-    alt, az, distance = topocentric.altaz()
-
-    dtday = TimeDelta(1, format="sec")
-    tplusdt = ts.ut1_jd((jd + dtday).jd)
-    tminusdt = ts.ut1_jd((jd - dtday).jd)
-
-    # haven't had the need to change this but leaving it here for clarity purposes
-    dtsec = 1
-    dtx2 = 2 * dtsec
-
-    sat = satellite.at(t).position.km
-
-    # satn = sat / np.linalg.norm(sat)
-    # satpdt = satellite.at(tplusdt).position.km
-    # satmdt = satellite.at(tminusdt).position.km
-    # vsat = (satpdt - satmdt) / dtx2
-
-    sattop = difference.at(t).position.km
-    sattopr = np.linalg.norm(sattop)
-    sattopn = sattop / sattopr
-    sattoppdt = difference.at(tplusdt).position.km
-    sattopmdt = difference.at(tminusdt).position.km
-
-    ratoppdt, dectoppdt = icrf2radec(sattoppdt)
-    ratopmdt, dectopmdt = icrf2radec(sattopmdt)
-
-    vsattop = (sattoppdt - sattopmdt) / dtx2
-
-    ddistance = np.dot(vsattop, sattopn)
-    rxy = np.dot(sattop[0:2], sattop[0:2])
-    dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
-    ddec = vsattop[2] / np.sqrt(1 - sattopn[2] * sattopn[2])
-    dracosdec = dra * np.cos(dec.radians)
-
-    dra = (ratoppdt - ratopmdt) / dtx2
-    ddec = (dectoppdt - dectopmdt) / dtx2
-    dracosdec = dra * np.cos(dec.radians)
-
-    # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
-    # dracosdecv = drav * np.cos(dec.radians)
-
-    earthp = earth.at(t).position.km
-    sunp = sun.at(t).position.km
-    # earthp, sunp = calculate_earth_sun(t)
-    earthsun = sunp - earthp
-    earthsunn = earthsun / np.linalg.norm(earthsun)
-    satsun = sat - earthsun
-    satsunn = satsun / np.linalg.norm(satsun)
-    phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
-
-    # Is the satellite in Earth's Shadow?
-    r_parallel = np.dot(sat, earthsunn) * earthsunn
-    r_tangential = sat - r_parallel
-
-    illuminated = True
-
-    if np.linalg.norm(r_parallel) < 0:
-        # rearthkm
-        if np.linalg.norm(r_tangential) < 6370:
-            # print(np.linalg.norm(r_tangential),np.linalg.norm(r))
-            # yes the satellite is in Earth's shadow, no need to continue
-            # (except for the moon of course)
-            illuminated = False
-    satellite_position = namedtuple(
-        "satellite_position",
-        [
-            "ra",
-            "dec",
-            "dracosdec",
-            "ddec",
-            "alt",
-            "az",
-            "distance",
-            "ddistance",
-            "phase_angle",
-            "illuminated",
-            "jd",
-        ],
+    propagation_info = PropagationInfo(
+        TestPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
     )
-    return satellite_position(
-        ra._degrees,
-        dec.degrees,
-        dracosdec,
-        ddec,
-        alt.degrees,
-        az.degrees,
-        distance.km,
-        ddistance,
-        phase_angle,
-        illuminated,
-        jd.jd,
-    )
-
-
-def icrf2radec(pos, unit_vector=False, deg=True):
-    """Convert ICRF xyz or xyz unit vector to Right Ascension and Declination.
-    Geometric states on unit sphere, no light travel time/aberration correction.
-
-    Parameters
-    ----------
-    pos ... real, dim=[n, 3], 3D vector of unit length (ICRF)
-    unit_vector ... False: pos is unit vector, False: pos is not unit vector
-    deg ... True: angles in degrees, False: angles in radians
-
-    Returns
-    -------
-    ra ... Right Ascension [deg]
-    dec ... Declination [deg]
-    """
-    norm = np.linalg.norm
-    arctan2 = np.arctan2
-    arcsin = np.arcsin
-    rad2deg = np.rad2deg
-    modulo = np.mod
-    pix2 = 2.0 * np.pi
-
-    r = 1
-    if pos.ndim > 1:
-        if not unit_vector:
-            r = norm(pos, axis=1)
-        xu = pos[:, 0] / r
-        yu = pos[:, 1] / r
-        zu = pos[:, 2] / r
-    else:
-        if not unit_vector:
-            r = norm(pos)
-        xu = pos[0] / r
-        yu = pos[1] / r
-        zu = pos[2] / r
-
-    phi = arctan2(yu, xu)
-    delta = arcsin(zu)
-
-    if deg:
-        ra = modulo(rad2deg(phi) + 360, 360)
-        dec = rad2deg(delta)
-    else:
-        ra = modulo(phi + pix2, pix2)
-        dec = delta
-
-    return ra, dec
+    return propagation_info.propagate()

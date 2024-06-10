@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -30,8 +30,13 @@ jobs:
 
 
   test:
-
     runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
 
     steps:
     - uses: actions/checkout@v3
@@ -46,6 +51,13 @@ jobs:
     - name: Install dependencies
       run: |
         pip install pytest pytest-mock pytest-cov
+    - name: Run Celery worker
+      run: |
+        celery -A satchecker.celery worker --loglevel INFO &
+      env:
+        REDIS_URL: redis://localhost:6379/0
     - name: Test with pytest
       run: |
         pytest
+      env:
+        REDIS_URL: redis://localhost:6379/0

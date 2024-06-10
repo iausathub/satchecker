@@ -16,7 +16,6 @@ from core.database.satellite_access import (
 from core.database.tle_access import (
     get_tle,
     parse_tle,
-    propagate_and_create_json_results,
 )
 from core.utils import (
     extract_parameters,
@@ -154,6 +153,25 @@ def get_ephemeris_by_name():
     tle = get_tle(
         parameters["name"], False, parameters["data_source"], jd.to_datetime()
     )
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            [jd],
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            parameters["name"],
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle[1].sat_number,
+            parameters["data_source"],
+        ]
+    )
+    result_list = result_list_task.get()
+    return result_list
+
+    """
     return propagate_and_create_json_results(
         parameters["location"],
         [jd],
@@ -166,6 +184,7 @@ def get_ephemeris_by_name():
         tle[1].sat_number,
         parameters["data_source"],
     )
+    """
 
 
 @app.route("/ephemeris/name-jdstep/")
@@ -245,18 +264,23 @@ def get_ephemeris_by_name_jdstep():
     tle = get_tle(
         parameters["name"], False, parameters["data_source"], jd[0].to_datetime()
     )
-    return propagate_and_create_json_results(
-        parameters["location"],
-        jd,
-        tle[0].tle_line1,
-        tle[0].tle_line2,
-        tle[0].date_collected,
-        parameters["name"],
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle[1].sat_number,
-        parameters["data_source"],
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            jd,
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            parameters["name"],
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle[1].sat_number,
+            parameters["data_source"],
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/catalog-number/")
@@ -325,18 +349,22 @@ def get_ephemeris_by_catalog_number():
         parameters["catalog"], True, parameters["data_source"], jd.to_datetime()
     )
 
-    return propagate_and_create_json_results(
-        parameters["location"],
-        [jd],
-        tle[0].tle_line1,
-        tle[0].tle_line2,
-        tle[0].date_collected,
-        tle[1].sat_name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle[1].sat_number,
-        parameters["data_source"],
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            [jd],
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            tle[1].sat_name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            parameters["catalog"],
+            parameters["data_source"],
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/catalog-number-jdstep/")
@@ -417,18 +445,23 @@ def get_ephemeris_by_catalog_number_jdstep():
     tle = get_tle(
         parameters["catalog"], True, parameters["data_source"], jd[0].to_datetime()
     )
-    return propagate_and_create_json_results(
-        parameters["location"],
-        jd,
-        tle[0].tle_line1,
-        tle[0].tle_line2,
-        tle[0].date_collected,
-        tle[1].sat_name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle[1].sat_number,
-        parameters["data_source"],
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            jd,
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            tle[1].sat_name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            parameters["catalog"],
+            parameters["data_source"],
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/tle/")
@@ -491,18 +524,23 @@ def get_ephemeris_by_tle():
         abort(500, error_messages.INVALID_JD)
 
     tle = parse_tle(parameters["tle"])
-    return propagate_and_create_json_results(
-        parameters["location"],
-        [jd],
-        tle.tle_line1,
-        tle.tle_line2,
-        tle.date_collected,
-        tle.name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle.catalog,
-        "user",
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            [jd],
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
+            tle.name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle.catalog,
+            "user",
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/tle-jdstep/")
@@ -577,18 +615,23 @@ def get_ephemeris_by_tle_jdstep():
         abort(400)
 
     tle = parse_tle(parameters["tle"])
-    return propagate_and_create_json_results(
-        parameters["location"],
-        jd,
-        tle.tle_line1,
-        tle.tle_line2,
-        tle.date_collected,
-        tle.name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle.catalog,
-        "user",
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            jd,
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
+            tle.name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle.catalog,
+            "user",
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/tools/norad-ids-from-name/")

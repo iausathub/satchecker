@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 from collections import namedtuple
@@ -188,22 +189,11 @@ def icrf2radec(pos, unit_vector=False, deg=True):
 def json_output(
     name,
     catalog_id,
-    time,
-    ra,
-    dec,
     date_collected,
-    dracosdec,
-    ddec,
-    alt,
-    az,
-    # dalt, daz,
-    r,
-    dr,
-    phaseangle,
-    illuminated,
     data_source,
-    satellite_gcrs,
-    observer_gcrs,
+    results,
+    api_source,
+    version,
     precision_angles=8,
     precision_date=8,
     precision_range=6,
@@ -250,27 +240,70 @@ def json_output(
         else date_collected
     )
 
-    output = {
-        "NAME": name,
-        "CATALOG_ID": catalog_id,
-        "JULIAN_DATE": my_round(time, precision_date),
-        "RIGHT_ASCENSION-DEG": my_round(ra._degrees, precision_angles),
-        "DECLINATION-DEG": my_round(dec.degrees, precision_angles),
-        "DRA_COSDEC-DEG_PER_SEC": my_round(dracosdec, precision_angles),
-        "DDEC-DEG_PER_SEC": my_round(ddec, precision_angles),
-        "ALTITUDE-DEG": my_round(alt.degrees, precision_angles),
-        "AZIMUTH-DEG": my_round(az.degrees, precision_angles),
-        "RANGE-KM": my_round(r.km, precision_range),
-        "RANGE_RATE-KM_PER_SEC": my_round(dr, precision_velocity),
-        "PHASE_ANGLE-DEG": my_round(phaseangle, precision_angles),
-        "ILLUMINATED": illuminated,
-        "TLE_DATE": tle_date,
-        "DATA_SOURCE": data_source,
-        "SATELLITE_GCRS-KM": satellite_gcrs.tolist(),
-        "OBSERVER_GCRS-KM": observer_gcrs.tolist(),
-    }
+    fields = [
+        "name",
+        "catalog_id",
+        "satellite_gcrs_km",
+        "right_ascension_deg",
+        "declination_deg",
+        "tle_date",
+        "dra_cosdec_deg_per_sec",
+        "ddec_deg_per_sec",
+        "altitude_deg",
+        "azimuth_deg",
+        "range_km",
+        "range_rate_km_per_sec",
+        "phase_angle_deg",
+        "illuminated",
+        "data_source",
+        "observer_gcrs_km",
+    ]
+    data = []
+    for result in results:
+        (
+            ra,
+            dec,
+            dracosdec,
+            ddec,
+            alt,
+            az,
+            r,
+            dr,
+            phaseangle,
+            illuminated,
+            satellite_gcrs,
+            observer_gcrs,
+            time,
+        ) = result  # noqa: E501
+        data.append(
+            [
+                name,
+                catalog_id,
+                my_round(time, precision_date),
+                satellite_gcrs,
+                my_round(ra, precision_angles),
+                my_round(dec, precision_angles),
+                tle_date,
+                my_round(dracosdec, precision_angles),
+                my_round(ddec, precision_angles),
+                my_round(alt, precision_angles),
+                my_round(az, precision_angles),
+                my_round(r, precision_range),
+                my_round(dr, precision_velocity),
+                my_round(phaseangle, precision_angles),
+                illuminated,
+                data_source,
+                observer_gcrs,
+            ]
+        )
 
-    return output
+    return {
+        "count": len(results),
+        "fields": fields,
+        "data": data,
+        "source": api_source,
+        "version": version,
+    }
 
 
 def jd_arange(a, b, dr, decimals=11):
@@ -552,3 +585,9 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
         sat_gcrs,
         obs_gcrs,
     )
+
+
+@functools.lru_cache(maxsize=128)
+def calculate_current_position(lat, long, height):
+    curr_pos = wgs84.latlon(lat, long, height)
+    return curr_pos

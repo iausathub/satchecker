@@ -36,27 +36,15 @@ def propagate_and_create_json_results(
             satellite_position.alt.degrees > min_altitude
             and satellite_position.alt.degrees < max_altitude
         ):
-            result_list.append(
-                json_output(
-                    name,
-                    catalog_id,
-                    d.jd,
-                    satellite_position.ra,
-                    satellite_position.dec,
-                    date_collected,
-                    satellite_position.dracosdec,
-                    satellite_position.ddec,
-                    satellite_position.alt,
-                    satellite_position.az,
-                    satellite_position.distance,
-                    satellite_position.ddistance,
-                    satellite_position.phase_angle,
-                    satellite_position.illuminated,
-                    data_source,
-                    satellite_position.satellite_gcrs,
-                    satellite_position.observer_gcrs,
-                )
-            )
+
+            result_list.append(satellite_position._asdict())
+
+    api_source = "IAU CPS SatChecker"
+    version = "0.4"
+    json_output(
+        name, catalog_id, date_collected, data_source, result_list, api_source, version
+    )
+
     if not result_list:
         return {"info": "No position information found with this criteria"}
     return result_list
