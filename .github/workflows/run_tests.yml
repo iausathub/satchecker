@@ -56,6 +56,7 @@ jobs:
         celery -A satchecker.celery worker --loglevel INFO &
       env:
         REDIS_URL: redis://localhost:6379/0
+      working-directory: api
     - name: Test with pytest
       run: |
         pytest
