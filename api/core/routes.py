@@ -731,6 +731,7 @@ def get_tle_data():
     start_date = request.args.get("start_date_jd")
     end_date = request.args.get("end_date_jd")
 
+    # TODO: Add more specific messages for 400 error codes
     if satellite_id is None:
         abort(400)
 
