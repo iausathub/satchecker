@@ -18,6 +18,21 @@ NO_TLE_FOUND = "Error: No TLE found"
 
 
 def get_forwarded_address(request):
+    """
+    Retrieves the original IP address from the 'X-Forwarded-For' header of a
+    HTTP request.
+
+    This is needed due to the way the app is deployed with Docker. If the
+    'X-Forwarded-For' header is not present, it falls back to the remote
+    address of the request.
+
+    Args:
+        request (werkzeug.local.LocalProxy): The HTTP request object.
+
+    Returns:
+        str: The original client IP address, or the remote address of the request if the
+             'X-Forwarded-For' header is not present.
+    """
     forwarded_header = request.headers.get("X-Forwarded-For")
     if forwarded_header:
         return request.headers.getlist("X-Forwarded-For")[0]
@@ -25,6 +40,26 @@ def get_forwarded_address(request):
 
 
 def get_db_login():
+    """
+    Retrieves database login credentials from environment variables or AWS Secrets
+    Manager.
+
+    This function first checks if the 'LOCAL_DB' environment variable is set to '1'.
+     If it is, it returns a predefined set of local database credentials.
+
+    If 'LOCAL_DB' is not set to '1', it then checks if the 'DB_HOST' environment
+    variable is set. If it is, it returns the database credentials from the
+    'DB_USERNAME', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT', and 'DB_NAME'
+    environment variables.
+
+    If neither 'LOCAL_DB' nor 'DB_HOST' are set, it attempts to retrieve the database
+    credentials from AWS Secrets Manager. If it fails to retrieve the credentials
+    from Secrets Manager, it falls back to the predefined local database credentials.
+
+    Returns:
+        list: A list containing the username, password, host, port, and database name,
+        in that order.
+    """
     if os.environ.get("LOCAL_DB") == "1":
         username, password, host, port, dbname = (
             "postgres",
@@ -112,14 +147,14 @@ def tle_to_icrf_state(tle_line_1, tle_line_2, jd):
     the ICRF. The state vector includes the position and velocity of the satellite.
 
     Parameters:
-    tle_line_1 (str): The first line of the TLE set.
-    tle_line_2 (str): The second line of the TLE set.
-    jd (float or astropy.time.core.Time): The Julian date at which to calculate the
-    state. If 0, the function will use the epoch specified in the TLE set.
+        tle_line_1 (str): The first line of the TLE set.
+        tle_line_2 (str): The second line of the TLE set.
+        jd (float or astropy.time.core.Time): The Julian date at which to calculate the
+            state. If 0, the function will use the epoch specified in the TLE set.
 
     Returns:
-    np.array: A 1D array containing the ICRF position (in km) and velocity (in km/s) of
-    the satellite.
+        np.array: A 1D array containing the ICRF position (in km) and velocity (in km/s)
+            of the satellite.
     """
     # This is the skyfield implementation
     ts = load.timescale()
@@ -138,20 +173,33 @@ def tle_to_icrf_state(tle_line_1, tle_line_2, jd):
 
 
 def icrf2radec(pos, unit_vector=False, deg=True):
-    """Convert ICRF xyz or xyz unit vector to Right Ascension and Declination.
+    """
+    Convert ICRF xyz or xyz unit vector to Right Ascension and Declination.
     Geometric states on unit sphere, no light travel time/aberration correction.
 
     Parameters
     ----------
-    pos ... real, dim=[n, 3], 3D vector of unit length (ICRF)
-    unit_vector ... False: pos is unit vector, False: pos is not unit vector
-    deg ... True: angles in degrees, False: angles in radians
+    pos : numpy.ndarray
+        A 3D vector of unit length in the ICRF frame. If `unit_vector` is False,
+        `pos` is assumed to be a position vector and will be normalized. If `unit_vector`
+        is True, `pos` is assumed to already be a unit vector. The shape should be [n, 3].
+    unit_vector : bool, optional
+        If True, `pos` is assumed to be a unit vector. If False, `pos` is assumed to be a
+        position vector and will be normalized. Default is False.
+    deg : bool, optional
+        If True, the angles are returned in degrees. If False, the angles are returned in
+        radians. Default is True.
 
     Returns
     -------
-    ra ... Right Ascension [deg]
-    dec ... Declination [deg]
-    """
+    ra : numpy.ndarray
+        The Right Ascension of the position, in degrees if `deg` is True, or in radians if
+        `deg` is False. If `pos` was a 2D array, this will be a 1D array of the same length.
+    dec : numpy.ndarray
+        The Declination of the position, in degrees if `deg` is True, or in radians if `deg`
+        is False. If `pos` was a 2D array, this will be a 1D array of the same length.
+    """  # noqa: E501
+
     norm = np.linalg.norm
     arctan2 = np.arctan2
     arcsin = np.arcsin
@@ -199,36 +247,38 @@ def json_output(
     precision_range=6,
     precision_velocity=12,
 ):
-    """Convert API output to JSON format
+    """
+    Convert API output to JSON format
 
     Parameters
     ----------
-    name: 'str'
+    name: str
         Name of the target satellite
-    time: 'float'
-        Julian Date
-    ra: Skyfield object / 'float'
-        Right Ascension
-    dec: Skyfield object / 'float'
-        Declination
-    alt: Skyfield object / 'float'
-        Altitude
-    az: Skyfield object / 'float'
-        Azimuth
-    r: Skyfield object / 'float'
-        Range to target
-    precision_angles: 'integer'
-        number of digits for angles to be rounded to (default: micro arcsec)
-    precision_date: 'integer'
-        number of digits for Julian Date to be rounded to (default: micro sec)
-    precision_range: 'integer'
-        number of digits for angles to be rounded to (default: nano meters)
+    catalog_id: str
+        Catalog ID of the satellite
+    date_collected: datetime
+        Date when the data was collected
+    data_source: str
+        Source of the data
+    results: list
+        List of results from the API
+    api_source: str
+        Source of the API
+    version: str
+        Version of the API
+    precision_angles: int, optional
+        Number of digits for angles to be rounded to (default: 8)
+    precision_date: int, optional
+        Number of digits for Julian Date to be rounded to (default: 8)
+    precision_range: int, optional
+        Number of digits for range to be rounded to (default: 6)
+    precision_velocity: int, optional
+        Number of digits for velocity to be rounded to (default: 12)
 
     Returns
     -------
-    output: 'dictionary'
+    dict
         JSON dictionary of the above quantities
-
     """
     # looking up the numpy round function once instead of multiple times
     # makes things a little faster
@@ -307,24 +357,36 @@ def json_output(
 
 
 def jd_arange(a, b, dr, decimals=11):
-    """Better arange function that compensates for round-off errors.
+    """
+    Generates a sequence of Julian Dates between two given dates with a specified increment.
+
+    This function compensates for round-off errors by rounding the computed dates to a
+    specified number of decimal places.
 
     Parameters
     ----------
-    a: 'float'
-        first element in range
-    b: 'float'
-        last element in range
-    dr: 'float'
-        range increment
-    decimals: 'integer'
-        post comma digits to be rounded to
+    a : float
+        The first Julian Date in the sequence.
+    b : float
+        The last Julian Date in the sequence. If the exact date `b` cannot be included due
+        to the increment `dr`, the sequence will stop at the nearest date before `b`.
+    dr : float
+        The increment between consecutive Julian Dates in the sequence.
+    decimals : int, optional
+        The number of decimal places to which each computed Julian Date should be rounded.
+        Default is 11.
 
     Returns
     -------
-    res: 'numpy array of floats'
-        array of numbers between a and b with dr increments
-    """
+    results : astropy.time.core.Time
+        An array of astropy Time objects representing the Julian Dates between `a` and `b`
+        with an increment of `dr`.
+
+    Raises
+    ------
+    500:
+        If an invalid Julian Date is encountered.
+    """  # noqa: E501
     res = [a]
     k = 1
     while res[-1] < b:
@@ -352,12 +414,12 @@ def extract_parameters(request, parameter_list):
     set to None.
 
     Parameters:
-    request (flask.Request): The request object to extract parameters from.
-    parameter_list (list of str): A list of parameter names to extract.
+        request (flask.Request): The request object to extract parameters from.
+        parameter_list (list of str): A list of parameter names to extract.
 
     Returns:
-    dict: A dictionary where the keys are the parameter names and the values
-    are the extracted parameters or None if the parameter was not found.
+        dict: A dictionary where the keys are the parameter names and the values
+        are the extracted parameters or None if the parameter was not found.
     """
 
     parameters = {}
@@ -377,16 +439,16 @@ def validate_parameters(parameters, required_parameters):
     data_source parameters.
 
     Parameters:
-    parameters (dict): The input parameters to validate and sanitize.
-    required_parameters (list of str): A list of parameter names that are required.
+        parameters (dict): The input parameters to validate and sanitize.
+        required_parameters (list of str): A list of parameter names that are required.
 
     Returns:
-    dict: The validated and sanitized parameters.
+        dict: The validated and sanitized parameters.
 
     Raises:
-    HTTPException: If a required parameter is missing, if the location parameters are
-    invalid, if the altitude parameters are invalid, or if the data source is invalid.
-    """
+        HTTPException: If a required parameter is missing, if the location parameters are
+            invalid, if the altitude parameters are invalid, or if the data source is invalid.
+    """  # noqa: E501
     for param in required_parameters:
         if param not in parameters.keys() or parameters[param] is None:
             abort(400, f"Missing parameter: {param}")
@@ -429,44 +491,54 @@ def validate_parameters(parameters, required_parameters):
 
 
 def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
-    """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
-     to propagate satellite and observer states.
+    """
+    Propagates satellite and observer states using the Skyfield library.
 
     Parameters
     ----------
-    tle_line_1: 'str'
-        TLE line 1
-    tle_line_2: 'str'
-         TLE line 2
-    lat: 'float'
-        The observer WGS84 latitude in degrees
-    lon: 'float'
-        The observers WGS84 longitude in degrees (positive value represents east,
-        negative value represents west)
-    elevation: 'float'
-        The observer elevation above WGS84 ellipsoid in meters
-    julian_date: 'float'
-        UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    tleapi: 'str'
-        base API for query
+    tle_line_1: str
+        The first line of the Two-Line Element set representing the satellite.
+    tle_line_2: str
+        The second line of the Two-Line Element set representing the satellite.
+    location: Topos
+        The observer's location, represented as a Topos object.
+    jd: Time
+        The Julian Date at which to propagate the satellite. If the Julian Date is 0,
+        the function uses the epoch from the TLE.
+    dtsec: int, optional
+        The time step for the propagation, in seconds. Default is 1.
 
     Returns
     -------
-    Right Ascension: 'float'
-        The right ascension of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [0,360)
-    Declination: 'float'
-        The declination of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [-90,90]
-    Altitude: 'float'
-        The altitude of the satellite relative to observer coordinates in ICRS
-        reference frame in degrees. Range of response is [0,90]
-    Azimuth: 'float'
-        The azimuth of the satellite relative to observer coordinates in ICRS reference
-        frame in degrees. Range of response is [0,360)
-    distance: 'float'
-        Range from observer to object in km
-    """
+    satellite_position: namedtuple
+        A namedtuple with the following fields:
+
+        - ra: The right ascension of the satellite relative to the observer, in degrees.
+
+        - dec: The declination of the satellite relative to the observer, in degrees.
+
+        - dracosdec: The rate of change of right ascension, in degrees per second.
+
+        - ddec: The rate of change of declination, in degrees per second.
+
+        - alt: The altitude of the satellite relative to the observer, in degrees.
+
+        - az: The azimuth of the satellite relative to the observer, in degrees.
+
+        - distance: The distance from the observer to the satellite, in kilometers.
+
+        - ddistance: The rate of change of the distance, in kilometers per second.
+
+        - phase_angle: The phase angle of the satellite, in degrees.
+
+        - illuminated: A boolean indicating whether the satellite is illuminated by the Sun.
+
+        - satellite_gcrs: The position of the satellite in the Geocentric Celestial Reference System, in kilometers.
+
+        - observer_gcrs: The position of the observer in the Geocentric Celestial Reference System, in kilometers.
+
+    """  # noqa: E501
+
     # This is the skyfield implementation
     ts = load.timescale()
     satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
@@ -589,5 +661,20 @@ def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
 
 @functools.lru_cache(maxsize=128)
 def calculate_current_position(lat, long, height):
+    """
+    Calculates the current position in the WGS84 reference frame.
+
+    This function uses the WGS84 model to calculate the current position based on the
+    given latitude, longitude, and height.
+    The result is cached for faster subsequent calls with the same arguments.
+
+    Args:
+        lat (float): The latitude in degrees.
+        long (float): The longitude in degrees.
+        height (float): The height in meters above the WGS84 ellipsoid.
+
+    Returns:
+        Topos: A Topos object representing the current position.
+    """
     curr_pos = wgs84.latlon(lat, long, height)
     return curr_pos

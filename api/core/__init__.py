@@ -38,9 +38,9 @@ def create_app():
 
     app.config["SQLALCHEMY_DATABASE_URI"] = (
         f"postgresql://{db_login[0]}:{db_login[1]}@"
-        f"{db_login[2]}:{db_login[3]}/{db_login[4]}"
+        f"{db_login[2]}:{db_login[3]}/{db_login[4]}?options=-c%20timezone=utc"
     )
-
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"echo": True, "use_native_hstore": False}
     return app
 
 

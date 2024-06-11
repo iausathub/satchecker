@@ -24,44 +24,59 @@ class SkyfieldPropagationStrategy:
     def propagate(
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
     ):
-        """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
+        """
+        Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
         to propagate satellite and observer states.
 
-        Parameters
-        ----------
-        tle_line_1: 'str'
-            TLE line 1
-        tle_line_2: 'str'
-            TLE line 2
-        lat: 'float'
-            The observer WGS84 latitude in degrees
-        lon: 'float'
-            The observers WGS84 longitude in degrees (positive value represents east,
-            negative value represents west)
-        elevation: 'float'
-            The observer elevation above WGS84 ellipsoid in meters
-        julian_date: 'float'
-            UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-        tleapi: 'str'
-            base API for query
+        Args:
+            tle_line_1 (str): TLE line 1
+            tle_line_2 (str): TLE line 2
+            latitude (float): The observer WGS84 latitude in degrees
+            longitude (float): The observers WGS84 longitude in degrees (positive value
+                represents east, negative value represents west)
+            elevation (float): The observer elevation above WGS84 ellipsoid in meters
+            julian_date (float): UT1 Universal Time Julian Date. An input of 0 will use
+                the TLE epoch.
 
-        Returns
-        -------
-        Right Ascension: 'float'
-            The right ascension of the satellite relative to observer coordinates in
-            ICRS reference frame in degrees. Range of response is [0,360)
-        Declination: 'float'
-            The declination of the satellite relative to observer coordinates in ICRS
-            reference frame in degrees. Range of response is [-90,90]
-        Altitude: 'float'
-            The altitude of the satellite relative to observer coordinates in ICRS
-            reference frame in degrees. Range of response is [0,90]
-        Azimuth: 'float'
-            The azimuth of the satellite relative to observer coordinates in ICRS
-            reference frame in degrees. Range of response is [0,360)
-        distance: 'float'
-            Range from observer to object in km
+        Returns:
+            satellite_position: A tuple containing the following fields:
+                ra (float):
+                    The right ascension of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [0,360).
+                dec (float):
+                    The declination of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [-90,90].
+                alt (float):
+                    The altitude of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [0,90].
+                az (float):
+                    The azimuth of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [0,360).
+                distance (float):
+                    Range from observer to object in km.
+                dracosdec (float):
+                    Rate of change of right ascension.
+                ddec (float):
+                    Rate of change of declination.
+                ddistance (float):
+                    Rate of change of distance.
+                phase_angle (float):
+                    Phase angle between the satellite, observer, and the Sun.
+                illuminated (bool):
+                    Whether the satellite is illuminated.
+                satellite_gcrs (list):
+                    Satellite coordinates in GCRS.
+                observer_gcrs (list):
+                    Observer coordinates in GCRS.
+                julian_date (float):
+                    The input Julian date.
+
         """
+
         # This is the skyfield implementation
         ts = load.timescale()
         satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
@@ -189,6 +204,28 @@ class SGP4PropagationStrategy:
     def propagate(
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
     ):
+        """
+        Propagates satellite and observer states using the SGP4 propagation model.
+
+        Args:
+            julian_date (float): The Julian Date at which to propagate the satellite.
+            tle_line_1 (str): The first line of the Two-Line Element set representing
+                the satellite.
+            tle_line_2 (str): The second line of the Two-Line Element set representing
+                the satellite.
+            latitude (float): The latitude of the observer's location, in degrees.
+            longitude (float): The longitude of the observer's location, in degrees.
+            elevation (float): The height of the observer's location, in meters above
+                the WGS84 ellipsoid.
+
+        Returns:
+            tuple: A tuple containing the following elements:
+                - azimuth (float): Description of azimuth.
+                - elevation (float): Description of elevation.
+                - right ascension (float): Description of right ascension.
+                - declination (float): Description of declination.ion of the satellite.
+        """
+
         # new function
         # TODO:  SCK-62: pull out the observer location to a level above this so it
         # doesn't get recalculated every time
@@ -223,44 +260,59 @@ class TestPropagationStrategy:
     def propagate(
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
     ):
-        """Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
-        to propagate satellite and observer states.
-
-        Parameters
-        ----------
-        tle_line_1: 'str'
-            TLE line 1
-        tle_line_2: 'str'
-            TLE line 2
-        lat: 'float'
-            The observer WGS84 latitude in degrees
-        lon: 'float'
-            The observers WGS84 longitude in degrees (positive value represents east,
-            negative value represents west)
-        elevation: 'float'
-            The observer elevation above WGS84 ellipsoid in meters
-        julian_date: 'float'
-            UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-        tleapi: 'str'
-            base API for query
-
-        Returns
-        -------
-        Right Ascension: 'float'
-            The right ascension of the satellite relative to observer coordinates in
-            ICRS reference frame in degrees. Range of response is [0,360)
-        Declination: 'float'
-            The declination of the satellite relative to observer coordinates in ICRS
-            reference frame in degrees. Range of response is [-90,90]
-        Altitude: 'float'
-            The altitude of the satellite relative to observer coordinates in ICRS
-            reference frame in degrees. Range of response is [0,90]
-        Azimuth: 'float'
-            The azimuth of the satellite relative to observer coordinates in ICRS
-            reference frame in degrees. Range of response is [0,360)
-        distance: 'float'
-            Range from observer to object in km
         """
+        Propagates satellite and observer states using a test method
+
+        Args:
+            julian_date (float): The Julian Date at which to propagate the satellite.
+
+            tle_line_1 (str): The first line of the Two-Line Element set representing
+                the satellite.
+
+            tle_line_2 (str): The second line of the Two-Line Element set representing
+                the satellite.
+
+            latitude (float): The latitude of the observer's location, in degrees.
+
+            longitude (float): The longitude of the observer's location, in degrees.
+
+            elevation (float): The height of the observer's location, in meters above
+                the WGS84 ellipsoid.
+
+        Returns:
+            satellite_position: A namedtuple containing the following fields:
+                ra (float):
+                    The right ascension of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [0,360).
+                dec (float): The declination of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [-90,90].
+                dracosdec (float):
+                    The rate of change of right ascension.
+                ddec (float):
+                    The rate of change of declination.
+                alt (float):
+                    The altitude of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [0,90].
+                az (float):
+                    The azimuth of the satellite relative to observer
+                    coordinates in ICRS reference frame in degrees. Range of response
+                    is [0,360).
+                distance (float):
+                    Range from observer to object in km.
+                ddistance (float):
+                    The rate of change of the distance from the observer
+                    to the object.
+                phase_angle (float): The phase angle between the satellite, observer,
+                    and the Sun.
+                illuminated (bool):
+                    Whether the satellite is illuminated by the Sun.
+                jd (float):
+                    The Julian Date at which the satellite was propagated.
+        """
+
         # This is the skyfield implementation
         ts = load.timescale()
         eph = load("de430t.bsp")

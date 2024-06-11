@@ -10,8 +10,17 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os, sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath("../../api"))
+
+on_rtd = os.environ.get("READTHEDOCS") == "True"
+
+if on_rtd:
+    from api import app
+
+    app.config["CELERY"]["task_always_eager"] = True
 
 
 # -- Project information -----------------------------------------------------
@@ -36,6 +45,9 @@ extensions = [
     "sphinxcontrib.httpdomain",
     "sphinx_code_tabs",
     "nbsphinx",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+    "celery.contrib.sphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -64,3 +76,6 @@ html_static_path = ["_static"]
 html_css_files = [
     "custom.css",
 ]
+
+autodoc_typehints = "signature"
+autodoc_class_signature = "separated"

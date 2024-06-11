@@ -60,5 +60,7 @@ or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
    :maxdepth: 2
    :hidden:
 
+   modules
+
    release
    acknowledgements

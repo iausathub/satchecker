@@ -363,6 +363,21 @@ def create_result_list(
 
 @celery.task
 def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
+    """
+    Propagates satellite and observer states using the Skyfield library.
+
+    Args:
+        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
+        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
+        lat (float): The latitude of the observer's location, in degrees.
+        long (float): The longitude of the observer's location, in degrees.
+        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
+        jd (Time): The Julian Date at which to propagate the satellite.
+
+    Returns:
+        dict: A dictionary containing the propagated state of the satellite and the
+        observer.
+    """  # noqa: E501
     propagation_info = PropagationInfo(
         SkyfieldPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
     )
@@ -372,6 +387,21 @@ def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
 # Only returns azimuth and altitude for quick calulations
 @celery.task
 def propagate_satellite_sgp4(tle_line_1, tle_line_2, lat, long, height, jd):
+    """
+    Propagates satellite and observer states using the SGP4 propagation library.
+
+    Args:
+        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
+        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
+        lat (float): The latitude of the observer's location, in degrees.
+        long (float): The longitude of the observer's location, in degrees.
+        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
+        jd (Time): The Julian Date at which to propagate the satellite.
+
+    Returns:
+        dict: A dictionary containing the propagated state of the satellite and the
+        observer.
+    """  # noqa: E501
     propagation_info = PropagationInfo(
         SGP4PropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
     )
@@ -380,6 +410,21 @@ def propagate_satellite_sgp4(tle_line_1, tle_line_2, lat, long, height, jd):
 
 @celery.task
 def propagate_satellite_new(tle_line_1, tle_line_2, lat, long, height, jd):
+    """
+    Propagates satellite and observer states using a test propagation strategy.
+
+    Args:
+        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
+        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
+        lat (float): The latitude of the observer's location, in degrees.
+        long (float): The longitude of the observer's location, in degrees.
+        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
+        jd (Time): The Julian Date at which to propagate the satellite.
+
+    Returns:
+        dict: A dictionary containing the propagated state of the satellite and the
+        observer.
+    """  # noqa: E501
     propagation_info = PropagationInfo(
         TestPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
     )
