@@ -29,7 +29,7 @@ Dev API Test:
   stage: test
   rules:
     # - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop"
       changes:
         - "api/**/*"
 
@@ -42,7 +42,7 @@ Dev API Build:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "dev"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop"
       changes:
         - "api/**/*"
 
@@ -54,7 +54,7 @@ Dev API Push Tag:
   dependencies:
     - Dev API Build
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop"
       changes:
         - "api/**/*"
 
