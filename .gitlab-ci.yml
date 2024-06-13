@@ -62,6 +62,7 @@ Development, build api image:
     ENVIRONMENT: "dev"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
+    - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
 
 Development, push api container tag to EKS Workloads:
   extends: .push_tag
