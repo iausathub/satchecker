@@ -10,13 +10,6 @@ include:
       - "jobs/build-container-image.tpl.yml"
       - "jobs/k8s-update-tag.tpl.yml"
 
-workflow:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never
-    - if: $CI_COMMIT_BRANCH
-
 .test:
   image: python:3.11
   before_script:
@@ -36,8 +29,7 @@ Dev API Test:
   stage: test
   rules:
     # - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop"
       changes:
         - "api/**/*"
 
@@ -50,8 +42,7 @@ Dev API Build:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "dev"
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop"
       changes:
         - "api/**/*"
 
@@ -63,8 +54,7 @@ Dev API Push Tag:
   dependencies:
     - Dev API Build
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop"
       changes:
         - "api/**/*"
 
@@ -74,7 +64,7 @@ Prod API Test:
   extends: .test
   stage: test
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "api/**/*"
@@ -88,7 +78,7 @@ Prod API Build:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "prod"
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "api/**/*"
@@ -101,7 +91,7 @@ Prod API Push Tag:
   dependencies:
     - Dev API Build
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "api/**/*"
@@ -117,7 +107,7 @@ Dev Data Build:
     CONTAINER_CONTEXT: "data"
     ENVIRONMENT: "dev"
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         - "data/**/*"
@@ -130,7 +120,7 @@ Dev Data Push Tag:
   dependencies:
     - Dev Data Build
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         - "data/**/*"
@@ -146,7 +136,7 @@ Prod Data Build:
     CONTAINER_CONTEXT: "data"
     ENVIRONMENT: "prod"
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "data/**/*"
@@ -159,7 +149,7 @@ Prod Data Push Tag:
   dependencies:
     - Prod Data Build
   rules:
-    # - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - "data/**/*"
