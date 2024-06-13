@@ -30,7 +30,8 @@ Dev API Test:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
-    # - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - changes:
+        - "api/**/*"
 
 Dev API Build:
   extends: .build_image
@@ -43,6 +44,8 @@ Dev API Build:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "api/**/*"
 
 Dev API Push Tag:
   extends: .push_tag
@@ -54,6 +57,8 @@ Dev API Push Tag:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "api/**/*"
 
 ####### PRODUCTION API #######
 
@@ -63,7 +68,8 @@ Prod API Test:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
-    # - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - changes:
+        - "api/**/*"
 
 Prod API Build:
   extends: .build_image
@@ -76,6 +82,8 @@ Prod API Build:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "api/**/*"
 
 Prod API Push Tag:
   extends: .push_tag
@@ -87,6 +95,8 @@ Prod API Push Tag:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "api/**/*"
 
 ####### DEVELOPMENT DATA #######
 
