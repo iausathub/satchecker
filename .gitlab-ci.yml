@@ -53,6 +53,7 @@ Dev API Push Tag:
     - Dev API Build
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
+    - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
 
 ####### PRODUCTION API #######
 
@@ -99,9 +100,9 @@ Dev Data Build:
     ENVIRONMENT: "dev"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
-      changes:
-        - "data/**/*"
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "data/**/*"
 
 Dev Data Push Tag:
   extends: .push_tag
@@ -112,9 +113,9 @@ Dev Data Push Tag:
     - Dev Data Build
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
-      changes:
-        - "data/**/*"
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "data/**/*"
 
 ####### DEVELOPMENT DATA #######
 
@@ -128,9 +129,9 @@ Prod Data Build:
     ENVIRONMENT: "prod"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - "data/**/*"
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "data/**/*"
 
 Prod Data Push Tag:
   extends: .push_tag
@@ -141,6 +142,6 @@ Prod Data Push Tag:
     - Prod Data Build
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - "data/**/*"
     - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - changes:
+        - "data/**/*"
