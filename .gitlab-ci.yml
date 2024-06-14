@@ -28,8 +28,8 @@ Dev API Test:
   extends: .test
   stage: test
   rules:
-    # - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop")
+    # - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
       changes:
         - "api/**/*"
 
@@ -42,7 +42,7 @@ Dev API Build:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "dev"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
       changes:
         - "api/**/*"
 
@@ -54,7 +54,7 @@ Dev API Push Tag:
   dependencies:
     - Dev API Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
       changes:
         - "api/**/*"
 
@@ -64,7 +64,7 @@ Prod API Test:
   extends: .test
   stage: test
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "main")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
       changes:
         - "api/**/*"
 
@@ -77,7 +77,7 @@ Prod API Build:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "prod"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "main")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
       changes:
         - "api/**/*"
 
@@ -89,7 +89,7 @@ Prod API Push Tag:
   dependencies:
     - Dev API Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "main")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
       changes:
         - "api/**/*"
 
@@ -104,7 +104,7 @@ Dev Data Build:
     CONTAINER_CONTEXT: "data"
     ENVIRONMENT: "dev"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
       changes:
         - "data/**/*"
 
@@ -116,7 +116,7 @@ Dev Data Push Tag:
   dependencies:
     - Dev Data Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "develop")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
       changes:
         - "data/**/*"
 
@@ -131,7 +131,7 @@ Prod Data Build:
     CONTAINER_CONTEXT: "data"
     ENVIRONMENT: "prod"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "main")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
       changes:
         - "data/**/*"
 
@@ -143,6 +143,6 @@ Prod Data Push Tag:
   dependencies:
     - Prod Data Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && $CI_COMMIT_BRANCH == "main")
+    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
       changes:
         - "data/**/*"
