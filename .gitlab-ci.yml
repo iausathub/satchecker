@@ -45,9 +45,7 @@ Dev API Build:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "dev"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
-      changes:
-        - "api/**/*"
+    - if: $CI_COMMIT_BRANCH == "develop"
 
 Dev API Push Tag:
   extends: .push_tag
@@ -57,9 +55,7 @@ Dev API Push Tag:
   dependencies:
     - Dev API Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
-      changes:
-        - "api/**/*"
+    - if: $CI_COMMIT_BRANCH == "develop"
 
 ####### PRODUCTION API #######
 
@@ -67,9 +63,9 @@ Prod API Test:
   extends: .test
   stage: test
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
-      changes:
-        - "api/**/*"
+    - if: $CI_COMMIT_BRANCH == "main"
+      # changes:
+      #   - "api/**/*"
 
 Prod API Build:
   extends: .build_image
@@ -80,9 +76,9 @@ Prod API Build:
     CONTAINER_CONTEXT: "api"
     ENVIRONMENT: "prod"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
-      changes:
-        - "api/**/*"
+    - if: $CI_COMMIT_BRANCH == "main"
+      # changes:
+      #   - "api/**/*"
 
 Prod API Push Tag:
   extends: .push_tag
@@ -92,9 +88,9 @@ Prod API Push Tag:
   dependencies:
     - Dev API Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
-      changes:
-        - "api/**/*"
+    - if: $CI_COMMIT_BRANCH == "main"
+      # changes:
+      #   - "api/**/*"
 
 ####### DEVELOPMENT DATA #######
 
@@ -107,9 +103,9 @@ Dev Data Build:
     CONTAINER_CONTEXT: "data"
     ENVIRONMENT: "dev"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
-      changes:
-        - "data/**/*"
+    - if: $CI_COMMIT_BRANCH == "develop"
+      # changes:
+      #   - "data/**/*"
 
 Dev Data Push Tag:
   extends: .push_tag
@@ -119,11 +115,11 @@ Dev Data Push Tag:
   dependencies:
     - Dev Data Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
-      changes:
-        - "data/**/*"
+    - if: $CI_COMMIT_BRANCH == "develop"
+      # changes:
+      #   - "data/**/*"
 
-####### DEVELOPMENT DATA #######
+####### PRODUCTION DATA #######
 
 Prod Data Build:
   extends: .build_image
@@ -134,9 +130,9 @@ Prod Data Build:
     CONTAINER_CONTEXT: "data"
     ENVIRONMENT: "prod"
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
-      changes:
-        - "data/**/*"
+    - if: $CI_COMMIT_BRANCH == "main"
+      # changes:
+      #   - "data/**/*"
 
 Prod Data Push Tag:
   extends: .push_tag
@@ -146,6 +142,6 @@ Prod Data Push Tag:
   dependencies:
     - Prod Data Build
   rules:
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "main")
-      changes:
-        - "data/**/*"
+    - if: $CI_COMMIT_BRANCH == "main"
+      # changes:
+      #   - "data/**/*"
