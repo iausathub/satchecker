@@ -36,7 +36,8 @@ Dev API Test:
     # - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
-        - "api/**/*"
+        paths:
+          - "api/**/*"
 
 Dev API Build:
   extends: .build_image
@@ -49,7 +50,8 @@ Dev API Build:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
-        - "api/**/*"
+        paths:
+          - "api/**/*"
 
 Dev API Push Tag:
   extends: .push_tag
@@ -61,7 +63,8 @@ Dev API Push Tag:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
-        - "api/**/*"
+        paths:
+          - "api/**/*"
 
 ####### PRODUCTION API #######
 
@@ -71,7 +74,8 @@ Prod API Test:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
-        - "api/**/*"
+        paths:
+          - "api/**/*"
 
 Prod API Build:
   extends: .build_image
@@ -84,7 +88,8 @@ Prod API Build:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
-        - "api/**/*"
+        paths:
+          - "api/**/*"
 
 Prod API Push Tag:
   extends: .push_tag
@@ -92,11 +97,12 @@ Prod API Push Tag:
   variables:
     APP_NAME: "itops-cps-satchecker"
   dependencies:
-    - Dev API Build
+    - Prod API Build
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
-        - "api/**/*"
+        paths:
+          - "api/**/*"
 
 ####### DEVELOPMENT DATA #######
 
@@ -111,7 +117,8 @@ Dev Data Build:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
-        - "data/**/*"
+        paths:
+          - "data/**/*"
 
 Dev Data Push Tag:
   extends: .push_tag
@@ -123,7 +130,8 @@ Dev Data Push Tag:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
-        - "data/**/*"
+        paths:
+          - "data/**/*"
 
 ####### PRODUCTION DATA #######
 
@@ -138,7 +146,8 @@ Prod Data Build:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
-        - "data/**/*"
+        paths:
+          - "data/**/*"
 
 Prod Data Push Tag:
   extends: .push_tag
@@ -150,4 +159,5 @@ Prod Data Push Tag:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
-        - "data/**/*"
+        paths:
+          - "data/**/*"
