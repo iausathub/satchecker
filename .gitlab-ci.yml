@@ -23,13 +23,18 @@ include:
     paths:
       - htmlcov
 
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+
 ####### DEVELOPMENT API #######
 Dev API Test:
   extends: .test
   stage: test
   rules:
     # - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
-    - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
+    # - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
+    - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         - "api/**/*"
 
