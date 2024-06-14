@@ -23,9 +23,9 @@ include:
     paths:
       - htmlcov
 
-workflow:
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+# workflow:
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
 
 ####### DEVELOPMENT API #######
 Dev API Test:
