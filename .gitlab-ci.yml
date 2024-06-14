@@ -35,6 +35,8 @@ Dev API Test:
     # - if: '$CI_PIPELINE_SOURCE == "external_pull_request_event"'
     # - if: ($CI_PIPELINE_SOURCE == "external_pull_request_event" && $CI_COMMIT_BRANCH == "develop")
     - if: $CI_COMMIT_BRANCH == "develop"
+      changes:
+        - "api/**/*"
 
 Dev API Build:
   extends: .build_image
@@ -46,6 +48,8 @@ Dev API Build:
     ENVIRONMENT: "dev"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
+      changes:
+        - "api/**/*"
 
 Dev API Push Tag:
   extends: .push_tag
@@ -56,6 +60,8 @@ Dev API Push Tag:
     - Dev API Build
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
+      changes:
+        - "api/**/*"
 
 ####### PRODUCTION API #######
 
@@ -64,8 +70,8 @@ Prod API Test:
   stage: test
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      # changes:
-      #   - "api/**/*"
+      changes:
+        - "api/**/*"
 
 Prod API Build:
   extends: .build_image
@@ -77,8 +83,8 @@ Prod API Build:
     ENVIRONMENT: "prod"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      # changes:
-      #   - "api/**/*"
+      changes:
+        - "api/**/*"
 
 Prod API Push Tag:
   extends: .push_tag
@@ -89,8 +95,8 @@ Prod API Push Tag:
     - Dev API Build
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      # changes:
-      #   - "api/**/*"
+      changes:
+        - "api/**/*"
 
 ####### DEVELOPMENT DATA #######
 
