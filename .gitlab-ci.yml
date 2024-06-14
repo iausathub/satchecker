@@ -104,8 +104,8 @@ Dev Data Build:
     ENVIRONMENT: "dev"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
-      # changes:
-      #   - "data/**/*"
+      changes:
+        - "data/**/*"
 
 Dev Data Push Tag:
   extends: .push_tag
@@ -116,8 +116,8 @@ Dev Data Push Tag:
     - Dev Data Build
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
-      # changes:
-      #   - "data/**/*"
+      changes:
+        - "data/**/*"
 
 ####### PRODUCTION DATA #######
 
@@ -131,8 +131,8 @@ Prod Data Build:
     ENVIRONMENT: "prod"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      # changes:
-      #   - "data/**/*"
+      changes:
+        - "data/**/*"
 
 Prod Data Push Tag:
   extends: .push_tag
@@ -143,5 +143,5 @@ Prod Data Push Tag:
     - Prod Data Build
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-      # changes:
-      #   - "data/**/*"
+      changes:
+        - "data/**/*"
