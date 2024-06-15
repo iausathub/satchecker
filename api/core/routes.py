@@ -102,6 +102,9 @@ def internal_server_error(e):
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def root():
+    """
+    Redirect to API documentation
+    """
     return redirect("https://satchecker.readthedocs.io/en/latest/")
 
 
