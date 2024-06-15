@@ -3,12 +3,23 @@ import datetime
 from collections import namedtuple
 
 import pytest
+import redis
 
 from api.core import routes
 
 assert_precision = 0.000001
 
 
+def cannot_connect_to_redis():
+    try:
+        r = redis.Redis(host="localhost", port=6379, db=0)
+        r.ping()
+        return False
+    except redis.ConnectionError:
+        return True
+
+
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_name(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -24,6 +35,7 @@ def test_get_ephemeris_by_name(client, mocker):
     assert_single_jd(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_name_jdstep(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -39,6 +51,7 @@ def test_get_ephemeris_by_name_jdstep(client, mocker):
     assert_jd_step(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_catalog_number(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -53,6 +66,7 @@ def test_get_ephemeris_by_catalog_number(client, mocker):
     assert_single_jd(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_catalog_number_jdstep(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -68,6 +82,7 @@ def test_get_ephemeris_by_catalog_number_jdstep(client, mocker):
     assert_jd_step(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_tle(client, mocker):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -86,6 +101,7 @@ def test_get_ephemeris_by_tle(client, mocker):
     assert_single_jd(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_tle_jdstep(client):
     tle = "ISS (ZARYA) \\n\
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -104,6 +120,7 @@ def test_get_ephemeris_by_tle_jdstep(client):
     assert_jd_step(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_min_max_alt_name(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -127,6 +144,7 @@ def test_min_max_alt_name(client, mocker):
     assert_single_jd(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_min_max_alt_name_jdstep(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -150,6 +168,7 @@ def test_min_max_alt_name_jdstep(client, mocker):
     assert_jd_step(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_min_max_alt_catalog(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -173,6 +192,7 @@ def test_min_max_alt_catalog(client, mocker):
     assert_single_jd(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_min_max_alt_catalog_jdstep(client, mocker):
     mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
     response = client.get(
@@ -196,6 +216,7 @@ def test_min_max_alt_catalog_jdstep(client, mocker):
     assert_jd_step(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_min_max_alt_tle(client, mocker):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -222,6 +243,7 @@ def test_min_max_alt_tle(client, mocker):
     assert_single_jd(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_min_max_alt_tle_jdstep(client, mocker):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -249,6 +271,7 @@ def test_min_max_alt_tle_jdstep(client, mocker):
     assert_jd_step(data)
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def get_mock_tle():
     tle_line1 = "1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997"
     tle_line2 = "2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
