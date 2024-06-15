@@ -1,0 +1,5 @@
+INVALID_LOCATION = "Error: Invalid location parameters"
+INVALID_PARAMETER = "Error: Invalid parameter format"
+INVALID_JD = "Error: Invalid Julian Date"
+INVALID_SOURCE = "Error: Invalid data source"
+NO_TLE_FOUND = "Error: No TLE found"

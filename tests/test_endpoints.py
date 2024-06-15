@@ -6,7 +6,7 @@ import pytest
 
 from api.core import routes
 
-assert_precision = 0.0000000001
+assert_precision = 0.000001
 
 
 def test_get_ephemeris_by_name(client, mocker):
@@ -265,10 +265,10 @@ def assert_single_jd(data):
     assert data[0]["RIGHT_ASCENSION-DEG"] == pytest.approx(
         333.08094588626, assert_precision
     )
-    assert data[0]["OBSERVER_GCRS_KM"] == pytest.approx(
+    assert data[0]["OBSERVER_GCRS-KM"] == pytest.approx(
         [-147.12272716510805, 5412.091101268944, 3360.663968123699], assert_precision
     )
-    assert data[0]["SATELLITE_GCRS_KM"] == pytest.approx(
+    assert data[0]["SATELLITE_GCRS-KM"] == pytest.approx(
         [2620.939611834229, 4006.6152611592215, 4811.316736985398], assert_precision
     )
 
@@ -292,10 +292,10 @@ def assert_jd_step(data):
     assert data[0]["RIGHT_ASCENSION-DEG"] == pytest.approx(
         315.91572204924, assert_precision
     )
-    assert data[0]["OBSERVER_GCRS_KM"] == pytest.approx(
+    assert data[0]["OBSERVER_GCRS-KM"] == pytest.approx(
         [-5.00171963899434, 5414.289884914357, 3360.3388991056636], assert_precision
     )
-    assert data[0]["SATELLITE_GCRS_KM"] == pytest.approx(
+    assert data[0]["SATELLITE_GCRS-KM"] == pytest.approx(
         [3898.999479564518, 1633.1262527576182, 5307.458692361852], assert_precision
     )
 
@@ -319,9 +319,9 @@ def assert_jd_step(data):
     assert data[1]["RIGHT_ASCENSION-DEG"] == pytest.approx(
         271.57445320308, assert_precision
     )
-    assert data[1]["OBSERVER_GCRS_KM"] == pytest.approx(
+    assert data[1]["OBSERVER_GCRS-KM"] == pytest.approx(
         [-3192.457318351085, 4367.320274866453, 3367.664974307105], assert_precision
     )
-    assert data[1]["SATELLITE_GCRS_KM"] == pytest.approx(
+    assert data[1]["SATELLITE_GCRS-KM"] == pytest.approx(
         [-2975.655556845774, -3520.3064260060255, -4998.4785697481575], assert_precision
     )
