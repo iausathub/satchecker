@@ -6,6 +6,7 @@ from astropy.time import Time
 from flask import abort, jsonify, redirect, request
 from sqlalchemy.exc import DataError
 
+import core.tasks as tasks
 from core import app, limiter
 from core.database.satellite_access import (
     get_ids_for_satelltite_name,
@@ -15,7 +16,6 @@ from core.database.satellite_access import (
 from core.database.tle_access import (
     get_tle,
     parse_tle,
-    propagate_and_create_json_results,
 )
 from core.utils import (
     extract_parameters,
@@ -27,9 +27,18 @@ from core.utils import (
 from . import error_messages
 
 
-# Error handling
 @app.errorhandler(404)
 def page_not_found(e):
+    """
+    Handles page not found errors by returning the error message and a 404 status code.
+
+    Args:
+        e (HTTPException): The exception instance with details about the error.
+
+    Returns:
+        str: A string containing a custom error message.
+        int: The HTTP status code for a page not found error (404).
+    """
     return (
         "Error 404: Page not found<br /> \
         Check your spelling to ensure you are accessing the correct endpoint.",
@@ -39,6 +48,16 @@ def page_not_found(e):
 
 @app.errorhandler(400)
 def missing_parameter(e):
+    """
+    Handles bad request errors by returning the error message and a 400 status code.
+
+    Args:
+        e (HTTPException): The exception instance with details about the error.
+
+    Returns:
+        str: A string containing a custom error message and the error's description.
+        int: The HTTP status code for a bad request error (400).
+    """
     return (
         f"Error 400: Incorrect parameters or too many results to return \
         (maximum of 1000 in a single request)<br /> \
@@ -49,15 +68,34 @@ def missing_parameter(e):
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
+    """
+    Handles rate limit errors by returning the error message and a 429 status code.
+
+    Args:
+        e (HTTPException): The exception instance with details about the error.
+
+    Returns:
+        str: A string containing a custom error message and the error's description.
+        int: The HTTP status code for a rate limit error (429).
+    """
     return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
 
 
 @app.errorhandler(500)
 def internal_server_error(e):
+    """
+    Handles internal server errors by returning the error message and a 500 status code.
+
+    Args:
+        e (HTTPException): The exception instance with details about the error.
+
+    Returns:
+        str: A string containing a custom error message and the error's description.
+        int: The HTTP status code for an internal server error (500).
+    """
     return "Error 500: Internal server error:<br />" + e.description, 500
 
 
-# Redirects user to the Center for the Protection of Dark and Quiet Sky homepage
 @app.route("/")
 @app.route("/index")
 @limiter.limit(
@@ -70,6 +108,21 @@ def root():
 @app.route("/health")
 @limiter.exempt
 def health():
+    """
+    Checks the health of the application by making a GET request to the IAU CPS URL.
+
+    This function sends a GET request to the IAU CPS URL and checks the status of the
+    response. If the request is successful, it returns a JSON response with a
+    message indicating that the application is healthy. If the request fails for any
+    reason, it aborts the request and returns a 503 status code with an error message.
+
+    Returns:
+        dict: A dictionary containing a message indicating the health of the
+            application.
+    Raises:
+        HTTPException: An exception with a 503 status code and an error message if the
+            GET request fails.
+    """
     try:
         response = requests.get("https://cps.iau.org/tools/satchecker/api/", timeout=10)
         response.raise_for_status()
@@ -79,43 +132,54 @@ def health():
         return {"message": "Healthy"}
 
 
+@app.route("/fov_test/")
+def fov_test():
+    # task = tasks.profile_function.apply()
+    # return task.get()
+    result_list_task = tasks.compare.apply()
+    result_list = result_list_task.get()
+    return result_list
+
+
 @app.route("/ephemeris/name/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_ephemeris_by_name():
-    """Returns satellite location and velocity information relative to the observer's
+    """
+    Returns satellite location and velocity information relative to the observer's
     coordinates for the given satellite's Two Line Element Data Set at a specified
     Julian Date.
 
     **Please note, for the most accurate results, a Julian Date close to the TLE
-    epoch is necessary.
+    epoch is necessary.**
 
     Parameters
     ----------
-    name: 'str'
+    name: str
         CelesTrak name of object
-    latitude: 'float'
+    latitude: float
         The observers latitude coordinate (positive value represents north,
         negative value represents south)
-    longitude: 'float'
+    longitude: float
         The observers longitude coordinate (positive value represents east,
         negative value represents west)
-    elevation: 'float'
+    elevation: float
         Elevation in meters
-    julian_date: 'float'
+    julian_date: float
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    min_altitude: 'float'
+    min_altitude: float
         Minimum satellite altitude in degrees
-    max_altitude: 'float'
+    max_altitude: float
         Maximum satellite altitude in degrees
-    data_source: 'str'
+    data_source: str
         Original source of TLE data (celestrak or spacetrack)
 
     Returns
     -------
-    response: 'dictionary'
-        JSON output with satellite information - see json_output() for format
+    response: dict
+        A dictionary containing satellite information. The format of the dictionary
+        is defined by the json_output() function.
     """
     parameters = extract_parameters(
         request,
@@ -144,18 +208,23 @@ def get_ephemeris_by_name():
     tle = get_tle(
         parameters["name"], False, parameters["data_source"], jd.to_datetime()
     )
-    return propagate_and_create_json_results(
-        parameters["location"],
-        [jd],
-        tle[0].tle_line1,
-        tle[0].tle_line2,
-        tle[0].date_collected,
-        parameters["name"],
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle[1].sat_number,
-        parameters["data_source"],
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            [jd],
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            parameters["name"],
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle[1].sat_number,
+            parameters["data_source"],
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/name-jdstep/")
@@ -163,42 +232,44 @@ def get_ephemeris_by_name():
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_ephemeris_by_name_jdstep():
-    """Returns satellite location and velocity information relative to the observer's
+    """
+    Returns satellite location and velocity information relative to the observer's
     coordinates for the given satellite's name with the Two Line Element Data Set at
     a specified Julian Date.
 
     **Please note, for the most accurate results, a Julian Date close to the TLE epoch
-    is necessary.
+    is necessary.**
 
     Parameters
     ----------
-    name: 'str'
+    name: str
         CelesTrak name of object
-    latitude: 'float'
+    latitude: float
         The observers latitude coordinate (positive value represents north,
         negative value represents south)
-    longitude: 'float'
+    longitude: float
         The observers longitude coordinate (positive value represents east,
         negative value represents west)
-    elevation: 'float'
+    elevation: float
         Elevation in meters
-    startjd: 'float'
+    startjd: float
         UT1 Universal Time Julian Date to start ephmeris calculation.
-    stopjd: 'float'
+    stopjd: float
         UT1 Universal Time Julian Date to stop ephmeris calculation.
-    stepjd: 'float'
+    stepjd: float
         UT1 Universal Time Julian Date timestep.
-    min_altitude: 'float'
+    min_altitude: float
         Minimum satellite altitude in degrees
-    max_altitude: 'float'
+    max_altitude: float
         Maximum satellite altitude in degrees
-    data_source: 'str'
+    data_source: str
         Original source of TLE data (celestrak or spacetrack)
 
     Returns
     -------
-    response: 'dictionary'
-        JSON output with satellite information - see json_output() for format
+    response: dict
+        A dictionary containing satellite information. The format of the dictionary
+        is defined by the json_output() function.
     """
 
     parameters = extract_parameters(
@@ -235,18 +306,23 @@ def get_ephemeris_by_name_jdstep():
     tle = get_tle(
         parameters["name"], False, parameters["data_source"], jd[0].to_datetime()
     )
-    return propagate_and_create_json_results(
-        parameters["location"],
-        jd,
-        tle[0].tle_line1,
-        tle[0].tle_line2,
-        tle[0].date_collected,
-        parameters["name"],
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle[1].sat_number,
-        parameters["data_source"],
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            jd,
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            parameters["name"],
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle[1].sat_number,
+            parameters["data_source"],
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/catalog-number/")
@@ -254,38 +330,40 @@ def get_ephemeris_by_name_jdstep():
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_ephemeris_by_catalog_number():
-    """Returns satellite location and velocity information relative to the observer's
+    """
+    Returns satellite location and velocity information relative to the observer's
     coordinates for the given satellite's catalog number using the Two Line Element
     Data Set at the specified Julian Date.
 
     **Please note, for the most accurate results, a Julian Date close to the TLE epoch
-    is necessary.
+    is necessary.**
 
     Parameters
     ----------
-    catalog: 'str'
+    catalog: str
         Satellite Catalog Number of object
-    latitude: 'float'
+    latitude: float
         The observers latitude coordinate (positive value represents north,
         negative value represents south)
-    longitude: 'float'
+    longitude: float
         The observers longitude coordinate (positive value represents east,
         negative value represents west)
-    elevation: 'float'
+    elevation: float
         Elevation in meters
-    julian_date: 'float'
+    julian_date: float
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    min_altitude: 'float'
+    min_altitude: float
         Minimum satellite altitude in degrees
-    max_altitude: 'float'
+    max_altitude: float
         Maximum satellite altitude in degrees
-    data_source: 'str'
+    data_source: str
         Original source of TLE data (celestrak or spacetrack)
 
     Returns
     -------
-    response: 'dictionary'
-        JSON output with satellite information - see json_output() for format
+    response: dict
+        A dictionary containing satellite information. The format of the dictionary
+        is defined by the json_output() function.
     """
     parameters = extract_parameters(
         request,
@@ -315,18 +393,22 @@ def get_ephemeris_by_catalog_number():
         parameters["catalog"], True, parameters["data_source"], jd.to_datetime()
     )
 
-    return propagate_and_create_json_results(
-        parameters["location"],
-        [jd],
-        tle[0].tle_line1,
-        tle[0].tle_line2,
-        tle[0].date_collected,
-        tle[1].sat_name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle[1].sat_number,
-        parameters["data_source"],
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            [jd],
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            tle[1].sat_name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            parameters["catalog"],
+            parameters["data_source"],
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/catalog-number-jdstep/")
@@ -334,42 +416,44 @@ def get_ephemeris_by_catalog_number():
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_ephemeris_by_catalog_number_jdstep():
-    """Returns satellite location and velocity information relative to the observer's
+    """
+    Returns satellite location and velocity information relative to the observer's
     coordinates for the given satellite's catalog number with the Two Line Element Data
-    Set at the specfied Julian Date.
+    Set at the specified Julian Date.
 
     **Please note, for the most accurate results, a Julian Date close to the TLE epoch
-    is necessary.
+    is necessary.**
 
     Parameters
     ----------
-    catalog: 'str'
+    catalog: str
         Satellite catalog number of object (NORAD ID)
-    latitude: 'float'
+    latitude: float
         The observers latitude coordinate (positive value represents north,
         negative value represents south)
-    longitude: 'float'
+    longitude: float
         The observers longitude coordinate (positive value represents east,
         negative value represents west)
-    elevation: 'float'
+    elevation: float
         Elevation in meters
-    startjd: 'float'
+    startjd: float
         UT1 Universal Time Julian Date to start ephmeris calculation.
-    stopjd: 'float'
+    stopjd: float
         UT1 Universal Time Julian Date to stop ephmeris calculation.
-    stepjd: 'float'
+    stepjd: float
         UT1 Universal Time Julian Date timestep.
-    min_altitude: 'float'
+    min_altitude: float
         Minimum satellite altitude in degrees
-    max_altitude: 'float'
+    max_altitude: float
         Maximum satellite altitude in degrees
-    data_source: 'str'
+    data_source: str
         Original source of TLE data (celestrak or spacetrack)
 
     Returns
     -------
-    response: 'dictionary'
-        JSON output with satellite information - see json_output() for format
+    response: dict
+        A dictionary containing satellite information. The format of the dictionary
+        is defined by the json_output() function.
     """
     parameters = extract_parameters(
         request,
@@ -407,18 +491,23 @@ def get_ephemeris_by_catalog_number_jdstep():
     tle = get_tle(
         parameters["catalog"], True, parameters["data_source"], jd[0].to_datetime()
     )
-    return propagate_and_create_json_results(
-        parameters["location"],
-        jd,
-        tle[0].tle_line1,
-        tle[0].tle_line2,
-        tle[0].date_collected,
-        tle[1].sat_name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle[1].sat_number,
-        parameters["data_source"],
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            jd,
+            tle[0].tle_line1,
+            tle[0].tle_line2,
+            tle[0].date_collected,
+            tle[1].sat_name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            parameters["catalog"],
+            parameters["data_source"],
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/tle/")
@@ -426,35 +515,37 @@ def get_ephemeris_by_catalog_number_jdstep():
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_ephemeris_by_tle():
-    """Returns satellite location and velocity information relative to the observer's
+    """
+    Returns satellite location and velocity information relative to the observer's
     coordinates for a given Two Line Element Data Set at the specified Julian Date.
 
     **Please note, for the most accurate results, a Julian Date close to the TLE epoch
-    is necessary.
+    is necessary.**
 
     Parameters
     ----------
-    tle: 'str'
+    tle: str
         Two line element set of object
-    latitude: 'float'
+    latitude: float
         The observers latitude coordinate (positive value represents north,
         negative value represents south)
-    longitude: 'float'
+    longitude: float
         The observers longitude coordinate (positive value represents east,
         negative value represents west)
-    elevation: 'float'
+    elevation: float
         Elevation in meters
-    julian_date: 'float'
+    julian_date: float
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
-    min_altitude: 'float'
+    min_altitude: float
         Minimum satellite altitude in degrees
-    max_altitude: 'float'
+    max_altitude: float
         Maximum satellite altitude in degrees
 
     Returns
     -------
-    response: 'dictionary'
-        JSON output with satellite information - see json_output() for format
+    response: dict
+        A dictionary containing satellite information. The format of the dictionary
+        is defined by the json_output() function.
     """
 
     parameters = extract_parameters(
@@ -481,18 +572,23 @@ def get_ephemeris_by_tle():
         abort(500, error_messages.INVALID_JD)
 
     tle = parse_tle(parameters["tle"])
-    return propagate_and_create_json_results(
-        parameters["location"],
-        [jd],
-        tle.tle_line1,
-        tle.tle_line2,
-        tle.date_collected,
-        tle.name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle.catalog,
-        "user",
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            [jd],
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
+            tle.name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle.catalog,
+            "user",
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/ephemeris/tle-jdstep/")
@@ -500,40 +596,42 @@ def get_ephemeris_by_tle():
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_ephemeris_by_tle_jdstep():
-    """Returns satellite location and velocity information relative to the observer's
-    coordinates for the given satellite's catalog number using the Two Line Element
-    Data Set at a specified Julian Date.
+    """
+    Returns satellite location and velocity information relative to the observer's
+    coordinates for the given satellite's catalog number with the Two Line Element Data
+    Set at a specified Julian Date.
 
     **Please note, for the most accurate results, a Julian Date close to the TLE epoch
-    is necessary.
+    is necessary.**
 
     Parameters
     ----------
-    tle: 'str'
+    tle: str
         Two line element set of object
-    latitude: 'float'
+    latitude: float
         The observers latitude coordinate (positive value represents north,
         negative value represents south)
-    longitude: 'float'
+    longitude: float
         The observers longitude coordinate (positive value represents east,
         negative value represents west)
-    elevation: 'float'
+    elevation: float
         Elevation in meters
-    startjd: 'float'
+    startjd: float
         UT1 Universal Time Julian Date to start ephmeris calculation.
-    stopjd: 'float'
+    stopjd: float
         UT1 Universal Time Julian Date to stop ephmeris calculation.
-    stepjd: 'float'
+    stepjd: float
         UT1 Universal Time Julian Date timestep.
-    min_altitude: 'float'
+    min_altitude: float
         Minimum satellite altitude in degrees
-    max_altitude: 'float'
+    max_altitude: float
         Maximum satellite altitude in degrees
 
     Returns
     -------
-    response: 'dictionary'
-        JSON output with satellite information - see json_output() for format
+    response: dict
+        A dictionary containing satellite information. The format of the dictionary
+        is defined by the json_output() function.
     """
     parameters = extract_parameters(
         request,
@@ -567,18 +665,23 @@ def get_ephemeris_by_tle_jdstep():
         abort(400)
 
     tle = parse_tle(parameters["tle"])
-    return propagate_and_create_json_results(
-        parameters["location"],
-        jd,
-        tle.tle_line1,
-        tle.tle_line2,
-        tle.date_collected,
-        tle.name,
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        tle.catalog,
-        "user",
+
+    result_list_task = tasks.create_result_list.apply(
+        args=[
+            parameters["location"],
+            jd,
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
+            tle.name,
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            tle.catalog,
+            "user",
+        ]
     )
+    result_list = result_list_task.get()
+    return result_list
 
 
 @app.route("/tools/norad-ids-from-name/")
@@ -589,14 +692,14 @@ def get_norad_ids_from_name():
     """
     Returns the NORAD ID(s) for a given satellite name.
 
-    Parameters
+    Args
     ----------
-    name: 'str'
+    name: str
         The name of the satellite.
 
     Returns
     -------
-    response: 'list'
+    response: list
         A list of NORAD IDs associated with the given satellite name.
     """
     satellite_name = request.args.get("name").upper()
@@ -629,17 +732,19 @@ def get_norad_ids_from_name():
 )
 def get_names_from_norad_id():
     """
-    Retrieves any satellite names associated with a NORAD ID.
+    Returns the name(s) for a given NORAD id.
 
-    This function queries the database for satellites that match the provided NORAD ID,
-    which is retrieved from the request arguments. The names of the matching satellites
-    are then returned in a JSON format.
+    Args
+    ----------
+    id: int
+        The NORAD id of the satellite.
 
-    If an error occurs during the process, the error is logged and None is returned.
-
-    Returns:
-        list: A list of satellite names in JSON format, or None if an error occurs.
+    Returns
+    -------
+    response: list
+        A list of names associated with the given satellite NORAD id.
     """
+
     satellite_id = request.args.get("id")
     if satellite_id is None:
         abort(400)
@@ -673,11 +778,43 @@ def get_names_from_norad_id():
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_tle_data():
+    """
+    Fetches Two-Line Element set (TLE) data for a given satellite.
+
+    The function retrieves TLE data based on the satellite ID and ID type
+    provided in the request arguments. It also allows for a date range to be
+    specified for the TLE data.
+
+    Parameters:
+        id (str):
+            The ID of the satellite.
+        id_type (str):
+            The type of the ID, either 'catalog' or 'name'.
+        start_date_jd (str, optional):
+            The start date of the date range for the TLE data,
+            in Julian Date format.
+        end_date_jd (str, optional):
+            The end date of the date range for the TLE data,
+            in Julian Date format.
+
+    Returns:
+        A JSON response containing the TLE data for the specified satellite
+        and date range. Each TLE data entry includes the satellite name,
+        satellite ID, TLE lines, epoch, and date collected.
+
+    Raises:
+        400:
+            If the satellite ID is not provided or the ID type is not
+            'catalog' or 'name'.
+        500:
+            If there is a DataError when fetching the TLE data.
+    """
     satellite_id = request.args.get("id")
     id_type = request.args.get("id_type")
     start_date = request.args.get("start_date_jd")
     end_date = request.args.get("end_date_jd")
 
+    # TODO: Add more specific messages for 400 error codes
     if satellite_id is None:
         abort(400)
 
