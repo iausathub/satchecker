@@ -122,7 +122,7 @@ def get_tle_by_name(target_name, data_source, date):
             .first()
         )
     except Exception as e:
-        print(e.msg)
+        print(e)
         return None
 
     return tle_sat
