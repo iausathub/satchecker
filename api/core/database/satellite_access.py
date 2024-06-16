@@ -64,5 +64,5 @@ def get_tles(satellite_id, id_type, start_date, end_date):
 
     except Exception as e:
         if isinstance(e, DataError):
-            abort(500, error_messages.NO_TLE_FOUND)
+            abort(500, f"{error_messages.NO_TLE_FOUND}, Exception: {str(e)}")
         return None

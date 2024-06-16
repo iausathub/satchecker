@@ -859,6 +859,6 @@ def get_tle_data():
 
     except Exception as e:
         if isinstance(e, DataError):
-            abort(500, error_messages.NO_TLE_FOUND)
+            abort(500, f"{error_messages.NO_TLE_FOUND}, Exception: {str(e)}")
         app.logger.error(e)
         return None
