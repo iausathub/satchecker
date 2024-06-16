@@ -13,11 +13,13 @@ class Satellite(db.Model):
     sat_name = db.Column(db.String())
     constellation = db.Column(db.String())
     date_added = db.Column(DateTime, default=datetime.now(ZoneInfo("UTC")))
+    """ Temporarily disabled
     rcs_size = db.Column(db.String())
     launch_date = db.Column(db.DateTime())
     decay_date = db.Column(db.DateTime())
     object_id = db.Column(db.String())
     object_type = db.Column(db.String())
+    """
 
     def __init__(self, sat_number, sat_name, constellation):
         self.sat_number = sat_number
