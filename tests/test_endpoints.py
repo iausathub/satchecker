@@ -277,14 +277,18 @@ def get_mock_tle():
     tle_line2 = "2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     date_collected = datetime.datetime(2023, 9, 5, 16, 21, 29)
     sat_name = "ISS (ZARYA)"
+    data_source = "celestrak"
 
-    tle_tuple = namedtuple("tle", ["tle_line1", "tle_line2", "date_collected"])
     satellite_tuple = namedtuple("satellite", ["sat_name", "sat_number"])
+    tle_tuple = namedtuple(
+        "tle",
+        ["tle_line1", "tle_line2", "date_collected", "data_source", "tle_satellite"],
+    )
 
-    tle = tle_tuple(tle_line1, tle_line2, date_collected)
     satellite = satellite_tuple(sat_name, 25544)
+    tle = tle_tuple(tle_line1, tle_line2, date_collected, data_source, satellite)
 
-    return tle, satellite
+    return tle
 
 
 def assert_single_jd(json_data):

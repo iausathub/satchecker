@@ -482,9 +482,9 @@ def validate_parameters(parameters, required_parameters):
         parameters["data_source"] = (
             parameters["data_source"].lower()
             if parameters["data_source"] is not None
-            else "spacetrack"
+            else "any"
         )
-        if parameters["data_source"] not in ["celestrak", "spacetrack"]:
+        if parameters["data_source"] not in ["celestrak", "spacetrack", "any"]:
             abort(500, "Invalid data source")
 
     return parameters

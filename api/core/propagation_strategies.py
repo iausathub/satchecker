@@ -448,7 +448,6 @@ class PropagationInfo:
         self.latitude = latitude
         self.longitude = longitude
         self.elevation = elevation
-        print(self.elevation)
 
     def propagate(self):
         return self.propagation_strategy.propagate(

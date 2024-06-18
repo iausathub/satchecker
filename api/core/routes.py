@@ -216,14 +216,14 @@ def get_ephemeris_by_name():
         args=[
             parameters["location"],
             [jd],
-            tle[0].tle_line1,
-            tle[0].tle_line2,
-            tle[0].date_collected,
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
             parameters["name"],
             parameters["min_altitude"],
             parameters["max_altitude"],
-            tle[1].sat_number,
-            parameters["data_source"],
+            tle.tle_satellite.sat_number,
+            tle.data_source,
         ]
     )
     result_list = result_list_task.get()
@@ -314,14 +314,14 @@ def get_ephemeris_by_name_jdstep():
         args=[
             parameters["location"],
             jd,
-            tle[0].tle_line1,
-            tle[0].tle_line2,
-            tle[0].date_collected,
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
             parameters["name"],
             parameters["min_altitude"],
             parameters["max_altitude"],
-            tle[1].sat_number,
-            parameters["data_source"],
+            tle.tle_satellite.sat_number,
+            tle.data_source,
         ]
     )
     result_list = result_list_task.get()
@@ -400,14 +400,14 @@ def get_ephemeris_by_catalog_number():
         args=[
             parameters["location"],
             [jd],
-            tle[0].tle_line1,
-            tle[0].tle_line2,
-            tle[0].date_collected,
-            tle[1].sat_name,
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
+            tle.tle_satellite.sat_name,
             parameters["min_altitude"],
             parameters["max_altitude"],
             parameters["catalog"],
-            parameters["data_source"],
+            tle.data_source,
         ]
     )
     result_list = result_list_task.get()
@@ -499,14 +499,14 @@ def get_ephemeris_by_catalog_number_jdstep():
         args=[
             parameters["location"],
             jd,
-            tle[0].tle_line1,
-            tle[0].tle_line2,
-            tle[0].date_collected,
-            tle[1].sat_name,
+            tle.tle_line1,
+            tle.tle_line2,
+            tle.date_collected,
+            tle.tle_satellite.sat_name,
             parameters["min_altitude"],
             parameters["max_altitude"],
             parameters["catalog"],
-            parameters["data_source"],
+            tle.data_source,
         ]
     )
     result_list = result_list_task.get()

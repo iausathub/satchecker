@@ -19,7 +19,7 @@ Retrieve satellite ephemeris by name with JD time step
    :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
    :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
    :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
-   :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
+   :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Leaving it blank returns closest TLE from any source.
 
 
 **Example Request**
@@ -74,7 +74,7 @@ Retrieve satellite ephemeris by name
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
-    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
+    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Leaving it blank returns closest TLE from any source.
 
 **Example Request**
     .. tabs::
@@ -129,7 +129,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
     :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
-    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
+    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Leaving it blank returns closest TLE from any source.
 
 **Example Request**
     .. tabs::
@@ -183,7 +183,7 @@ Retrieve satellite ephemeris by catalog number
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
-    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Default is 'spacetrack'.
+    :query data_source: (*optional*) -- Data source for the TLE data - either 'celestrak' or 'spacetrack'. Leaving it blank returns closest TLE from any source.
 
 **Example Request**
     .. tabs::
