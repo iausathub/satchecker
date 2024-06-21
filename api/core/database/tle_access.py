@@ -58,7 +58,7 @@ def get_tle_by_catalog_number(target_number, data_source, date):
     target_number: 'str'
         Catalog number of satellite as displayed in TLE file
     data_source: 'str'
-        Original source of TLE data (celestrak or spacetrack)
+        Original source of TLE data (celestrak, spacetrack); "any" to search all sources
     date: 'datetime'
         Date to query TLE data
 
@@ -69,19 +69,19 @@ def get_tle_by_catalog_number(target_number, data_source, date):
     """
     # use the tle closest to the date given (at the same time or before)
     try:
-        tle_sat = (
-            db.session.query(models.TLE, models.Satellite)
-            .filter_by(data_source=data_source)
-            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
-            .filter_by(sat_number=target_number)
-            .order_by(
-                func.abs(
-                    func.extract("epoch", models.TLE.date_collected)
-                    - func.extract("epoch", date)
-                )
-            )
-            .first()
+        tle_query = db.session.query(models.TLE)
+        if data_source in ["celestrak", "spacetrack"]:
+            tle_query = tle_query.filter_by(data_source=data_source)
+        tle_query = tle_query.join(
+            models.Satellite, models.TLE.sat_id == models.Satellite.id
         )
+        tle_query = tle_query.filter_by(sat_number=target_number)
+        tle_sat = tle_query.order_by(
+            func.abs(
+                func.extract("epoch", models.TLE.date_collected)
+                - func.extract("epoch", date)
+            )
+        ).first()
     except Exception:
         # app.logger.error(e)
         return None
@@ -97,7 +97,7 @@ def get_tle_by_name(target_name, data_source, date):
     target_name: 'str'
         Name of satellite as displayed in TLE file
     data_source: 'str'
-        Original source of TLE data (celestrak or spacetrack)
+        Original source of TLE data (celestrak, spacetrack); "any" to search all sources
     date: 'datetime'
         Date to query TLE data
 
@@ -108,19 +108,19 @@ def get_tle_by_name(target_name, data_source, date):
     """
     # use the tle closest to the date given (at the same time or before)
     try:
-        tle_sat = (
-            db.session.query(models.TLE, models.Satellite)
-            .filter_by(data_source=data_source)
-            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
-            .filter_by(sat_name=target_name)
-            .order_by(
-                func.abs(
-                    func.extract("epoch", models.TLE.date_collected)
-                    - func.extract("epoch", date)
-                )
-            )
-            .first()
+        tle_query = db.session.query(models.TLE)
+        if data_source in ["celestrak", "spacetrack"]:
+            tle_query = tle_query.filter_by(data_source=data_source)
+        tle_query = tle_query.join(
+            models.Satellite, models.TLE.sat_id == models.Satellite.id
         )
+        tle_query = tle_query.filter_by(sat_name=target_name)
+        tle_sat = tle_query.order_by(
+            func.abs(
+                func.extract("epoch", models.TLE.date_collected)
+                - func.extract("epoch", date)
+            )
+        ).first()
     except Exception as e:
         print(e)
         return None
