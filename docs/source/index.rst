@@ -16,7 +16,7 @@ It also provides additional information like range, on-sky velocity, and an
 "illuminated" flag for each prediction point.
 
 SatChecker uses the TLE with the closest epoch date available to the date specified
-in the API parameters - currently available TLEs go back to October 2023. General TLE data
+in the API parameters - currently available TLEs go back to July 2019. General TLE data
 is updated daily, and supplemental TLEs from CelesTrak are updated every 8 hours.
 
 The SatChecker Tools API provides additional functionality for satellite name and ID lookup,

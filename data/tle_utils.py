@@ -75,7 +75,7 @@ def insert_records(
     ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
     SELECT * FROM e
     UNION ALL
-    (SELECT id FROM satellites WHERE SAT_NUMBER=%s order by date_added desc);"""
+    (SELECT id FROM satellites WHERE SAT_NUMBER=%s AND SAT_NAME=%s);"""
     cursor.execute(satellite_insert_query, sat_to_insert)
     sat_id = cursor.fetchone()[0]
 
