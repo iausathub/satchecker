@@ -24,7 +24,10 @@ def get_ids_for_satelltite_name(satellite_name):
 def get_names_for_satellite_id(satellite_id):
     satellite_names_and_dates = (
         db.session.query(models.Satellite.sat_name, models.Satellite.date_added)
-        .filter(models.Satellite.sat_number == satellite_id)
+        .filter(
+            models.Satellite.sat_number == satellite_id,
+            models.Satellite.has_current_sat_number is True,
+        )
         .order_by(models.Satellite.date_added.desc())
         .all()
     )
