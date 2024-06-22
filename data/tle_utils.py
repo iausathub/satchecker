@@ -40,6 +40,7 @@ def insert_records(
     constellation,
     is_supplemental,
     source,
+    is_current_number,
 ):
     name = record["OBJECT_NAME"]
     tle_line_1 = record["TLE_LINE1"]
@@ -65,19 +66,27 @@ def insert_records(
         decay_date,
         object_id,
         object_type,
+        is_current_number,
         str(satellite.model.satnum),
+        name,
     )
     satellite_insert_query = """ WITH e AS(
     INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
     DATE_ADDED, DATE_MODIFIED, RCS_SIZE, LAUNCH_DATE, DECAY_DATE, OBJECT_ID,
-    OBJECT_TYPE)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    OBJECT_TYPE, HAS_CURRENT_SAT_NUMBER)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
     ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
     SELECT * FROM e
     UNION ALL
     (SELECT id FROM satellites WHERE SAT_NUMBER=%s AND SAT_NAME=%s);"""
     cursor.execute(satellite_insert_query, sat_to_insert)
     sat_id = cursor.fetchone()[0]
+
+    # update all other satellites with the same sat_number
+    cursor.execute(
+        "UPDATE satellites SET HAS_CURRENT_SAT_NUMBER = FALSE WHERE SAT_NUMBER = %s AND id != %s",  # noqa: E501
+        (satellite.model.satnum, sat_id),
+    )
 
     # add TLE to database
     tle_insert_query = """
@@ -98,7 +107,9 @@ def insert_records(
 
 
 # Parse TLE list and add entries to database if they don't exist
-def add_tle_list_to_db(tle, constellation, cursor, is_supplemental, source):
+def add_tle_list_to_db(
+    tle, constellation, cursor, is_supplemental, source, is_current_number
+):
     tle_count = 0
     if source == "celestrak":
         lines = tle.text.splitlines()
@@ -120,6 +131,7 @@ def add_tle_list_to_db(tle, constellation, cursor, is_supplemental, source):
                 constellation,
                 is_supplemental,
                 source,
+                is_current_number,
             )
             counter += 3
             tle_count += 1
@@ -134,6 +146,7 @@ def add_tle_list_to_db(tle, constellation, cursor, is_supplemental, source):
                 constellation,
                 is_supplemental,
                 source,
+                is_current_number,
             )
             tle_count += 1
     log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
@@ -195,7 +208,7 @@ def get_celestrak_general_tles(cursor, connection):
             constellation = (
                 group if (group == "starlink" or group == "oneweb") else "other"
             )
-            add_tle_list_to_db(tle, constellation, cursor, "false", "celestrak")
+            add_tle_list_to_db(tle, constellation, cursor, "false", "celestrak", True)
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
             logging.error(log_time + "\t" + "database ERROR:", err)
@@ -212,7 +225,7 @@ def get_celestrak_supplemental_tles(cursor, connection):
         )
         tle.raise_for_status()
         try:
-            add_tle_list_to_db(tle, constellation, cursor, "true", "celestrak")
+            add_tle_list_to_db(tle, constellation, cursor, "true", "celestrak", True)
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
             logging.error(log_time + "\t" + "database ERROR:", err)
@@ -235,7 +248,7 @@ def get_spacetrack_tles(cursor, connection):
             timeout=60,
         )
         try:
-            add_tle_list_to_db(tle, "", cursor, "false", "spacetrack")
+            add_tle_list_to_db(tle, "", cursor, "false", "spacetrack", True)
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
             logging.error(log_time + "\t" + "database ERROR:", err)

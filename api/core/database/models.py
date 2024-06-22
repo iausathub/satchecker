@@ -18,6 +18,7 @@ class Satellite(db.Model):
     decay_date = db.Column(db.DateTime())
     object_id = db.Column(db.String())
     object_type = db.Column(db.String())
+    has_current_sat_number = db.Column(db.Boolean)
 
     def __init__(self, sat_number, sat_name, constellation):
         self.sat_number = sat_number

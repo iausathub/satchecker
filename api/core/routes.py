@@ -719,6 +719,7 @@ def get_norad_ids_from_name():
                 "name": satellite_name,
                 "norad_id": id_date[0],
                 "date_added": id_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "is_current_version": id_date[2],
             }
             for id_date in norad_ids_and_dates
         ]
@@ -761,6 +762,7 @@ def get_names_from_norad_id():
                 "name": name_date[0],
                 "norad_id": satellite_id,
                 "date_added": name_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "is_current_version": name_date[2],
             }
             for name_date in satellite_names_and_dates
         ]
