@@ -23,7 +23,7 @@ the University of Illinois Urbana-Champaign, and Imperial College London.
 
 .. raw:: html
 
-   <img src="_static/_images/Imperial_logo.png" alt="Imperial College London Logo" style="width:200px;">
+   <img src="_static/_images/imperial_logo.png" alt="Imperial College London Logo" style="width:200px;">
 
 
 SatChecker development was also supported in part by
