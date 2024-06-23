@@ -767,11 +767,6 @@ def get_names_from_norad_id():
             for name_date in satellite_names_and_dates
         ]
 
-        for name, date_added in satellite_names_and_dates:
-            # Convert date_added to UTC before printing it
-            date_added_utc = date_added.astimezone(timezone.utc)
-            print(name, date_added_utc)
-
         return jsonify(names_and_dates)
     except Exception as e:
         app.logger.error(e)
