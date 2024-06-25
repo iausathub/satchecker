@@ -30,7 +30,7 @@ jobs:
         pip install pytest pytest-mock pytest-cov
     - name: Test with pytest
       run: |
-        pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. tests/ | tee pytest-coverage.txt
+        pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. --cov-config=pytest.ini tests/ | tee pytest-coverage.txt
     - name: Pytest coverage comment
       id: coverageComment
       uses: MishaKav/pytest-coverage-comment@main
