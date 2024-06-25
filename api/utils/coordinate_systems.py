@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple  # noqa: I001
 
 import numpy as np
 
