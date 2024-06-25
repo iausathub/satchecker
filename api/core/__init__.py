@@ -4,6 +4,7 @@ from celery import Celery, Task
 from flask import Flask
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_migrate import Migrate
 
 from core import utils
 from core.extensions import db
@@ -41,6 +42,10 @@ def create_app():
         f"{db_login[2]}:{db_login[3]}/{db_login[4]}?options=-c%20timezone=utc"
     )
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"echo": True, "use_native_hstore": False}
+
+    # Initialize Flask-Migrate
+    migrate = Migrate(app, db)  # noqa: F841
+
     return app
 
 
