@@ -440,7 +440,6 @@ class PropagationInfo:
         longitude,
         elevation,
     ):
-
         self.propagation_strategy = propagation_strategy
         self.tle_line_1 = tle_line_1
         self.tle_line_2 = tle_line_2

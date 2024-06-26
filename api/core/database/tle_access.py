@@ -36,7 +36,6 @@ def propagate_and_create_json_results(
             satellite_position.alt.degrees > min_altitude
             and satellite_position.alt.degrees < max_altitude
         ):
-
             result_list.append(satellite_position._asdict())
 
     api_source = "IAU CPS SatChecker"

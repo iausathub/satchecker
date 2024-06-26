@@ -12,6 +12,15 @@ from astropy.coordinates import (
 )
 from astropy.time import Time
 from celery import chord
+from core import celery, utils
+from core.database import models
+from core.extensions import db
+from core.propagation_strategies import (
+    PropagationInfo,
+    SGP4PropagationStrategy,
+    SkyfieldPropagationStrategy,
+    TestPropagationStrategy,
+)
 from flask import current_app
 from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load
@@ -26,16 +35,6 @@ from utils.coordinate_systems import (
     teme_to_ecef,
 )
 from utils.time_utils import jd_to_gst
-
-from core import celery, utils
-from core.database import models
-from core.extensions import db
-from core.propagation_strategies import (
-    PropagationInfo,
-    SGP4PropagationStrategy,
-    SkyfieldPropagationStrategy,
-    TestPropagationStrategy,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +151,6 @@ def compare():
 
 @celery.task
 def test_fov():
-
     # for each satellite in the database, propagate the satellite to
     # the current date/time using the most recent TLE
     # Define the target date
