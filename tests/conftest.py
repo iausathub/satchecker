@@ -16,8 +16,9 @@ def app():
             "TESTING": True,
         }
     )
-
-    yield app
+    with app.app_context():
+        yield app
+    # yield app
 
 
 @pytest.fixture()
