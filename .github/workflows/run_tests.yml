@@ -52,6 +52,11 @@ jobs:
     - name: Install dependencies
       run: |
         pip install pytest pytest-mock pytest-cov
+    - name: Start Flask application
+      run: |
+        export FLASK_APP=satchecker.py
+        flask run &
+      working-directory: api
     - name: Run Celery worker
       run: |
         celery -A satchecker.celery worker --loglevel INFO &
