@@ -4,6 +4,14 @@ core package
 Submodules
 ----------
 
+core.celery\_app module
+-----------------------
+
+.. automodule:: core.celery_app
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 core.error\_messages module
 ---------------------------
 
@@ -24,22 +32,6 @@ core.propagation\_strategies module
 -----------------------------------
 
 .. automodule:: core.propagation_strategies
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-core.routes module
-------------------
-
-.. automodule:: core.routes
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-core.tasks module
------------------
-
-.. automodule:: core.tasks
    :members:
    :undoc-members:
    :show-inheritance:
