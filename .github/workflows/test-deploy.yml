@@ -2,11 +2,9 @@
 # and then will force a new deployment of the service containing the api,
 # when there is a push to the "develop" branch.
 
-name: Deploy to Amazon ECS - Dev.
+name: Deploy version to Amazon ECS - Dev.
 
 on:
-    push:
-      branches: [ "develop" ]
     workflow_dispatch:
       inputs:
         logLevel:
