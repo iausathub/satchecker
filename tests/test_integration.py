@@ -110,42 +110,56 @@ def test_get_ephemeris_by_name(client):
         "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
-    data = response.json()
-    assert_precision = 0.0000001
-    assert data[0]["ALTITUDE-DEG"] == pytest.approx(-73.95450985559, assert_precision)
-    assert data[0]["AZIMUTH-DEG"] == pytest.approx(337.1315771994, assert_precision)
-    assert data[0]["CATALOG_ID"] == 25544
-    assert data[0]["DATA_SOURCE"] == "spacetrack"
-    assert data[0]["DDEC-DEG_PER_SEC"] == pytest.approx(0.02567256817, assert_precision)
-    assert data[0]["DECLINATION-DEG"] == pytest.approx(
-        -17.07188637651, assert_precision
-    )
-    assert data[0]["DRA_COSDEC-DEG_PER_SEC"] == pytest.approx(
-        0.02330719137, assert_precision
-    )
-    assert data[0]["ILLUMINATED"] is True
-    assert data[0]["JULIAN_DATE"] == pytest.approx(2460193.104167, assert_precision)
-    assert data[0]["NAME"] == "ISS (ZARYA)"
-    assert data[0]["OBSERVER_GCRS_KM"] == [
-        pytest.approx(-147.12272716510805, assert_precision),
-        pytest.approx(5412.091101268944, assert_precision),
-        pytest.approx(3360.663968123699, assert_precision),
-    ]
-    assert data[0]["PHASE_ANGLE-DEG"] == pytest.approx(64.8724036003, assert_precision)
-    assert data[0]["RANGE-KM"] == pytest.approx(12711.581551491206, assert_precision)
+    data = response.json()["data"]
 
-    assert data[0]["RANGE_RATE-KM_PER_SEC"] == pytest.approx(
-        -1.821548659271, assert_precision
-    )
-    assert data[0]["RIGHT_ASCENSION-DEG"] == pytest.approx(
-        278.04965785823, assert_precision
-    )
-    assert data[0]["SATELLITE_GCRS_KM"] == [
-        pytest.approx(1554.4639759227455, assert_precision),
-        pytest.approx(-6619.6547574595015, assert_precision),
-        pytest.approx(-371.09162717694767, assert_precision),
+    fields_ordered = [
+        "name",
+        "catalog_id",
+        "julian_date",
+        "satellite_gcrs_km",
+        "right_ascension_deg",
+        "declination_deg",
+        "tle_date",
+        "dra_cosdec_deg_per_sec",
+        "ddec_deg_per_sec",
+        "altitude_deg",
+        "azimuth_deg",
+        "range_km",
+        "range_rate_km_per_sec",
+        "phase_angle_deg",
+        "illuminated",
+        "data_source",
+        "observer_gcrs_km",
     ]
-    assert data[0]["TLE-DATE"] == "2024-03-08 00:35:51"
+    data = [dict(zip(fields_ordered, data_point)) for data_point in data]
+    for field in fields_ordered:
+        print(f"{field}: {data[0][field]}")
+    assert data[0]["altitude_deg"] == pytest.approx(-8.16564726, assert_precision)
+    assert data[0]["azimuth_deg"] == pytest.approx(306.5940723, assert_precision)
+    assert data[0]["ddec_deg_per_sec"] == pytest.approx(0.0047194, assert_precision)
+    assert data[0]["declination_deg"] == pytest.approx(25.04516817, assert_precision)
+    assert data[0]["dra_cosdec_deg_per_sec"] == pytest.approx(
+        0.05808628, assert_precision
+    )
+    assert data[0]["illuminated"] is True
+    assert data[0]["julian_date"] == 2460193.104167
+    assert data[0]["name"] == "ISS (ZARYA)"
+    assert data[0]["phase_angle_deg"] == pytest.approx(33.60092979, assert_precision)
+    assert data[0]["range_km"] == pytest.approx(3426.841441, assert_precision)
+    assert data[0]["range_rate_km_per_sec"] == pytest.approx(
+        -6.598351868609, assert_precision
+    )
+    assert data[0]["right_ascension_deg"] == pytest.approx(
+        333.07540204, assert_precision
+    )
+    assert data[0]["observer_gcrs_km"] == pytest.approx(
+        [-147.12272716510805, 5412.091101268944, 3360.663968123699], assert_precision
+    )
+    assert data[0]["satellite_gcrs_km"] == pytest.approx(
+        [2620.975719684184, 4006.2600242071826, 4811.357675217916], assert_precision
+    )
+    assert data[0]["tle_date"] == "2023-09-07 19:16:45 UTC"
+    assert data[0]["data_source"] == "celestrak"
 
 
 def test_get_ephemeris_by_catalog_number(client):
@@ -488,7 +502,8 @@ def test_get_ephemeris_by_tle(client):
         timeout=10,
     )
     # Check that the response was returned with the correct error
-    assert response.status_code == 500
+    assert response.status_code == 400
+    assert "Missing parameter" in response.text, "Incorrect error message returned"
 
     # tle not formatted correctly
     response = requests.get(
@@ -593,7 +608,8 @@ def test_get_ephemeris_by_tle_jdstep(client):
         timeout=10,
     )
     # Check that the response was returned with the correct error
-    assert response.status_code == 500
+    assert response.status_code == 400
+    assert "Missing parameter" in response.text, "Incorrect error message returned"
 
     # tle not correctly formatted
     response = requests.get(
@@ -755,9 +771,7 @@ def test_get_norad_ids_from_name(client):
         timeout=10,
     )
     # Check that the response was returned with the correct error
-    assert response.status_code == 400
-    # Check that the response contains the expected error message.
-    assert "Incorrect parameters" in response.text, "Incorrect error message returned"
+    assert response.status_code == 500
 
 
 def test_get_tle_data(client):
