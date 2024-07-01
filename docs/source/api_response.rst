@@ -135,5 +135,5 @@ Example Response
             "observer_gcrs_km"
         ],
     "source": "IAU CPS SatChecker",
-    "version": "0.4"
+    "version": "1.0"
     }

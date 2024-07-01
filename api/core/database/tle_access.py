@@ -39,7 +39,7 @@ def propagate_and_create_json_results(
             result_list.append(satellite_position._asdict())
 
     api_source = "IAU CPS SatChecker"
-    version = "0.4"
+    version = "1.0"
     json_output(
         name, catalog_id, date_collected, data_source, result_list, api_source, version
     )

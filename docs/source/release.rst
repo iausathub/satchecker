@@ -3,6 +3,15 @@ Release History
 
 See the full changelog `here <https://github.com/iausathub/satchecker/releases>`_.
 
+v1.0.0-beta
+------------
+* Add versioning to API URL (v1 currently); version is optional and not including it will return the most recent version
+* Add is_current_version to name/id check endpoints to show which is the current version of the satellite information
+* Change to using Celery for satellite propagation; add flask-migrate
+* Change JSON response format
+* Refactor to consolidate shared functionality and support versioning
+* Change to use closest TLE from any source if source is not specified
+
 v0.4.0-beta
 ------------
 * Add new endpoints for satellite name/id lookup: get-names-from-norad-id and get-norad-ids-from-name

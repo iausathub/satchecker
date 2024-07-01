@@ -283,7 +283,7 @@ def process_results(
     # Filter out results that are not within the altitude range
     results = [result for result in tles if min_altitude <= result[4] <= max_altitude]
     api_source = "IAU CPS SatChecker"
-    version = "0.4"
+    version = "1.0"
 
     if not results:
         return {
