@@ -12,7 +12,16 @@ from astropy.coordinates import (
 )
 from astropy.time import Time
 from celery import chord
-from flask import current_app
+from core import celery, utils
+from core.database import models
+from core.extensions import db
+from core.propagation_strategies import (
+    PropagationInfo,
+    SGP4PropagationStrategy,
+    SkyfieldPropagationStrategy,
+    TestPropagationStrategy,
+)
+from flask import current_app, has_app_context
 from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load
 from skyfield.framelib import itrs as sk_itrs
@@ -26,16 +35,6 @@ from utils.coordinate_systems import (
     teme_to_ecef,
 )
 from utils.time_utils import jd_to_gst
-
-from core import celery, utils
-from core.database import models
-from core.extensions import db
-from core.propagation_strategies import (
-    PropagationInfo,
-    SGP4PropagationStrategy,
-    SkyfieldPropagationStrategy,
-    TestPropagationStrategy,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +151,6 @@ def compare():
 
 @celery.task
 def test_fov():
-
     # for each satellite in the database, propagate the satellite to
     # the current date/time using the most recent TLE
     # Define the target date
@@ -280,7 +278,8 @@ def process_results(
     Returns:
         list[utils.data_point]: The processed results.
     """
-    current_app.logger.info("process results started")
+    if has_app_context():
+        current_app.logger.info("process results started")
     # Filter out results that are not within the altitude range
     results = [result for result in tles if min_altitude <= result[4] <= max_altitude]
     api_source = "IAU CPS SatChecker"
@@ -297,8 +296,8 @@ def process_results(
     data_set = utils.json_output(
         name, catalog_id, date_collected, data_source, results, api_source, version
     )
-
-    current_app.logger.info("process results complete")
+    if has_app_context():
+        current_app.logger.info("process results complete")
     return data_set
 
 

@@ -1,24 +1,31 @@
 from datetime import datetime
 
 from core import db
-from sqlalchemy import DateTime
+from sqlalchemy import Index
+from sqlalchemy.dialects.postgresql import BOOLEAN, INTEGER, TEXT, TIMESTAMP
 from zoneinfo import ZoneInfo
 
 
 class Satellite(db.Model):
     __tablename__ = "satellites"
 
-    id = db.Column(db.Integer, primary_key=True)
-    sat_number = db.Column(db.String())
-    sat_name = db.Column(db.String())
-    constellation = db.Column(db.String())
-    date_added = db.Column(DateTime, default=datetime.now(ZoneInfo("UTC")))
-    rcs_size = db.Column(db.String())
-    launch_date = db.Column(db.DateTime())
-    decay_date = db.Column(db.DateTime())
-    object_id = db.Column(db.String())
-    object_type = db.Column(db.String())
-    has_current_sat_number = db.Column(db.Boolean)
+    id = db.Column(INTEGER, primary_key=True)
+    sat_number = db.Column(INTEGER, nullable=False)
+    sat_name = db.Column(TEXT, nullable=False)
+    constellation = db.Column(TEXT)
+    rcs_size = db.Column(TEXT)
+    launch_date = db.Column(TIMESTAMP(timezone=True))
+    decay_date = db.Column(TIMESTAMP(timezone=True))
+    object_id = db.Column(TEXT)
+    object_type = db.Column(TEXT)
+    has_current_sat_number = db.Column(BOOLEAN, nullable=False, default=False)
+    date_added = db.Column(
+        TIMESTAMP(timezone=True), nullable=False, default=datetime.now(ZoneInfo("UTC"))
+    )
+    date_modified = db.Column(
+        TIMESTAMP(timezone=True), nullable=False, default=datetime.now(ZoneInfo("UTC"))
+    )
+    __table_args__ = (db.UniqueConstraint("sat_number", "sat_name"),)
 
     def __init__(self, sat_number, sat_name, constellation):
         self.sat_number = sat_number
@@ -32,15 +39,16 @@ class Satellite(db.Model):
 class TLE(db.Model):
     __tablename__ = "tle"
 
-    id = db.Column(db.Integer, primary_key=True)
-    sat_id = db.Column(db.Integer(), db.ForeignKey("satellites.id"))
-    date_collected = db.Column(db.DateTime())
-    tle_line1 = db.Column(db.String())
-    tle_line2 = db.Column(db.String())
-    is_supplemental = db.Column(db.Boolean())
-    data_source = db.Column(db.String())
-    epoch = db.Column(db.DateTime())
+    id = db.Column(INTEGER, primary_key=True)
+    sat_id = db.Column(INTEGER, db.ForeignKey("satellites.id"), nullable=False)
+    date_collected = db.Column(TIMESTAMP(timezone=True), nullable=False)
+    tle_line1 = db.Column(TEXT, nullable=False)
+    tle_line2 = db.Column(TEXT, nullable=False)
+    epoch = db.Column(TIMESTAMP(timezone=True), nullable=False)
+    is_supplemental = db.Column(BOOLEAN, nullable=False)
+    data_source = db.Column(TEXT, nullable=False)
     tle_satellite = db.relationship("database.models.Satellite", lazy="joined")
+    __table_args__ = (db.UniqueConstraint("sat_id", "epoch", "data_source"),)
 
     def __init__(
         self,
@@ -62,3 +70,7 @@ class TLE(db.Model):
 
     def __repr__(self):
         return f"<TLE {self.tle_satellite}>"
+
+
+# Define the index on the date_collected column
+Index("idx_date_collected", TLE.date_collected)

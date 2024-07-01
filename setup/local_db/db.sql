@@ -3,8 +3,6 @@ CREATE TABLE satellites(
    sat_number INTEGER NOT NULL,
    sat_name TEXT NOT NULL,
    constellation TEXT,
-   other_ids INTEGER ARRAY,
-   archive_collected BOOLEAN NOT NULL DEFAULT FALSE,
    rcs_size TEXT,
    launch_date TIMESTAMPTZ,
    decay_date TIMESTAMPTZ,

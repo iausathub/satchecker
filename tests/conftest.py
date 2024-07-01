@@ -16,7 +16,6 @@ def app():
             "TESTING": True,
         }
     )
-
     yield app
 
 

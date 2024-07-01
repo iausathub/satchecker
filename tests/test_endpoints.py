@@ -4,8 +4,7 @@ from collections import namedtuple
 
 import pytest
 import redis
-
-from api.core import routes
+from core.versions.v1 import routes
 
 assert_precision = 0.000001
 

@@ -1,13 +1,10 @@
 #!/usr/bin/python3
 from datetime import timezone
 
+import core.versions.v1.tasks as tasks
 import requests
 from astropy.time import Time
-from flask import abort, jsonify, redirect, request
-from sqlalchemy.exc import DataError
-
-import core.tasks as tasks
-from core import app, limiter
+from core import error_messages
 from core.database.satellite_access import (
     get_ids_for_satelltite_name,
     get_names_for_satellite_id,
@@ -17,18 +14,21 @@ from core.database.tle_access import (
     get_tle,
     parse_tle,
 )
+from core.extensions import limiter
 from core.utils import (
     extract_parameters,
     get_forwarded_address,
     jd_arange,
     validate_parameters,
 )
+from core.versions.v1 import api_main, api_v1
+from flask import abort, jsonify, redirect, request
+from flask import current_app as app
+from sqlalchemy.exc import DataError
 
-from . import error_messages
 
-
-@app.errorhandler(404)
-def page_not_found(e):
+@api_main.app_errorhandler(404)
+def page_not_found(error):
     """
     Handles page not found errors by returning the error message and a 404 status code.
 
@@ -46,7 +46,7 @@ def page_not_found(e):
     )
 
 
-@app.errorhandler(400)
+@api_main.app_errorhandler(400)
 def missing_parameter(e):
     """
     Handles bad request errors by returning the error message and a 400 status code.
@@ -58,6 +58,8 @@ def missing_parameter(e):
         str: A string containing a custom error message and the error's description.
         int: The HTTP status code for a bad request error (400).
     """
+    for rule in app.url_map.iter_rules():
+        print(f"{rule} -> {rule.endpoint}")
     return (
         f"Error 400: Incorrect parameters or too many results to return \
         (maximum of 1000 in a single request)<br /> \
@@ -66,7 +68,7 @@ def missing_parameter(e):
     )
 
 
-@app.errorhandler(429)
+@api_main.app_errorhandler(429)
 def ratelimit_handler(e):
     """
     Handles rate limit errors by returning the error message and a 429 status code.
@@ -81,7 +83,7 @@ def ratelimit_handler(e):
     return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
 
 
-@app.errorhandler(500)
+@api_main.app_errorhandler(500)
 def internal_server_error(e):
     """
     Handles internal server errors by returning the error message and a 500 status code.
@@ -96,8 +98,10 @@ def internal_server_error(e):
     return "Error 500: Internal server error:<br />" + e.description, 500
 
 
-@app.route("/")
-@app.route("/index")
+@api_v1.route("/")
+@api_v1.route("/index")
+@api_main.route("/")
+@api_main.route("/index")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -108,7 +112,8 @@ def root():
     return redirect("https://satchecker.readthedocs.io/en/latest/")
 
 
-@app.route("/health")
+@api_v1.route("/health")
+@api_main.route("/health")
 @limiter.exempt
 def health():
     """
@@ -135,7 +140,8 @@ def health():
         return {"message": "Healthy"}
 
 
-@app.route("/fov_test/")
+@api_v1.route("/fov_test/")
+@api_main.route("/fov_test/")
 def fov_test():
     # task = tasks.profile_function.apply()
     # return task.get()
@@ -144,7 +150,8 @@ def fov_test():
     return result_list
 
 
-@app.route("/ephemeris/name/")
+@api_v1.route("/ephemeris/name/")
+@api_main.route("/ephemeris/name/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -230,7 +237,8 @@ def get_ephemeris_by_name():
     return result_list
 
 
-@app.route("/ephemeris/name-jdstep/")
+@api_v1.route("/ephemeris/name-jdstep/")
+@api_main.route("/ephemeris/name-jdstep/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -328,7 +336,8 @@ def get_ephemeris_by_name_jdstep():
     return result_list
 
 
-@app.route("/ephemeris/catalog-number/")
+@api_v1.route("/ephemeris/catalog-number/")
+@api_main.route("/ephemeris/catalog-number/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -414,7 +423,8 @@ def get_ephemeris_by_catalog_number():
     return result_list
 
 
-@app.route("/ephemeris/catalog-number-jdstep/")
+@api_v1.route("/ephemeris/catalog-number-jdstep/")
+@api_main.route("/ephemeris/catalog-number-jdstep/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -513,7 +523,8 @@ def get_ephemeris_by_catalog_number_jdstep():
     return result_list
 
 
-@app.route("/ephemeris/tle/")
+@api_v1.route("/ephemeris/tle/")
+@api_main.route("/ephemeris/tle/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -594,7 +605,8 @@ def get_ephemeris_by_tle():
     return result_list
 
 
-@app.route("/ephemeris/tle-jdstep/")
+@api_v1.route("/ephemeris/tle-jdstep/")
+@api_main.route("/ephemeris/tle-jdstep/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -687,7 +699,8 @@ def get_ephemeris_by_tle_jdstep():
     return result_list
 
 
-@app.route("/tools/norad-ids-from-name/")
+@api_v1.route("/tools/norad-ids-from-name/")
+@api_main.route("/tools/norad-ids-from-name/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -730,7 +743,8 @@ def get_norad_ids_from_name():
         return None
 
 
-@app.route("/tools/names-from-norad-id/")
+@api_v1.route("/tools/names-from-norad-id/")
+@api_main.route("/tools/names-from-norad-id/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
@@ -748,7 +762,8 @@ def get_names_from_norad_id():
     response: list
         A list of names associated with the given satellite NORAD id.
     """
-
+    for rule in app.url_map.iter_rules():
+        print(f"{rule} -> {rule.endpoint}")
     satellite_id = request.args.get("id")
     if satellite_id is None:
         abort(400)
@@ -773,7 +788,8 @@ def get_names_from_norad_id():
         return None
 
 
-@app.route("/tools/get-tle-data/")
+@api_v1.route("/tools/get-tle-data/")
+@api_main.route("/tools/get-tle-data/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )

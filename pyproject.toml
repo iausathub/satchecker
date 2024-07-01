@@ -8,6 +8,7 @@ exclude = '''
   | \.pytest_cache
   | \.vscode
   | \.venv
+  | api/migrations
   | satenv
   | nginx
   | docs
