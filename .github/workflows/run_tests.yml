@@ -7,7 +7,8 @@ on:
 
 permissions:
   contents: read
-  
+  issues: write
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -30,8 +31,13 @@ jobs:
 
 
   test:
-
     runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
 
     steps:
     - uses: actions/checkout@v3
@@ -46,6 +52,23 @@ jobs:
     - name: Install dependencies
       run: |
         pip install pytest pytest-mock pytest-cov
+    - name: Start Flask application
+      run: |
+        export FLASK_APP=satchecker.py
+        flask run &
+      working-directory: api
+    - name: Run Celery worker
+      run: |
+        celery -A satchecker.celery worker --loglevel INFO &
+      env:
+        REDIS_URL: redis://localhost:6379/0
+      working-directory: api
     - name: Test with pytest
       run: |
         pytest
+      env:
+        REDIS_URL: redis://localhost:6379/0
+    - name: TODO to Issue
+      uses: alstr/todo-to-issue-action@v4.13.1
+      env:
+        PROJECTS_SECRET: ${{ secrets.TODO_TO_ISSUE }}

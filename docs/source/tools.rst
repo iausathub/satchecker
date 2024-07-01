@@ -44,6 +44,7 @@ Retrieve any NORAD ID(s) associated with a satellite name
     [
         {
             "date_added": "2024-02-06 00:12:42 UTC",
+            "is_current_version": true,
             "norad_id": 46161,
             "name": "STARLINK-1600"
         }
@@ -92,11 +93,13 @@ Retrieve any satellite names associated with a NORAD ID
     [
         {
             "date_added": "2024-05-01 16:30:20 UTC",
+            "is_current_version": true,
             "name": "STARLINK-31701",
             "norad_id": 59582
         },
         {
             "date_added": "2024-04-29 23:12:07 UTC",
+            "is_current_version": false,
             "name": "TBA - TO BE ASSIGNED",
             "norad_id": 59582
         }

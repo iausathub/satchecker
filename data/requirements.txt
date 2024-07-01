@@ -1,5 +1,6 @@
 boto3==1.28.42
 botocore==1.31.42
+numpy==1.26.4
 requests==2.31.0
 psycopg2-binary==2.9.7
 skyfield==1.46

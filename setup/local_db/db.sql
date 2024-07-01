@@ -3,13 +3,12 @@ CREATE TABLE satellites(
    sat_number INTEGER NOT NULL,
    sat_name TEXT NOT NULL,
    constellation TEXT,
-   other_ids INTEGER ARRAY,
-   archive_collected BOOLEAN NOT NULL DEFAULT FALSE,
    rcs_size TEXT,
    launch_date TIMESTAMPTZ,
    decay_date TIMESTAMPTZ,
    object_id TEXT,
    object_type TEXT,
+   has_current_sat_number BOOLEAN NOT NULL DEFAULT FALSE,
    date_added TIMESTAMPTZ NOT NULL,
    date_modified TIMESTAMPTZ NOT NULL,
    UNIQUE (sat_number, sat_name)
@@ -75,3 +74,6 @@ ADD COLUMN object_id TEXT;
 
 ALTER TABLE public.satellites
 ADD COLUMN object_type TEXT;
+
+ALTER TABLE public.satellites
+ADD COLUMN has_current_sat_number BOOLEAN NOT NULL DEFAULT FALSE;

@@ -90,7 +90,7 @@ def main():
                 log_time = datetime.datetime.now(timezone.utc).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
-                add_tle_list_to_db(tle, "", cursor, "false", "spacetrack")
+                add_tle_list_to_db(tle, "", cursor, "false", "spacetrack", False)
             except Exception as err:
                 log_time = datetime.datetime.now(timezone.utc).strftime(
                     "%Y-%m-%d %H:%M:%S"

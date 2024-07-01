@@ -12,6 +12,7 @@ def get_ids_for_satelltite_name(satellite_name):
         db.session.query(
             models.Satellite.sat_number,
             models.Satellite.date_added,
+            models.Satellite.has_current_sat_number,
         )
         .filter(models.Satellite.sat_name == satellite_name)
         .order_by(models.Satellite.date_added.desc())
@@ -23,8 +24,14 @@ def get_ids_for_satelltite_name(satellite_name):
 
 def get_names_for_satellite_id(satellite_id):
     satellite_names_and_dates = (
-        db.session.query(models.Satellite.sat_name, models.Satellite.date_added)
-        .filter(models.Satellite.sat_number == satellite_id)
+        db.session.query(
+            models.Satellite.sat_name,
+            models.Satellite.date_added,
+            models.Satellite.has_current_sat_number,
+        )
+        .filter(
+            models.Satellite.sat_number == satellite_id,
+        )
         .order_by(models.Satellite.date_added.desc())
         .all()
     )
@@ -64,5 +71,5 @@ def get_tles(satellite_id, id_type, start_date, end_date):
 
     except Exception as e:
         if isinstance(e, DataError):
-            abort(500, error_messages.NO_TLE_FOUND)
+            abort(500, f"{error_messages.NO_TLE_FOUND}, Exception: {str(e)}")
         return None

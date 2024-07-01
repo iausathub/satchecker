@@ -36,27 +36,14 @@ def propagate_and_create_json_results(
             satellite_position.alt.degrees > min_altitude
             and satellite_position.alt.degrees < max_altitude
         ):
-            result_list.append(
-                json_output(
-                    name,
-                    catalog_id,
-                    d.jd,
-                    satellite_position.ra,
-                    satellite_position.dec,
-                    date_collected,
-                    satellite_position.dracosdec,
-                    satellite_position.ddec,
-                    satellite_position.alt,
-                    satellite_position.az,
-                    satellite_position.distance,
-                    satellite_position.ddistance,
-                    satellite_position.phase_angle,
-                    satellite_position.illuminated,
-                    data_source,
-                    satellite_position.satellite_gcrs,
-                    satellite_position.observer_gcrs,
-                )
-            )
+            result_list.append(satellite_position._asdict())
+
+    api_source = "IAU CPS SatChecker"
+    version = "0.4"
+    json_output(
+        name, catalog_id, date_collected, data_source, result_list, api_source, version
+    )
+
     if not result_list:
         return {"info": "No position information found with this criteria"}
     return result_list
@@ -70,7 +57,7 @@ def get_tle_by_catalog_number(target_number, data_source, date):
     target_number: 'str'
         Catalog number of satellite as displayed in TLE file
     data_source: 'str'
-        Original source of TLE data (celestrak or spacetrack)
+        Original source of TLE data (celestrak, spacetrack); "any" to search all sources
     date: 'datetime'
         Date to query TLE data
 
@@ -81,19 +68,19 @@ def get_tle_by_catalog_number(target_number, data_source, date):
     """
     # use the tle closest to the date given (at the same time or before)
     try:
-        tle_sat = (
-            db.session.query(models.TLE, models.Satellite)
-            .filter_by(data_source=data_source)
-            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
-            .filter_by(sat_number=target_number)
-            .order_by(
-                func.abs(
-                    func.extract("epoch", models.TLE.date_collected)
-                    - func.extract("epoch", date)
-                )
-            )
-            .first()
+        tle_query = db.session.query(models.TLE)
+        if data_source in ["celestrak", "spacetrack"]:
+            tle_query = tle_query.filter_by(data_source=data_source)
+        tle_query = tle_query.join(
+            models.Satellite, models.TLE.sat_id == models.Satellite.id
         )
+        tle_query = tle_query.filter_by(sat_number=target_number)
+        tle_sat = tle_query.order_by(
+            func.abs(
+                func.extract("epoch", models.TLE.date_collected)
+                - func.extract("epoch", date)
+            )
+        ).first()
     except Exception:
         # app.logger.error(e)
         return None
@@ -109,7 +96,7 @@ def get_tle_by_name(target_name, data_source, date):
     target_name: 'str'
         Name of satellite as displayed in TLE file
     data_source: 'str'
-        Original source of TLE data (celestrak or spacetrack)
+        Original source of TLE data (celestrak, spacetrack); "any" to search all sources
     date: 'datetime'
         Date to query TLE data
 
@@ -120,21 +107,21 @@ def get_tle_by_name(target_name, data_source, date):
     """
     # use the tle closest to the date given (at the same time or before)
     try:
-        tle_sat = (
-            db.session.query(models.TLE, models.Satellite)
-            .filter_by(data_source=data_source)
-            .join(models.Satellite, models.TLE.sat_id == models.Satellite.id)
-            .filter_by(sat_name=target_name)
-            .order_by(
-                func.abs(
-                    func.extract("epoch", models.TLE.date_collected)
-                    - func.extract("epoch", date)
-                )
-            )
-            .first()
+        tle_query = db.session.query(models.TLE)
+        if data_source in ["celestrak", "spacetrack"]:
+            tle_query = tle_query.filter_by(data_source=data_source)
+        tle_query = tle_query.join(
+            models.Satellite, models.TLE.sat_id == models.Satellite.id
         )
-    except Exception:
-        # app.logger.error(e)
+        tle_query = tle_query.filter_by(sat_name=target_name)
+        tle_sat = tle_query.order_by(
+            func.abs(
+                func.extract("epoch", models.TLE.date_collected)
+                - func.extract("epoch", date)
+            )
+        ).first()
+    except Exception as e:
+        print(e)
         return None
 
     return tle_sat
