@@ -134,8 +134,8 @@ def health():
     try:
         response = requests.get("https://cps.iau.org/tools/satchecker/api/", timeout=10)
         response.raise_for_status()
-    except Exception:
-        abort(503, "Error: Unable to connect to IAU CPS URL")
+    except Exception as e:
+        abort(503, f"Error: Unable to connect to IAU CPS URL - {e}")
     else:
         return {"message": "Healthy"}
 
