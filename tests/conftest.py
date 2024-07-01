@@ -23,7 +23,8 @@ def app():
 
 @pytest.fixture()
 def client(app):
-    return app.test_client()
+    with app.app_context():
+        return app.test_client()
 
 
 @pytest.fixture()
