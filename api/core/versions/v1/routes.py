@@ -131,11 +131,17 @@ def health():
         HTTPException: An exception with a 503 status code and an error message if the
             GET request fails.
     """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
     try:
-        response = requests.get("https://cps.iau.org/tools/satchecker/api/", timeout=10)
+        response = requests.get(
+            "https://cps.iau.org/tools/satchecker/api/", headers=headers, timeout=10
+        )
         response.raise_for_status()
-    except Exception:
-        abort(503, "Error: Unable to connect to IAU CPS URL")
+    except Exception as e:
+        abort(503, f"Error: Unable to connect to IAU CPS URL - {e}")
     else:
         return {"message": "Healthy"}
 
