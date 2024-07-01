@@ -21,7 +21,7 @@ from core.propagation_strategies import (
     SkyfieldPropagationStrategy,
     TestPropagationStrategy,
 )
-from flask import current_app
+from flask import current_app, has_app_context
 from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load
 from skyfield.framelib import itrs as sk_itrs
@@ -278,7 +278,8 @@ def process_results(
     Returns:
         list[utils.data_point]: The processed results.
     """
-    current_app.logger.info("process results started")
+    if has_app_context():
+        current_app.logger.info("process results started")
     # Filter out results that are not within the altitude range
     results = [result for result in tles if min_altitude <= result[4] <= max_altitude]
     api_source = "IAU CPS SatChecker"
@@ -295,8 +296,8 @@ def process_results(
     data_set = utils.json_output(
         name, catalog_id, date_collected, data_source, results, api_source, version
     )
-
-    current_app.logger.info("process results complete")
+    if has_app_context():
+        current_app.logger.info("process results complete")
     return data_set
 
 

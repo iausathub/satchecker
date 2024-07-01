@@ -16,11 +16,7 @@ def app():
             "TESTING": True,
         }
     )
-    ctx = app.app_context()
-    ctx.push()
     yield app
-
-    ctx.pop()
 
 
 @pytest.fixture()
