@@ -20,19 +20,18 @@ def cannot_connect_to_redis():
 
 @pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_name(client, mocker):
-    with client.app_context():
-        mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
-        response = client.get(
-            "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
-                &julian_date=2460193.104167&min_altitude=-90"
-        )
+    mocker.patch.object(routes, "get_tle", return_value=get_mock_tle())
+    response = client.get(
+        "/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110\
+            &julian_date=2460193.104167&min_altitude=-90"
+    )
 
-        # Check that the response was returned without error
-        assert response.status_code == 200
+    # Check that the response was returned without error
+    assert response.status_code == 200
 
-        # Check that the response was correct
-        data = response.json
-        assert_single_jd(data)
+    # Check that the response was correct
+    data = response.json
+    assert_single_jd(data)
 
 
 @pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")

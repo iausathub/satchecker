@@ -16,15 +16,16 @@ def app():
             "TESTING": True,
         }
     )
-    with app.app_context():
-        yield app
-    # yield app
+    ctx = app.app_context()
+    ctx.push()
+    yield app
+
+    ctx.pop()
 
 
 @pytest.fixture()
 def client(app):
-    with app.app_context():
-        return app.test_client()
+    return app.test_client()
 
 
 @pytest.fixture()
