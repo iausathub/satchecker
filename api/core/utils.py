@@ -293,6 +293,7 @@ def json_output(
     fields = [
         "name",
         "catalog_id",
+        "julian_date",
         "satellite_gcrs_km",
         "right_ascension_deg",
         "declination_deg",
