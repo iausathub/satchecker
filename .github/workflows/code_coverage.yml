@@ -38,7 +38,7 @@ jobs:
       run: |
         export FLASK_APP=satchecker.py
         flask run &
-        working-directory: api
+      working-directory: api
     - name: Run Celery worker
       run: |
           celery -A satchecker.celery worker --loglevel INFO &
