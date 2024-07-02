@@ -491,7 +491,9 @@ def validate_parameters(parameters, required_parameters):
     return parameters
 
 
-def propagate_satellite(tle_line_1, tle_line_2, location, jd, dtsec=1):
+def propagate_satellite(
+    tle_line_1, tle_line_2, location, jd, dtsec=1
+):  # pragma: no cover  # noqa: E501
     """
     Propagates satellite and observer states using the Skyfield library.
 

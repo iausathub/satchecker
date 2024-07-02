@@ -1,5 +1,6 @@
 # ruff: noqa: S101
 import os
+from datetime import datetime
 
 import numpy as np
 import pytest
@@ -128,3 +129,91 @@ def test_calculate_lst():
     expected_lst = 6.125293
     result = time_utils.calculate_lst(longitude, jd)
     assert np.isclose(result, expected_lst), f"Expected {expected_lst}, got {result}"
+
+
+def test_json_output():
+    # Mock input data
+    name = "Test Satellite"
+    catalog_id = "12345"
+    date_collected = datetime(2023, 1, 1, 12, 0, 0)
+    data_source = "Test Source"
+    results = [
+        (
+            45.0,
+            -30.0,
+            0.1,
+            0.2,
+            100,
+            200,
+            300,
+            -0.5,
+            45.0,
+            True,
+            [1000, 2000, 3000],
+            [4000, 5000, 6000],
+            2459580.5,
+        )
+    ]
+    api_source = "Test API"
+    version = "1.0"
+
+    # Expected output
+    expected = {
+        "count": 1,
+        "fields": [
+            "name",
+            "catalog_id",
+            "julian_date",
+            "satellite_gcrs_km",
+            "right_ascension_deg",
+            "declination_deg",
+            "tle_date",
+            "dra_cosdec_deg_per_sec",
+            "ddec_deg_per_sec",
+            "altitude_deg",
+            "azimuth_deg",
+            "range_km",
+            "range_rate_km_per_sec",
+            "phase_angle_deg",
+            "illuminated",
+            "data_source",
+            "observer_gcrs_km",
+        ],
+        "data": [
+            [
+                "Test Satellite",
+                12345,
+                np.round(2459580.5, 8),
+                [1000, 2000, 3000],
+                np.round(45.0, 8),
+                np.round(-30.0, 8),
+                "2023-01-01 12:00:00 ",
+                np.round(0.1, 8),
+                np.round(0.2, 8),
+                np.round(100, 8),
+                np.round(200, 8),
+                np.round(300, 6),
+                np.round(-0.5, 12),
+                np.round(45.0, 8),
+                True,
+                "Test Source",
+                [4000, 5000, 6000],
+            ]
+        ],
+        "source": "Test API",
+        "version": "1.0",
+    }
+
+    # Call the function with mock data
+    result = utils.json_output(
+        name, catalog_id, date_collected, data_source, results, api_source, version
+    )
+
+    # Assert the result matches the expected output
+    assert result["count"] == expected["count"]
+    assert result["fields"] == expected["fields"]
+    assert result["source"], expected["source"]
+    assert result["version"], expected["version"]
+    assert len(result["data"]) == len(expected["data"])
+    for res, exp in zip(result["data"], expected["data"]):
+        assert res == exp
