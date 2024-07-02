@@ -388,17 +388,17 @@ def jd_arange(a, b, dr, decimals=11):
     500:
         If an invalid Julian Date is encountered.
     """  # noqa: E501
-    res = [a]
-    k = 1
-    while res[-1] < b:
-        tmp = np.round(a + k * dr, decimals)
-        if tmp > b:
-            break
-        res.append(tmp)
-        k += 1
-    dates = np.asarray(res)
-
     try:
+        res = [np.round(a, decimals)]
+        k = 1
+        while res[-1] < b:
+            tmp = np.round(a + k * dr, decimals)
+            if tmp > b:
+                break
+            res.append(tmp)
+            k += 1
+        dates = np.asarray(res)
+
         results = Time(dates, format="jd", scale="ut1")
     except Exception:
         abort(500, INVALID_JD)

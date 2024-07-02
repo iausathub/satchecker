@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery.task
-def compare():
+def compare():  # pragma: no cover
     # Two-line element set (TLE) for ISS
     tle_line_1 = "1 25544U 98067A   24087.50963912  .00035317  00000+0  63250-3 0  9993"
     tle_line_2 = "2 25544  51.6411   0.3077 0004676   8.9972 162.1343 15.49609731445878"
@@ -150,7 +150,7 @@ def compare():
 
 
 @celery.task
-def test_fov():
+def test_fov():  # pragma: no cover
     # for each satellite in the database, propagate the satellite to
     # the current date/time using the most recent TLE
     # Define the target date
@@ -385,7 +385,9 @@ def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
 
 # Only returns azimuth and altitude for quick calulations
 @celery.task
-def propagate_satellite_sgp4(tle_line_1, tle_line_2, lat, long, height, jd):
+def propagate_satellite_sgp4(
+    tle_line_1, tle_line_2, lat, long, height, jd
+):  # pragma: no cover
     """
     Propagates satellite and observer states using the SGP4 propagation library.
 
@@ -408,7 +410,9 @@ def propagate_satellite_sgp4(tle_line_1, tle_line_2, lat, long, height, jd):
 
 
 @celery.task
-def propagate_satellite_new(tle_line_1, tle_line_2, lat, long, height, jd):
+def propagate_satellite_new(
+    tle_line_1, tle_line_2, lat, long, height, jd
+):  # pragma: no cover
     """
     Propagates satellite and observer states using a test propagation strategy.
 
