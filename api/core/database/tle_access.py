@@ -77,8 +77,7 @@ def get_tle_by_catalog_number(target_number, data_source, date):
         tle_query = tle_query.filter_by(sat_number=target_number)
         tle_sat = tle_query.order_by(
             func.abs(
-                func.extract("epoch", models.TLE.date_collected)
-                - func.extract("epoch", date)
+                func.extract("epoch", models.TLE.epoch) - func.extract("epoch", date)
             )
         ).first()
     except Exception:
