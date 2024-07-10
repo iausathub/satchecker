@@ -81,12 +81,15 @@ def insert_records(
     (SELECT id FROM satellites WHERE SAT_NUMBER=%s AND SAT_NAME=%s);"""
     cursor.execute(satellite_insert_query, sat_to_insert)
     sat_id = cursor.fetchone()[0]
-
+    
     # update all other satellites with the same sat_number
     cursor.execute(
         "UPDATE satellites SET HAS_CURRENT_SAT_NUMBER = FALSE WHERE SAT_NUMBER = %s AND id != %s",  # noqa: E501
         (satellite.model.satnum, sat_id),
     )
+
+    if cursor.rowcount == 0:
+        logging.info(log_time + "\t" + "new satellite: ", satellite.model.satnum)
 
     # add TLE to database
     tle_insert_query = """
