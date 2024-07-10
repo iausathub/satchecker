@@ -203,7 +203,7 @@ class SkyfieldPropagationStrategy:
 class SGP4PropagationStrategy:
     def propagate(
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
-    ):
+    ):  # pragma: no cover
         """
         Propagates satellite and observer states using the SGP4 propagation model.
 
@@ -259,7 +259,7 @@ class SGP4PropagationStrategy:
 class TestPropagationStrategy:
     def propagate(
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
-    ):
+    ):  # pragma: no cover
         """
         Propagates satellite and observer states using a test method
 

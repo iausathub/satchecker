@@ -142,5 +142,5 @@ vine==5.1.0
 virtualenv==20.24.5
 wcwidth==0.2.6
 webencodings==0.5.1
-Werkzeug==2.3.7
+Werkzeug==3.0.3
 wrapt==1.15.0

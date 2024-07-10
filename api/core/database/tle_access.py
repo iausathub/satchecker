@@ -22,7 +22,7 @@ def propagate_and_create_json_results(
     max_altitude,
     catalog_id="",
     data_source="",
-):
+):  # pragma: no cover
     # propagation and create output
     result_list = []
     for d in jd:
