@@ -5,8 +5,6 @@
 name: Deploy to Amazon ECS - Dev.
 
 on:
-    push:
-      branches: [ "develop" ]
     workflow_dispatch:
       inputs:
         logLevel:
