@@ -29,7 +29,7 @@ The API response is a JSON object with the following fields:
    * - name
      - Name of the satellite (either specified by the user, or the one associated with the given NORAD ID and TLE data)
    * - observer_gcrs_km
-     - Position vector for the observer (Geocentric Celestial Reference System (GCRS))
+     - Position vector for the observer (Geocentric Celestial Reference System (GCRS), relative to Earth's center)
    * - phase_angle_deg
      - The angle between the satellite, the observer, and the sun in degrees
    * - range_km
@@ -39,7 +39,7 @@ The API response is a JSON object with the following fields:
    * - right_ascension_deg
      - Position (right ascension) of the satellite in degrees at the given time and location
    * - satellite_gcrs_km
-     - Position vector for the satellite (Geocentric Celestial Reference System (GCRS))
+     - Position vector for the satellite (Geocentric Celestial Reference System (GCRS), relative to Earth's center)
    * - tle_date
      - Date that the TLE used to calculate the satellite position was collected from the specified data source (UTC timezone)
 
