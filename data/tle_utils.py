@@ -1,36 +1,9 @@
 import datetime
-import json
 import logging
-import os
 
-import boto3
 import requests
-from botocore.exceptions import ClientError
+from connections import get_spacetrack_login
 from skyfield.api import EarthSatellite, load
-
-
-def get_db_login():
-    if os.environ.get("DB_HOST") is not None:
-        username, password, host, port, dbname = (
-            os.environ.get("DB_USERNAME"),
-            os.environ.get("DB_PASSWORD"),
-            os.environ.get("DB_HOST"),
-            os.environ.get("DB_PORT"),
-            os.environ.get("DB_NAME"),
-        )
-        return [username, password, host, port, dbname]
-
-    secret_name = "satchecker-prod-db-cred"  # noqa: S105
-
-    secrets = get_secret(secret_name)
-    # Decrypts secret using the associated KMS key.
-    username = secrets["username"]
-    password = secrets["password"]
-    host = secrets["host"]
-    port = secrets["port"]
-    dbname = secrets["dbname"]
-
-    return [username, password, host, port, dbname]
 
 
 def insert_records(
@@ -75,7 +48,14 @@ def insert_records(
     DATE_ADDED, DATE_MODIFIED, RCS_SIZE, LAUNCH_DATE, DECAY_DATE, OBJECT_ID,
     OBJECT_TYPE, HAS_CURRENT_SAT_NUMBER)
     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-    ON CONFLICT (SAT_NUMBER, SAT_NAME) DO NOTHING RETURNING id)
+    ON CONFLICT (SAT_NUMBER, SAT_NAME) DO UPDATE SET
+        DECAY_DATE = EXCLUDED.DECAY_DATE,
+        OBJECT_ID = EXCLUDED.OBJECT_ID,
+        OBJECT_TYPE = EXCLUDED.OBJECT_TYPE,
+        RCS_SIZE = EXCLUDED.RCS_SIZE,
+        LAUNCH_DATE = EXCLUDED.LAUNCH_DATE,
+        DATE_MODIFIED = EXCLUDED.DATE_MODIFIED
+    RETURNING id)
     SELECT * FROM e
     UNION ALL
     (SELECT id FROM satellites WHERE SAT_NUMBER=%s AND SAT_NAME=%s);"""
@@ -83,14 +63,19 @@ def insert_records(
     sat_id = cursor.fetchone()[0]
 
     # update all other satellites with the same sat_number
-    cursor.execute(
-        "UPDATE satellites SET HAS_CURRENT_SAT_NUMBER = FALSE WHERE SAT_NUMBER = %s AND id != %s",  # noqa: E501
-        (satellite.model.satnum, sat_id),
-    )
+    update_query = """
+        UPDATE satellites
+        SET HAS_CURRENT_SAT_NUMBER = FALSE,
+            DATE_MODIFIED = %s
+        WHERE SAT_NUMBER = %s
+        AND id != %s
+        """
+    params = (current_date_time, satellite.model.satnum, sat_id)
+    cursor.execute(update_query, params)
 
     if cursor.rowcount == 0:
         log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
-        logging.info(log_time + "\t" + "new satellite: ", satellite.model.satnum)
+        logging.info(f"{log_time}\tnew satellite: {satellite.model.satnum}")
 
     # add TLE to database
     tle_insert_query = """
@@ -159,44 +144,6 @@ def add_tle_list_to_db(
     logging.info(f"{log_time}\tConstellation: {constellation}")
     logging.info(f"{log_time}\tSupplemental: {is_supplemental}")
     logging.info(f"{log_time}\tTLEs added: {tle_count}")
-
-
-def get_spacetrack_login():
-    secret_name = "spacetrack-login"  # noqa: S105
-    try:
-        secrets = get_secret(secret_name)
-        return secrets["username"], secrets["password"]
-    except Exception:
-        # if not using secrets manager, try environment variables
-        username = os.environ.get("SPACETRACK_USERNAME")
-        password = os.environ.get("SPACETRACK_PASSWORD")
-        if username is None and password is None:
-            # for manual testing, change these values to your spacetrack login
-            return "email", "password"
-        else:
-            return username, password
-
-
-def get_secret(secret_name):
-    region_name = "us-east-1"
-
-    # Create a Secrets Manager client
-    session = boto3.session.Session()
-    client = session.client(service_name="secretsmanager", region_name=region_name)
-
-    get_secret_value_response = None
-    try:
-        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
-    except ClientError as e:
-        # For a list of exceptions thrown, see
-        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-        raise e
-
-    if get_secret_value_response is None:
-        raise RuntimeError("No secret value response")
-    secrets = json.loads(get_secret_value_response["SecretString"])
-
-    return secrets
 
 
 def get_celestrak_general_tles(cursor, connection):
