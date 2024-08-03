@@ -3,11 +3,15 @@ from datetime import datetime
 from core import db
 from sqlalchemy import Index
 from sqlalchemy.dialects.postgresql import BOOLEAN, INTEGER, TEXT, TIMESTAMP
+from sqlalchemy.ext.declarative import declarative_base
 from zoneinfo import ZoneInfo
 
+Base = declarative_base()
 
-class Satellite(db.Model):
+
+class Satellite(Base):
     __tablename__ = "satellites"
+    __table_args__ = {"extend_existing": True}
 
     id = db.Column(INTEGER, primary_key=True)
     sat_number = db.Column(INTEGER, nullable=False)
@@ -27,17 +31,18 @@ class Satellite(db.Model):
     )
     __table_args__ = (db.UniqueConstraint("sat_number", "sat_name"),)
 
-    def __init__(self, sat_number, sat_name, constellation):
-        self.sat_number = sat_number
-        self.sat_name = sat_name
-        self.constellation = constellation
+    # def __init__(self, sat_number, sat_name, constellation):
+    #     self.sat_number = sat_number
+    #     self.sat_name = sat_name
+    #     self.constellation = constellation
 
     def __repr__(self):
         return f"<Satellite {self.sat_name}>"
 
 
-class TLE(db.Model):
+class TLE(Base):
     __tablename__ = "tle"
+    __table_args__ = {"extend_existing": True}
 
     id = db.Column(INTEGER, primary_key=True)
     sat_id = db.Column(INTEGER, db.ForeignKey("satellites.id"), nullable=False)
@@ -50,23 +55,23 @@ class TLE(db.Model):
     tle_satellite = db.relationship("database.models.Satellite", lazy="joined")
     __table_args__ = (db.UniqueConstraint("sat_id", "epoch", "data_source"),)
 
-    def __init__(
-        self,
-        sat_id,
-        date_collected,
-        tle_line1,
-        tle_line2,
-        is_supplemental,
-        epoch,
-        data_source,
-    ):
-        self.sat_id = sat_id
-        self.date_collected = date_collected
-        self.tle_line1 = tle_line1
-        self.tle_line2 = tle_line2
-        self.is_supplemental = is_supplemental
-        self.data_source = data_source
-        self.epoch = epoch
+    # def __init__(
+    #     self,
+    #     sat_id,
+    #     date_collected,
+    #     tle_line1,
+    #     tle_line2,
+    #     is_supplemental,
+    #     epoch,
+    #     data_source,
+    # ):
+    #     self.sat_id = sat_id
+    #     self.date_collected = date_collected
+    #     self.tle_line1 = tle_line1
+    #     self.tle_line2 = tle_line2
+    #     self.is_supplemental = is_supplemental
+    #     self.data_source = data_source
+    #     self.epoch = epoch
 
     def __repr__(self):
         return f"<TLE {self.tle_satellite}>"

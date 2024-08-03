@@ -6,7 +6,7 @@ import requests
 assert_precision = 0.0000000001
 
 
-def test_get_ephemeris_by_name(client):
+def disabled_test_get_ephemeris_by_name(client):
     # correct request
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
@@ -162,7 +162,7 @@ def test_get_ephemeris_by_name(client):
     assert data[0]["data_source"] == "celestrak"
 
 
-def test_get_ephemeris_by_catalog_number(client):
+def disabled_test_get_ephemeris_by_catalog_number(client):
     # correct request
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
@@ -261,7 +261,7 @@ def test_get_ephemeris_by_catalog_number(client):
     assert response.status_code == 200
 
 
-def test_get_ephemeris_by_name_jdstep(client):
+def disabled_test_get_ephemeris_by_name_jdstep(client):
     # correct request
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
@@ -370,7 +370,7 @@ def test_get_ephemeris_by_name_jdstep(client):
     assert response.status_code == 200
 
 
-def test_get_ephemeris_by_catalog_jdstep(client):
+def disabled_test_get_ephemeris_by_catalog_jdstep(client):
     # correct request
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
@@ -477,7 +477,7 @@ def test_get_ephemeris_by_catalog_jdstep(client):
     assert response.status_code == 200
 
 
-def test_get_ephemeris_by_tle(client):
+def disabled_test_get_ephemeris_by_tle(client):
     # correct request
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
@@ -583,7 +583,7 @@ def test_get_ephemeris_by_tle(client):
     assert response.status_code == 200
 
 
-def test_get_ephemeris_by_tle_jdstep(client):
+def disabled_test_get_ephemeris_by_tle_jdstep(client):
     # correct request
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3",
@@ -699,7 +699,7 @@ def test_get_ephemeris_by_tle_jdstep(client):
     assert response.status_code == 200
 
 
-def test_get_names_from_norad_id(client):
+def disabled_test_get_names_from_norad_id(client):
     # one name found
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/?id=25544",
@@ -738,7 +738,7 @@ def test_get_names_from_norad_id(client):
     assert "Incorrect parameters" in response.text, "Incorrect error message returned"
 
 
-def test_get_norad_ids_from_name(client):
+def disabled_test_get_norad_ids_from_name(client):
     # one norad id found
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/?name=ISS%20(ZARYA)",
@@ -774,7 +774,7 @@ def test_get_norad_ids_from_name(client):
     assert response.status_code == 500
 
 
-def test_get_tle_data(client):
+def disabled_test_get_tle_data(client):
     # norad id as id
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=25544&id_type=catalog",

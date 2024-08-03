@@ -768,8 +768,6 @@ def get_names_from_norad_id():
     response: list
         A list of names associated with the given satellite NORAD id.
     """
-    for rule in app.url_map.iter_rules():
-        print(f"{rule} -> {rule.endpoint}")
     satellite_id = request.args.get("id")
     if satellite_id is None:
         abort(400)

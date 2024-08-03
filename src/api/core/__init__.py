@@ -1,4 +1,5 @@
 import logging
+import os
 
 from flask import Flask
 from flask_migrate import Migrate
@@ -29,17 +30,25 @@ def create_app():
             task_track_started=True,
         ),
     )
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        f"postgresql://{db_login[0]}:{db_login[1]}@"
-        f"{db_login[2]}:{db_login[3]}/{db_login[4]}?options=-c%20timezone=utc"
-    )
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"echo": True, "use_native_hstore": False}
+    if os.environ.get("SQLALCHEMY_DATABASE_URI"):
+        app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+            "SQLALCHEMY_DATABASE_URI"
+        )
+    else:
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            f"postgresql://{db_login[0]}:{db_login[1]}@"
+            f"{db_login[2]}:{db_login[3]}/{db_login[4]}"
+            "?options=-c%20timezone=utc"
+        )
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "echo": True,
+            "use_native_hstore": False,
+        }
 
     # Initialize Flask-Migrate
     migrate = Migrate(app, db)  # noqa: F841
-
-    return app
+    with app.app_context():
+        return app
 
 
 app = create_app()

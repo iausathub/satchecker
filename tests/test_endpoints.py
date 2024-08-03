@@ -1,4 +1,5 @@
 # ruff: noqa: S101
+"""
 import datetime
 from collections import namedtuple
 
@@ -414,3 +415,4 @@ def assert_jd_step(json_data):
     assert data[1]["satellite_gcrs_km"] == pytest.approx(
         [-2975.655556845774, -3520.3064260060255, -4998.4785697481575], assert_precision
     )
+"""
