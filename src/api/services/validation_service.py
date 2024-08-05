@@ -1,5 +1,6 @@
 import astropy.units as u
 import common.error_messages as error_messages
+import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from common.exceptions import ValidationError
@@ -82,9 +83,33 @@ def validate_parameters(request, parameter_list, required_parameters):
 
     if "julian_date" in parameters.keys():
         try:
-            parameters["julian_date"] = Time(
-                parameters["julian_date"], format="jd", scale="ut1"
+            # Convert the Julian Date to an astropy Time object - the new
+            # parameter is a list to match the case for the jd range requests
+            parameters["julian_dates"] = [
+                Time(parameters["julian_date"], format="jd", scale="ut1")
+            ]
+
+        except Exception:
+            ValidationError(500, error_messages.INVALID_JD)
+
+    if "start_jd" in parameters.keys() and "stop_jd" in parameters.keys():
+        try:
+            # default to 2 min
+            jd_step = (
+                0.00138889
+                if parameters["stepjd"] not in parameters
+                else float(parameters["stepjd"])
             )
+
+            julian_dates = jd_arange(
+                float(parameters["startjd"]),
+                float(parameters["stopjd"]),
+                jd_step,
+            )
+
+            if len(julian_dates) > 1000:
+                ValidationError(400, error_messages.TOO_MANY_RESULTS)
+
         except Exception:
             ValidationError(500, error_messages.INVALID_JD)
 
@@ -98,3 +123,52 @@ def validate_parameters(request, parameter_list, required_parameters):
             ValidationError(500, "Invalid data source")
 
     return parameters
+
+
+def jd_arange(a, b, dr, decimals=11):
+    """
+    Generates a sequence of Julian Dates between two given dates with a specified increment.
+
+    This function compensates for round-off errors by rounding the computed dates to a
+    specified number of decimal places.
+
+    Parameters
+    ----------
+    a : float
+        The first Julian Date in the sequence.
+    b : float
+        The last Julian Date in the sequence. If the exact date `b` cannot be included due
+        to the increment `dr`, the sequence will stop at the nearest date before `b`.
+    dr : float
+        The increment between consecutive Julian Dates in the sequence.
+    decimals : int, optional
+        The number of decimal places to which each computed Julian Date should be rounded.
+        Default is 11.
+
+    Returns
+    -------
+    results : astropy.time.core.Time
+        An array of astropy Time objects representing the Julian Dates between `a` and `b`
+        with an increment of `dr`.
+
+    Raises
+    ------
+    500:
+        If an invalid Julian Date is encountered.
+    """  # noqa: E501
+    try:
+        res = [np.round(a, decimals)]
+        k = 1
+        while res[-1] < b:
+            tmp = np.round(a + k * dr, decimals)
+            if tmp > b:
+                break
+            res.append(tmp)
+            k += 1
+        dates = np.asarray(res)
+
+        results = Time(dates, format="jd", scale="ut1")
+    except Exception:
+        ValidationError(500, error_messages.INVALID_JD)
+
+    return results

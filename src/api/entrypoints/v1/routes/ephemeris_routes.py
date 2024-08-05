@@ -1,5 +1,7 @@
+from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
+from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import ValidationError
-from extensions import get_forwarded_address, limiter
+from extensions import db, get_forwarded_address, limiter
 from flask import abort, request
 from services.ephemeris_service import generate_ephemeris_data
 from services.validation_service import validate_parameters
@@ -48,6 +50,10 @@ def get_ephemeris_by_name():
         A dictionary containing satellite information. The format of the dictionary
         is defined by the json_output() function.
     """
+    session = db.session
+    satellite_repository = SqlAlchemySatelliteRepository(session)
+    tle_repository = SqlAlchemyTLERepository(session)
+
     parameter_list = [
         "name",
         "latitude",
@@ -69,6 +75,8 @@ def get_ephemeris_by_name():
         abort(e.status_code, e.message)
 
     position_data = generate_ephemeris_data(
+        satellite_repository,
+        tle_repository,
         parameters["name"],
         "name",
         parameters["location"],
@@ -77,5 +85,93 @@ def get_ephemeris_by_name():
         parameters["max_altitude"],
         parameters["data_source"],
     )
+    session.close()
+
+    return position_data
+
+
+@api_v1.route("/ephemeris/name-jdstep/")
+@api_main.route("/ephemeris/name-jdstep/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_ephemeris_by_name_jdstep():
+    """
+    Returns satellite location and velocity information relative to the observer's
+    coordinates for the given satellite's name with the Two Line Element Data Set at
+    a specified Julian Date.
+
+    **Please note, for the most accurate results, a Julian Date close to the TLE epoch
+    is necessary.**
+
+    Parameters
+    ----------
+    name: str
+        CelesTrak name of object
+    latitude: float
+        The observers latitude coordinate (positive value represents north,
+        negative value represents south)
+    longitude: float
+        The observers longitude coordinate (positive value represents east,
+        negative value represents west)
+    elevation: float
+        Elevation in meters
+    startjd: float
+        UT1 Universal Time Julian Date to start ephmeris calculation.
+    stopjd: float
+        UT1 Universal Time Julian Date to stop ephmeris calculation.
+    stepjd: float
+        UT1 Universal Time Julian Date timestep.
+    min_altitude: float
+        Minimum satellite altitude in degrees
+    max_altitude: float
+        Maximum satellite altitude in degrees
+    data_source: str
+        Original source of TLE data (celestrak or spacetrack)
+
+    Returns
+    -------
+    response: dict
+        A dictionary containing satellite information. The format of the dictionary
+        is defined by the json_output() function.
+    """
+    session = db.session
+    satellite_repository = SqlAlchemySatelliteRepository(session)
+    tle_repository = SqlAlchemyTLERepository(session)
+
+    parameter_list = [
+        "name",
+        "latitude",
+        "longitude",
+        "elevation",
+        "start_jd",
+        "stop_jd",
+        "step_jd",
+        "min_altitude",
+        "max_altitude",
+        "data_source",
+    ]
+
+    try:
+        parameters = validate_parameters(
+            request,
+            parameter_list,
+            ["name", "latitude", "longitude", "elevation", "start_jd", "stop_jd"],
+        )
+    except ValidationError as e:
+        abort(e.status_code, e.message)
+
+    position_data = generate_ephemeris_data(
+        satellite_repository,
+        tle_repository,
+        parameters["name"],
+        "name",
+        parameters["location"],
+        parameters["julian_dates"],
+        parameters["min_altitude"],
+        parameters["max_altitude"],
+        parameters["data_source"],
+    )
+    session.close()
 
     return position_data
