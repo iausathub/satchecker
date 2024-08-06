@@ -1,15 +1,16 @@
 import logging
 import os
 
-from api.config import get_db_login
-from api.entrypoints.extensions import db, limiter
-from api.entrypoints.v1.routes import api_main, api_v1
-from api.entrypoints.v1.routes import (
-    ephemeris_routes as ephem_routes,  # noqa: F401, I001
-)
-from api.entrypoints.v1.routes import routes as v1_routes  # noqa: F401, I001
 from flask import Flask
 from flask_migrate import Migrate
+
+from src.api.config import get_db_login
+from src.api.entrypoints.extensions import db, limiter
+from src.api.entrypoints.v1.routes import api_main, api_v1
+from src.api.entrypoints.v1.routes import (
+    ephemeris_routes as ephem_routes,  # noqa: F401, I001
+)
+from src.api.entrypoints.v1.routes import routes as v1_routes  # noqa: F401, I001
 
 
 def create_app():
