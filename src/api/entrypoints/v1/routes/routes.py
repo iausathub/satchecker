@@ -1,6 +1,7 @@
 import requests
-from api.entrypoints.extensions import get_forwarded_address, limiter
 from flask import abort, redirect, request
+
+from src.api.entrypoints.extensions import get_forwarded_address, limiter
 
 from . import api_main, api_v1
 

@@ -1,10 +1,11 @@
-from api.adapters.repositories.satellite_repository import (
-    AbstractSatelliteRepository,
-)
-from api.adapters.repositories.tle_repository import AbstractTLERepository
-from api.domain.models.tle import TLE
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
+
+from src.api.adapters.repositories.satellite_repository import (
+    AbstractSatelliteRepository,
+)
+from src.api.adapters.repositories.tle_repository import AbstractTLERepository
+from src.api.domain.models.tle import TLE
 
 
 def generate_ephemeris_data(

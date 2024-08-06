@@ -1,9 +1,6 @@
 import logging
 import os
 
-from flask import Flask
-from flask_migrate import Migrate
-
 from core import utils
 from core.celery_app import celery
 from core.extensions import db, limiter
@@ -14,6 +11,8 @@ from core.versions.v1 import (
 from core.versions.v1 import (
     routes as v1_routes,  # noqa: F401, I001
 )
+from flask import Flask
+from flask_migrate import Migrate
 
 
 def create_app():

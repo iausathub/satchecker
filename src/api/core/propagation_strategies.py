@@ -6,6 +6,7 @@ from astropy.coordinates import (
     EarthLocation,
 )
 from astropy.time import Time, TimeDelta
+from core.utils import calculate_current_position, icrf2radec
 from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.nutationlib import iau2000b
@@ -16,8 +17,6 @@ from utils.coordinate_systems import (
     teme_to_ecef,
 )
 from utils.time_utils import jd_to_gst
-
-from core.utils import calculate_current_position, icrf2radec
 
 
 class SkyfieldPropagationStrategy:
