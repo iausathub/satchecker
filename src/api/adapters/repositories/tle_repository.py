@@ -1,15 +1,14 @@
 import abc
 from datetime import datetime
 
-from sqlalchemy import and_, func
-from sqlalchemy.orm.exc import NoResultFound
-
-from src.api.adapters.database_orm import SatelliteDb, TLEDb
-from src.api.adapters.repositories.satellite_repository import (
+from api.adapters.database_orm import SatelliteDb, TLEDb
+from api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from src.api.domain.models.satellite import Satellite as Satellite
-from src.api.domain.models.tle import TLE
+from api.domain.models.satellite import Satellite as Satellite
+from api.domain.models.tle import TLE
+from sqlalchemy import and_, func
+from sqlalchemy.orm.exc import NoResultFound
 
 
 class AbstractTLERepository(abc.ABC):
@@ -67,7 +66,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             epoch=orm_tle.epoch,
             is_supplemental=orm_tle.is_supplemental,
             data_source=orm_tle.data_source,
-            tle_satellite=SqlAlchemySatelliteRepository._to_domain(orm_tle.satellite),
+            satellite=SqlAlchemySatelliteRepository._to_domain(orm_tle.satellite),
         )
 
     @staticmethod
@@ -79,7 +78,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             epoch=domain_tle.epoch,
             is_supplemental=domain_tle.is_supplemental,
             data_source=domain_tle.data_source,
-            satellite=SqlAlchemySatelliteRepository._to_orm(domain_tle.tle_satellite),
+            satellite=SqlAlchemySatelliteRepository._to_orm(domain_tle.satellite),
         )
 
     def _get_by_satellite_number(
@@ -129,8 +128,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             existing_satellite = (
                 self.session.query(SatelliteDb)
                 .filter(
-                    SatelliteDb.sat_number == tle.tle_satellite.sat_number,
-                    SatelliteDb.sat_name == tle.tle_satellite.sat_name,
+                    SatelliteDb.sat_number == tle.satellite.sat_number,
+                    SatelliteDb.sat_name == tle.satellite.sat_name,
                 )
                 .one()
             )

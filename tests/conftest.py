@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.api import create_app
 from src.api.adapters.database_orm import Base
 
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
@@ -58,3 +59,16 @@ def sqlite_session_factory(in_memory_sqlite_db):
     session = sessionmaker(bind=in_memory_sqlite_db)
     yield session
     Base.metadata.drop_all(in_memory_sqlite_db)
+
+
+@pytest.fixture
+def app():
+    app = create_app()
+    app.testing = True
+    yield app
+
+
+@pytest.fixture
+def client(app):
+    with app.test_client() as client:
+        yield client

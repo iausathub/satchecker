@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.api.domain.models.satellite import Satellite
+from api.domain.models.satellite import Satellite
 
 
 class TLE:
@@ -12,7 +12,7 @@ class TLE:
         epoch: datetime,
         is_supplemental: bool,
         data_source: str,
-        tle_satellite: Satellite,
+        satellite: Satellite,
     ):
         self.date_collected = date_collected
         self.tle_line1 = tle_line1
@@ -20,10 +20,10 @@ class TLE:
         self.epoch = epoch
         self.is_supplemental = is_supplemental
         self.data_source = data_source
-        self.tle_satellite = tle_satellite
+        self.satellite = satellite
 
     def __repr__(self):
-        return f"<TLE {self.tle_satellite}>"
+        return f"<TLE {self.satellite}>"
 
     def __eq__(self, other):
         return (
@@ -33,7 +33,7 @@ class TLE:
             and self.epoch == other.epoch
             and self.is_supplemental == other.is_supplemental
             and self.data_source == other.data_source
-            and self.tle_satellite == other.tle_satellite
+            and self.satellite == other.satellite
         )
 
     def __hash__(self):
@@ -49,4 +49,4 @@ class TLE:
         )
 
     def get_satellite(self):
-        return self.tle_satellite
+        return self.satellite

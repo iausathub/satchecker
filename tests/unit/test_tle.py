@@ -20,12 +20,12 @@ def test_initialization(tle_factory):
     assert tle.epoch is not None
     assert tle.is_supplemental is not None
     assert tle.data_source is not None
-    assert tle.tle_satellite is not None
+    assert tle.satellite is not None
 
 
 def test_repr(tle_factory):
     tle = tle_factory()
-    assert repr(tle) == f"<TLE {tle.tle_satellite}>"
+    assert repr(tle) == f"<TLE {tle.satellite}>"
 
 
 def test_eq(tle_factory):

@@ -66,7 +66,7 @@ class TLEFactory(factory.Factory):
     class Meta:
         model = TLE
 
-    tle_satellite = factory.SubFactory(SatelliteFactory)
+    satellite = factory.SubFactory(SatelliteFactory)
     date_collected = faker.date_time_between(
         start_date="-10y", end_date=datetime.datetime.now()
     )

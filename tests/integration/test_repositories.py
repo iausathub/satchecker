@@ -89,7 +89,7 @@ def test_add_tle_existing_satellite(sqlite_session_factory):
 
     satellite_repository.add(satellite)
 
-    tle.tle_satellite = satellite
+    tle.satellite = satellite
     tle_repository.add(tle)
     session.commit()
 
@@ -107,7 +107,7 @@ def test_get_tle_by_satellite_number(sqlite_session_factory):
     session.commit()
 
     repo_tle = tle_repository.get_by_satellite_number(
-        tle.tle_satellite.sat_number, tle.epoch, tle.data_source
+        tle.satellite.sat_number, tle.epoch, tle.data_source
     )
     assert repo_tle.tle_line1 == tle.tle_line1
     session.close()
@@ -122,7 +122,7 @@ def test_get_tle_by_satellite_name(sqlite_session_factory):
     session.commit()
 
     repo_tle = tle_repository.get_by_satellite_name(
-        tle.tle_satellite.sat_name, tle.epoch, tle.data_source
+        tle.satellite.sat_name, tle.epoch, tle.data_source
     )
     assert repo_tle.tle_line1 == tle.tle_line1
     session.close()

@@ -1,5 +1,8 @@
-from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
+from api.adapters.repositories.satellite_repository import (
+    AbstractSatelliteRepository,
+)
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.domain.models.tle import TLE
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
@@ -14,6 +17,15 @@ def generate_ephemeris_data(
     min_altitude: float,
     max_altitude: float,
     data_source: str = "",
-    jd_step: bool = False,
 ) -> list[dict]:
-    pass
+    return []
+
+
+def generate_ephemeris_data_user(
+    tle: TLE,
+    location: EarthLocation,
+    dates: list[Time],
+    min_altitude: float,
+    max_altitude: float,
+) -> list[dict]:
+    return []

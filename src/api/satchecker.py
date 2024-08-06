@@ -1,1 +1,1 @@
-from core import app, celery  # noqa: F401, I001
+from . import app  # , celery  # noqa: F401, I001
