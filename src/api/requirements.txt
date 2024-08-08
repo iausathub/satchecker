@@ -33,6 +33,8 @@ dill==0.3.7
 distlib==0.3.7
 docutils==0.18.1
 executing==1.2.0
+factory-boy==3.3.0
+Faker==26.3.0
 fastjsonschema==2.18.0
 filelock==3.12.4
 Flask==2.3.3
