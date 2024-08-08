@@ -8,42 +8,10 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api import create_app
 from src.api.adapters.database_orm import Base
+from src.api.entrypoints.extensions import db as database
 
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
 os.environ["LOCAL_DB"] = "1"
-
-
-""" @pytest.fixture()
-def app():
-
-    from api import satchecker
-    app = (
-        satchecker.app
-    )  # ({"TESTING": True, "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"})
-    app.config.update(
-        {
-            "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        }
-    )
-
-    with app.app_context():
-        from core.extensions import db as database
-        database.create_all()
-        yield app
-        database.session.remove()
-        database.drop_all()
-
-
-@pytest.fixture()
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture()
-def runner(app):
-    return app.test_cli_runner()
- """
 
 
 @pytest.fixture
@@ -64,8 +32,19 @@ def sqlite_session_factory(in_memory_sqlite_db):
 @pytest.fixture
 def app():
     app = create_app()
-    app.testing = True
-    yield app
+    app.config.update(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        }
+    )
+
+    with app.app_context():
+        database.init_app(app)
+        Base.metadata.create_all(bind=database.engine)
+        yield app
+        database.session.remove()
+        Base.metadata.drop_all(bind=database.engine)
 
 
 @pytest.fixture

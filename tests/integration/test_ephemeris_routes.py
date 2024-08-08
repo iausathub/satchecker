@@ -13,6 +13,14 @@ class FakeSatelliteRepository(satellite_repository.AbstractSatelliteRepository):
     def _get(self, reference):
         return next(b for b in self._satellites if b.reference == reference)
 
+    def _get_norad_ids_from_satellite_name(self, name):
+        # check all the satellites in self._satellites and return the sat_numbers from all with matching name
+        return [sat.sat_number for sat in self._satellites if sat.sat_name == name]
+
+    def _get_satellite_names_from_norad_id(self, id):
+        # check all the satellites in self._satellites and return the sat_names from all with matching sat_number
+        return [sat.sat_name for sat in self._satellites if sat.sat_number == id]
+
 
 class FakeSession:
     committed = False

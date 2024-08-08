@@ -13,7 +13,7 @@ class SatelliteFactory(factory.Factory):
         model = Satellite
 
     sat_number = factory.Sequence(lambda n: n)
-    sat_name = faker.word()
+    sat_name = factory.LazyFunction(faker.word)
     constellation = faker.word()
     rcs_size = faker.word()
     launch_date = faker.date_time_between(

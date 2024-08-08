@@ -1,4 +1,6 @@
 import re
+from datetime import timezone
+from typing import Any, List
 
 import astropy.units as u
 import numpy as np
@@ -38,7 +40,9 @@ def extract_parameters(request, parameter_list):
     return parameters
 
 
-def validate_parameters(request, parameter_list, required_parameters):
+def validate_parameters(
+    request: Any, parameter_list: List[str], required_parameters: List[str]
+) -> List[str]:
     """
     Validates and sanitizes parameters for satellite tracking.
 
@@ -48,7 +52,7 @@ def validate_parameters(request, parameter_list, required_parameters):
     data_source parameters.
 
     Parameters:
-        parameters (dict): The input parameters to validate and sanitize.
+        parameters (list of str): The input parameters to validate and sanitize.
         required_parameters (list of str): A list of parameter names that are required.
 
     Returns:
@@ -65,14 +69,19 @@ def validate_parameters(request, parameter_list, required_parameters):
             raise ValidationError(400, f"Missing parameter: {param}")
 
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
-    try:
-        parameters["location"] = EarthLocation(
-            lat=float(parameters["latitude"]) * u.deg,
-            lon=float(parameters["longitude"]) * u.deg,
-            height=float(parameters["elevation"]) * u.m,
-        )
-    except Exception as e:
-        raise ValidationError(500, "Invalid location", e) from e
+    if (
+        "latitude" in parameters.keys()
+        and "longitude" in parameters.keys()
+        and "elevation" in parameters.keys()
+    ):
+        try:
+            parameters["location"] = EarthLocation(
+                lat=float(parameters["latitude"]) * u.deg,
+                lon=float(parameters["longitude"]) * u.deg,
+                height=float(parameters["elevation"]) * u.m,
+            )
+        except Exception as e:
+            raise ValidationError(500, "Invalid location", e) from e
 
     # if min_altitude is not none convert to float
     try:
@@ -136,10 +145,38 @@ def validate_parameters(request, parameter_list, required_parameters):
             else "any"
         )
         if parameters["data_source"] not in ["celestrak", "spacetrack", "any"]:
-            raise ValidationError(500, "Invalid data source")
+            raise ValidationError(500, error_messages.INVALID_SOURCE)
 
     if "tle" in parameters.keys():
         parameters["tle"] = parse_tle(parameters["tle"])
+
+    # TODO: used for tools endpoints, might not be needed here (move to tools service?)
+    if "name" in parameters.keys() and len(parameters) == 1:
+        parameters["name"] = parameters["name"].upper()
+
+    if "id_type" in parameters.keys():
+        if parameters["id_type"] not in ["catalog", "name"]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+    if "end_date_jd" in parameters.keys() and parameters["end_date_jd"] is not None:
+        try:
+            parameters["end_date_jd"] = (
+                Time(parameters["end_date_jd"], format="jd", scale="ut1")
+                .to_datetime()
+                .replace(tzinfo=timezone.utc)
+            )
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+
+    if "start_date_jd" in parameters.keys() and parameters["start_date_jd"] is not None:
+        try:
+            parameters["start_date_jd"] = (
+                Time(parameters["start_date_jd"], format="jd", scale="ut1")
+                .to_datetime()
+                .replace(tzinfo=timezone.utc)
+            )
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
     return parameters
 

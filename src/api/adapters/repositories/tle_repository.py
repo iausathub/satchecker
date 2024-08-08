@@ -1,5 +1,6 @@
 import abc
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm.exc import NoResultFound
@@ -20,31 +21,73 @@ class AbstractTLERepository(abc.ABC):
         self._add(tle)
         self.seen.add(tle)
 
-    def get_by_satellite_number(
+    def get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
     ) -> TLE:
-        satellite = self._get_by_satellite_number(satellite_number, epoch, data_source)
+        satellite = self._get_closest_by_satellite_number(
+            satellite_number, epoch, data_source
+        )
         if satellite:
             self.seen.add(satellite)
         return satellite
 
-    def get_by_satellite_name(
+    def get_closest_by_satellite_name(
         self, satellite_name: str, epoch: datetime, data_source: str
     ) -> TLE:
-        satellite = self._get_by_satellite_name(satellite_name, epoch, data_source)
+        satellite = self._get_closest_by_satellite_name(
+            satellite_name, epoch, data_source
+        )
         if satellite:
             self.seen.add(satellite)
         return satellite
 
+    def get_all_for_date_range_by_satellite_number(
+        self,
+        satellite_number: str,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> TLE:
+        return self._get_all_for_date_range_by_satellite_number(
+            satellite_number, start_date, end_date
+        )
+
+    def get_all_for_date_range_by_satellite_name(
+        self,
+        satellite_name: str,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> TLE:
+        return self._get_all_for_date_range_by_satellite_name(
+            satellite_name, start_date, end_date
+        )
+
     @abc.abstractmethod
-    def _get_by_satellite_number(
+    def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
     ) -> TLE:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_by_satellite_name(
+    def _get_closest_by_satellite_name(
         self, satellite_name: str, epoch: datetime, data_source: str
+    ) -> TLE:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_all_for_date_range_by_satellite_number(
+        self,
+        satellite_number: str,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> TLE:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_all_for_date_range_by_satellite_name(
+        self,
+        satellite_name: str,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
     ) -> TLE:
         raise NotImplementedError
 
@@ -82,16 +125,18 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             satellite=SqlAlchemySatelliteRepository._to_orm(domain_tle.satellite),
         )
 
-    def _get_by_satellite_number(
+    def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
     ) -> TLE:
         return (
-            self.session.query(TLEDb)
-            .join(TLEDb.satellite)
-            .filter(
-                and_(
-                    SatelliteDb.sat_number == satellite_number,
-                    TLEDb.data_source == data_source,
+            (
+                self.session.query(TLEDb)
+                .join(TLEDb.satellite)
+                .filter(
+                    and_(
+                        SatelliteDb.sat_number == satellite_number,
+                        TLEDb.data_source == data_source,
+                    )
                 )
             )
             .order_by(
@@ -102,16 +147,21 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             .first()
         )
 
-    def _get_by_satellite_name(
-        self, satellite_name: str, epoch: datetime, data_source: str
+    def _get_closest_by_satellite_name(
+        self,
+        satellite_name: str,
+        epoch: datetime,
+        data_source: str,
     ) -> TLE:
         return (
-            self.session.query(TLEDb)
-            .join(TLEDb.satellite)
-            .filter(
-                and_(
-                    SatelliteDb.sat_name == satellite_name,
-                    TLEDb.data_source == data_source,
+            (
+                self.session.query(TLEDb)
+                .join(TLEDb.satellite)
+                .filter(
+                    and_(
+                        SatelliteDb.sat_name == satellite_name,
+                        TLEDb.data_source == data_source,
+                    )
                 )
             )
             .order_by(
@@ -121,6 +171,44 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             )
             .first()
         )
+
+    def _get_all_for_date_range_by_satellite_number(
+        self,
+        satellite_number: str,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> TLE:
+        query = (
+            self.session.query(TLEDb)
+            .join(TLEDb.satellite)
+            .filter(SatelliteDb.sat_number == satellite_number)
+        )
+        if start_date is not None:
+            query = query.filter(TLEDb.epoch >= start_date)
+
+        if end_date is not None:
+            query = query.filter(TLEDb.epoch <= end_date)
+
+        return query.all()
+
+    def _get_all_for_date_range_by_satellite_name(
+        self,
+        satellite_name: str,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> TLE:
+        query = (
+            self.session.query(TLEDb)
+            .join(TLEDb.satellite)
+            .filter(SatelliteDb.sat_name == satellite_name)
+        )
+        if start_date is not None:
+            query = query.filter(TLEDb.epoch >= start_date)
+
+        if end_date is not None:
+            query = query.filter(TLEDb.epoch <= end_date)
+
+        return query.all()
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)

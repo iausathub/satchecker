@@ -18,8 +18,22 @@ class AbstractSatelliteRepository(abc.ABC):
             self.seen.add(satellite)
         return satellite
 
+    def get_norad_ids_from_satellite_name(self, name):
+        return self._get_norad_ids_from_satellite_name(name)
+
+    def get_satellite_names_from_norad_id(self, id):
+        return self._get_satellite_names_from_norad_id(id)
+
     @abc.abstractmethod
     def _get(self, satellite_id: str) -> Satellite:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_norad_ids_from_satellite_name(self, name):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_satellite_names_from_norad_id(self, id):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -39,6 +53,38 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
             .first()
         )  # noqa: E501
         return self._to_domain(orm_satellite)
+
+    def _get_norad_ids_from_satellite_name(self, name):
+        satellite_names_and_dates = (
+            self.session.query(
+                SatelliteDb.sat_number,
+                SatelliteDb.date_added,
+                SatelliteDb.has_current_sat_number,
+            )
+            .filter(
+                SatelliteDb.sat_name == name,
+            )
+            .order_by(SatelliteDb.date_added.desc())
+            .all()
+        )
+
+        return satellite_names_and_dates
+
+    def _get_satellite_names_from_norad_id(self, id):
+        satellite_names_and_dates = (
+            self.session.query(
+                SatelliteDb.sat_name,
+                SatelliteDb.date_added,
+                SatelliteDb.has_current_sat_number,
+            )
+            .filter(
+                SatelliteDb.sat_number == id,
+            )
+            .order_by(SatelliteDb.date_added.desc())
+            .all()
+        )
+
+        return satellite_names_and_dates
 
     def _add(self, satellite: Satellite):
         orm_satellite = self._to_orm(satellite)

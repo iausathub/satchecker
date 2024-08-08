@@ -40,7 +40,7 @@ class SatelliteDb(Base):
 class TLEDb(Base):
     __tablename__ = "tle"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    satellite_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
+    sat_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
     date_collected = Column(DateTime(timezone=True), nullable=False)
     tle_line1 = Column(Text, nullable=False)
     tle_line2 = Column(Text, nullable=False)
@@ -48,7 +48,7 @@ class TLEDb(Base):
     is_supplemental = Column(Boolean, nullable=False)
     data_source = Column(Text, nullable=False)
     satellite = relationship("SatelliteDb", backref="tle")
-    __table_args__ = (UniqueConstraint("satellite_id", "epoch", "data_source"),)
+    __table_args__ = (UniqueConstraint("sat_id", "epoch", "data_source"),)
 
 
 # Define the index on the date_collected column

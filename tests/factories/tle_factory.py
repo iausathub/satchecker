@@ -67,11 +67,19 @@ class TLEFactory(factory.Factory):
         model = TLE
 
     satellite = factory.SubFactory(SatelliteFactory)
-    date_collected = faker.date_time_between(
-        start_date="-10y", end_date=datetime.datetime.now()
+    date_collected = factory.LazyFunction(
+        lambda: faker.date_time_between(
+            start_date="-10y", end_date=datetime.datetime.now()
+        )
     )
-    tle_line1 = generate_tle_line1()
-    tle_line2 = generate_tle_line2()
-    epoch = faker.date_time_between(start_date="-10y", end_date=datetime.datetime.now())
+    tle_line1 = factory.LazyFunction(generate_tle_line1)
+    tle_line2 = factory.LazyFunction(generate_tle_line2)
+    epoch = factory.LazyFunction(
+        lambda: faker.date_time_between(
+            start_date="-10y", end_date=datetime.datetime.now()
+        )
+    )
     is_supplemental = factory.LazyAttribute(lambda o: faker.boolean())
-    data_source = faker.random_element(elements=("celestrak", "spacetrack"))
+    data_source = factory.LazyFunction(
+        lambda: faker.random_element(elements=("celestrak", "spacetrack"))
+    )
