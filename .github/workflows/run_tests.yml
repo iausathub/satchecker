@@ -52,20 +52,20 @@ jobs:
     - name: Install dependencies
       run: |
         pip install pytest pytest-mock pytest-cov
-    # - name: Start Flask application
-    #   run: |
-    #     export FLASK_APP=satchecker.py
-    #     flask run &
-    #   working-directory: src/api
-    # - name: Run Celery worker
-    #   run: |
-    #     celery -A satchecker.celery worker --loglevel INFO &
-    #   env:
-    #     REDIS_URL: redis://localhost:6379/0
-    #   working-directory: api
+    - name: Start Flask application
+      run: |
+        export FLASK_APP=satchecker.py
+        flask run &
+      working-directory: src/api
+    - name: Run Celery worker
+      run: |
+        celery -A api.satchecker.celery worker --loglevel INFO &
+      env:
+        REDIS_URL: redis://localhost:6379/0
+      working-directory: src
     - name: Test with pytest
       run: |
-        pytest -v
+        pytest -v --durations=10
       env:
         REDIS_URL: redis://localhost:6379/0
         PYTHONPATH: src
