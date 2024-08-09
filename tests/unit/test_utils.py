@@ -117,8 +117,8 @@ def test_tle_to_icrf_state_with_epoch():
     jd = 0  # Use epoch from TLE
 
     result = coordinate_systems.tle_to_icrf_state(tle_line_1, tle_line_2, jd)
-    assert result[0] == 6439.4733751377125
-    assert result[5] == 5.726261362770601
+    assert result[0] == pytest.approx(6439.4733751377125, rel=1e-9)
+    assert result[5] == pytest.approx(5.726261362770601, rel=1e-9)
     assert result.shape == (6,)
     assert isinstance(result, np.ndarray)
 
@@ -129,8 +129,8 @@ def test_tle_to_icrf_state_with_jd():
     jd = Time(2459000.5, format="jd")
 
     result = coordinate_systems.tle_to_icrf_state(tle_line_1, tle_line_2, jd)
-    assert result[0] == -6300.1587196871105
-    assert result[5] == 5.253949584720267
+    assert result[0] == pytest.approx(-6300.1587196871105, rel=1e-9)
+    assert result[5] == pytest.approx(5.253949584720267, rel=1e-9)
     assert result.shape == (6,)
     assert isinstance(result, np.ndarray)
 
