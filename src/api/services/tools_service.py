@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from src.api.adapters.repositories.satellite_repository import (
+from api.adapters.repositories.satellite_repository import (
     AbstractSatelliteRepository,
 )
-from src.api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.adapters.repositories.tle_repository import AbstractTLERepository
 
 
 def get_tle_data(
@@ -12,6 +12,8 @@ def get_tle_data(
     id_type: str,
     start_date: datetime,
     end_date: datetime,
+    api_source: str,
+    api_version: str,
 ):
     """
     Fetches Two-Line Element set (TLE) data for a given satellite.
@@ -44,11 +46,27 @@ def get_tle_data(
         if id_type == "catalog"
         else tle_repo.get_all_for_date_range_by_satellite_name(id, start_date, end_date)
     )
-    return tles
+
+    # Extract the TLE data from the result set
+    tle_data = [
+        {
+            "satellite_name": tle.satellite.sat_name,
+            "satellite_id": tle.satellite.sat_number,
+            "tle_line1": tle.tle_line1,
+            "tle_line2": tle.tle_line2,
+            "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        }
+        for tle in tles
+    ]
+    return tle_data
 
 
 def get_ids_for_satellite_name(
-    sat_repo: AbstractSatelliteRepository, satellite_name: str
+    sat_repo: AbstractSatelliteRepository,
+    satellite_name: str,
+    api_source: str,
+    api_version: str,
 ):
     """
     Fetches NORAD IDs associated with a given satellite name.
@@ -87,7 +105,10 @@ def get_ids_for_satellite_name(
 
 
 def get_names_for_satellite_id(
-    sat_repo: AbstractSatelliteRepository, satellite_id: str
+    sat_repo: AbstractSatelliteRepository,
+    satellite_id: str,
+    api_source: str,
+    api_version: str,
 ):
     """
     Fetches names associated with a given NORAD ID.
@@ -120,5 +141,4 @@ def get_names_for_satellite_id(
         }
         for name_date in satellite_names_and_dates
     ]
-
     return names_and_dates

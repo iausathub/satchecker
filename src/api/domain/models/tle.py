@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.api.domain.models.satellite import Satellite
+from api.domain.models.satellite import Satellite
 
 
 class TLE:

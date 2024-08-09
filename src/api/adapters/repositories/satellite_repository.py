@@ -1,7 +1,7 @@
 import abc
 
-from src.api.adapters.database_orm import SatelliteDb
-from src.api.domain.models.satellite import Satellite
+from api.adapters.database_orm import SatelliteDb
+from api.domain.models.satellite import Satellite
 
 
 class AbstractSatelliteRepository(abc.ABC):

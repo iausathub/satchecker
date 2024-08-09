@@ -3,12 +3,12 @@
 import os
 
 import pytest
+from api import create_app
+from api.adapters.database_orm import Base
+from api.celery_app import make_celery
+from api.entrypoints.extensions import db as database
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-from src.api import create_app
-from src.api.adapters.database_orm import Base
-from src.api.entrypoints.extensions import db as database
 
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
 os.environ["LOCAL_DB"] = "1"
@@ -38,6 +38,10 @@ def app():
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         }
     )
+
+    celery = make_celery(app.name)
+    celery.conf.update(app.config)
+    app.celery = celery
 
     with app.app_context():
         database.init_app(app)

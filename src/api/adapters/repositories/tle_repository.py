@@ -2,15 +2,14 @@ import abc
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import and_, func
-from sqlalchemy.orm.exc import NoResultFound
-
-from src.api.adapters.database_orm import SatelliteDb, TLEDb
-from src.api.adapters.repositories.satellite_repository import (
+from api.adapters.database_orm import SatelliteDb, TLEDb
+from api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from src.api.domain.models.satellite import Satellite as Satellite
-from src.api.domain.models.tle import TLE
+from api.domain.models.satellite import Satellite as Satellite
+from api.domain.models.tle import TLE
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm.exc import NoResultFound
 
 
 class AbstractTLERepository(abc.ABC):
@@ -135,7 +134,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 .filter(
                     and_(
                         SatelliteDb.sat_number == satellite_number,
-                        TLEDb.data_source == data_source,
+                        or_(TLEDb.data_source == data_source, data_source == "any"),
                     )
                 )
             )
@@ -160,7 +159,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 .filter(
                     and_(
                         SatelliteDb.sat_name == satellite_name,
-                        TLEDb.data_source == data_source,
+                        or_(TLEDb.data_source == data_source, data_source == "any"),
                     )
                 )
             )

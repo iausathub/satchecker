@@ -1,6 +1,7 @@
 # ruff: noqa: E501, S101, F841
-from src.api.adapters.repositories import satellite_repository, tle_repository
-from src.api.entrypoints.extensions import db
+from api.adapters.repositories import satellite_repository, tle_repository
+from api.entrypoints.extensions import db
+
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 

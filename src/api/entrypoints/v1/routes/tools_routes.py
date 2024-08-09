@@ -1,19 +1,18 @@
-from flask import current_app as app
-from flask import jsonify, request
-
-from src.api.adapters.repositories.satellite_repository import (
+from api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from src.api.entrypoints.extensions import db, get_forwarded_address, limiter
-from src.api.services.tools_service import (
+from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.services.tools_service import (
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_tle_data,
 )
-from src.api.services.validation_service import validate_parameters
+from api.services.validation_service import validate_parameters
+from flask import current_app as app
+from flask import jsonify, request
 
-from . import api_main, api_v1
+from . import api_main, api_source, api_v1, api_version
 
 
 @api_v1.route("/tools/norad-ids-from-name/")
@@ -41,7 +40,9 @@ def get_norad_ids_from_name():
     sat_repo = SqlAlchemySatelliteRepository(session)
 
     try:
-        norad_ids_and_dates = get_ids_for_satellite_name(sat_repo, parameters["name"])
+        norad_ids_and_dates = get_ids_for_satellite_name(
+            sat_repo, parameters["name"], api_source, api_version
+        )
         if not norad_ids_and_dates:
             return jsonify([]), 200
 
@@ -77,7 +78,7 @@ def get_names_from_norad_id():
 
     try:
         satellite_names_and_dates = get_names_for_satellite_id(
-            sat_repo, parameters["id"]
+            sat_repo, parameters["id"], api_source, api_version
         )
         if not satellite_names_and_dates:
             return jsonify([]), 200
@@ -138,18 +139,8 @@ def get_tles():
         parameters["id_type"],
         parameters["start_date_jd"],
         parameters["end_date_jd"],
+        api_source,
+        api_version,
     )
 
-    # Extract the TLE data from the result set
-    tle_data = [
-        {
-            "satellite_name": tle.satellite.sat_name,
-            "satellite_id": tle.satellite.sat_number,
-            "tle_line1": tle.tle_line1,
-            "tle_line2": tle.tle_line2,
-            "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
-            "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
-        }
-        for tle in tle_data
-    ]
     return jsonify(tle_data)

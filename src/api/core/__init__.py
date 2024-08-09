@@ -1,8 +1,8 @@
 import logging
 import os
 
+from api.celery_app import celery
 from core import utils
-from core.celery_app import celery
 from core.extensions import db, limiter
 from core.versions.v1 import (
     api_main,

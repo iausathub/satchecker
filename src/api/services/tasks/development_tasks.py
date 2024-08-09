@@ -1,15 +1,8 @@
 import datetime
 import logging
 import time
-from typing import Tuple
 
 import numpy as np
-from api.utils.propagation_strategies import (
-    PropagationInfo,
-    SGP4PropagationStrategy,
-    SkyfieldPropagationStrategy,
-    TestPropagationStrategy,
-)
 from astropy import units as u
 from astropy.coordinates import (
     AltAz,
@@ -17,11 +10,11 @@ from astropy.coordinates import (
     SkyCoord,
 )
 from astropy.time import Time
-from celery import chord
-from core import celery, utils
+from core import celery
 from core.database import models
 from core.extensions import db
-from flask import current_app, has_app_context
+from ephemeris_tasks import propagate_satellite_sgp4, propagate_satellite_skyfield
+from flask import current_app
 from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load
 from skyfield.framelib import itrs as sk_itrs
@@ -248,187 +241,3 @@ def test_fov():  # pragma: no cover
         current_app.logger.error(f"ra: {p[0]} dec: {p[1]}")
 
     return positions
-
-
-@celery.task
-def process_results(
-    tles: list[Tuple[float, float]],
-    min_altitude: float,
-    max_altitude: float,
-    date_collected: str,
-    name: str,
-    catalog_id: str,
-    data_source: str,
-) -> list[utils.data_point]:
-    """
-    Process the results of the TLE data.
-
-    This function filters the TLE data based on the altitude range and adds the
-    remaining metadata to the results.
-
-    Args:
-        tles (list[Tuple[float, float]]): The TLE data.
-        min_altitude (float): The minimum altitude.
-        max_altitude (float): The maximum altitude.
-        date_collected (str): The date the data was collected.
-        name (str): The name of the satellite.
-        catalog_id (str): The catalog ID of the satellite.
-        data_source (str): The data source.
-
-    Returns:
-        list[utils.data_point]: The processed results.
-    """
-    if has_app_context():
-        current_app.logger.info("process results started")
-    # Filter out results that are not within the altitude range
-    results = [result for result in tles if min_altitude <= result[4] <= max_altitude]
-    api_source = "IAU CPS SatChecker"
-    version = "1.0"
-
-    if not results:
-        return {
-            "info": "No position information found with this criteria",
-            "api_source": api_source,
-            "version": version,
-        }
-
-    # Add remaining metadata to results
-    data_set = utils.json_output(
-        name, catalog_id, date_collected, data_source, results, api_source, version
-    )
-    if has_app_context():
-        current_app.logger.info("process results complete")
-    return data_set
-
-
-@celery.task
-def create_result_list(
-    location: EarthLocation,
-    dates: list[Time],
-    tle_line_1: str,
-    tle_line_2: str,
-    date_collected: str,
-    name: str,
-    min_altitude: float,
-    max_altitude: float,
-    catalog_id: str = "",
-    data_source: str = "",
-) -> list[dict]:
-    """
-    Create a list of results for a given satellite and date range.
-
-    This function propagates the satellite for each date in the given range, processes
-    the results, and returns a list of results.
-
-    Args:
-        location (EarthLocation): The location of the observer.
-        dates (list[Time]): The dates for which to propagate the satellite.
-        tle_line_1 (str): The first line of the TLE data for the satellite.
-        tle_line_2 (str): The second line of the TLE data for the satellite.
-        date_collected (str): The date the TLE data was collected.
-        name (str): The name of the satellite.
-        min_altitude (float): The minimum altitude for the results.
-        max_altitude (float): The maximum altitude for the results.
-        catalog_id (str, optional): The catalog ID of the satellite. Defaults to "".
-        data_source (str, optional): The data source of the TLE data. Defaults to "".
-
-    Returns:
-        list[dict]: A list of results for the given satellite and date range.
-    """
-    # location_itrs = location.itrs.cartesian.xyz.value / 1000
-    # Create a chord that will propagate the satellite for
-    # each date and then process the results
-    tasks = chord(
-        (
-            propagate_satellite_skyfield.s(
-                tle_line_1,
-                tle_line_2,
-                location.lat.value,
-                location.lon.value,
-                location.height.value,
-                date.jd,
-            )
-            for date in dates
-        ),
-        process_results.s(
-            min_altitude, max_altitude, date_collected, name, catalog_id, data_source
-        ),
-    )()
-    results = tasks.get()
-    if not results:
-        return {"info": "No position information found with this criteria"}
-    return results
-
-
-@celery.task
-def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
-    """
-    Propagates satellite and observer states using the Skyfield library.
-
-    Args:
-        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
-        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
-        lat (float): The latitude of the observer's location, in degrees.
-        long (float): The longitude of the observer's location, in degrees.
-        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
-        jd (Time): The Julian Date at which to propagate the satellite.
-
-    Returns:
-        dict: A dictionary containing the propagated state of the satellite and the
-        observer.
-    """  # noqa: E501
-    propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
-    )
-    return propagation_info.propagate()
-
-
-# Only returns azimuth and altitude for quick calulations
-@celery.task
-def propagate_satellite_sgp4(
-    tle_line_1, tle_line_2, lat, long, height, jd
-):  # pragma: no cover
-    """
-    Propagates satellite and observer states using the SGP4 propagation library.
-
-    Args:
-        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
-        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
-        lat (float): The latitude of the observer's location, in degrees.
-        long (float): The longitude of the observer's location, in degrees.
-        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
-        jd (Time): The Julian Date at which to propagate the satellite.
-
-    Returns:
-        dict: A dictionary containing the propagated state of the satellite and the
-        observer.
-    """  # noqa: E501
-    propagation_info = PropagationInfo(
-        SGP4PropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
-    )
-    return propagation_info.propagate()
-
-
-@celery.task
-def propagate_satellite_new(
-    tle_line_1, tle_line_2, lat, long, height, jd
-):  # pragma: no cover
-    """
-    Propagates satellite and observer states using a test propagation strategy.
-
-    Args:
-        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
-        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
-        lat (float): The latitude of the observer's location, in degrees.
-        long (float): The longitude of the observer's location, in degrees.
-        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
-        jd (Time): The Julian Date at which to propagate the satellite.
-
-    Returns:
-        dict: A dictionary containing the propagated state of the satellite and the
-        observer.
-    """  # noqa: E501
-    propagation_info = PropagationInfo(
-        TestPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
-    )
-    return propagation_info.propagate()

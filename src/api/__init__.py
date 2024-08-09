@@ -1,17 +1,17 @@
 import logging
 import os
 
-from flask import Flask
-from flask_migrate import Migrate
-
-from src.api.config import get_db_login
-from src.api.entrypoints.extensions import db, limiter
-from src.api.entrypoints.v1.routes import api_main, api_v1
-from src.api.entrypoints.v1.routes import ephemeris_routes as ephem_routes  # noqa: F401
-from src.api.entrypoints.v1.routes import routes as v1_routes  # noqa: F401, I001
-from src.api.entrypoints.v1.routes import (
+from api.celery_app import celery
+from api.config import get_db_login
+from api.entrypoints.extensions import db, limiter
+from api.entrypoints.v1.routes import api_main, api_v1
+from api.entrypoints.v1.routes import ephemeris_routes as ephem_routes  # noqa: F401
+from api.entrypoints.v1.routes import routes as v1_routes  # noqa: F401, I001
+from api.entrypoints.v1.routes import (
     tools_routes as tool_routes,  # noqa: F401, I001
 )
+from flask import Flask
+from flask_migrate import Migrate
 
 
 def create_app():
@@ -35,7 +35,6 @@ def create_app():
             "use_native_hstore": False,
         }
 
-    """
     app.config.from_mapping(
         CELERY=dict(
             broker_url="redis://localhost:6379/0",
@@ -44,7 +43,7 @@ def create_app():
             task_track_started=True,
         ),
     )
-    """
+
     # Initialize Flask-Migrate
     migrate = Migrate(app, db)  # noqa: F841
     with app.app_context():
@@ -52,8 +51,8 @@ def create_app():
 
 
 app = create_app()
-# celery.conf.update(app.config)
-# app.extensions["celery"] = celery
+celery.conf.update(app.config)
+app.extensions["celery"] = celery
 
 if __name__ != "__main__":
     gunicorn_logger = logging.getLogger("gunicorn.error")

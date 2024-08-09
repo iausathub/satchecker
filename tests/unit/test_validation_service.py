@@ -1,14 +1,13 @@
 # ruff: noqa: S101
 import pytest
-from flask import request
-
-from src.api.common.exceptions import ValidationError
-from src.api.services.validation_service import (
+from api.common.exceptions import ValidationError
+from api.services.validation_service import (
     extract_parameters,
     jd_arange,
     parse_tle,
     validate_parameters,
 )
+from flask import request
 
 
 def test_extract_parameters_success(app):
@@ -22,10 +21,11 @@ def test_extract_parameters_success(app):
 
 
 def test_extract_parameters_not_a_list(app):
-    with app.test_request_context("/"):
-        request.args = "1"
-        parameter_list = "latitude"
-        with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError):
+        with app.test_request_context("/"):
+            request.args = ""
+            parameter_list = "latitude"
+
             parameters = extract_parameters(request, parameter_list)  # noqa: F841
 
 
@@ -276,11 +276,11 @@ def test_parse_tle_invalid_format():
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751"
-    with pytest.raises(ValidationError, match="Incorrect TLE format"):
+    with pytest.raises(ValidationError, match="Invalid TLE format"):
         parse_tle(tle)
 
 
 def test_parse_tle_missing_data():
     tle = "ISS (ZARYA) 1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997 2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"  # noqa: E501
-    with pytest.raises(ValidationError, match="Incorrect TLE format"):
+    with pytest.raises(ValidationError, match="Invalid TLE format"):
         parse_tle(tle)

@@ -1,18 +1,17 @@
-from flask import abort, request
-
-from src.api.adapters.repositories.satellite_repository import (
+from api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from src.api.common.exceptions import ValidationError
-from src.api.entrypoints.extensions import db, get_forwarded_address, limiter
-from src.api.services.ephemeris_service import (
+from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.common.exceptions import DataError, ValidationError
+from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.services.ephemeris_service import (
     generate_ephemeris_data,
     generate_ephemeris_data_user,
 )
-from src.api.services.validation_service import validate_parameters
+from api.services.validation_service import validate_parameters
+from flask import abort, request
 
-from . import api_main, api_v1
+from . import api_main, api_source, api_v1, api_version
 
 
 @api_v1.route("/ephemeris/name/")
@@ -80,17 +79,23 @@ def get_ephemeris_by_name():
     except ValidationError as e:
         abort(e.status_code, e.message)
 
-    position_data = generate_ephemeris_data(
-        satellite_repository,
-        tle_repository,
-        parameters["name"],
-        "name",
-        parameters["location"],
-        parameters["julian_date"],
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        parameters["data_source"],
-    )
+    try:
+        position_data = generate_ephemeris_data(
+            satellite_repository,
+            tle_repository,
+            parameters["name"],
+            "name",
+            parameters["location"],
+            parameters["julian_dates"],
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            api_source,
+            api_version,
+            parameters["data_source"],
+        )
+    except DataError as e:
+        abort(e.status_code, e.message)
+
     session.close()
 
     return position_data
@@ -167,17 +172,22 @@ def get_ephemeris_by_name_jdstep():
     except ValidationError as e:
         abort(e.status_code, e.message)
 
-    position_data = generate_ephemeris_data(
-        satellite_repository,
-        tle_repository,
-        parameters["name"],
-        "name",
-        parameters["location"],
-        parameters["julian_dates"],
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        parameters["data_source"],
-    )
+    try:
+        position_data = generate_ephemeris_data(
+            satellite_repository,
+            tle_repository,
+            parameters["name"],
+            "name",
+            parameters["location"],
+            parameters["julian_dates"],
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            api_source,
+            api_version,
+            parameters["data_source"],
+        )
+    except DataError as e:
+        abort(e.status_code, e.message)
     session.close()
 
     return position_data
@@ -257,6 +267,8 @@ def get_ephemeris_by_catalog_number():
         parameters["julian_dates"],
         parameters["min_altitude"],
         parameters["max_altitude"],
+        api_source,
+        api_version,
         parameters["data_source"],
     )
     session.close()
@@ -335,17 +347,22 @@ def get_ephemeris_by_catalog_number_jdstep():
     except ValidationError as e:
         abort(e.status_code, e.message)
 
-    position_data = generate_ephemeris_data(
-        satellite_repository,
-        tle_repository,
-        parameters["catalog"],
-        "catalog_number",
-        parameters["location"],
-        parameters["julian_dates"],
-        parameters["min_altitude"],
-        parameters["max_altitude"],
-        parameters["data_source"],
-    )
+    try:
+        position_data = generate_ephemeris_data(
+            satellite_repository,
+            tle_repository,
+            parameters["catalog"],
+            "catalog_number",
+            parameters["location"],
+            parameters["julian_dates"],
+            parameters["min_altitude"],
+            parameters["max_altitude"],
+            api_source,
+            api_version,
+            parameters["data_source"],
+        )
+    except DataError as e:
+        abort(e.status_code, e.message)
     session.close()
 
     return position_data
@@ -415,6 +432,8 @@ def get_ephemeris_by_tle():
         parameters["julian_dates"],
         parameters["min_altitude"],
         parameters["max_altitude"],
+        api_source,
+        api_version,
     )
     session.close()
 
@@ -492,6 +511,8 @@ def get_ephemeris_by_tle_jdstep():
         parameters["julian_dates"],
         parameters["min_altitude"],
         parameters["max_altitude"],
+        api_source,
+        api_version,
     )
     session.close()
 

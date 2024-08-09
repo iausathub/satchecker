@@ -2,15 +2,14 @@ import re
 from datetime import timezone
 from typing import Any, List
 
+import api.common.error_messages as error_messages
 import astropy.units as u
 import numpy as np
+from api.common.exceptions import ValidationError
+from api.domain.models.satellite import Satellite
+from api.domain.models.tle import TLE
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
-
-import src.api.common.error_messages as error_messages
-from src.api.common.exceptions import ValidationError
-from src.api.domain.models.satellite import Satellite
-from src.api.domain.models.tle import TLE
 
 
 def extract_parameters(request, parameter_list):

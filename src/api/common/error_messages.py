@@ -17,6 +17,7 @@ INVALID_LOCATION = "Error: Invalid location parameters"
 INVALID_PARAMETER = "Error: Invalid parameter format"
 INVALID_JD = "Error: Invalid Julian Date"
 INVALID_SOURCE = "Error: Invalid data source"
+INVALID_TLE = "Error: Invalid TLE format"
 NO_TLE_FOUND = "Error: No TLE found"
 TOO_MANY_RESULTS = (
     "Error: Too many results to return (maximum of 1000 in a single request)"
