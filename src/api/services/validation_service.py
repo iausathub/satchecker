@@ -257,7 +257,7 @@ def parse_tle(tle):
         pattern = re.compile(r"\\n|\n")
         tle_data = pattern.split(tle)
     except Exception as e:
-        raise ValidationError(500, "Incorrect TLE format", e) from e
+        raise ValidationError(500, error_messages.INVALID_TLE, e) from e
 
     try:
         if len(tle_data) == 3:
@@ -275,9 +275,9 @@ def parse_tle(tle):
             or len(tle_line_1) != 69
             or len(tle_line_2) != 69
         ):
-            raise ValidationError(500, "Incorrect TLE format")
+            raise ValidationError(500, error_messages.INVALID_TLE)
     except Exception as e:
-        raise ValidationError(500, "Incorrect TLE format", e) from e
+        raise ValidationError(500, error_messages.INVALID_TLE, e) from e
 
     catalog = tle_line_1[2:7]
     satellite = Satellite(sat_number=catalog, sat_name=name)
