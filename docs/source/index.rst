@@ -58,9 +58,8 @@ or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
 .. toctree::
    :caption: Development
    :maxdepth: 2
-   :hidden:
 
-   modules
+   src.api
 
    release
    acknowledgements
