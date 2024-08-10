@@ -56,8 +56,9 @@ or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
    notebooks/demo.ipynb
 
 .. toctree::
-   :caption: Development
+   :caption: Development Documentation
    :maxdepth: 2
+   :hidden:
 
    src.api
 
