@@ -7,6 +7,7 @@ from api.utils.coordinate_systems import (
     ecef_to_enu,
     enu_to_az_el,
     icrf2radec,
+    is_illuminated,
     teme_to_ecef,
 )
 from api.utils.time_utils import jd_to_gst
@@ -22,8 +23,14 @@ from skyfield.nutationlib import iau2000b
 
 class SkyfieldPropagationStrategy:
     def propagate(
-        self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
-    ):
+        self,
+        julian_date: float,
+        tle_line_1: str,
+        tle_line_2: str,
+        latitude: float,
+        longitude: float,
+        elevation: float,
+    ) -> namedtuple:
         """
         Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
         to propagate satellite and observer states.
@@ -150,21 +157,9 @@ class SkyfieldPropagationStrategy:
         satsunn = satsun / np.linalg.norm(satsun)
         phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
 
-        # Is the satellite in Earth's Shadow?
-        r_parallel = np.dot(sat_gcrs, earthsunn) * earthsunn
-        r_tangential = sat_gcrs - r_parallel
-
-        illuminated = True
+        illuminated = is_illuminated(sat_gcrs, earthsunn)
 
         obs_gcrs = curr_pos.at(t).position.km
-
-        if np.linalg.norm(r_parallel) < 0:
-            # rearthkm
-            if np.linalg.norm(r_tangential) < 6370:
-                # print(np.linalg.norm(r_tangential),np.linalg.norm(r))
-                # yes the satellite is in Earth's shadow, no need to continue
-                # (except for the moon of course)
-                illuminated = False
         satellite_position = namedtuple(
             "satellite_position",
             [

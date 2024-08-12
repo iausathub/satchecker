@@ -78,5 +78,10 @@ html_css_files = [
     "custom.css",
 ]
 
+autodoc_default_options = {
+    "members": True,
+    "private-members": True,
+}
+
 autodoc_typehints = "signature"
 autodoc_class_signature = "separated"

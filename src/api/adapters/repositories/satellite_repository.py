@@ -55,6 +55,17 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         return self._to_domain(orm_satellite)
 
     def _get_norad_ids_from_satellite_name(self, name):
+        """
+        Retrieves the NORAD IDs and the date the satellite was added to SatChecker
+        for a given satellite name.
+
+        Args:
+            name (str): The name of the satellite.
+
+        Returns:
+            list of tuple: A list of tuples, each containing the NORAD ID, date added,
+            and a boolean indicating if it has the current satellite number.
+        """
         satellite_names_and_dates = (
             self.session.query(
                 SatelliteDb.sat_number,
@@ -71,6 +82,16 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         return satellite_names_and_dates
 
     def _get_satellite_names_from_norad_id(self, id):
+        """
+        Retrieves the names and dates of satellites associated with a given NORAD ID.
+
+        Args:
+            id (int): The NORAD ID of the satellite.
+
+        Returns:
+            list of tuple: A list of tuples, each containing the satellite name, date
+            added, and a boolean indicating if it has the current satellite number.
+        """
         satellite_names_and_dates = (
             self.session.query(
                 SatelliteDb.sat_name,

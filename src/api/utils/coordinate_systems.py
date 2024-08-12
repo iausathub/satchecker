@@ -296,6 +296,37 @@ def tle_to_icrf_state(tle_line_1, tle_line_2, jd):
         t = ts.ut1_jd(jd.jd)
 
     r = satellite.at(t).position.km
-    # print(satellite.at(t))
     v = satellite.at(t).velocity.km_per_s
+
     return np.concatenate(np.array([r, v]))
+
+
+def is_illuminated(sat_gcrs: np.array, earthsun_norm: np.array) -> bool:
+    """
+    Determines if a satellite is illuminated by the sun.
+
+    This function calculates the angle between the satellite and the sun to determine if
+    the satellite is illuminated.
+
+    Parameters:
+        sat_gcrs (np.array): The position of the satellite in the GCRS frame.
+        earthsun_norm (np.array): The normalized vector pointing from the Earth to the
+        Sun.
+
+    Returns:
+        bool: True if the satellite is illuminated, False otherwise.
+    """
+    # Is the satellite in Earth's Shadow?
+    r_parallel = np.dot(sat_gcrs, earthsun_norm) * earthsun_norm
+    r_tangential = sat_gcrs - r_parallel
+    illuminated = True
+
+    if np.linalg.norm(r_parallel) < 0:
+        # rearthkm
+        if np.linalg.norm(r_tangential) < 6370:
+            # print(np.linalg.norm(r_tangential),np.linalg.norm(r))
+            # yes the satellite is in Earth's shadow, no need to continue
+            # (except for the moon of course)
+            illuminated = False
+
+    return illuminated
