@@ -13,7 +13,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../api"))
+sys.path.insert(0, os.path.abspath("../../src"))
 sys.path.insert(0, os.path.abspath("../../"))
 
 on_rtd = os.environ.get("READTHEDOCS") == "True"
@@ -77,6 +77,11 @@ html_static_path = ["_static"]
 html_css_files = [
     "custom.css",
 ]
+
+autodoc_default_options = {
+    "members": True,
+    "private-members": True,
+}
 
 autodoc_typehints = "signature"
 autodoc_class_signature = "separated"

@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    image: satchecker-api:latest
+
+    ports:
+      - 8000:8000
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - redis
+      - celery
+
+  redis:
+    image: redis:latest
+    platform: linux/amd64
+    ports:
+      - '6379:6379'
+    expose:
+      - "6379"
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+      args:
+        SETTINGS: ${SETTINGS}
+    image: satchecker-celery:latest
+    platform: linux/amd64
+    depends_on:
+      - redis

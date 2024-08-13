@@ -23,7 +23,7 @@ classDiagram
         +Boolean is_supplemental
         +String data_source
         +DateTime epoch
-        +Satellite tle_satellite
+        +Satellite satellite
         +__init__(sat_id: int, date_collected: DateTime, tle_line1: String, tle_line2: String, is_supplemental: Boolean, epoch: DateTime, data_source: String): void
         +__repr__(): String
     }
