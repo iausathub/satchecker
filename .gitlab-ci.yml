@@ -15,7 +15,7 @@ include:
   before_script:
     - python -m pip install --upgrade pip
     - pip install pytest pytest-mock
-    - pip install -r api/requirements.txt;
+    - pip install -r src/api/requirements.txt;
   script:
     - pytest
   artifacts:
@@ -37,7 +37,7 @@ Dev API Test:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         paths:
-          - "api/**/*"
+          - "src/api/**/*"
 
 Dev API Build:
   extends: .build_image
@@ -45,13 +45,13 @@ Dev API Build:
   variables:
     REGISTRY_SUBPATH: "api-dev"
     CONTAINERFILE: "Dockerfile"
-    CONTAINER_CONTEXT: "api"
+    CONTAINER_CONTEXT: "src/api"
     ENVIRONMENT: "dev"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         paths:
-          - "api/**/*"
+          - "src/api/**/*"
 
 Dev API Push Tag:
   extends: .push_tag
@@ -64,7 +64,7 @@ Dev API Push Tag:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         paths:
-          - "api/**/*"
+          - "src/api/**/*"
 
 ####### PRODUCTION API #######
 
@@ -75,7 +75,7 @@ Prod API Test:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
-          - "api/**/*"
+          - "src/api/**/*"
 
 Prod API Build:
   extends: .build_image
@@ -83,13 +83,13 @@ Prod API Build:
   variables:
     REGISTRY_SUBPATH: "api-prod"
     CONTAINERFILE: "Dockerfile"
-    CONTAINER_CONTEXT: "api"
+    CONTAINER_CONTEXT: "src/api"
     ENVIRONMENT: "prod"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
-          - "api/**/*"
+          - "src/api/**/*"
 
 Prod API Push Tag:
   extends: .push_tag
@@ -102,7 +102,7 @@ Prod API Push Tag:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
-          - "api/**/*"
+          - "src/api/**/*"
 
 ####### DEVELOPMENT DATA #######
 
