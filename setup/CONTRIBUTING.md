@@ -4,7 +4,7 @@ Welcome to the SatChecker contributing guide! SatChecker is a tool for predictin
 
 Bug report/fixes, feature requests, and other contributions are welcome, and all issues and pull requests will be reviewed by a repo maintainer to ensure consistency with the project's scope and other guidelines.
 
-For any questions not answered here please email sathub@cps.iau.org or open an issue.
+For any questions not answered here please email sathub@cps.iau.org or open an issue. We are in the process of creating additional issues for the GitHub repo based off of known issues and changes to make, so that section is a work in progress.
 
 ## Getting Started
 1. Fork and clone the repository ([instructions](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo))
