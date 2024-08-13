@@ -16,8 +16,7 @@ include:
     - WORKDIR src
     - python -m pip install --upgrade pip
     - pip install pytest pytest-mock
-    - pip install -r api/requirements.txt;
-  working_dir: src
+    - pip install -r api/requirements.txt;s
   script:
     - pytest
   artifacts:
