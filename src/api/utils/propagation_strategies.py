@@ -380,19 +380,8 @@ class TestPropagationStrategy:
         satsunn = satsun / np.linalg.norm(satsun)
         phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
 
-        # Is the satellite in Earth's Shadow?
-        r_parallel = np.dot(sat, earthsunn) * earthsunn
-        r_tangential = sat - r_parallel
+        illuminated = is_illuminated(sat, earthsunn)
 
-        illuminated = True
-
-        if np.linalg.norm(r_parallel) < 0:
-            # rearthkm
-            if np.linalg.norm(r_tangential) < 6370:
-                # print(np.linalg.norm(r_tangential),np.linalg.norm(r))
-                # yes the satellite is in Earth's shadow, no need to continue
-                # (except for the moon of course)
-                illuminated = False
         satellite_position = namedtuple(
             "satellite_position",
             [
