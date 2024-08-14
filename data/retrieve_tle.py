@@ -23,6 +23,7 @@ import sys
 
 import psycopg2
 from psycopg2 import OperationalError
+from satellite_utils import get_decayed_satellites
 from tle_utils import (
     get_celestrak_general_tles,
     get_celestrak_supplemental_tles,
@@ -134,6 +135,7 @@ def main():
     ######################
     elif args.source.upper() == "SPACETRACK":
         get_spacetrack_tles(cursor, connection)
+        get_decayed_satellites(cursor, connection)
 
         connection.commit()
         cursor.close()

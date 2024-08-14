@@ -775,7 +775,6 @@ def test_get_norad_ids_from_name(client):
 
 
 def test_get_tle_data(client):
-
     # norad id as id
     response = requests.get(
         "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=25544&id_type=catalog",
