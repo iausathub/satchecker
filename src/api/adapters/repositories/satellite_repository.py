@@ -111,6 +111,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         orm_satellite = self._to_orm(satellite)
         self.session.add(orm_satellite)
 
+    # SQLAlchemyRepository-specific methods
     @staticmethod
     def _to_domain(orm_satellite):
         if orm_satellite is None:
