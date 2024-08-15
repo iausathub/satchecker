@@ -1,4 +1,6 @@
 # ruff: noqa: E501, S101, F841
+import pytest
+import redis
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.entrypoints.extensions import db
 
@@ -6,11 +8,22 @@ from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 
+def cannot_connect_to_redis():
+    try:
+        r = redis.Redis(host="localhost", port=6379, db=0)
+        r.ping()
+        return False
+    except redis.ConnectionError:
+        return True
+
+
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_name(client):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
     tle_repo = SqlAlchemyTLERepository(db.session)
     tle_repo.add(tle)
+    # test if it can connect to redis
 
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -18,6 +31,7 @@ def test_get_ephemeris_by_name(client):
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_name_jd_step(client):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
@@ -30,6 +44,7 @@ def test_get_ephemeris_by_name_jd_step(client):
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_catalog_number(client):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite)
@@ -42,6 +57,7 @@ def test_get_ephemeris_by_catalog_number(client):
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_by_catalog_number_jdstep(client):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite)
@@ -54,6 +70,7 @@ def test_get_ephemeris_by_catalog_number_jdstep(client):
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_no_tle(client):
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -80,6 +97,7 @@ def test_get_ephemeris_no_tle(client):
     assert "No TLE found" in response.text
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_data_from_tle(client):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -91,6 +109,7 @@ def test_get_ephemeris_data_from_tle(client):
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
 def test_get_ephemeris_data_from_tle_jdstep(client):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
