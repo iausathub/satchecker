@@ -15,7 +15,7 @@ include:
   before_script:
     - python -m pip install --upgrade pip
     - pip install pytest pytest-mock
-    - pip install -r api/requirements.txt;
+    - pip install -r src/api/requirements.txt;
   script:
     - export PYTHONPATH=src/
     - pytest
