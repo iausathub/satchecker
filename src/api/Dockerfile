@@ -9,10 +9,7 @@ RUN apt-get update && apt-get install -y gcc python3-dev openssl libssl-dev redi
 RUN apt-get install -y gosu
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY core core
-COPY utils utils
-COPY satchecker.py ./
-COPY start.sh ./
+COPY . .
 
 ENV FLASK_APP satchecker.py
 

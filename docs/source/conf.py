@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath("../../"))
 on_rtd = os.environ.get("READTHEDOCS") == "True"
 
 if on_rtd:
-    from api.core import app
+    from api import app
 
     app.config["CELERY"]["task_always_eager"] = True
 
