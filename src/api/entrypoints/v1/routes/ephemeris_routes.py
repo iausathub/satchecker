@@ -1,3 +1,5 @@
+from flask import abort, request
+
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import DataError, ValidationError
@@ -7,7 +9,6 @@ from api.services.ephemeris_service import (
     generate_ephemeris_data_user,
 )
 from api.services.validation_service import validate_parameters
-from flask import abort, request
 
 from . import api_main, api_source, api_v1, api_version
 

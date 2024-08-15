@@ -1,6 +1,13 @@
 from collections import namedtuple
 
 import numpy as np
+from astropy import units as u
+from astropy.coordinates import EarthLocation
+from astropy.time import Time, TimeDelta
+from sgp4.api import Satrec
+from skyfield.api import EarthSatellite, load, wgs84
+from skyfield.nutationlib import iau2000b
+
 from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
     calculate_current_position,
@@ -11,12 +18,6 @@ from api.utils.coordinate_systems import (
     teme_to_ecef,
 )
 from api.utils.time_utils import jd_to_gst
-from astropy import units as u
-from astropy.coordinates import EarthLocation
-from astropy.time import Time, TimeDelta
-from sgp4.api import Satrec
-from skyfield.api import EarthSatellite, load, wgs84
-from skyfield.nutationlib import iau2000b
 
 
 class SkyfieldPropagationStrategy:

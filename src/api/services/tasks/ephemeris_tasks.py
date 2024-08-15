@@ -1,6 +1,11 @@
 import logging
 from typing import Tuple
 
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
+from celery import chord
+from flask import current_app, has_app_context
+
 from api import celery
 from api.common.position_data_point import position_data_point
 
@@ -12,10 +17,6 @@ from api.utils.propagation_strategies import (
     SkyfieldPropagationStrategy,
     TestPropagationStrategy,
 )
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
-from celery import chord
-from flask import current_app, has_app_context
 
 logger = logging.getLogger(__name__)
 

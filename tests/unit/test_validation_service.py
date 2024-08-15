@@ -1,5 +1,7 @@
 # ruff: noqa: S101
 import pytest
+from flask import request
+
 from api.common.exceptions import ValidationError
 from api.services.validation_service import (
     extract_parameters,
@@ -7,7 +9,6 @@ from api.services.validation_service import (
     parse_tle,
     validate_parameters,
 )
-from flask import request
 
 
 def test_extract_parameters_success(app):

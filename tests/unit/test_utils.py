@@ -4,6 +4,9 @@ from datetime import datetime
 
 import numpy as np
 import pytest
+from astropy.time import Time
+from skyfield.api import wgs84
+
 from api.common.exceptions import ValidationError
 from api.utils import coordinate_systems, time_utils
 from api.utils.output_utils import position_data_to_json
@@ -11,8 +14,6 @@ from api.utils.propagation_strategies import (
     PropagationInfo,
     SkyfieldPropagationStrategy,
 )
-from astropy.time import Time
-from skyfield.api import wgs84
 
 
 def test_icrf2radec_degrees_unit():

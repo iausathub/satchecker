@@ -3,6 +3,17 @@ import logging
 import time
 
 import numpy as np
+from astropy import units as u
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord
+from astropy.time import Time
+from flask import current_app
+from sgp4.api import Satrec
+from skyfield.api import EarthSatellite, load
+from skyfield.framelib import itrs as sk_itrs
+from skyfield.nutationlib import iau2000b
+from skyfield.sgp4lib import TEME as sk_TEME  # noqa: N811
+from sqlalchemy import and_, func
+
 from api.celery_app import celery
 from api.domain import models
 from api.entrypoints.extensions import db
@@ -17,16 +28,6 @@ from api.utils.coordinate_systems import (
     teme_to_ecef,
 )
 from api.utils.time_utils import jd_to_gst
-from astropy import units as u
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord
-from astropy.time import Time
-from flask import current_app
-from sgp4.api import Satrec
-from skyfield.api import EarthSatellite, load
-from skyfield.framelib import itrs as sk_itrs
-from skyfield.nutationlib import iau2000b
-from skyfield.sgp4lib import TEME as sk_TEME  # noqa: N811
-from sqlalchemy import and_, func
 
 logger = logging.getLogger(__name__)
 

@@ -2,15 +2,15 @@
 from datetime import datetime
 
 import pytest
+from tests.conftest import FakeSatelliteRepository, FakeTLERepository
+from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.tle_factory import TLEFactory
+
 from api.services.tools_service import (
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_tle_data,
 )
-
-from tests.conftest import FakeSatelliteRepository, FakeTLERepository
-from tests.factories.satellite_factory import SatelliteFactory
-from tests.factories.tle_factory import TLEFactory
 
 
 def test_get_tle_data():

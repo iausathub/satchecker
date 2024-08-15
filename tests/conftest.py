@@ -4,14 +4,15 @@ import os
 from datetime import datetime
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from api import create_app
 from api.adapters.database_orm import Base
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.entrypoints.extensions import db as database
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
 os.environ["LOCAL_DB"] = "1"

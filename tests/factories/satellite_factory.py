@@ -2,7 +2,6 @@ import datetime
 
 import factory
 from faker import Faker
-
 from src.api.domain.models.satellite import Satellite
 
 faker = Faker()

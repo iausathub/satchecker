@@ -1,9 +1,9 @@
 # ruff: noqa: E501, S101, F841
-from api.adapters.repositories import satellite_repository, tle_repository
-from api.entrypoints.extensions import db
-
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
+
+from api.adapters.repositories import satellite_repository, tle_repository
+from api.entrypoints.extensions import db
 
 
 def test_get_tle_data(client):

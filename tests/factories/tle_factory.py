@@ -2,8 +2,8 @@ import datetime
 
 import factory
 from faker import Faker
-
 from src.api.domain.models.tle import TLE
+
 from tests.factories.satellite_factory import SatelliteFactory
 
 faker = Faker()

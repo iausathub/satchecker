@@ -1,3 +1,6 @@
+from flask import current_app as app
+from flask import jsonify, request
+
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.entrypoints.extensions import db, get_forwarded_address, limiter
@@ -7,8 +10,6 @@ from api.services.tools_service import (
     get_tle_data,
 )
 from api.services.validation_service import validate_parameters
-from flask import current_app as app
-from flask import jsonify, request
 
 from . import api_main, api_source, api_v1, api_version
 

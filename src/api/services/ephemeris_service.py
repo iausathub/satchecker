@@ -1,11 +1,12 @@
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
+
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.common import error_messages
 from api.common.exceptions import DataError
 from api.domain.models.tle import TLE
 from api.services.tasks.ephemeris_tasks import generate_position_data
-from astropy.coordinates import EarthLocation
-from astropy.time import Time
 
 
 def generate_ephemeris_data(

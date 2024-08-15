@@ -1,6 +1,5 @@
 # ruff: noqa: S101
 import pytest
-
 from tests.factories import TLEFactory
 
 

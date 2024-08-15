@@ -2,12 +2,13 @@ import abc
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm.exc import NoResultFound
+
 from api.adapters.database_orm import SatelliteDb, TLEDb
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.domain.models.satellite import Satellite as Satellite
 from api.domain.models.tle import TLE
-from sqlalchemy import and_, func, or_
-from sqlalchemy.orm.exc import NoResultFound
 
 
 class AbstractTLERepository(abc.ABC):

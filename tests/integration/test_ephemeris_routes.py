@@ -1,11 +1,11 @@
 # ruff: noqa: E501, S101, F841
 import pytest
 import redis
-from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.entrypoints.extensions import db
-
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
+
+from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.entrypoints.extensions import db
 
 
 def cannot_connect_to_redis():

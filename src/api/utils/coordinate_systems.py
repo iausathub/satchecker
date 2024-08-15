@@ -2,10 +2,11 @@ import functools
 from typing import Tuple  # noqa: I001
 
 import numpy as np
+from skyfield.api import EarthSatellite, load, wgs84
+
 from api.common import error_messages
 from api.common.exceptions import ValidationError
 from api.utils.time_utils import calculate_lst
-from skyfield.api import EarthSatellite, load, wgs84
 
 
 def teme_to_ecef(r_teme: list[float], theta_gst: float) -> np.ndarray:
