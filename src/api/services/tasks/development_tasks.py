@@ -18,11 +18,7 @@ from api.utils.coordinate_systems import (
 )
 from api.utils.time_utils import jd_to_gst
 from astropy import units as u
-from astropy.coordinates import (
-    AltAz,
-    EarthLocation,
-    SkyCoord,
-)
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.time import Time
 from flask import current_app
 from sgp4.api import Satrec

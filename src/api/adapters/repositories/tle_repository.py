@@ -3,9 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from api.adapters.database_orm import SatelliteDb, TLEDb
-from api.adapters.repositories.satellite_repository import (
-    SqlAlchemySatelliteRepository,
-)
+from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.domain.models.satellite import Satellite as Satellite
 from api.domain.models.tle import TLE
 from sqlalchemy import and_, func, or_

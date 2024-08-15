@@ -12,9 +12,7 @@ from api.utils.propagation_strategies import (
     SkyfieldPropagationStrategy,
     TestPropagationStrategy,
 )
-from astropy.coordinates import (
-    EarthLocation,
-)
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from celery import chord
 from flask import current_app, has_app_context

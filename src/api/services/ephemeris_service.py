@@ -1,6 +1,4 @@
-from api.adapters.repositories.satellite_repository import (
-    AbstractSatelliteRepository,
-)
+from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.common import error_messages
 from api.common.exceptions import DataError

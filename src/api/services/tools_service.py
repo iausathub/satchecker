@@ -1,8 +1,6 @@
 from datetime import datetime
 
-from api.adapters.repositories.satellite_repository import (
-    AbstractSatelliteRepository,
-)
+from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 
 
