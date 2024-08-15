@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+# TODO: Review default limits and see if they should be different for FOV and standard
+# ephemeris endpoints
 limiter = Limiter(
     key_func=get_remote_address, default_limits=["100 per second", "2000 per minute"]
 )
