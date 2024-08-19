@@ -137,7 +137,7 @@ def health():
     }
     try:
         response = requests.get(
-            "https://cps.iau.org/tools/satchecker/api/", headers=headers, timeout=10
+            "https://satchecker.cps.iau.org/", headers=headers, timeout=10
         )
         response.raise_for_status()
     except Exception as e:
