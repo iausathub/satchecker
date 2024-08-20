@@ -102,17 +102,21 @@ def position_data_to_json(
                 my_round(ra, precision_angles) if ra is not None else None,
                 my_round(dec, precision_angles) if dec is not None else None,
                 tle_date,
-                my_round(dracosdec, precision_angles)
-                if dracosdec is not None
-                else None,
+                (
+                    my_round(dracosdec, precision_angles)
+                    if dracosdec is not None
+                    else None
+                ),
                 my_round(ddec, precision_angles) if ddec is not None else None,
                 my_round(alt, precision_angles) if alt is not None else None,
                 my_round(az, precision_angles) if az is not None else None,
                 my_round(r, precision_range) if r is not None else None,
                 my_round(dr, precision_velocity) if dr is not None else None,
-                my_round(phaseangle, precision_angles)
-                if phaseangle is not None
-                else None,
+                (
+                    my_round(phaseangle, precision_angles)
+                    if phaseangle is not None
+                    else None
+                ),
                 illuminated,
                 data_source,
                 observer_gcrs,
