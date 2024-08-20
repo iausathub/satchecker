@@ -12,12 +12,71 @@ from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
     calculate_current_position,
     ecef_to_enu,
+    ecef_to_itrs,
     enu_to_az_el,
+    get_phase_angle,
     icrf2radec,
     is_illuminated,
+    itrs_to_gcrs,
     teme_to_ecef,
 )
 from api.utils.time_utils import jd_to_gst
+
+"""
+A named tuple containing the following fields:
+    ra (float):
+        The right ascension of the satellite relative to observer
+        coordinates in ICRS reference frame in degrees. Range of response
+        is [0, 360).
+    dec (float):
+        The declination of the satellite relative to observer
+        coordinates in ICRS reference frame in degrees. Range of response
+        is [-90, 90].
+    alt (float):
+        The altitude of the satellite relative to observer
+        coordinates in ICRS reference frame in degrees. Range of response
+        is [0, 90].
+    az (float):
+        The azimuth of the satellite relative to observer
+        coordinates in ICRS reference frame in degrees. Range of response
+        is [0, 360).
+    distance (float):
+        Range from observer to object in km.
+    dracosdec (float):
+        Rate of change of right ascension.
+    ddec (float):
+        Rate of change of declination.
+    ddistance (float):
+        Rate of change of distance.
+    phase_angle (float):
+        Phase angle between the satellite, observer, and the Sun.
+    illuminated (bool):
+        Whether the satellite is illuminated.
+    satellite_gcrs (list):
+        Satellite coordinates in GCRS.
+    observer_gcrs (list):
+        Observer coordinates in GCRS.
+    julian_date (float):
+        The input Julian date.
+"""
+satellite_position = namedtuple(
+    "satellite_position",
+    [
+        "ra",
+        "dec",
+        "dracosdec",
+        "ddec",
+        "alt",
+        "az",
+        "distance",
+        "ddistance",
+        "phase_angle",
+        "illuminated",
+        "satellite_gcrs",
+        "observer_gcrs",
+        "julian_date",
+    ],
+)
 
 
 class SkyfieldPropagationStrategy:
@@ -29,7 +88,7 @@ class SkyfieldPropagationStrategy:
         latitude: float,
         longitude: float,
         elevation: float,
-    ) -> namedtuple:
+    ) -> satellite_position:
         """
         Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
         to propagate satellite and observer states.
@@ -45,41 +104,7 @@ class SkyfieldPropagationStrategy:
                 the TLE epoch.
 
         Returns:
-            satellite_position: A tuple containing the following fields:
-                ra (float):
-                    The right ascension of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [0,360).
-                dec (float):
-                    The declination of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [-90,90].
-                alt (float):
-                    The altitude of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [0,90].
-                az (float):
-                    The azimuth of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [0,360).
-                distance (float):
-                    Range from observer to object in km.
-                dracosdec (float):
-                    Rate of change of right ascension.
-                ddec (float):
-                    Rate of change of declination.
-                ddistance (float):
-                    Rate of change of distance.
-                phase_angle (float):
-                    Phase angle between the satellite, observer, and the Sun.
-                illuminated (bool):
-                    Whether the satellite is illuminated.
-                satellite_gcrs (list):
-                    Satellite coordinates in GCRS.
-                observer_gcrs (list):
-                    Observer coordinates in GCRS.
-                julian_date (float):
-                    The input Julian date.
+            satellite_position: A named tuple containing the satellite position results
 
         """
 
@@ -144,39 +169,12 @@ class SkyfieldPropagationStrategy:
         # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
         # dracosdecv = drav * np.cos(dec.radians)
 
-        eph = load("de430t.bsp")
-        earth = eph["Earth"]
-        sun = eph["Sun"]
+        phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
 
-        earthp = earth.at(t).position.km
-        sunp = sun.at(t).position.km
-        earthsun = sunp - earthp
-        earthsunn = earthsun / np.linalg.norm(earthsun)
-        satsun = sat_gcrs - earthsun
-        satsunn = satsun / np.linalg.norm(satsun)
-        phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
-
-        illuminated = is_illuminated(sat_gcrs, earthsunn)
+        illuminated = is_illuminated(sat_gcrs, julian_date)
 
         obs_gcrs = curr_pos.at(t).position.km
-        satellite_position = namedtuple(
-            "satellite_position",
-            [
-                "ra",
-                "dec",
-                "dracosdec",
-                "ddec",
-                "alt",
-                "az",
-                "distance",
-                "ddistance",
-                "phase_angle",
-                "illuminated",
-                "satellite_gcrs",
-                "observer_gcrs",
-                "julian_date",
-            ],
-        )
+
         return satellite_position(
             ra._degrees,
             dec.degrees,
@@ -197,7 +195,7 @@ class SkyfieldPropagationStrategy:
 class SGP4PropagationStrategy:
     def propagate(
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
-    ):  # pragma: no cover
+    ) -> satellite_position:  # pragma: no cover
         """
         Propagates satellite and observer states using the SGP4 propagation model.
 
@@ -213,14 +211,9 @@ class SGP4PropagationStrategy:
                 the WGS84 ellipsoid.
 
         Returns:
-            tuple: A tuple containing the following elements:
-                - azimuth (float): Description of azimuth.
-                - elevation (float): Description of elevation.
-                - right ascension (float): Description of right ascension.
-                - declination (float): Description of declination.ion of the satellite.
+            satellite_position: A named tuple containing the satellite position results
         """
 
-        # new function
         # TODO:  SCK-62: pull out the observer location to a level above this so it
         # doesn't get recalculated every time
         observer_location = EarthLocation(
@@ -228,7 +221,7 @@ class SGP4PropagationStrategy:
         )
         location_itrs = observer_location.itrs.cartesian.xyz.value / 1000
 
-        # Compute the x, y coordinates of the CIP (Celestial Intermediate Pole)
+        # Compute the coordinates of the CIP (Celestial Intermediate Pole)
         dpsi, deps = iau2000b(julian_date)
 
         # Compute the nutation in longitude
@@ -237,23 +230,72 @@ class SGP4PropagationStrategy:
 
         location_itrs = np.array(location_itrs)
         theta_gst = jd_to_gst(julian_date, nutation)
+        obs_gcrs = observer_location.get_gcrs(obstime=Time(julian_date, format="jd"))
 
+        # Split Julian Date into integer and fractional parts for full accuracy
+        # See Usage note here: https://pypi.org/project/sgp4/
+        jd_int = int(julian_date)
+        jd_frac = julian_date - jd_int
+
+        # Propagate satellite
         satellite = Satrec.twoline2rv(tle_line_1, tle_line_2)
-        error, r, v = satellite.sgp4(julian_date, 0)
+        error, r, v = satellite.sgp4(jd_int, jd_frac)
 
         r_ecef = teme_to_ecef(r, theta_gst)
         difference = r_ecef - location_itrs
+        latitude = observer_location.lat.value
+        longitude = observer_location.lon.value
         r_enu = ecef_to_enu(difference, latitude, longitude)
-        az, el = enu_to_az_el(r_enu)
-        ra, dec = az_el_to_ra_dec(az, el, latitude, longitude, julian_date)
 
-        return az, el, ra, dec
+        # Az, Alt, RA, Dec
+        az, alt = enu_to_az_el(r_enu)
+        ra, dec = az_el_to_ra_dec(az, alt, latitude, longitude, julian_date)
+
+        # Convert ECEF to ITRS
+        r_itrs = ecef_to_itrs(r_ecef)
+
+        # Convert ITRS to GCRS
+        sat_gcrs = itrs_to_gcrs(r_itrs, julian_date)
+        topocentric_gcrs = itrs_to_gcrs(ecef_to_itrs(difference), julian_date)
+        topocentric_gcrs_norm = topocentric_gcrs / np.linalg.norm(topocentric_gcrs)
+
+        # phase angle
+        phase_angle = get_phase_angle(topocentric_gcrs_norm, sat_gcrs, julian_date)
+
+        illuminated = is_illuminated(sat_gcrs, julian_date)
+
+        # TODO: Implement distance, dracosdec, ddec, ddistance for SGP4
+        dracosdec = None
+        ddec = None
+        distance = None
+        ddistance = None
+
+        obs_gcrs = observer_location.get_gcrs_posvel(
+            obstime=Time(julian_date, format="jd")
+        )
+        obs_gcrs = obs_gcrs[0].xyz.value / 1000
+
+        return satellite_position(
+            ra,
+            dec,
+            dracosdec,
+            ddec,
+            alt,
+            az,
+            distance,
+            ddistance,
+            phase_angle,
+            illuminated,
+            sat_gcrs.tolist() if sat_gcrs is not None else None,
+            obs_gcrs.tolist() if obs_gcrs is not None else None,
+            julian_date,
+        )
 
 
 class TestPropagationStrategy:
     def propagate(
         self, julian_date, tle_line_1, tle_line_2, latitude, longitude, elevation
-    ):  # pragma: no cover
+    ) -> satellite_position:  # pragma: no cover
         """
         Propagates satellite and observer states using a test method
 
@@ -274,37 +316,7 @@ class TestPropagationStrategy:
                 the WGS84 ellipsoid.
 
         Returns:
-            satellite_position: A namedtuple containing the following fields:
-                ra (float):
-                    The right ascension of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [0,360).
-                dec (float): The declination of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [-90,90].
-                dracosdec (float):
-                    The rate of change of right ascension.
-                ddec (float):
-                    The rate of change of declination.
-                alt (float):
-                    The altitude of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [0,90].
-                az (float):
-                    The azimuth of the satellite relative to observer
-                    coordinates in ICRS reference frame in degrees. Range of response
-                    is [0,360).
-                distance (float):
-                    Range from observer to object in km.
-                ddistance (float):
-                    The rate of change of the distance from the observer
-                    to the object.
-                phase_angle (float): The phase angle between the satellite, observer,
-                    and the Sun.
-                illuminated (bool):
-                    Whether the satellite is illuminated by the Sun.
-                jd (float):
-                    The Julian Date at which the satellite was propagated.
+            satellite_position: A namedtuple containing the satellite position results
         """
 
         # This is the skyfield implementation
@@ -381,22 +393,6 @@ class TestPropagationStrategy:
 
         illuminated = is_illuminated(sat, earthsunn)
 
-        satellite_position = namedtuple(
-            "satellite_position",
-            [
-                "ra",
-                "dec",
-                "dracosdec",
-                "ddec",
-                "alt",
-                "az",
-                "distance",
-                "ddistance",
-                "phase_angle",
-                "illuminated",
-                "jd",
-            ],
-        )
         return satellite_position(
             ra._degrees,
             dec.degrees,
