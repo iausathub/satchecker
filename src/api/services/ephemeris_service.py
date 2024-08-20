@@ -21,6 +21,7 @@ def generate_ephemeris_data(
     api_source: str,
     api_version: str,
     data_source: str = "",
+    propagation_method: str = "skyfield",
 ) -> list[dict]:
 
     #  get TLE from repository
@@ -52,6 +53,7 @@ def generate_ephemeris_data(
             api_version,
             tle.satellite.sat_number,
             tle.data_source,
+            propagation_method,
         ]
     )
     result_list = result_list_task.get()

@@ -86,6 +86,7 @@ def generate_position_data(
     api_version: str,
     catalog_id: str = "",
     data_source: str = "",
+    propagation_strategy: str = "skyfield",
 ) -> list[dict]:
     """
     Create a list of results for a given satellite and date range.
@@ -108,12 +109,18 @@ def generate_position_data(
     Returns:
         list[dict]: A list of results for the given satellite and date range.
     """
-    # location_itrs = location.itrs.cartesian.xyz.value / 1000
     # Create a chord that will propagate the satellite for
     # each date and then process the results
+    if propagation_strategy == "sgp4":
+        method = propagate_satellite_sgp4
+    elif propagation_strategy == "skyfield":
+        method = propagate_satellite_skyfield
+    else:
+        raise ValueError(f"Invalid propagation strategy: {propagation_strategy}")
+
     tasks = chord(
         (
-            propagate_satellite_skyfield.s(
+            method.s(
                 tle_line_1,
                 tle_line_2,
                 location.lat.value,
@@ -163,7 +170,6 @@ def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
     return propagation_info.propagate()
 
 
-# Only returns azimuth and altitude for quick calulations
 @celery.task
 def propagate_satellite_sgp4(
     tle_line_1, tle_line_2, lat, long, height, jd

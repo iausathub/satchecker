@@ -3,12 +3,18 @@ from typing import Tuple  # noqa: I001
 
 import numpy as np
 from skyfield.api import EarthSatellite, load, wgs84
+from skyfield.nutationlib import iau2000b
+from skyfield.timelib import Time
 
 from api.common import error_messages
 from api.common.exceptions import ValidationError
-from api.utils.time_utils import calculate_lst
+from api.utils.time_utils import calculate_lst, jd_to_gst
 
 
+# TODO: Verify if teme_to_ecef is correct
+# The results of this function in combination with the other coordinate system updates
+# for SGP4 give results similar to, but not identical to, the Skyfield results, so each
+# new conversion needs to be individually verified
 def teme_to_ecef(r_teme: list[float], theta_gst: float) -> np.ndarray:
     """
     Convert TEME (True Equator, Mean Equinox) coordinates to ECEF (Earth-Centered,
@@ -39,6 +45,10 @@ def teme_to_ecef(r_teme: list[float], theta_gst: float) -> np.ndarray:
     return r_ecef
 
 
+# TODO: Verify if ecef_to_enu is correct
+# The results of this function in combination with the other coordinate system updates
+# for SGP4 give results similar to, but not identical to, the Skyfield results, so each
+# new conversion needs to be individually verified
 def ecef_to_enu(r_ecef: list[float], lat: float, lon: float) -> np.ndarray:
     """
     Convert ECEF (Earth-Centered, Earth-Fixed) coordinates to ENU (East, North, Up)
@@ -74,6 +84,66 @@ def ecef_to_enu(r_ecef: list[float], lat: float, lon: float) -> np.ndarray:
     return r_enu
 
 
+# TODO: Verify if ecef_to_itrs is correct/necessary
+# Not sure if the flattening of the Earth is necessary or not - if not this
+# function can be removed
+def ecef_to_itrs(r_ecef):
+    """
+    Converts coordinates from Earth-Centered, Earth-Fixed (ECEF) to International
+    Terrestrial Reference System (ITRS). The conversion takes into account the
+    flattening of the Earth.
+
+    Args:
+        r_ecef (np.ndarray): A numpy array representing the coordinates in the
+        ECEF system.
+
+    Returns:
+        np.ndarray: A numpy array representing the coordinates in the ITRS system.
+    """
+    # Convert ECEF to ITRS
+    r_itrs = np.zeros_like(r_ecef)
+    r_itrs[0] = r_ecef[0] / (1 + 1 / 298.257223563)  # a / (1 + 1 / f)
+    r_itrs[1] = r_ecef[1]
+    r_itrs[2] = r_ecef[2]
+    return r_itrs
+
+
+# TODO: Verify if itrs_to_gcrs is correct
+# The results of this function in combination with the other coordinate system updates
+# for SGP4 give results similar to, but not identical to, the Skyfield results, so each
+# new conversion needs to be individually verified
+def itrs_to_gcrs(r_itrs, julian_date):
+    """
+    Converts coordinates from the International Terrestrial Reference System (ITRS)
+    to the Geocentric Celestial Reference System (GCRS).
+
+    The conversion takes into account the nutation and the Greenwich Sidereal Time
+    (GST) at the given Julian date.
+
+    Args:
+        r_itrs (np.ndarray): A numpy array representing the coordinates in the ITRS
+                             system.
+        julian_date (float): The Julian date at which to perform the conversion.
+
+    Returns:
+        np.ndarray: A numpy array representing the coordinates in the GCRS system.
+    """
+    # Convert ITRS to GCRS
+    r_gcrs = np.zeros_like(r_itrs)
+    dpsi, deps = iau2000b(julian_date)
+    nutation_arcsec = dpsi / 10000000  # Convert from arcseconds to degrees
+    nutation = nutation_arcsec / 3600
+    theta_gst = jd_to_gst(julian_date, nutation)
+    r_gcrs[0] = r_itrs[0] * np.cos(theta_gst) - r_itrs[1] * np.sin(theta_gst)
+    r_gcrs[1] = r_itrs[0] * np.sin(theta_gst) + r_itrs[1] * np.cos(theta_gst)
+    r_gcrs[2] = r_itrs[2]
+    return r_gcrs
+
+
+# TODO: Verify if enu_to_az_el is correct
+# The results of this function in combination with the other coordinate system updates
+# for SGP4 give results similar to, but not identical to, the Skyfield results, so each
+# new conversion needs to be individually verified
 def enu_to_az_el(r_enu: np.ndarray) -> Tuple[float, float]:
     """
     Convert ENU (East, North, Up) coordinates to azimuth and elevation.
@@ -102,6 +172,10 @@ def enu_to_az_el(r_enu: np.ndarray) -> Tuple[float, float]:
     return np.rad2deg(az), np.rad2deg(el)
 
 
+# TODO: Verify if ecef_to_eci is correct
+# The results of this function in combination with the other coordinate system updates
+# for SGP4 give results similar to, but not identical to, the Skyfield results, so each
+# new conversion needs to be individually verified
 def ecef_to_eci(r_ecef: list[float], theta_gst: float) -> np.ndarray:
     """
     Convert ECEF (Earth-Centered, Earth-Fixed) coordinates to ECI (Earth-Centered
@@ -135,6 +209,10 @@ def ecef_to_eci(r_ecef: list[float], theta_gst: float) -> np.ndarray:
     return r_eci
 
 
+# TODO: Verify if az_el_to_ra_dec is correct
+# The results of this function in combination with the other coordinate system updates
+# for SGP4 give results similar to, but not identical to, the Skyfield results, so each
+# new conversion needs to be individually verified
 def az_el_to_ra_dec(
     az: float, el: float, lat: float, lon: float, jd: float
 ) -> Tuple[float, float]:
@@ -302,7 +380,7 @@ def tle_to_icrf_state(tle_line_1, tle_line_2, jd):
     return np.concatenate(np.array([r, v]))
 
 
-def is_illuminated(sat_gcrs: np.array, earthsun_norm: np.array) -> bool:
+def is_illuminated(sat_gcrs: np.array, julian_date: float) -> bool:
     """
     Determines if a satellite is illuminated by the sun.
 
@@ -317,6 +395,10 @@ def is_illuminated(sat_gcrs: np.array, earthsun_norm: np.array) -> bool:
     Returns:
         bool: True if the satellite is illuminated, False otherwise.
     """
+    earthp, sunp = get_earth_sun_positions(julian_date)
+    earthsun = sunp - earthp
+    earthsun_norm = earthsun / np.linalg.norm(earthsun)
+
     # Is the satellite in Earth's Shadow?
     r_parallel = np.dot(sat_gcrs, earthsun_norm) * earthsun_norm
     r_tangential = sat_gcrs - r_parallel
@@ -331,3 +413,82 @@ def is_illuminated(sat_gcrs: np.array, earthsun_norm: np.array) -> bool:
             illuminated = False
 
     return illuminated
+
+
+@functools.cache
+def load_earth_sun() -> tuple:
+    """
+    Loads the Earth and Sun ephemeris data from the DE430t.bsp file.
+
+    This function uses the Skyfield library to load the ephemeris data for Earth and Sun
+    from the DE430t.bsp file. The loaded data is cached to improve performance on
+    subsequent calls.
+
+    Returns:
+        tuple: A tuple containing the Earth and Sun objects from the ephemeris data.
+    """
+    eph = load("de430t.bsp")
+    earth = eph["Earth"]
+    sun = eph["Sun"]
+    return earth, sun
+
+
+@functools.lru_cache(maxsize=128)
+def get_earth_sun_positions(t: float | Time) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Computes the positions of Earth and Sun at a given time.
+
+    This function uses Skyfield to get the positions of Earth and Sun
+    in kilometers at a specified time.
+    The time can be provided either as a float representing Julian date or as a Skyfield
+    Time object.
+    The results are cached to improve performance on subsequent calls.
+
+    Args:
+        t (float | Time): The time at which to compute the positions. Can be a float
+                          representing Julian date or a Skyfield Time object.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing two numpy arrays representing
+                                       the positions of Earth and Sun in kilometers.
+    """
+    if not isinstance(t, Time):
+        ts = load.timescale()
+        time = ts.ut1_jd(t)
+    else:
+        time = t
+
+    earth, sun = load_earth_sun()
+    earthp = earth.at(time).position.km
+    sunp = sun.at(time).position.km
+    return earthp, sunp
+
+
+def get_phase_angle(
+    topocentric_gcrs_norm: np.array, sat_gcrs: np.array, julian_date: float
+) -> float:
+    """
+    Computes the phase angle between a satellite and the Sun as seen from Earth.
+
+    This function calculates the phase angle, which is the angle between the vector
+    from the satelliteto the Sun and the vector from the satellite to the Earth.
+    The phase angle is useful in determining the illumination of the satellite.
+
+    Args:
+        topocentric_gcrs_norm (np.array): Normalized vector representing the
+                                          topocentric position in GCRS coordinates.
+        sat_gcrs (np.array): Vector representing the satellite's position in
+                             GCRS coordinates.
+        julian_date (float): The Julian date at which to compute the phase angle.
+
+    Returns:
+        float: The phase angle in degrees.
+    """
+    earthp, sunp = get_earth_sun_positions(julian_date)
+    earthsun = sunp - earthp
+
+    satsun = sat_gcrs - earthsun
+    satsunn = satsun / np.linalg.norm(satsun)
+
+    phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentric_gcrs_norm)))
+    return phase_angle

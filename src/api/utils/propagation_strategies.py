@@ -12,9 +12,12 @@ from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
     calculate_current_position,
     ecef_to_enu,
+    ecef_to_itrs,
     enu_to_az_el,
+    get_phase_angle,
     icrf2radec,
     is_illuminated,
+    itrs_to_gcrs,
     teme_to_ecef,
 )
 from api.utils.time_utils import jd_to_gst
@@ -166,19 +169,9 @@ class SkyfieldPropagationStrategy:
         # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
         # dracosdecv = drav * np.cos(dec.radians)
 
-        eph = load("de430t.bsp")
-        earth = eph["Earth"]
-        sun = eph["Sun"]
+        phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
 
-        earthp = earth.at(t).position.km
-        sunp = sun.at(t).position.km
-        earthsun = sunp - earthp
-        earthsunn = earthsun / np.linalg.norm(earthsun)
-        satsun = sat_gcrs - earthsun
-        satsunn = satsun / np.linalg.norm(satsun)
-        phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentricn)))
-
-        illuminated = is_illuminated(sat_gcrs, earthsunn)
+        illuminated = is_illuminated(sat_gcrs, julian_date)
 
         obs_gcrs = curr_pos.at(t).position.km
 
@@ -221,7 +214,6 @@ class SGP4PropagationStrategy:
             satellite_position: A named tuple containing the satellite position results
         """
 
-        # new function
         # TODO:  SCK-62: pull out the observer location to a level above this so it
         # doesn't get recalculated every time
         observer_location = EarthLocation(
@@ -229,7 +221,7 @@ class SGP4PropagationStrategy:
         )
         location_itrs = observer_location.itrs.cartesian.xyz.value / 1000
 
-        # Compute the x, y coordinates of the CIP (Celestial Intermediate Pole)
+        # Compute the coordinates of the CIP (Celestial Intermediate Pole)
         dpsi, deps = iau2000b(julian_date)
 
         # Compute the nutation in longitude
@@ -238,7 +230,9 @@ class SGP4PropagationStrategy:
 
         location_itrs = np.array(location_itrs)
         theta_gst = jd_to_gst(julian_date, nutation)
+        obs_gcrs = observer_location.get_gcrs(obstime=Time(julian_date, format="jd"))
 
+        # Propagate satellite
         satellite = Satrec.twoline2rv(tle_line_1, tle_line_2)
         error, r, v = satellite.sgp4(julian_date, 0)
 
@@ -247,17 +241,34 @@ class SGP4PropagationStrategy:
         latitude = observer_location.lat.value
         longitude = observer_location.lon.value
         r_enu = ecef_to_enu(difference, latitude, longitude)
+
+        # Az, Alt, RA, Dec
         az, alt = enu_to_az_el(r_enu)
         ra, dec = az_el_to_ra_dec(az, alt, latitude, longitude, julian_date)
 
+        # Convert ECEF to ITRS
+        r_itrs = ecef_to_itrs(r_ecef)
+
+        # Convert ITRS to GCRS
+        sat_gcrs = itrs_to_gcrs(r_itrs, julian_date)
+        topocentric_gcrs = itrs_to_gcrs(ecef_to_itrs(difference), julian_date)
+        topocentric_gcrs_norm = topocentric_gcrs / np.linalg.norm(topocentric_gcrs)
+
+        # phase angle
+        phase_angle = get_phase_angle(topocentric_gcrs_norm, sat_gcrs, julian_date)
+
+        illuminated = is_illuminated(sat_gcrs, julian_date)
+
+        # TODO: Implement distance, dracosdec, ddec, ddistance for SGP4
         dracosdec = None
         ddec = None
         distance = None
         ddistance = None
-        phase_angle = None
-        illuminated = None
-        sat_gcrs = None
-        obs_gcrs = None
+
+        obs_gcrs = observer_location.get_gcrs_posvel(
+            obstime=Time(julian_date, format="jd")
+        )
+        obs_gcrs = obs_gcrs[0].xyz.value / 1000
 
         return satellite_position(
             ra,
@@ -266,15 +277,14 @@ class SGP4PropagationStrategy:
             ddec,
             alt,
             az,
-            distance.km,
+            distance,
             ddistance,
             phase_angle,
             illuminated,
-            sat_gcrs.tolist(),
-            obs_gcrs.tolist(),
+            sat_gcrs.tolist() if sat_gcrs is not None else None,
+            obs_gcrs.tolist() if obs_gcrs is not None else None,
             julian_date,
         )
-        # return az, el, ra, dec
 
 
 class TestPropagationStrategy:
