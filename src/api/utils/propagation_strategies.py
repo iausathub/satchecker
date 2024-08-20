@@ -232,9 +232,14 @@ class SGP4PropagationStrategy:
         theta_gst = jd_to_gst(julian_date, nutation)
         obs_gcrs = observer_location.get_gcrs(obstime=Time(julian_date, format="jd"))
 
+        # Split Julian Date into integer and fractional parts for full accuracy
+        # See Usage note here: https://pypi.org/project/sgp4/
+        jd_int = int(julian_date)
+        jd_frac = julian_date - jd_int
+
         # Propagate satellite
         satellite = Satrec.twoline2rv(tle_line_1, tle_line_2)
-        error, r, v = satellite.sgp4(julian_date, 0)
+        error, r, v = satellite.sgp4(jd_int, jd_frac)
 
         r_ecef = teme_to_ecef(r, theta_gst)
         difference = r_ecef - location_itrs
