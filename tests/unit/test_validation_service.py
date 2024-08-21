@@ -1,4 +1,6 @@
 # ruff: noqa: S101
+from datetime import datetime, timezone
+
 import pytest
 from flask import request
 
@@ -162,6 +164,19 @@ def test_validate_parameters_invalid_jd(app):
             )
 
 
+def test_validate_parameters_invalid_id_type(app):
+    with app.test_request_context(
+        "/?id=1&id_type=invalid&start_date_jd=2459000&end_date_jd=2459001"
+    ):
+        parameter_list = ["id", "id_type", "start_date_jd", "end_date_jd"]
+        required_parameters = ["id", "id_type"]
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
 def test_validate_parameters_too_many_times(app):
     with app.test_request_context(
         "/?latitude=1&longitude=2&elevation=3&startjd=2459000&stopjd=2459001&stepjd=0.000001"
@@ -201,6 +216,71 @@ def test_validate_parameters_invalid_data_source(app):
         required_parameters = []
 
         with pytest.raises(ValidationError, match="Invalid data source"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_tle(app):
+    # valid TLE
+    with app.test_request_context(
+        "/?elevation=150&longitude=-110&julian_date=2459000.5&tle=ISS (ZARYA) \\n \
+            1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
+            2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
+    ):
+        parameter_list = [
+            "elevation",
+            "longitude",
+            "julian_date",
+            "tle",
+        ]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["tle"] is not None
+
+
+def test_validate_parameters_name(app):
+    with app.test_request_context("/?name=test"):
+        parameter_list = ["name"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["name"] == "TEST"
+
+
+def test_start_end_date_jd(app):
+    with app.test_request_context("/?start_date_jd=2459000&end_date_jd=2459001"):
+        parameter_list = ["start_date_jd", "end_date_jd"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["start_date_jd"] == datetime(
+            2020, 5, 30, 12, 0, tzinfo=timezone.utc
+        )
+        assert parameters["end_date_jd"] == datetime(
+            2020, 5, 31, 12, 0, tzinfo=timezone.utc
+        )
+
+
+def test_start_end_date_jd_invalid(app):
+    with app.test_request_context("/?start_date_jd=invalid&end_date_jd=2459001"):
+        parameter_list = ["start_date_jd", "end_date_jd"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError):
+            parameters = validate_parameters(
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("/?start_date_jd=2459000&end_date_jd=invalid"):
+        parameter_list = ["start_date_jd", "end_date_jd"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError):
             parameters = validate_parameters(  # noqa: F841
                 request, parameter_list, required_parameters
             )
@@ -277,6 +357,10 @@ def test_parse_tle_invalid_format():
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751"
+    with pytest.raises(ValidationError, match="Invalid TLE format"):
+        parse_tle(tle)
+
+    tle = None
     with pytest.raises(ValidationError, match="Invalid TLE format"):
         parse_tle(tle)
 

@@ -250,11 +250,11 @@ def parse_tle(tle):
         >>> print(tle)
         TLE(tle_line1='1 25544U 98067A   21275.48835648  .00002182  00000-0  51170-4 0  9993', tle_line2='2 25544  51.6442  21.4776 0003887  45.3456  314.6567 15.48815347275345', date_collected=None, name=None, catalog='2554', data_source='user')
     """  # noqa: E501
-    # parse url encoded parameter to string to remove space encoding
-    tle = tle.replace("%20", " ")
-
-    # split string into three lines based on url encoded space character
     try:
+        # parse url encoded parameter to string to remove space encoding
+        tle = tle.replace("%20", " ")
+
+        # split string into three lines based on url encoded space character
         pattern = re.compile(r"\\n|\n")
         tle_data = pattern.split(tle)
     except Exception as e:
