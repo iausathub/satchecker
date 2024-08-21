@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 @celery.task
 def process_results(
-    tles: list[Tuple[float, float]],
+    data_points: list[Tuple[float, float]],
     min_altitude: float,
     max_altitude: float,
     date_collected: str,
@@ -34,13 +34,13 @@ def process_results(
     api_version: str,
 ) -> list[position_data_point]:
     """
-    Process the results of the TLE data.
+    Process the results of the satellite propagation.
 
-    This function filters the TLE data based on the altitude range and adds the
-    remaining metadata to the results.
+    This function filters the satellite position data based on the altitude range and
+    adds the remaining metadata to the results.
 
     Args:
-        tles (list[Tuple[float, float]]): The TLE data.
+        data_points (list[Tuple[float, float]]): The satellite position results.
         min_altitude (float): The minimum altitude.
         max_altitude (float): The maximum altitude.
         date_collected (str): The date the data was collected.
@@ -54,7 +54,9 @@ def process_results(
     if has_app_context():
         current_app.logger.info("process results started")
     # Filter out results that are not within the altitude range
-    results = [result for result in tles if min_altitude <= result[4] <= max_altitude]
+    results = [
+        result for result in data_points if min_altitude <= result[4] <= max_altitude
+    ]
 
     if not results:
         return {
