@@ -17,25 +17,25 @@ Retrieve any NORAD ID(s) associated with a satellite name
 
         .. tab:: Browser
 
-            https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/?name=STARLINK-1600
+            https://satchecker.cps.iau.org/tools/norad-ids-from-name/?name=STARLINK-1600
 
         .. code-tab:: Python
 
             import requests
             import json
 
-            url = 'https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/'
+            url = 'https://satchecker.cps.iau.org/tools/norad-ids-from-name/'
             params = {'name': 'STARLINK-1600'}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
         .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/?name=STARLINK-1600" -H "accept: application/json"
+            curl -X GET "https://satchecker.cps.iau.org/tools/norad-ids-from-name/?name=STARLINK-1600" -H "accept: application/json"
 
         .. code-tab:: Powershell
 
-            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/?name=STARLINK-1600" -H "accept: application/json"
+            curl.exe -X GET "https://satchecker.cps.iau.org/tools/norad-ids-from-name/?name=STARLINK-1600" -H "accept: application/json"
 
 **Example Response**
 
@@ -66,25 +66,25 @@ Retrieve any satellite names associated with a NORAD ID
 
         .. tab:: Browser
 
-            https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/?id=59582
+            https://satchecker.cps.iau.org/tools/names-from-norad-id/?id=59582
 
         .. code-tab:: Python
 
             import requests
             import json
 
-            url = 'https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/'
+            url = 'https://satchecker.cps.iau.org/tools/names-from-norad-id/'
             params = {'id': '59582'}
             r = requests.get(url, params=params)
             print(json.dumps(r.json(), indent=4))
 
         .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/?id=59582" -H "accept: application/json"
+            curl -X GET "https://satchecker.cps.iau.org/tools/names-from-norad-id/?id=59582" -H "accept: application/json"
 
         .. code-tab:: Powershell
 
-            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/?id=59582" -H "accept: application/json"
+            curl.exe -X GET "https://satchecker.cps.iau.org/tools/names-from-norad-id/?id=59582" -H "accept: application/json"
 
 **Example Response**
 
@@ -129,14 +129,14 @@ Retrieve raw TLE data for a satellite over a given time period
 
         .. tab:: Browser
 
-            https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427
+            https://satchecker.cps.iau.org/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427
 
         .. code-tab:: Python
 
             import requests
             import json
 
-            url = 'https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/'
+            url = 'https://satchecker.cps.iau.org/tools/get-tle-data/'
             params = {'id': '25544',
                       'id_type': 'catalog',
                       'start_date_jd': '2460425',
@@ -148,11 +148,11 @@ Retrieve raw TLE data for a satellite over a given time period
 
         .. code-tab:: Bash
 
-            curl -X GET "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427" -H "accept: application/json"
+            curl -X GET "https://satchecker.cps.iau.org/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427" -H "accept: application/json"
 
         .. code-tab:: Powershell
 
-            curl.exe -X GET "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427" -H "accept: application/json"
+            curl.exe -X GET "https://satchecker.cps.iau.org/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427" -H "accept: application/json"
 
 **Example Response**
 

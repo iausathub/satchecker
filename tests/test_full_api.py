@@ -9,7 +9,7 @@ assert_precision = 0.0000000001
 def disabled_test_get_ephemeris_by_name(client):
     # correct request
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -17,7 +17,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # elevation missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&latitude=32&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&latitude=32&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response has the correct status code
@@ -27,7 +27,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # name missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/name/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -37,7 +37,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # latitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -48,7 +48,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # longitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -58,7 +58,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # julian_date missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -68,7 +68,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # with min_altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -76,7 +76,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # with max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -84,7 +84,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # with min and max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -92,14 +92,14 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # with data_source (both)
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=celestrak",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=celestrak",
         timeout=10,
     )
     # Check that the response was returned without error
     assert response.status_code == 200
 
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=spacetrack",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=spacetrack",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -107,7 +107,7 @@ def disabled_test_get_ephemeris_by_name(client):
 
     # verify response data
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/name/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
     data = response.json()["data"]
@@ -165,7 +165,7 @@ def disabled_test_get_ephemeris_by_name(client):
 def disabled_test_get_ephemeris_by_catalog_number(client):
     # correct request
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -173,7 +173,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # elevation missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&latitude=32&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&latitude=32&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response has the correct status code
@@ -183,7 +183,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # catalog number missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -193,7 +193,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # latitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&longitude=-110&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&longitude=-110&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -203,7 +203,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # longitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&julian_date=2460193.104167",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&julian_date=2460193.104167",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -213,7 +213,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # julian_date missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -223,7 +223,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # with min_altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -231,7 +231,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # with max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -239,7 +239,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # with min and max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -247,14 +247,14 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 
     # with data_source (both)
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=celestrak",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=celestrak",
         timeout=10,
     )
     # Check that the response was returned without error
     assert response.status_code == 200
 
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=spacetrack",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number/?catalog=25544&elevation=150&latitude=32&longitude=-110&julian_date=2460193.104167&min_altitude=-90&data_source=spacetrack",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -264,7 +264,7 @@ def disabled_test_get_ephemeris_by_catalog_number(client):
 def disabled_test_get_ephemeris_by_name_jdstep(client):
     # correct request
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -272,7 +272,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # elevation missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response has the correct status code
@@ -282,7 +282,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # name missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -292,7 +292,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # latitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -302,7 +302,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # longitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -312,7 +312,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # startjd missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -322,7 +322,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # stopjd missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -332,7 +332,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # with min_altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -340,7 +340,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # with max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -348,7 +348,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # with min and max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -356,14 +356,14 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 
     # with data_source (both)
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=celestrak",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=celestrak",
         timeout=10,
     )
     # Check that the response was returned without error
     assert response.status_code == 200
 
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=spacetrack",
+        "https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name=ISS%20(ZARYA)&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=spacetrack",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -373,7 +373,7 @@ def disabled_test_get_ephemeris_by_name_jdstep(client):
 def disabled_test_get_ephemeris_by_catalog_jdstep(client):
     # correct request
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -381,7 +381,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # elevation missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response has the correct status code
@@ -391,7 +391,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # catalog id missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -401,7 +401,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # latitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -411,7 +411,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # longitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -421,7 +421,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # startjd missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&stopjd=2460194.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&stopjd=2460194.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -431,7 +431,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # stopjd missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with correct error
@@ -439,7 +439,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # with min_altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -447,7 +447,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # with max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -455,7 +455,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # with min and max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -463,14 +463,14 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 
     # with data_source (both)
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=celestrak",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=celestrak",
         timeout=10,
     )
     # Check that the response was returned without error
     assert response.status_code == 200
 
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=spacetrack",
+        "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/?catalog=25544&elevation=150&latitude=32&longitude=-110&startjd=2460193.104167&stopjd=2460194.104167&stepjd=0.1&min_altitude=-90&data_source=spacetrack",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -480,7 +480,7 @@ def disabled_test_get_ephemeris_by_catalog_jdstep(client):
 def disabled_test_get_ephemeris_by_tle(client):
     # correct request
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -488,7 +488,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # elevation missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&julian_date=2460000.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&julian_date=2460000.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response has the correct status code
@@ -498,7 +498,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # tle missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -507,7 +507,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # tle not formatted correctly
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%209812769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%209812769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -515,7 +515,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # latitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -525,7 +525,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # longitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&elevation=222&julian_date=2460000.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&elevation=222&julian_date=2460000.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -535,7 +535,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # julian_date missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -545,7 +545,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # with min_altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -553,7 +553,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # with max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -561,7 +561,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # with min and max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -569,14 +569,14 @@ def disabled_test_get_ephemeris_by_tle(client):
 
     # with data_source (both)
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90&data_source=celestrak",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90&data_source=celestrak",
         timeout=10,
     )
     # Check that the response was returned without error
     assert response.status_code == 200
 
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90&data_source=spacetrack",
+        "https://satchecker.cps.iau.org/ephemeris/tle/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&julian_date=2460000.1&min_altitude=-90&data_source=spacetrack",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -586,7 +586,7 @@ def disabled_test_get_ephemeris_by_tle(client):
 def disabled_test_get_ephemeris_by_tle_jdstep(client):
     # correct request
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -594,7 +594,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # elevation missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1",
         timeout=10,
     )
     # Check that the response has the correct status code
@@ -604,7 +604,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # tle missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -613,7 +613,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # tle not correctly formatted
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%202554420%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%202554420%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -621,7 +621,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # latitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -631,7 +631,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # longitude missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -641,7 +641,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # startjd missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&stopjd=2460000.3&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&stopjd=2460000.3&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -651,7 +651,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # stopjd missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stepjd=0.1",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stepjd=0.1",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -661,7 +661,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # with min_altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -669,7 +669,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # with max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -677,7 +677,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # with min and max altitude
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90&max_altitude=80",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90&max_altitude=80",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -685,14 +685,14 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 
     # with data_source (both)
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90&data_source=celestrak",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90&data_source=celestrak",
         timeout=10,
     )
     # Check that the response was returned without error
     assert response.status_code == 200
 
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90&data_source=spacetrack",
+        "https://satchecker.cps.iau.org/ephemeris/tle-jdstep/?tle=ISS%20(ZARYA)%0A1%2025544U%2098067A%20%20%2023248.54842295%20%20.00012769%20%2000000+0%20%2022936-3%200%20%209997%0A2%2025544%20%2051.6416%20290.4299%200005730%20%2030.7454%20132.9751%2015.50238117414255&latitude=40.1106&longitude=-88.2073&elevation=222&startjd=2460000.1&stopjd=2460000.3&stepjd=0.1&min_altitude=-90&data_source=spacetrack",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -702,7 +702,7 @@ def disabled_test_get_ephemeris_by_tle_jdstep(client):
 def disabled_test_get_names_from_norad_id(client):
     # one name found
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/?id=25544",
+        "https://satchecker.cps.iau.org/tools/names-from-norad-id/?id=25544",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -710,7 +710,7 @@ def disabled_test_get_names_from_norad_id(client):
 
     # multiple names found
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/?id=59582",
+        "https://satchecker.cps.iau.org/tools/names-from-norad-id/?id=59582",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -720,7 +720,7 @@ def disabled_test_get_names_from_norad_id(client):
 
     # no names found
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/?id=1",
+        "https://satchecker.cps.iau.org/tools/names-from-norad-id/?id=1",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -729,7 +729,7 @@ def disabled_test_get_names_from_norad_id(client):
 
     # norad id missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/names-from-norad-id/",
+        "https://satchecker.cps.iau.org/tools/names-from-norad-id/",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -741,7 +741,7 @@ def disabled_test_get_names_from_norad_id(client):
 def disabled_test_get_norad_ids_from_name(client):
     # one norad id found
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/?name=ISS%20(ZARYA)",
+        "https://satchecker.cps.iau.org/tools/norad-ids-from-name/?name=ISS%20(ZARYA)",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -749,7 +749,7 @@ def disabled_test_get_norad_ids_from_name(client):
 
     # multiple norad ids found
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/?name=STARLINK-31000",
+        "https://satchecker.cps.iau.org/tools/norad-ids-from-name/?name=STARLINK-31000",
         timeout=10,
     )
     # Check that the response was returned without error and has multiple ids
@@ -759,7 +759,7 @@ def disabled_test_get_norad_ids_from_name(client):
 
     # no norad ids found
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/?name=STARLINK-11300",
+        "https://satchecker.cps.iau.org/tools/norad-ids-from-name/?name=STARLINK-11300",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -767,7 +767,7 @@ def disabled_test_get_norad_ids_from_name(client):
 
     # name missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/norad-ids-from-name/",
+        "https://satchecker.cps.iau.org/tools/norad-ids-from-name/",
         timeout=10,
     )
     # Check that the response was returned with the correct error
@@ -777,7 +777,7 @@ def disabled_test_get_norad_ids_from_name(client):
 def disabled_test_get_tle_data(client):
     # norad id as id
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=25544&id_type=catalog",
+        "https://satchecker.cps.iau.org/tools/get-tle-data/?id=25544&id_type=catalog",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -785,7 +785,7 @@ def disabled_test_get_tle_data(client):
 
     # no TLE data found
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=1&id_type=catalog",
+        "https://satchecker.cps.iau.org/tools/get-tle-data/?id=1&id_type=catalog",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -794,7 +794,7 @@ def disabled_test_get_tle_data(client):
 
     # name as id
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=ISS%20(ZARYA)&id_type=name",
+        "https://satchecker.cps.iau.org/tools/get-tle-data/?id=ISS%20(ZARYA)&id_type=name",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -802,7 +802,7 @@ def disabled_test_get_tle_data(client):
 
     # with start date
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=ISS%20(ZARYA)&id_type=name&start_date=2460425",
+        "https://satchecker.cps.iau.org/tools/get-tle-data/?id=ISS%20(ZARYA)&id_type=name&start_date=2460425",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -810,7 +810,7 @@ def disabled_test_get_tle_data(client):
 
     # with end date
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=ISS%20(ZARYA)&id_type=name&end_date=2460427",
+        "https://satchecker.cps.iau.org/tools/get-tle-data/?id=ISS%20(ZARYA)&id_type=name&end_date=2460427",
         timeout=10,
     )
     # Check that the response was returned without error
@@ -818,7 +818,7 @@ def disabled_test_get_tle_data(client):
 
     # with start and end date
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427",
+        "https://satchecker.cps.iau.org/tools/get-tle-data/?id=25544&id_type=catalog&start_date_jd=2460425&end_date_jd=2460427",
         timeout=10,
     )
     assert response.status_code == 200
@@ -839,7 +839,7 @@ def disabled_test_get_tle_data(client):
 
     # id missing
     response = requests.get(
-        "https://cps.iau.org/tools/satchecker/api/tools/get-tle-data/?id_type=name",
+        "https://satchecker.cps.iau.org/tools/get-tle-data/?id_type=name",
         timeout=10,
     )
     # Check that the response was returned with the correct error

@@ -30,7 +30,7 @@ not_visible_satellites = []
 
 for satellite in satellite_list:
     info = requests.get(
-        f"https://cps.iau.org/tools/satchecker/api/ephemeris/name-jdstep/?name={satellite}&elevation={observer_elevation}&latitude={observer_latitude}&longitude={observer_longitude}&startjd={start_jd}&stopjd={stop_jd}&stepjd={step_jd}&min_altitude=-90",
+        f"https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name={satellite}&elevation={observer_elevation}&latitude={observer_latitude}&longitude={observer_longitude}&startjd={start_jd}&stopjd={stop_jd}&stepjd={step_jd}&min_altitude=-90",
         timeout=10,
     )
     visible = False
