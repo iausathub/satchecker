@@ -116,7 +116,7 @@ def get_tles():
     Returns:
         A JSON response containing the TLE data for the specified satellite
         and date range. Each TLE data entry includes the satellite name,
-        satellite ID, TLE lines, epoch, and date collected.
+        satellite ID, TLE lines, epoch, date collected, and data source.
 
     Raises:
         400:
