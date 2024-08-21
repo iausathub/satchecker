@@ -50,6 +50,19 @@ def test_icrf2radec():
     assert np.isclose(dec_deg, expected_dec_deg)
 
 
+def test_icrf2radec_pos_ndim():
+    pos = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    expected_ra_deg = [0, 90, 0]
+    expected_dec_deg = [0, 0, 90]
+    ra_deg, dec_deg = coordinate_systems.icrf2radec(pos, unit_vector=True, deg=True)
+    assert np.allclose(ra_deg, expected_ra_deg)
+    assert np.allclose(dec_deg, expected_dec_deg)
+
+    ra_deg, dec_deg = coordinate_systems.icrf2radec(pos, unit_vector=False, deg=True)
+    assert np.allclose(ra_deg, expected_ra_deg)
+    assert np.allclose(dec_deg, expected_dec_deg)
+
+
 def test_jd_to_gst():
     jd = 2451545.0  # A known Julian Day
     nutation = 17.20  # Example nutation in degrees
@@ -239,3 +252,261 @@ def test_position_data_to_json():
 
 def test_position_data_to_json_errors():
     pass
+
+
+# This test only verifies the current implementation, and will need
+# to be updated when teme_to_ecef is reviewed/corrected
+def test_teme_to_ecef():
+    r_teme = [1.0, 0.0, 0.0]
+    theta_gst = 0.0
+    expected_result = np.array([1.0, 0.0, 0.0])
+    result = coordinate_systems.teme_to_ecef(r_teme, theta_gst)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    r_teme = [1.0, 0.0, 0.0]
+    theta_gst = np.pi / 2
+    expected_result = np.array([0.0, -1.0, 0.0])
+    result = coordinate_systems.teme_to_ecef(r_teme, theta_gst)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    r_teme = [1.0, 0.0, 0.0]
+    theta_gst = np.pi
+    expected_result = np.array([-1.0, 0.0, 0.0])
+    result = coordinate_systems.teme_to_ecef(r_teme, theta_gst)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    r_teme = [1.0, 0.0, 0.0]
+    theta_gst = 3 * np.pi / 2
+    expected_result = np.array([0.0, 1.0, 0.0])
+    result = coordinate_systems.teme_to_ecef(r_teme, theta_gst)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    r_teme = [1.0, 0.0, 1.0]
+    theta_gst = np.pi / 2
+    expected_result = np.array([0.0, -1.0, 1.0])
+    result = coordinate_systems.teme_to_ecef(r_teme, theta_gst)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+
+# This test only verifies the current implementation, and will need
+# to be updated when ecef_to_enu is reviewed/corrected
+def test_ecef_to_enu():
+    r_ecef = [1.0, 0.0, 0.0]
+    lat = 0.0
+    lon = 0.0
+    expected_result = np.array([0.0, 0.0, 1.0])
+    result = coordinate_systems.ecef_to_enu(r_ecef, lat, lon)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # 90 degrees latitude
+    r_ecef = [0.0, 0.0, 1.0]
+    lat = 90.0
+    lon = 0.0
+    expected_result = np.array([0.0, 0.0, 1.0])
+    result = coordinate_systems.ecef_to_enu(r_ecef, lat, lon)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # 90 degrees longitude
+    r_ecef = [0.0, 1.0, 0.0]
+    lat = 0.0
+    lon = 90.0
+    expected_result = np.array([0.0, 0.0, 1.0])
+    result = coordinate_systems.ecef_to_enu(r_ecef, lat, lon)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # 45 degrees latitude and longitude
+    r_ecef = [1.0, 1.0, 1.0]
+    lat = 45.0
+    lon = 45.0
+    expected_result = np.array([0, -0.2928932, 1.707107])
+    result = coordinate_systems.ecef_to_enu(r_ecef, lat, lon)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # -90 degrees latitude
+    r_ecef = [0.0, 0.0, -1.0]
+    lat = -90.0
+    lon = 0.0
+    expected_result = np.array([0.0, 0.0, 1.0])
+    result = coordinate_systems.ecef_to_enu(r_ecef, lat, lon)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # with error
+    r_ecef = [1.0, 0.0]
+    lat = 0.0
+    lon = 0.0
+    with pytest.raises(ValueError):
+        result = coordinate_systems.ecef_to_enu(r_ecef, lat, lon)
+
+
+# This test only verifies the current implementation, and will need
+# to be updated when ecef_to_itrs is reviewed/corrected
+def test_ecef_to_itrs():
+    # with zero coordinates
+    r_ecef = np.array([0.0, 0.0, 0.0])
+    expected_result = np.array([0.0, 0.0, 0.0])
+    result = coordinate_systems.ecef_to_itrs(r_ecef)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # with one non-zero coordinate
+    r_ecef = np.array([6378137.0, 0.0, 0.0])  # Earth's semi-major axis in meters
+    expected_result = np.array([6378137.0 / (1 + 1 / 298.257223563), 0.0, 0.0])
+    result = coordinate_systems.ecef_to_itrs(r_ecef)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # with arbitrary coordinates
+    r_ecef = np.array([1000.0, 2000.0, 3000.0])
+    expected_result = np.array([1000.0 / (1 + 1 / 298.257223563), 2000.0, 3000.0])
+    result = coordinate_systems.ecef_to_itrs(r_ecef)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # with error
+    r_ecef = np.array([1000.0, 2000.0])
+    with pytest.raises(IndexError):
+        result = coordinate_systems.ecef_to_itrs(r_ecef)
+
+
+# This test only verifies the current implementation, and will need
+# to be updated when itrs_to_gcrs is reviewed/corrected
+def test_itrs_to_gcrs():
+    # with zero coordinates
+    r_itrs = np.array([0.0, 0.0, 0.0])
+    julian_date = 2451545.0  # Example Julian date
+    expected_result = np.array([0.0, 0.0, 0.0])
+    result = coordinate_systems.itrs_to_gcrs(r_itrs, julian_date)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # with one non-zero coordinate
+    r_itrs = np.array([1.0, 0.0, 0.0])
+    expected_result = np.array([0.181493, -0.983392, 0.0])
+    result = coordinate_systems.itrs_to_gcrs(r_itrs, julian_date)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # with arbitrary coordinates
+    r_itrs = np.array([1.0, 1.0, 1.0])
+    expected_result = np.array([1.164885, -0.801899, 1.0])
+    result = coordinate_systems.itrs_to_gcrs(r_itrs, julian_date)
+    np.testing.assert_almost_equal(result, expected_result, decimal=6)
+
+    # with error
+    r_itrs = np.array([1.0, 1.0])
+    with pytest.raises(IndexError):
+        result = coordinate_systems.itrs_to_gcrs(r_itrs, julian_date)
+
+    r_itrs = np.array([1.0, 1.0, 1.0])
+    julian_date = "date"
+    with pytest.raises(TypeError):
+        result = coordinate_systems.itrs_to_gcrs(r_itrs, julian_date)
+
+
+# This test only verifies the current implementation, and will need
+# to be updated when enu_to_az_el is reviewed/corrected
+def test_enu_to_az_el():
+    # ENU coordinates with zero elevation
+    r_enu = np.array([1.0, 0.0, 0.0])
+    expected_az = 90.0  # Azimuth in degrees
+    expected_el = 0.0  # Elevation in degrees
+    az, el = coordinate_systems.enu_to_az_el(r_enu)
+    assert np.isclose(az, expected_az, atol=1e-6)
+    assert np.isclose(el, expected_el, atol=1e-6)
+
+    # ENU coordinates with 45 degrees elevation
+    r_enu = np.array([1.0, 1.0, 1.0])
+    expected_az = 45.0  # Azimuth in degrees
+    expected_el = 35.264389682754654  # Elevation in degrees (arctan2(1, sqrt(2)))
+    az, el = coordinate_systems.enu_to_az_el(r_enu)
+    assert np.isclose(az, expected_az, atol=1e-6)
+    assert np.isclose(el, expected_el, atol=1e-6)
+
+    # ENU coordinates with negative azimuth
+    r_enu = np.array([-1.0, 0.0, 0.0])
+    expected_az = 270.0
+    expected_el = 0.0
+    az, el = coordinate_systems.enu_to_az_el(r_enu)
+    assert np.isclose(az, expected_az, atol=1e-6)
+    assert np.isclose(el, expected_el, atol=1e-6)
+
+    # ENU coordinates with zero azimuth and elevation
+    r_enu = np.array([0.0, 0.0, 0.0])
+    expected_az = 0.0
+    expected_el = 0.0
+    az, el = coordinate_systems.enu_to_az_el(r_enu)
+    assert np.isclose(az, expected_az, atol=1e-6)
+    assert np.isclose(el, expected_el, atol=1e-6)
+
+    # with error
+    r_enu = np.array([1.0, 1.0])
+    with pytest.raises(IndexError):
+        az, el = coordinate_systems.enu_to_az_el(r_enu)
+
+
+# This test only verifies the current implementation, and will need
+# to be updated when ecef_to_eci is reviewed/corrected
+def test_ecef_to_eci():
+    r_ecef = [1.0, 0.0, 0.0]
+
+    # theta_gst = 0 degrees
+    theta_gst = 0.0
+    expected_eci = np.array([1.0, 0.0, 0.0])
+    result = coordinate_systems.ecef_to_eci(r_ecef, theta_gst)
+    np.testing.assert_almost_equal(result, expected_eci, decimal=6)
+
+    # theta_gst = 90 degrees
+    theta_gst = 90.0
+    expected_eci = np.array([0.0, -1.0, 0.0])
+    result = coordinate_systems.ecef_to_eci(r_ecef, theta_gst)
+    np.testing.assert_almost_equal(result, expected_eci, decimal=6)
+
+    # theta_gst = 180 degrees
+    theta_gst = 180.0
+    expected_eci = np.array([-1.0, 0.0, 0.0])
+    result = coordinate_systems.ecef_to_eci(r_ecef, theta_gst)
+    np.testing.assert_almost_equal(result, expected_eci, decimal=6)
+
+    # theta_gst = 270 degrees
+    theta_gst = 270.0
+    expected_eci = np.array([0.0, 1.0, 0.0])
+    result = coordinate_systems.ecef_to_eci(r_ecef, theta_gst)
+    np.testing.assert_almost_equal(result, expected_eci, decimal=6)
+
+    # theta_gst = 41 degrees
+    r_ecef = [1.235, 0.3712, 22.0]
+    theta_gst = 41.0
+    expected_eci = np.array([1.175595, -0.530085, 22.0])
+    result = coordinate_systems.ecef_to_eci(r_ecef, theta_gst)
+    np.testing.assert_almost_equal(result, expected_eci, decimal=6)
+
+    # with error
+    r_ecef = [1.0, 0.0]
+    with pytest.raises(ValueError):
+        result = coordinate_systems.ecef_to_eci(r_ecef, theta_gst)
+
+
+# This test only verifies the current implementation, and will need
+# to be updated when az_el_to_ra_dec is reviewed/corrected
+def test_az_el_to_ra_dec():
+    az = 45.0
+    el = 30.0
+    lat = 40.0
+    lon = -75.0
+    jd = 2451545.0
+    expected_ra = 114.46864445153196
+    expected_dec = 52.23210340306717
+
+    ra, dec = coordinate_systems.az_el_to_ra_dec(az, el, lat, lon, jd)
+    assert np.isclose(ra, expected_ra, atol=1e-6)
+    assert np.isclose(dec, expected_dec, atol=1e-6)
+
+    az = 0.0
+    el = 0.0
+    lat = 0.0
+    lon = 0.0
+    expected_ra = 190.46061837000005
+    expected_dec = 90.0
+
+    ra, dec = coordinate_systems.az_el_to_ra_dec(az, el, lat, lon, jd)
+    assert np.isclose(ra, expected_ra, atol=1e-6)
+    assert np.isclose(dec, expected_dec, atol=1e-6)
+
+    az = None
+    with pytest.raises(TypeError):
+        ra, dec = coordinate_systems.az_el_to_ra_dec(az, el, lat, lon, jd)
