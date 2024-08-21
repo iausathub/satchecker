@@ -1,3 +1,4 @@
+"""
 import datetime
 import logging
 import time
@@ -241,3 +242,4 @@ def test_fov():  # pragma: no cover
         current_app.logger.error(f"ra: {p[0]} dec: {p[1]}")
 
     return positions
+"""

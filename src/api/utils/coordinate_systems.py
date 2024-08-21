@@ -389,8 +389,7 @@ def is_illuminated(sat_gcrs: np.array, julian_date: float) -> bool:
 
     Parameters:
         sat_gcrs (np.array): The position of the satellite in the GCRS frame.
-        earthsun_norm (np.array): The normalized vector pointing from the Earth to the
-        Sun.
+        julian_date (float): The Julian date to check if the satellite is illuminated.
 
     Returns:
         bool: True if the satellite is illuminated, False otherwise.
