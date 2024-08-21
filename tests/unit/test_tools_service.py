@@ -45,6 +45,8 @@ def test_get_tle_data():
         tle_2.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
         for result in results
     )
+    assert any(tle_1.data_source in result.values() for result in results)
+    assert any(tle_2.data_source in result.values() for result in results)
 
     results = get_tle_data(tle_repo, "not_found", "name", None, None, "test", "1.0")
     assert len(results) == 0

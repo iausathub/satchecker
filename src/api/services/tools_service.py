@@ -36,7 +36,7 @@ def get_tle_data(
         List[dict]:
             A list containing the TLE data for the specified
             satellite and date range. Each data point includes the satellite
-            name, satellite ID, TLE lines, epoch, and date collected.
+            name, satellite ID, TLE lines, epoch, date collected, and data source.
     """
 
     tles = (
@@ -54,6 +54,7 @@ def get_tle_data(
             "tle_line2": tle.tle_line2,
             "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
             "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "data_source": tle.data_source,
         }
         for tle in tles
     ]

@@ -114,7 +114,9 @@ Retrieve raw TLE data for a satellite over a given time period
 
     Get the raw TLE data for a satellite over a given time period - the satellite can be
     identified by either name or NORAD ID. The time period is optional; if not provided,
-    all TLE data available will be returned.
+    all TLE data available will be returned. The data source is also provided, since occasionally
+    satellites with a given NORAD ID can have different preliminary names after launch. This will
+    also help distinguish between similar or identical TLEs with different ``date_collected`` values.
 
    :query id: (*required*) -- identifier of satellite (name or NORAD ID)
    :query id_type: (*required*) -- type of identifier: valid values are "name" or "catalog"
@@ -158,6 +160,7 @@ Retrieve raw TLE data for a satellite over a given time period
 
     [
         {
+            "data_source": "celestrak",
             "date_collected": "2024-04-26 00:35:57 UTC",
             "epoch": "2024-04-25 18:22:37 UTC",
             "satellite_id": 25544,
