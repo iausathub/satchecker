@@ -399,17 +399,17 @@ def is_illuminated(sat_gcrs: np.array, julian_date: float) -> bool:
     earthsun_norm = earthsun / np.linalg.norm(earthsun)
 
     # Is the satellite in Earth's Shadow?
-    r_parallel = np.dot(sat_gcrs, earthsun_norm) * earthsun_norm
+    r_parallel_length = np.dot(sat_gcrs, earthsun_norm)
+    r_parallel = r_parallel_length * earthsun_norm
     r_tangential = sat_gcrs - r_parallel
+
     illuminated = True
 
-    if np.linalg.norm(r_parallel) < 0:
-        # rearthkm
-        if np.linalg.norm(r_tangential) < 6370:
-            # print(np.linalg.norm(r_tangential),np.linalg.norm(r))
-            # yes the satellite is in Earth's shadow, no need to continue
-            # (except for the moon of course)
-            illuminated = False
+    if np.linalg.norm(r_tangential) < 6370:
+        illuminated = False
+
+        if r_parallel_length > 0:
+            illuminated = True
 
     return illuminated
 
@@ -460,6 +460,8 @@ def get_earth_sun_positions(t: float | Time) -> tuple[np.ndarray, np.ndarray]:
     earth, sun = load_earth_sun()
     earthp = earth.at(time).position.km
     sunp = sun.at(time).position.km
+    print("earthp: ", earthp)
+    print("sunp: ", sunp)
     return earthp, sunp
 
 
