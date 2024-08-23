@@ -13,7 +13,6 @@ include:
 .test:
   image: python:3.11
   before_script:
-    - WORKDIR src
     - python -m pip install --upgrade pip
     - pip install pytest pytest-mock
     - pip install -r src/api/requirements.txt;
