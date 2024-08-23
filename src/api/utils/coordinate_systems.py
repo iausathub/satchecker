@@ -460,8 +460,6 @@ def get_earth_sun_positions(t: float | Time) -> tuple[np.ndarray, np.ndarray]:
     earth, sun = load_earth_sun()
     earthp = earth.at(time).position.km
     sunp = sun.at(time).position.km
-    print("earthp: ", earthp)
-    print("sunp: ", sunp)
     return earthp, sunp
 
 
