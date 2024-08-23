@@ -516,7 +516,7 @@ def test_is_illuminated():
     # Examples from SatChecker and checked with Privateer's GlintEvader
     # https://satchecker.cps.iau.org/ephemeris/name/?name=STARLINK-2617&elevation=100
     # &latitude=33&longitude=-110&julian_date=2460546.599502
-    # STARLINK-1477, STARLINK-3154, STARLINK-2617
+    # STARLINK-1477, STARLINK-3154, STARLINK-2617, STARLINK-1986
     # STARLINK-2291, STARLINK-30263, STARLINK-31166
 
     # should be illuminated
@@ -533,6 +533,10 @@ def test_is_illuminated():
     is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
     assert is_illuminated
 
+    sat_gcrs = np.array([-6285.693766146678, -2883.510160329265, 372.90511732453666])
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert is_illuminated
+
     # should not be illuminated
     sat_gcrs = np.array([2148.476260974862, -5720.341032518884, 3250.5047622565057])
     is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
@@ -545,11 +549,6 @@ def test_is_illuminated():
     sat_gcrs = np.array([-145.69690994172956, -6807.470474898967, 877.3659084400132])
     is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
     assert not is_illuminated
-
-    # sunlight side, not illuminated? STARLINK-1986
-    # sat_gcrs = np.array([-6285.693766146678,-2883.510160329265,372.90511732453666])
-    # is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
-    # assert not is_illuminated
 
     # with error
     sat_gcrs = np.array([1.0, 0.0])
