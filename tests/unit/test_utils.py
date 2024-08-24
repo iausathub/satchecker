@@ -510,3 +510,47 @@ def test_az_el_to_ra_dec():
     az = None
     with pytest.raises(TypeError):
         ra, dec = coordinate_systems.az_el_to_ra_dec(az, el, lat, lon, jd)
+
+
+def test_is_illuminated():
+    # Examples from SatChecker and checked with Privateer's GlintEvader
+    # https://satchecker.cps.iau.org/ephemeris/name/?name=STARLINK-2617&elevation=100
+    # &latitude=33&longitude=-110&julian_date=2460546.599502
+    # STARLINK-1477, STARLINK-3154, STARLINK-2617, STARLINK-1986
+    # STARLINK-2291, STARLINK-30263, STARLINK-31166
+
+    # should be illuminated
+    sat_gcrs = np.array([-1807.4145165806299, -5481.865083864486, 3817.782079208943])
+    julian_date = 2460546.599502
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert is_illuminated
+
+    sat_gcrs = np.array([-1726.6525239983253, -5556.764988629915, 3732.6312069408664])
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert is_illuminated
+
+    sat_gcrs = np.array([-2788.9344500353254, -6082.063324305135, 1780.452113395069])
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert is_illuminated
+
+    sat_gcrs = np.array([-6285.693766146678, -2883.510160329265, 372.90511732453666])
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert is_illuminated
+
+    # should not be illuminated
+    sat_gcrs = np.array([2148.476260974862, -5720.341032518884, 3250.5047622565057])
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert not is_illuminated
+
+    sat_gcrs = np.array([1239.1815032279183, -6748.906100431373, 1012.4062279591224])
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert not is_illuminated
+
+    sat_gcrs = np.array([-145.69690994172956, -6807.470474898967, 877.3659084400132])
+    is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+    assert not is_illuminated
+
+    # with error
+    sat_gcrs = np.array([1.0, 0.0])
+    with pytest.raises(ValueError):
+        is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
