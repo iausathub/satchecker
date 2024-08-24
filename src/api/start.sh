@@ -5,7 +5,7 @@ export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
 
 # Start the Celery worker in the background
-celery -A satchecker.celery worker --loglevel INFO &
+celery -A api.satchecker.celery worker --loglevel INFO &
 
 
 # Start the Flask server in the foreground

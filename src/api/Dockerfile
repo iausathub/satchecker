@@ -12,6 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV FLASK_APP satchecker.py
+ENV PYTHONPATH src
 
 RUN chown -R api:api ./
 USER api
