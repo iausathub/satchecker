@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y gcc python3-dev openssl libssl-dev redi
 RUN apt-get install -y gosu
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY . ./api
 
 ENV FLASK_APP satchecker.py
 
@@ -17,6 +17,6 @@ RUN chown -R api:api ./
 USER api
 EXPOSE 5000
 
-RUN chmod +x /usr/src/app/start.sh
+RUN chmod +x /usr/src/app/api/start.sh
 
-CMD redis-server & ./start.sh
+CMD redis-server & ./api/start.sh
