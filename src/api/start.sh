@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/src:src"
 
 
 # Start the Celery worker in the background
