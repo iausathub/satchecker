@@ -13,13 +13,13 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../api"))
+sys.path.insert(0, os.path.abspath("../../src"))
 sys.path.insert(0, os.path.abspath("../../"))
 
 on_rtd = os.environ.get("READTHEDOCS") == "True"
 
 if on_rtd:
-    from api.core import app
+    from api import app
 
     app.config["CELERY"]["task_always_eager"] = True
 
@@ -32,7 +32,7 @@ copyright = "2024, IAU Centre for the Protection of Dark and Quiet Sky from \
 author = "IAU CPS"
 
 # The full version, including alpha/beta/rc tags
-release = "1.0.0-beta"
+release = "1.0.1"
 
 
 # -- General configuration ---------------------------------------------------
@@ -77,6 +77,11 @@ html_static_path = ["_static"]
 html_css_files = [
     "custom.css",
 ]
+
+autodoc_default_options = {
+    "members": True,
+    "private-members": True,
+}
 
 autodoc_typehints = "signature"
 autodoc_class_signature = "separated"

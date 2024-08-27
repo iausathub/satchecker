@@ -19,3 +19,4 @@ exclude = '''
 
 [tool.ruff]
 lint.select = ["E", "F", "I", "N", "UP", "S", "B"]
+src = ["src"]

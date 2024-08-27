@@ -1,0 +1,25 @@
+@startuml SatCheckerSystemContextDiagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title SatChecker - System Context Diagram
+
+System_Boundary(SatEphemerisAPI, "SatChecker") {
+
+  Person(Users, "Users", "Consume ephemeris data and predictions")
+  Person(Operators, "Telescope Operators/Schedulers", "Subscribe to alerts of satellite passes for high value targets")
+  System(SatEphemerisSystem, "SatChecker", "Generates ephemeris data, predictions, and alerts")
+   System_Ext(SatelliteOperators, "Satellite Operators", "Provide supplemental TLEs")
+  System_Ext(ThirdPartyAPIs, "SpaceTrack/others", "Provide general TLEs/data")
+}
+
+Rel_U(SatelliteOperators, SatEphemerisSystem, "Provide data")
+Rel_U(ThirdPartyAPIs, SatEphemerisSystem, "Provide data")
+BiRel_D(Users, SatEphemerisSystem, "Request/consume ephemeris data")
+BiRel_D(Operators, SatEphemerisSystem, "Subscribe/receive alerts")
+
+SHOW_LEGEND()
+
+@enduml

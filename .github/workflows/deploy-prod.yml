@@ -5,8 +5,6 @@
 name: Deploy to Amazon ECS
 
 on:
-  release:
-    types: [ published ]
   workflow_dispatch:
     inputs:
       logLevel:
@@ -79,5 +77,3 @@ jobs:
     - name: Force service deployment
       run: |
         aws ecs update-service --cluster  ${{ env.ECS_CLUSTER }} --service ${{ env.ECS_SERVICE }} --force-new-deployment
-
-   

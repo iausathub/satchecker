@@ -1,8 +1,7 @@
-api
+src
 ===
 
 .. toctree::
    :maxdepth: 4
 
-   core
-   utils
+   src

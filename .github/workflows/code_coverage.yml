@@ -30,7 +30,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r api/requirements.txt
+        pip install -r src/api/requirements.txt
     - name: Install dependencies
       run: |
         pip install pytest pytest-mock pytest-cov
@@ -38,18 +38,19 @@ jobs:
       run: |
         export FLASK_APP=satchecker.py
         flask run &
-      working-directory: api
+      working-directory: src/api
     - name: Run Celery worker
       run: |
-          celery -A satchecker.celery worker --loglevel INFO &
+          celery -A api.satchecker.celery worker --loglevel INFO &
       env:
           REDIS_URL: redis://localhost:6379/0
-      working-directory: api
+      working-directory: src
     - name: Test with pytest
       run: |
         pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. --cov-config=pytest.ini tests/ | tee pytest-coverage.txt
       env:
         REDIS_URL: redis://localhost:6379/0
+        PYTHONPATH: src
     - name: Pytest coverage comment
       id: coverageComment
       uses: MishaKav/pytest-coverage-comment@main
