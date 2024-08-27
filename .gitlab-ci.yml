@@ -113,7 +113,7 @@ Dev Data Build:
   variables:
     REGISTRY_SUBPATH: "data-dev"
     CONTAINERFILE: "Dockerfile"
-    CONTAINER_CONTEXT: "data"
+    CONTAINER_CONTEXT: "src/data"
     ENVIRONMENT: "dev"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
@@ -142,7 +142,7 @@ Prod Data Build:
   variables:
     REGISTRY_SUBPATH: "data-prod"
     CONTAINERFILE: "Dockerfile"
-    CONTAINER_CONTEXT: "data"
+    CONTAINER_CONTEXT: "src/data"
     ENVIRONMENT: "prod"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
