@@ -42,7 +42,7 @@ Flask-Limiter==3.5.0
 Flask-Migrate==4.0.4
 Flask-SQLAlchemy==3.0.5
 greenlet==2.0.2
-gunicorn==21.2.0
+gunicorn==22.0.0
 identify==2.5.30
 idna==3.7
 imagesize==1.4.1
@@ -142,5 +142,5 @@ vine==5.1.0
 virtualenv==20.24.5
 wcwidth==0.2.6
 webencodings==0.5.1
-Werkzeug==2.3.7
+Werkzeug==3.0.3
 wrapt==1.15.0

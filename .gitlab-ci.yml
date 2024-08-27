@@ -119,7 +119,7 @@ Dev Data Build:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         paths:
-          - "data/**/*"
+          - "src/data/**/*"
 
 Dev Data Push Tag:
   extends: .push_tag
@@ -132,7 +132,7 @@ Dev Data Push Tag:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:
         paths:
-          - "data/**/*"
+          - "src/data/**/*"
 
 ####### PRODUCTION DATA #######
 
@@ -148,7 +148,7 @@ Prod Data Build:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
-          - "data/**/*"
+          - "src/data/**/*"
 
 Prod Data Push Tag:
   extends: .push_tag
@@ -161,4 +161,4 @@ Prod Data Push Tag:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         paths:
-          - "data/**/*"
+          - "src/data/**/*"
