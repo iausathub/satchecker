@@ -7,6 +7,7 @@ from api.entrypoints.extensions import db, get_forwarded_address, limiter
 from api.services.tools_service import (
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
+    get_recent_tle_set,
     get_tle_data,
 )
 from api.services.validation_service import validate_parameters
@@ -138,6 +139,25 @@ def get_tles():
         parameters["id_type"],
         parameters["start_date_jd"],
         parameters["end_date_jd"],
+        api_source,
+        api_version,
+    )
+
+    return jsonify(tle_data)
+
+
+@api_v1.route("/tools/get-recent-tle-set/")
+@api_main.route("/tools/get-recent-tle-set/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_most_recent_tle_set():
+
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+
+    tle_data = get_recent_tle_set(
+        tle_repo,
         api_source,
         api_version,
     )

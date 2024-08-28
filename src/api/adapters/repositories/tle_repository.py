@@ -59,6 +59,9 @@ class AbstractTLERepository(abc.ABC):
             satellite_name, start_date, end_date
         )
 
+    def get_most_recent_full_tle_set(self):
+        return self._get_most_recent_full_tle_set()
+
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
@@ -87,6 +90,10 @@ class AbstractTLERepository(abc.ABC):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> TLE:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_most_recent_full_tle_set(self):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -205,6 +212,25 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
         if end_date is not None:
             query = query.filter(TLEDb.epoch <= end_date)
+
+        return query.all()
+
+    def _get_most_recent_full_tle_set(self):
+        # get all satellites that have has_current_sat_number = True
+        subquery = (
+            self.session.query(SatelliteDb.sat_number)
+            .filter(SatelliteDb.has_current_sat_number == True)  # noqa: E712
+            .subquery()
+        )
+
+        # get only most recent TLE for each satellite in the subquery
+        query = (
+            self.session.query(TLEDb)
+            .join(TLEDb.satellite)
+            .filter(SatelliteDb.sat_number.in_(subquery))
+            .order_by(SatelliteDb.sat_number, TLEDb.epoch.desc())
+            .distinct(SatelliteDb.sat_number)
+        )
 
         return query.all()
 
