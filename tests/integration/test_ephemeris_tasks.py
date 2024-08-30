@@ -45,6 +45,7 @@ def test_process_results_within_altitude_range():
     max_altitude = 70
     date_collected = datetime(2023, 1, 1)
     name = "Satellite"
+    intl_designator = "2024-test"
     catalog_id = "12345"
     data_source = "Source"
     api_source = "API"
@@ -70,6 +71,7 @@ def test_process_results_within_altitude_range():
             "illuminated",
             "data_source",
             "observer_gcrs_km",
+            "intl_designator",
         ],
         "data": [
             [
@@ -90,6 +92,7 @@ def test_process_results_within_altitude_range():
                 True,
                 "Source",
                 [4, 5, 6],
+                "2024-test",
             ],  # noqa: E501
             [
                 "Satellite",
@@ -109,6 +112,7 @@ def test_process_results_within_altitude_range():
                 False,
                 "Source",
                 [10, 11, 12],
+                "2024-test",
             ],
         ],  # noqa: E501
         "source": "API",
@@ -121,6 +125,7 @@ def test_process_results_within_altitude_range():
         max_altitude,
         date_collected,
         name,
+        intl_designator,
         catalog_id,
         data_source,
         api_source,
@@ -170,6 +175,7 @@ def test_process_results_outside_altitude_range():
     max_altitude = 90
     date_collected = datetime(2023, 1, 1)
     name = "Satellite"
+    intl_designator = "2024-test"
     catalog_id = "12345"
     data_source = "Source"
     api_source = "API"
@@ -187,6 +193,7 @@ def test_process_results_outside_altitude_range():
         max_altitude,
         date_collected,
         name,
+        intl_designator,
         catalog_id,
         data_source,
         api_source,
@@ -201,6 +208,7 @@ def test_process_results_empty_tles():
     max_altitude = 70
     date_collected = "2023-01-01"
     name = "Satellite"
+    intl_designator = "2024-test"
     catalog_id = "12345"
     data_source = "Source"
     api_source = "API"
@@ -218,6 +226,7 @@ def test_process_results_empty_tles():
         max_altitude,
         date_collected,
         name,
+        intl_designator,
         catalog_id,
         data_source,
         api_source,

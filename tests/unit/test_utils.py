@@ -219,6 +219,7 @@ def test_position_data_to_json():
     catalog_id = 25544
     date_collected = datetime.now()
     data_source = "spacetrack"
+    intl_designator = "1998-067A"
 
     results = [
         (
@@ -241,7 +242,14 @@ def test_position_data_to_json():
     api_source = "test"
     api_version = "v1"
     data_set = position_data_to_json(
-        name, catalog_id, date_collected, data_source, results, api_source, api_version
+        name,
+        intl_designator,
+        catalog_id,
+        date_collected,
+        data_source,
+        results,
+        api_source,
+        api_version,
     )
 
     assert data_set["data"][0][0] == name
