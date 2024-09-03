@@ -22,6 +22,8 @@ def position_data_to_json(
     ----------
     name: str
         Name of the target satellite
+    intl_designator: str
+        International Designator/COSPAR ID of the satellite
     catalog_id: str
         Catalog ID of the satellite
     date_collected: datetime
