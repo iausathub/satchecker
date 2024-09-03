@@ -3,6 +3,7 @@ import numpy as np
 
 def position_data_to_json(
     name,
+    intl_designator,
     catalog_id,
     date_collected,
     data_source,
@@ -21,6 +22,8 @@ def position_data_to_json(
     ----------
     name: str
         Name of the target satellite
+    intl_designator: str
+        International Designator/COSPAR ID of the satellite
     catalog_id: str
         Catalog ID of the satellite
     date_collected: datetime
@@ -75,6 +78,7 @@ def position_data_to_json(
         "illuminated",
         "data_source",
         "observer_gcrs_km",
+        "intl_designator",
     ]
     data = []
     for result in results:
@@ -120,6 +124,7 @@ def position_data_to_json(
                 illuminated,
                 data_source,
                 observer_gcrs,
+                intl_designator,
             ]
         )
 

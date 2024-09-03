@@ -28,6 +28,7 @@ def process_results(
     max_altitude: float,
     date_collected: str,
     name: str,
+    intl_designator: str,
     catalog_id: str,
     data_source: str,
     api_source: str,
@@ -67,7 +68,14 @@ def process_results(
 
     # Add remaining metadata to results
     data_set = position_data_to_json(
-        name, catalog_id, date_collected, data_source, results, api_source, api_version
+        name,
+        intl_designator,
+        catalog_id,
+        date_collected,
+        data_source,
+        results,
+        api_source,
+        api_version,
     )
     if has_app_context():
         current_app.logger.info("process results complete")
@@ -82,6 +90,7 @@ def generate_position_data(
     tle_line_2: str,
     date_collected: str,
     name: str,
+    intl_designator: str,
     min_altitude: float,
     max_altitude: float,
     api_source: str,
@@ -137,6 +146,7 @@ def generate_position_data(
             max_altitude,
             date_collected,
             name,
+            intl_designator,
             catalog_id,
             data_source,
             api_source,
