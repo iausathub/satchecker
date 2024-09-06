@@ -61,6 +61,36 @@ def get_tle_data(
     return tle_data
 
 
+def get_recent_tle_set(
+    tle_repo: AbstractTLERepository, api_source: str, api_version: str
+):
+    tles = tle_repo.get_most_recent_full_tle_set()
+
+    # Extract the TLE data from the result set
+    tle_data = [
+        {
+            "satellite_name": tle.satellite.sat_name,
+            "satellite_id": tle.satellite.sat_number,
+            "tle_line1": tle.tle_line1,
+            "tle_line2": tle.tle_line2,
+            "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "data_source": tle.data_source,
+        }
+        for tle in tles
+    ]
+
+    json_results = [
+        {
+            "count": len(tles),
+            "data": tle_data,
+            "source": api_source,
+            "version": api_version,
+        }
+    ]
+    return json_results
+
+
 def get_ids_for_satellite_name(
     sat_repo: AbstractSatelliteRepository,
     satellite_name: str,
