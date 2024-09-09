@@ -32,7 +32,7 @@ copyright = "2024, IAU Centre for the Protection of Dark and Quiet Sky from \
 author = "IAU CPS"
 
 # The full version, including alpha/beta/rc tags
-release = "1.0.2"
+release = "1.0.3"
 
 
 # -- General configuration ---------------------------------------------------
