@@ -78,7 +78,7 @@ def position_data_to_json(
         "illuminated",
         "data_source",
         "observer_gcrs_km",
-        "intl_designator",
+        "international_designator",
     ]
     data = []
     for result in results:

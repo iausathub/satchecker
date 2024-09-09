@@ -71,7 +71,7 @@ def test_process_results_within_altitude_range():
             "illuminated",
             "data_source",
             "observer_gcrs_km",
-            "intl_designator",
+            "international_designator",
         ],
         "data": [
             [

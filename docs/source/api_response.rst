@@ -42,7 +42,7 @@ The API response is a JSON object with the following fields:
      - Position vector for the satellite (Geocentric Celestial Reference System (GCRS), relative to Earth's center)
    * - tle_date
      - Date that the TLE used to calculate the satellite position was collected from the specified data source (UTC timezone)
-   * - intl_designator
+   * - international_designator
      - International Designator for the satellite (COSPAR ID)
 
 
@@ -137,7 +137,7 @@ Example Response
             "illuminated",
             "data_source",
             "observer_gcrs_km"
-            "intl_designator"
+            "international_designator"
         ],
     "source": "IAU CPS SatChecker",
     "version": "1.0.2"
