@@ -61,6 +61,45 @@ def get_tle_data(
     return tle_data
 
 
+def get_satellite_data(
+    sat_repo: AbstractSatelliteRepository,
+    id: str,
+    id_type: str,
+    api_source: str,
+    api_version: str,
+):
+    satellite = (
+        sat_repo.get_satellite_data_by_id(id)
+        if id_type == "catalog"
+        else sat_repo.get_satellite_data_by_name(id)
+    )
+
+    if satellite is None:
+        return []
+
+    satellite_data = [
+        {
+            "satellite_name": satellite.sat_name,
+            "satellite_id": satellite.sat_number,
+            "international_designator": satellite.object_id,
+            "rcs_size": satellite.rcs_size,
+            "launch_date": (
+                satellite.launch_date.strftime("%Y-%m-%d")
+                if satellite.launch_date
+                else None
+            ),
+            "decay_date": (
+                satellite.decay_date.strftime("%Y-%m-%d")
+                if satellite.decay_date
+                else None
+            ),
+            "object_type": satellite.object_type,
+        }
+    ]
+
+    return satellite_data
+
+
 def get_recent_tle_set(
     tle_repo: AbstractTLERepository, api_source: str, api_version: str
 ):

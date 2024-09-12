@@ -8,6 +8,7 @@ from api.services.tools_service import (
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_recent_tle_set,
+    get_satellite_data,
     get_tle_data,
 )
 from api.services.validation_service import validate_parameters
@@ -144,6 +145,30 @@ def get_tles():
     )
 
     return jsonify(tle_data)
+
+
+@api_v1.route("/tools/get-satellite-data/")
+@api_main.route("/tools/get-satellite-data/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_satellite_data_list():
+    session = db.session
+    sat_repo = SqlAlchemySatelliteRepository(session)
+
+    parameter_list = ["id", "id_type"]
+    required_parameters = ["id", "id_type"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    satellite_data = get_satellite_data(
+        sat_repo,
+        parameters["id"],
+        parameters["id_type"],
+        api_source,
+        api_version,
+    )
+
+    return jsonify(satellite_data)
 
 
 @api_v1.route("/tools/get-recent-tle-set/")
