@@ -86,6 +86,24 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
             if satellite.sat_number == id
         ]
 
+    def _get_satellite_data_by_id(self, id):
+        return [
+            [satellite.sat_name, datetime(2024, 1, 1), satellite.has_current_sat_number]
+            for satellite in self._satellites
+            if satellite.sat_number == id
+        ]
+
+    def _get_satellite_data_by_name(self, name):
+        return [
+            [
+                satellite.sat_number,
+                datetime(2024, 1, 1),
+                satellite.has_current_sat_number,
+            ]
+            for satellite in self._satellites
+            if satellite.sat_name == name
+        ]
+
     def _get(self, satellite_id):
         return next(
             (
