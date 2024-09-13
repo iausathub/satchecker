@@ -3,6 +3,14 @@ Release History
 
 See the full changelog `here <https://github.com/iausathub/satchecker/releases>`_.
 
+v1.0.3
+------------
+* Add endpoint to get satellite data by name or NORAD ID
+
+v1.0.2
+------------
+* Add international designator/COSPAR ID to ephemeris data responses
+
 v1.0.0-beta
 ------------
 * Add versioning to API URL (v1 currently); version is optional and not including it will return the most recent version
