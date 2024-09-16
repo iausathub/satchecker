@@ -24,6 +24,12 @@ class AbstractSatelliteRepository(abc.ABC):
     def get_satellite_names_from_norad_id(self, id):
         return self._get_satellite_names_from_norad_id(id)
 
+    def get_satellite_data_by_id(self, id):
+        return self._get_satellite_data_by_id(id)
+
+    def get_satellite_data_by_name(self, name):
+        return self._get_satellite_data_by_name(name)
+
     @abc.abstractmethod
     def _get(self, satellite_id: str) -> Satellite:
         raise NotImplementedError
@@ -34,6 +40,14 @@ class AbstractSatelliteRepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_satellite_names_from_norad_id(self, id):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_satellite_data_by_id(self, id):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_satellite_data_by_name(self, name):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -106,6 +120,53 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         )
 
         return satellite_names_and_dates
+
+    def _get_satellite_data_by_id(self, id):
+        """
+        Retrieves satellite data (rcs_size, launch date, etc. ) for a given NORAD ID.
+
+        This method queries the database to find a satellite with the specified
+        NORAD ID that also has the current satellite number.
+
+        Args:
+            id (int): The NORAD ID of the satellite.
+
+        Returns:
+            SatelliteDb: The satellite data if found, otherwise None.
+        """
+        satellite = (
+            self.session.query(SatelliteDb)
+            .filter(
+                SatelliteDb.sat_number == id
+                and SatelliteDb.has_current_sat_number == True  # noqa: E712
+            )
+            .first()
+        )
+
+        return satellite
+
+    def _get_satellite_data_by_name(self, name):
+        """
+        Retrieves satellite data (rcs_size, launch date, etc. ) for a given satellite
+        name.
+
+        This method queries the database to find a satellite with the specified
+        name that also has the current satellite number.
+
+        Args:
+            name (str): The name of the satellite.
+
+        Returns:
+            SatelliteDb: The satellite data if found, otherwise None.
+        """
+        satellite = (
+            self.session.query(SatelliteDb)
+            .filter(SatelliteDb.sat_name == name)
+            .order_by(SatelliteDb.date_added.desc())
+            .first()
+        )
+
+        return satellite
 
     def _add(self, satellite: Satellite):
         orm_satellite = self._to_orm(satellite)

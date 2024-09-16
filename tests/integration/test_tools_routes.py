@@ -58,3 +58,20 @@ def test_get_norad_ids_from_name_no_match(client):
     response = client.get("/tools/norad-ids-from-name/?name=ISS")
     assert response.status_code == 200
     assert response.json == []
+
+
+def test_get_satellite_data(client):
+    satellite = SatelliteFactory(sat_name="ISS")
+    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
+    sat_repo.add(satellite)
+    db.session.commit()
+
+    response = client.get("/tools/get-satellite-data/?id=ISS&id_type=name")
+    assert response.status_code == 200
+    assert response.json[0]["satellite_name"] == "ISS"
+
+
+def test_get_satellite_data_no_match(client):
+    response = client.get("/tools/get-satellite-data/?id=ISS&id_type=name")
+    assert response.status_code == 200
+    assert response.json == []

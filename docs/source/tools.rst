@@ -169,3 +169,62 @@ Retrieve raw TLE data for a satellite over a given time period
             "tle_line2": "2 25544  51.6396 215.3361 0004566  95.7745   7.6568 15.50926567450413"
         }
     ]
+
+
+Retrieve satellite metadata
+---------------------------------------------------------------
+
+.. http:get:: /get-satellite-data/
+   :noindex:
+
+    Get the metadata that SatChecker currently has for a given satellite. This includes the
+    satellite's name, NORAD ID, international designator, launch date, decay date, and
+    any other relevant information.
+
+   :query id: (*required*) -- identifier of satellite (name or NORAD ID)
+   :query id_type: (*required*) -- type of identifier: valid values are "name" or "catalog"
+
+
+**Example Request**
+    .. tabs::
+
+        .. tab:: Browser
+
+            https://satchecker.cps.iau.org/tools/get-satellite-data/?id=25544&id_type=catalog
+
+        .. code-tab:: Python
+
+            import requests
+            import json
+
+            url = 'https://satchecker.cps.iau.org/tools/get-satellite-data/'
+            params = {'id': '25544',
+                      'id_type': 'catalog'
+                    }
+
+            r = requests.get(url, params=params)
+            print(json.dumps(r.json(), indent=4))
+
+        .. code-tab:: Bash
+
+            curl -X GET "https://satchecker.cps.iau.org/tools/get-satellite-data/?id=25544&id_type=catalog" -H "accept: application/json"
+
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://satchecker.cps.iau.org/tools/get-satellite-data/?id=25544&id_type=catalog" -H "accept: application/json"
+
+**Example Response**
+
+.. sourcecode:: json
+
+    [
+        {
+            "decay_date": null,
+            "international_designator": "1998-067A",
+            "launch_date": "1998-11-20",
+            "object_type": "PAYLOAD",
+            "rcs_size": "LARGE",
+            "satellite_id": 25544,
+            "satellite_name": "ISS (ZARYA)"
+        }
+    ]

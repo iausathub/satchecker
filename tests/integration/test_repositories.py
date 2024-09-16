@@ -326,3 +326,47 @@ def test_get_norad_ids_from_satellite_name_no_match(sqlite_session_factory):
     assert results == []
 
     session.close()
+
+
+def test_get_satellite_data_by_id(sqlite_session_factory):
+    session = sqlite_session_factory()
+    satellite = SatelliteFactory()
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    session.commit()
+
+    results = sat_repository.get_satellite_data_by_id(satellite.sat_number)
+    assert results.sat_name == satellite.sat_name
+    session.close()
+
+
+def test_get_satellite_data_by_id_no_match(sqlite_session_factory):
+    session = sqlite_session_factory()
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    session.commit()
+
+    results = sat_repository.get_satellite_data_by_id("12345")
+    assert results is None
+    session.close()
+
+
+def test_get_satellite_data_by_name(sqlite_session_factory):
+    session = sqlite_session_factory()
+    satellite = SatelliteFactory()
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    session.commit()
+
+    results = sat_repository.get_satellite_data_by_name(satellite.sat_name)
+    assert results.sat_number == satellite.sat_number
+    session.close()
+
+
+def test_get_satellite_data_by_name_no_match(sqlite_session_factory):
+    session = sqlite_session_factory()
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    session.commit()
+
+    results = sat_repository.get_satellite_data_by_name("NO_MATCH")
+    assert results is None
+    session.close()
