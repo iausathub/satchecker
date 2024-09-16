@@ -161,10 +161,8 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         """
         satellite = (
             self.session.query(SatelliteDb)
-            .filter(
-                SatelliteDb.sat_name == name
-                and SatelliteDb.has_current_sat_number == True  # noqa: E712
-            )
+            .filter(SatelliteDb.sat_name == name)
+            .order_by(SatelliteDb.date_added.desc())
             .first()
         )
 
