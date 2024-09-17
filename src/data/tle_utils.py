@@ -70,12 +70,24 @@ def insert_records(
         WHERE SAT_NUMBER = %s
         AND id != %s
         """
+
     params = (current_date_time, satellite.model.satnum, sat_id)
     cursor.execute(update_query, params)
 
     if cursor.rowcount == 0:
         log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
         logging.info(f"{log_time}\tnew satellite: {satellite.model.satnum}")
+
+    # make sure this satellite has the correct has_current_sat_number value
+    if is_current_number:
+        update_query = """
+            UPDATE satellites
+            SET HAS_CURRENT_SAT_NUMBER = TRUE,
+            DATE_MODIFIED = %s
+        WHERE id = %s
+        """
+        params = (current_date_time, sat_id)
+        cursor.execute(update_query, params)
 
     # add TLE to database
     tle_insert_query = """
