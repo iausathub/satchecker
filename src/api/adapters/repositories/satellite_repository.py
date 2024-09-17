@@ -137,8 +137,8 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         satellite = (
             self.session.query(SatelliteDb)
             .filter(
-                SatelliteDb.sat_number == id
-                and SatelliteDb.has_current_sat_number == True  # noqa: E712
+                SatelliteDb.sat_number == id,
+                SatelliteDb.has_current_sat_number == True,  # noqa: E712
             )
             .first()
         )
