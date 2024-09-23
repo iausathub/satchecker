@@ -79,7 +79,9 @@ def insert_records(
         logging.info(f"{log_time}\tnew satellite: {satellite.model.satnum}")
 
     # make sure this satellite has the correct has_current_sat_number value
-    if is_current_number:
+    # only allow data from space-track to update this value, celestrak has
+    # had a few instances of name changes outside of preliminary names
+    if is_current_number and source == "spacetrack":
         update_query = """
             UPDATE satellites
             SET HAS_CURRENT_SAT_NUMBER = TRUE,
