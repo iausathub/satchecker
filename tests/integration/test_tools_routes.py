@@ -75,3 +75,47 @@ def test_get_satellite_data_no_match(client):
     response = client.get("/tools/get-satellite-data/?id=ISS&id_type=name")
     assert response.status_code == 200
     assert response.json == []
+
+
+def test_get_tles_at_epoch(client):
+    satellite = SatelliteFactory(sat_name="ISS")
+    tle = TLEFactory(satellite=satellite)
+    tle_repo = tle_repository.SqlAlchemyTLERepository(db.session)
+    tle_repo.add(tle)
+    db.session.commit()
+
+    epoch_date = tle.epoch.strftime("%Y-%m-%d")
+    response = client.get(f"/ephemeris/tles-at-epoch/?epoch_date={epoch_date}")
+
+    assert response.status_code == 200
+    assert len(response.json) > 0
+    assert response.json[0]["satellite_name"] == "ISS"
+
+
+def test_get_tles_at_epoch_pagination(client):
+    satellite = SatelliteFactory(sat_name="ISS")
+    tle = TLEFactory(satellite=satellite)
+    tle_repo = tle_repository.SqlAlchemyTLERepository(db.session)
+    tle_repo.add(tle)
+    db.session.commit()
+
+    epoch_date = tle.epoch.strftime("%Y-%m-%d")
+    response = client.get(f"/ephemeris/tles-at-epoch/?epoch_date={epoch_date}&page=1&per_page=1")
+
+    assert response.status_code == 200
+    assert len(response.json) == 1
+    assert response.json[0]["satellite_name"] == "ISS"
+
+
+def test_get_tles_at_epoch_optional_epoch_date(client):
+    satellite = SatelliteFactory(sat_name="ISS")
+    tle = TLEFactory(satellite=satellite)
+    tle_repo = tle_repository.SqlAlchemyTLERepository(db.session)
+    tle_repo.add(tle)
+    db.session.commit()
+
+    response = client.get("/ephemeris/tles-at-epoch/")
+
+    assert response.status_code == 200
+    assert len(response.json) > 0
+    assert response.json[0]["satellite_name"] == "ISS"

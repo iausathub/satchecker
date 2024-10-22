@@ -62,6 +62,11 @@ class AbstractTLERepository(abc.ABC):
     def get_most_recent_full_tle_set(self):
         return self._get_most_recent_full_tle_set()
 
+    def get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int
+    ) -> list[TLE]:
+        return self._get_all_tles_at_epoch(epoch_date, page, per_page)
+
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
@@ -94,6 +99,12 @@ class AbstractTLERepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_most_recent_full_tle_set(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int
+    ) -> list[TLE]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -233,6 +244,33 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         )
 
         return query.all()
+
+    def _get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int
+    ) -> list[TLE]:
+        subquery = (
+            self.session.query(
+                TLEDb.sat_id,
+                func.max(TLEDb.epoch).label("max_epoch")
+            )
+            .filter(TLEDb.epoch <= epoch_date)
+            .group_by(TLEDb.sat_id)
+            .subquery()
+        )
+
+        query = (
+            self.session.query(TLEDb)
+            .join(subquery, and_(
+                TLEDb.sat_id == subquery.c.sat_id,
+                TLEDb.epoch == subquery.c.max_epoch
+            ))
+            .join(TLEDb.satellite)
+            .filter(SatelliteDb.has_current_sat_number == True)  # noqa: E712
+            .order_by(TLEDb.epoch)
+        )
+
+        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
+        return paginated_query.all()
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)

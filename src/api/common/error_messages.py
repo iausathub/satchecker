@@ -22,3 +22,4 @@ NO_TLE_FOUND = "Error: No TLE found"
 TOO_MANY_RESULTS = (
     "Error: Too many results to return (maximum of 1000 in a single request)"
 )
+PAGINATION_LIMIT_EXCEEDED = "Error: Pagination limit exceeded"
