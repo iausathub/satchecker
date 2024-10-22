@@ -178,6 +178,16 @@ def validate_parameters(
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
+    if "epoch" in parameters.keys() and parameters["epoch"] is not None:
+        try:
+            parameters["epoch"] = (
+                Time(parameters["epoch"], format="jd", scale="ut1")
+                .to_datetime()
+                .replace(tzinfo=timezone.utc)
+            )
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+
     return parameters
 
 

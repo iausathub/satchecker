@@ -59,9 +59,6 @@ class AbstractTLERepository(abc.ABC):
             satellite_name, start_date, end_date
         )
 
-    def get_most_recent_full_tle_set(self):
-        return self._get_most_recent_full_tle_set()
-
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int
     ) -> Tuple[List[TLE], int]:
@@ -95,10 +92,6 @@ class AbstractTLERepository(abc.ABC):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> TLE:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _get_most_recent_full_tle_set(self):
         raise NotImplementedError
 
     @abc.abstractmethod

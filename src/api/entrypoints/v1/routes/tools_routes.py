@@ -186,7 +186,7 @@ def get_tles_at_epoch():
     arguments. It also supports pagination to handle large result sets.
 
     Parameters:
-        epoch_date (str):
+        epoch (str):
             The epoch date for the TLE data, in Julian Date format.
         page (int, optional):
             The page number for pagination.
@@ -207,10 +207,10 @@ def get_tles_at_epoch():
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
 
-    parameter_list = ["epoch_date", "page", "per_page"]
+    parameter_list = ["epoch", "page", "per_page"]
     parameters = validate_parameters(request, parameter_list, [])
 
-    epoch_date = parameters.get("epoch_date")
+    epoch_date = parameters.get("epoch")
     if not epoch_date:
         epoch_date = datetime.now(timezone.utc)
 
