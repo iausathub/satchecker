@@ -1,6 +1,6 @@
 # Guide to contributing to SatChecker
 
-Welcome to the SatChecker contributing guide! SatChecker is a tool for predicting satellite positions and providing other relevant data, developed by the IAU Centre for the Protection of the Dark and Quiet Sky from Satellite Constellation Interference (IAU CPS) SatHub group. 
+Welcome to the SatChecker contributing guide! SatChecker is a tool for predicting satellite positions and providing other relevant data, developed by the IAU Centre for the Protection of the Dark and Quiet Sky from Satellite Constellation Interference (IAU CPS) SatHub group.
 
 Bug report/fixes, feature requests, and other contributions are welcome, and all issues and pull requests will be reviewed by a repo maintainer to ensure consistency with the project's scope and other guidelines.
 
@@ -20,7 +20,7 @@ For any questions not answered here please email sathub@cps.iau.org or open an i
 
 * Pytest is used for testing.
 
-* Use Google-style docstrings -- example: 
+* Use Google-style docstrings -- example:
 ```
 def add_numbers(a: int, b: int) -> int:
     """Add two numbers together.
@@ -45,4 +45,4 @@ def add_numbers(a: int, b: int) -> int:
 
 
 #### License Info
-All code that is part of SatChecker is currently released under the [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) license.
+All code that is part of SatChecker is currently released under the [BSD-3-Clause](https://opensource.org/licenses/BSD-3-Clause) license.
