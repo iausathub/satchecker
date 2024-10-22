@@ -100,7 +100,9 @@ def test_get_tles_at_epoch_pagination(client):
     db.session.commit()
 
     epoch_date = tle.epoch.strftime("%Y-%m-%d")
-    response = client.get(f"/ephemeris/tles-at-epoch/?epoch_date={epoch_date}&page=1&per_page=1")
+    response = client.get(
+        f"/ephemeris/tles-at-epoch/?epoch_date={epoch_date}&page=1&per_page=1"
+    )
 
     assert response.status_code == 200
     assert len(response.json) == 1
