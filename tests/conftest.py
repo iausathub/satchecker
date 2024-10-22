@@ -166,9 +166,6 @@ class FakeTLERepository(AbstractTLERepository):
             default=None,
         )
 
-    def _get_most_recent_full_tle_set(self):
-        return self._tles
-
 
 class FakeSession:
     committed = False

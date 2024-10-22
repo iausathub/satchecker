@@ -237,8 +237,9 @@ This endpoint fetches all TLEs at a specific epoch date. It supports pagination 
 If the epoch date is not provided, it defaults to returning the most recent TLE for every active satellite/object
 in the database (no decay date and current NORAD ID).
 
-For an example on how to use this endpoint to get all TLEs for the current date using Python and a Pandas DataFrame,
-see the example on the :doc:`examples page <examples>`.
+.. note::
+    For an example on how to use this endpoint to get all TLEs for the current date using Python and a Pandas DataFrame,
+    check out the :doc:`examples page <examples>`.
 
 **Endpoint**
 
@@ -327,6 +328,6 @@ see the example on the :doc:`examples page <examples>`.
                 "per_page": 5,
                 "source": "IAU CPS SatChecker",
                 "total_results": 385,
-                "version": "1.0.3"
+                "version": "1.0.4"
             }
         ]

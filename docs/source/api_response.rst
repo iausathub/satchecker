@@ -140,5 +140,5 @@ Example Response
             "international_designator"
         ],
     "source": "IAU CPS SatChecker",
-    "version": "1.0.3"
+    "version": "1.0.4"
     }
