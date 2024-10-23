@@ -240,9 +240,14 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             )
             .join(TLEDb.satellite)
             .filter(
-                SatelliteDb.has_current_sat_number == True,  # noqa: E712
-                SatelliteDb.decay_date == None,  # noqa: E711
-            )  # noqa: E711
+                or_(
+                    SatelliteDb.decay_date == None,  # Still active  # noqa: E711
+                    SatelliteDb.decay_date > epoch_date,  # Decayed after the epoch date
+                )
+            )
+            # used in place of checking has_current_sat_number to make sure two TLEs
+            # for the same satellite don't get added
+            .distinct(TLEDb.tle_line1)
             .order_by(TLEDb.epoch)
         )
         # get the count of the query pre-pagination
