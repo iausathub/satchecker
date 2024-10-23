@@ -68,6 +68,25 @@ def get_satellite_data(
     api_source: str,
     api_version: str,
 ):
+    """
+    Fetches satellite data based on the provided ID and ID type.
+
+    This function retrieves satellite metadata from the repository based on the
+    provided ID. The ID can be either a catalog ID or a satellite name, determined
+    by the id_type parameter.
+
+    Parameters:
+        sat_repo (AbstractSatelliteRepository): The repository to fetch satellite data
+        from.
+        id (str): The ID of the satellite, either a catalog ID or a satellite name.
+        id_type (str): The type of the ID, either "catalog" or "name".
+        api_source (str): The source of the API request.
+        api_version (str): The version of the API request.
+
+    Returns:
+        List[Dict[str, Any]]: A list containing a dictionary with satellite data.
+                              Returns an empty list if no satellite data is found.
+    """
     satellite = (
         sat_repo.get_satellite_data_by_id(id)
         if id_type == "catalog"
@@ -100,10 +119,33 @@ def get_satellite_data(
     return satellite_data
 
 
-def get_recent_tle_set(
-    tle_repo: AbstractTLERepository, api_source: str, api_version: str
+def get_all_tles_at_epoch(
+    tle_repo: AbstractTLERepository,
+    epoch_date: datetime,
+    page: int,
+    per_page: int,
+    api_source: str,
+    api_version: str,
 ):
-    tles = tle_repo.get_most_recent_full_tle_set()
+    """
+    Fetches all TLEs at a specific epoch date with pagination support.
+
+    This function retrieves TLE data from the repository based on the provided epoch
+    date.It supports pagination to handle large result sets.
+
+    Parameters:
+        tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        epoch_date (datetime): The epoch date for the TLE data.
+        page (int): The page number for pagination.
+        per_page (int): The number of results per page for pagination.
+        api_source (str): The source of the API request.
+        api_version (str): The version of the API request.
+
+    Returns:
+        List[Dict[str, Any]]: A list containing a dictionary with TLE data and
+        pagination info.
+    """
+    tles, total_count = tle_repo.get_all_tles_at_epoch(epoch_date, page, per_page)
 
     # Extract the TLE data from the result set
     tle_data = [
@@ -121,7 +163,9 @@ def get_recent_tle_set(
 
     json_results = [
         {
-            "count": len(tles),
+            "per_page": per_page,
+            "page": page,
+            "total_results": total_count,
             "data": tle_data,
             "source": api_source,
             "version": api_version,

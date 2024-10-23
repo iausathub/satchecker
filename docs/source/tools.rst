@@ -228,3 +228,106 @@ Retrieve satellite metadata
             "satellite_name": "ISS (ZARYA)"
         }
     ]
+
+
+Get full TLE set at Epoch
+---------------------------------------------------------------
+
+This endpoint fetches all TLEs at a specific epoch date. It supports pagination to handle large result sets.
+If the epoch date is not provided, it defaults to returning the most recent TLE for every active satellite/object
+in the database (no decay date and current NORAD ID).
+
+.. note::
+    For an example on how to use this endpoint to get all TLEs for the current date using Python and a Pandas DataFrame,
+    check out the :doc:`examples page <examples>`.
+
+**Endpoint**
+
+.. http:get:: /tools/tles-at-epoch/
+
+    **Parameters**
+
+    :query epoch: (*optional*) -- The epoch date for the TLE data, in Julian Date format. Defaults to the current date if not provided.
+    :query page: (*optional*) -- The page number for pagination. Defaults to 1.
+    :query per_page: (*optional*) -- The number of results per page for pagination. Defaults to 100.
+
+    **Example Request**
+
+    .. tabs::
+
+        .. tab:: Browser
+
+            https://satchecker.cps.iau.org/tools/tles-at-epoch/?epoch=2459488.5&page=1&per_page=10
+
+        .. tab:: Bash
+
+            .. code-tab:: Bash
+
+                curl -X GET "https://satchecker.cps.iau.org/tools/tles-at-epoch/?epoch=2459488.5&page=1&per_page=10" -H "accept: application/json"
+
+        .. tab:: Powershell
+
+            .. code-tab:: Powershell
+
+                curl.exe -X GET "https://satchecker.cps.iau.org/tools/tles-at-epoch/?epoch=2459488.5&page=1&per_page=10" -H "accept: application/json"
+
+    **Example Response**
+
+    .. sourcecode:: json
+
+        [
+            {
+                "data": [
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-07-17 19:06:09 UTC",
+                        "epoch": "2024-06-18 14:40:11 UTC",
+                        "satellite_id": 26967,
+                        "satellite_name": "DELTA 2 DEB",
+                        "tle_line1": "1 26967U 93017E   24170.61124217  .00016791  00000-0  44967-3 0  9995",
+                        "tle_line2": "2 26967  34.9300 154.9280 3885867 208.4643 123.3999  7.71838818573239"
+                    },
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-07-17 19:06:09 UTC",
+                        "epoch": "2024-06-20 16:17:21 UTC",
+                        "satellite_id": 31723,
+                        "satellite_name": "FENGYUN 1C DEB",
+                        "tle_line1": "1 31723U 99025CDW 24172.67871604  .00004507  00000-0  26310-2 0  9996",
+                        "tle_line2": "2 31723  97.8187 334.7099 0122012 256.7917 101.9619 14.05166935558935"
+                    },
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-07-17 19:06:14 UTC",
+                        "epoch": "2024-06-29 11:39:33 UTC",
+                        "satellite_id": 270291,
+                        "satellite_name": "TBA - TO BE ASSIGNED",
+                        "tle_line1": "1 T0291U 11061F   24181.48580305  .07957539  53890-5  11314-2 0  9997",
+                        "tle_line2": "2 T0291 101.6670  18.4903 0018493 268.3973  91.5188 16.34237302695039"
+                    },
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-07-17 19:06:14 UTC",
+                        "epoch": "2024-07-02 15:04:27 UTC",
+                        "satellite_id": 59979,
+                        "satellite_name": "TITAN 3C TRANSTAGE DEB",
+                        "tle_line1": "1 59979U 68081AM  24184.62809922 -.00000169  00000-0  00000-0 0  9996",
+                        "tle_line2": "2 59979   1.0181  53.6452 0044622 145.5716  26.1521  1.03320921 55136"
+                    },
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-07-17 19:06:14 UTC",
+                        "epoch": "2024-07-02 17:27:58 UTC",
+                        "satellite_id": 59982,
+                        "satellite_name": "TITAN 3C TRANSTAGE DEB",
+                        "tle_line1": "1 59982U 68081AQ  24184.72776552 -.00000306  00000-0  00000-0 0  9996",
+                        "tle_line2": "2 59982   1.7568 344.5114 0737782 293.5946  58.6594  0.99574789 12914"
+                    }
+                ],
+                "page": 1,
+                "per_page": 5,
+                "source": "IAU CPS SatChecker",
+                "total_results": 385,
+                "version": "1.0.4"
+            }
+        ]

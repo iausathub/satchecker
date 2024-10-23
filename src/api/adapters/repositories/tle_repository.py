@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm.exc import NoResultFound
@@ -59,8 +59,10 @@ class AbstractTLERepository(abc.ABC):
             satellite_name, start_date, end_date
         )
 
-    def get_most_recent_full_tle_set(self):
-        return self._get_most_recent_full_tle_set()
+    def get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int
+    ) -> Tuple[List[TLE], int]:
+        return self._get_all_tles_at_epoch(epoch_date, page, per_page)
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
@@ -93,7 +95,9 @@ class AbstractTLERepository(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_most_recent_full_tle_set(self):
+    def _get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int
+    ) -> list[TLE]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -215,24 +219,42 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
         return query.all()
 
-    def _get_most_recent_full_tle_set(self):
-        # get all satellites that have has_current_sat_number = True
+    def _get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int
+    ) -> Tuple[List[TLE], int]:
         subquery = (
-            self.session.query(SatelliteDb.sat_number)
-            .filter(SatelliteDb.has_current_sat_number == True)  # noqa: E712
+            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
+            .filter(TLEDb.epoch <= epoch_date)
+            .group_by(TLEDb.sat_id)
             .subquery()
         )
 
-        # get only most recent TLE for each satellite in the subquery
         query = (
             self.session.query(TLEDb)
+            .join(
+                subquery,
+                and_(
+                    TLEDb.sat_id == subquery.c.sat_id,
+                    TLEDb.epoch == subquery.c.max_epoch,
+                ),
+            )
             .join(TLEDb.satellite)
-            .filter(SatelliteDb.sat_number.in_(subquery))
-            .order_by(SatelliteDb.sat_number, TLEDb.epoch.desc())
-            .distinct(SatelliteDb.sat_number)
+            .filter(
+                or_(
+                    SatelliteDb.decay_date == None,  # Still active  # noqa: E711
+                    SatelliteDb.decay_date > epoch_date,  # Decayed after the epoch date
+                )
+            )
+            # used in place of checking has_current_sat_number to make sure two TLEs
+            # for the same satellite don't get added
+            .distinct(TLEDb.tle_line1)
+            .order_by(TLEDb.epoch)
         )
+        # get the count of the query pre-pagination
+        total_count = query.count()
 
-        return query.all()
+        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
+        return (paginated_query.all(), total_count)
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)
