@@ -1,5 +1,6 @@
 import abc
-from datetime import datetime
+from datetime import datetime, timedelta
+from operator import not_
 from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, func, or_
@@ -62,7 +63,43 @@ class AbstractTLERepository(abc.ABC):
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int
     ) -> Tuple[List[TLE], int]:
-        return self._get_all_tles_at_epoch(epoch_date, page, per_page)
+        one_week_prior = epoch_date - timedelta(weeks=1)
+
+        subquery = (
+            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
+            .filter(TLEDb.epoch <= epoch_date, TLEDb.epoch >= one_week_prior)
+            .group_by(TLEDb.sat_id)
+            .subquery()
+        )
+
+        query = (
+            self.session.query(TLEDb)
+            .join(
+                subquery,
+                and_(
+                    TLEDb.sat_id == subquery.c.sat_id,
+                    TLEDb.epoch == subquery.c.max_epoch,
+                ),
+            )
+            .join(TLEDb.satellite)
+            .filter(
+                or_(
+                    SatelliteDb.decay_date == None,  # Still active  # noqa: E711
+                    SatelliteDb.decay_date > epoch_date,  # Decayed after the epoch date
+                ),
+                not_(
+                    and_(
+                        TLEDb.epoch < one_week_prior,
+                        SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
+                    )
+                ),
+            )
+            .order_by(TLEDb.epoch)
+        )
+
+        total_count = query.count()
+        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
+        return (paginated_query.all(), total_count)
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
@@ -92,12 +129,6 @@ class AbstractTLERepository(abc.ABC):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> TLE:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int
-    ) -> list[TLE]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -218,43 +249,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             query = query.filter(TLEDb.epoch <= end_date)
 
         return query.all()
-
-    def _get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int
-    ) -> Tuple[List[TLE], int]:
-        subquery = (
-            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
-            .filter(TLEDb.epoch <= epoch_date)
-            .group_by(TLEDb.sat_id)
-            .subquery()
-        )
-
-        query = (
-            self.session.query(TLEDb)
-            .join(
-                subquery,
-                and_(
-                    TLEDb.sat_id == subquery.c.sat_id,
-                    TLEDb.epoch == subquery.c.max_epoch,
-                ),
-            )
-            .join(TLEDb.satellite)
-            .filter(
-                or_(
-                    SatelliteDb.decay_date == None,  # Still active  # noqa: E711
-                    SatelliteDb.decay_date > epoch_date,  # Decayed after the epoch date
-                )
-            )
-            # used in place of checking has_current_sat_number to make sure two TLEs
-            # for the same satellite don't get added
-            .distinct(TLEDb.tle_line1)
-            .order_by(TLEDb.tle_line1, TLEDb.epoch)
-        )
-        # get the count of the query pre-pagination
-        total_count = query.count()
-
-        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
-        return (paginated_query.all(), total_count)
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)
