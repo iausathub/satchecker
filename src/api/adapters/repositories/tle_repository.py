@@ -1,9 +1,8 @@
 import abc
 from datetime import datetime, timedelta
-from operator import not_
 from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from api.adapters.database_orm import SatelliteDb, TLEDb

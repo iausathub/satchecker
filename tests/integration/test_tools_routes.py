@@ -83,18 +83,27 @@ def test_get_tles_at_epoch(client):
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
-    tle = TLEFactory(satellite=satellite)
+    epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
+    tle = TLEFactory(satellite=satellite, epoch=epoch_date)
     tle_repo = tle_repository.SqlAlchemyTLERepository(db.session)
     tle_repo.add(tle)
     db.session.commit()
 
-    epoch_date = 2470000
+    epoch_date = 2460605
     response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}")
     tles = response.json[0]["data"]
 
     assert response.status_code == 200
     assert len(response.json) > 0
     assert tles[0]["satellite_name"] == "ISS"
+
+    # test that older TLEs ( > 1 week ) are not returned
+    epoch_date = 2460505
+    response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}")
+    tles = response.json[0]["data"]
+
+    assert response.status_code == 200
+    assert len(response.json[0]["data"]) == 0
 
 
 def test_get_tles_at_epoch_pagination(client):
@@ -108,7 +117,7 @@ def test_get_tles_at_epoch_pagination(client):
     tle_repo.add(tle)
     db.session.commit()
 
-    epoch_date = 2470000
+    epoch_date = 2460606
     response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}&page=1&per_page=1")
     tles = response.json[0]["data"]
 
@@ -121,8 +130,11 @@ def test_get_tles_at_epoch_optional_epoch_date(client):
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
+    # get current date for TLE epoch
+    epoch_date = datetime.now()
     tle = TLEFactory(
         satellite=satellite,
+        epoch=epoch_date,
     )
     tle_repo = tle_repository.SqlAlchemyTLERepository(db.session)
     tle_repo.add(tle)
