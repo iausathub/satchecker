@@ -248,7 +248,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             # used in place of checking has_current_sat_number to make sure two TLEs
             # for the same satellite don't get added
             .distinct(TLEDb.tle_line1)
-            .order_by(TLEDb.epoch)
+            .order_by(TLEDb.tle_line1, TLEDb.epoch)
         )
         # get the count of the query pre-pagination
         total_count = query.count()
