@@ -62,11 +62,11 @@ class AbstractTLERepository(abc.ABC):
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int
     ) -> Tuple[List[TLE], int]:
-        one_week_prior = epoch_date - timedelta(weeks=1)
+        two_weeks_prior = epoch_date - timedelta(weeks=2)
 
         subquery = (
             self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
-            .filter(TLEDb.epoch <= epoch_date, TLEDb.epoch >= one_week_prior)
+            .filter(TLEDb.epoch <= epoch_date, TLEDb.epoch >= two_weeks_prior)
             .group_by(TLEDb.sat_id)
             .subquery()
         )
@@ -88,7 +88,7 @@ class AbstractTLERepository(abc.ABC):
                 ),
                 not_(
                     and_(
-                        TLEDb.epoch < one_week_prior,
+                        TLEDb.epoch < two_weeks_prior,
                         SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
                     )
                 ),
