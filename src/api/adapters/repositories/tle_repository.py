@@ -64,34 +64,36 @@ class AbstractTLERepository(abc.ABC):
     ) -> Tuple[List[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
-        subquery = (
+        latest_tles = (
             self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
-            .filter(TLEDb.epoch <= epoch_date, TLEDb.epoch >= two_weeks_prior)
+            .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
             .group_by(TLEDb.sat_id)
-            .subquery()
+            .cte("latest_tles")
         )
 
         query = (
             self.session.query(TLEDb)
             .join(
-                subquery,
+                latest_tles,
                 and_(
-                    TLEDb.sat_id == subquery.c.sat_id,
-                    TLEDb.epoch == subquery.c.max_epoch,
+                    TLEDb.sat_id == latest_tles.c.sat_id,
+                    TLEDb.epoch == latest_tles.c.max_epoch,
                 ),
             )
-            .join(TLEDb.satellite)
+            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
             .filter(
                 or_(
-                    SatelliteDb.decay_date == None,  # Still active  # noqa: E711
-                    SatelliteDb.decay_date > epoch_date,  # Decayed after the epoch date
-                ),
+                    SatelliteDb.decay_date.is_(None),
+                    SatelliteDb.decay_date > epoch_date,
+                )
+            )
+            .filter(
                 not_(
                     and_(
                         TLEDb.epoch < two_weeks_prior,
                         SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
                     )
-                ),
+                )
             )
             .order_by(TLEDb.epoch)
         )
@@ -102,6 +104,7 @@ class AbstractTLERepository(abc.ABC):
             return query.all(), total_count
 
         paginated_query = query.limit(per_page).offset((page - 1) * per_page)
+
         return (paginated_query.all(), total_count)
 
     @abc.abstractmethod
