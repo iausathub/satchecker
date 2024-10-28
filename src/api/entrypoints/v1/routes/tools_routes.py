@@ -1,13 +1,16 @@
+from datetime import datetime, timezone
+
 from flask import current_app as app
-from flask import jsonify, request
+from flask import jsonify, request, send_file
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.entrypoints.extensions import db, get_forwarded_address, limiter
 from api.services.tools_service import (
+    get_all_tles_at_epoch_paginated,
+    get_all_tles_at_epoch_zipped,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
-    get_recent_tle_set,
     get_satellite_data,
     get_tle_data,
 )
@@ -171,20 +174,68 @@ def get_satellite_data_list():
     return jsonify(satellite_data)
 
 
-@api_v1.route("/tools/get-recent-tle-set/")
-@api_main.route("/tools/get-recent-tle-set/")
+@api_v1.route("/tools/tles-at-epoch/")
+@api_main.route("/tools/tles-at-epoch/")
 @limiter.limit(
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
-def get_most_recent_tle_set():
+def get_tles_at_epoch():
+    """
+    Fetches all TLEs at a specific epoch date.
 
+    The function retrieves TLE data based on the epoch date provided in the request
+    arguments. It also supports pagination to handle large result sets.
+
+    Parameters:
+        epoch (str):
+            The epoch date for the TLE data, in Julian Date format.
+        page (int, optional):
+            The page number for pagination.
+        per_page (int, optional):
+            The number of results per page for pagination.
+
+    Returns:
+        A JSON response containing the TLE data for the specified epoch date.
+        Each TLE data entry includes the satellite name, satellite ID, TLE lines,
+        epoch, date collected, and data source.
+
+    Raises:
+        400:
+            If the epoch date is not provided or is invalid.
+        500:
+            If there is a DataError when fetching the TLE data.
+    """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
 
-    tle_data = get_recent_tle_set(
-        tle_repo,
-        api_source,
-        api_version,
-    )
+    parameter_list = ["epoch", "page", "per_page", "format"]
+    parameters = validate_parameters(request, parameter_list, [])
 
-    return jsonify(tle_data)
+    epoch_date = parameters.get("epoch")
+    if not epoch_date:
+        epoch_date = datetime.now(timezone.utc)
+
+    # paginated results by default
+    format = parameters.get("format")
+    if not format:
+        format = "json"
+
+    page = int(parameters.get("page", 1) or 1)
+    per_page = int(parameters.get("per_page") or 100)
+
+    if format == "json":
+        tles = get_all_tles_at_epoch_paginated(
+            tle_repo, epoch_date, page, per_page, api_source, api_version
+        )
+
+        return jsonify(tles)
+    else:
+        zipped_data = get_all_tles_at_epoch_zipped(
+            tle_repo, epoch_date, page, per_page, api_source, api_version
+        )
+        return send_file(
+            zipped_data,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="tle_data.zip",
+        )

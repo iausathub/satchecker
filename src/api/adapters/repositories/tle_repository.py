@@ -1,8 +1,8 @@
 import abc
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from api.adapters.database_orm import SatelliteDb, TLEDb
@@ -59,8 +59,46 @@ class AbstractTLERepository(abc.ABC):
             satellite_name, start_date, end_date
         )
 
-    def get_most_recent_full_tle_set(self):
-        return self._get_most_recent_full_tle_set()
+    def get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int
+    ) -> Tuple[List[TLE], int]:
+        two_weeks_prior = epoch_date - timedelta(weeks=2)
+
+        subquery = (
+            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
+            .filter(TLEDb.epoch <= epoch_date, TLEDb.epoch >= two_weeks_prior)
+            .group_by(TLEDb.sat_id)
+            .subquery()
+        )
+
+        query = (
+            self.session.query(TLEDb)
+            .join(
+                subquery,
+                and_(
+                    TLEDb.sat_id == subquery.c.sat_id,
+                    TLEDb.epoch == subquery.c.max_epoch,
+                ),
+            )
+            .join(TLEDb.satellite)
+            .filter(
+                or_(
+                    SatelliteDb.decay_date == None,  # Still active  # noqa: E711
+                    SatelliteDb.decay_date > epoch_date,  # Decayed after the epoch date
+                ),
+                not_(
+                    and_(
+                        TLEDb.epoch < two_weeks_prior,
+                        SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
+                    )
+                ),
+            )
+            .order_by(TLEDb.epoch)
+        )
+
+        total_count = query.count()
+        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
+        return (paginated_query.all(), total_count)
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
@@ -90,10 +128,6 @@ class AbstractTLERepository(abc.ABC):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> TLE:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _get_most_recent_full_tle_set(self):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -212,25 +246,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
         if end_date is not None:
             query = query.filter(TLEDb.epoch <= end_date)
-
-        return query.all()
-
-    def _get_most_recent_full_tle_set(self):
-        # get all satellites that have has_current_sat_number = True
-        subquery = (
-            self.session.query(SatelliteDb.sat_number)
-            .filter(SatelliteDb.has_current_sat_number == True)  # noqa: E712
-            .subquery()
-        )
-
-        # get only most recent TLE for each satellite in the subquery
-        query = (
-            self.session.query(TLEDb)
-            .join(TLEDb.satellite)
-            .filter(SatelliteDb.sat_number.in_(subquery))
-            .order_by(SatelliteDb.sat_number, TLEDb.epoch.desc())
-            .distinct(SatelliteDb.sat_number)
-        )
 
         return query.all()
 
