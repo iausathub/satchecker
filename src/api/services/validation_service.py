@@ -188,7 +188,7 @@ def validate_parameters(
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
-    if "format" in parameters.keys():
+    if "format" in parameters.keys() and parameters["format"] is not None:
         parameters["format"] = parameters["format"].lower()
 
         if parameters["format"] not in ["json", "zip"]:

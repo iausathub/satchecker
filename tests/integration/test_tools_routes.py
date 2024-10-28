@@ -147,3 +147,25 @@ def test_get_tles_at_epoch_optional_epoch_date(client):
     assert response.status_code == 200
     assert len(response.json) > 0
     assert tles[0]["satellite_name"] == "ISS"
+
+
+def test_get_tles_at_epoch_zipped(client):
+    satellite = SatelliteFactory(
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
+    )
+    # get current date for TLE epoch
+    epoch_date = datetime.now()
+    tle = TLEFactory(
+        satellite=satellite,
+        epoch=epoch_date,
+    )
+    tle_repo = tle_repository.SqlAlchemyTLERepository(db.session)
+    tle_repo.add(tle)
+    db.session.commit()
+
+    response = client.get("/tools/tles-at-epoch/?format=zip")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/zip"
+    assert (
+        response.headers["Content-Disposition"] == "attachment; filename=tle_data.zip"
+    )

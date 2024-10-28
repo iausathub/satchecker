@@ -241,6 +241,8 @@ in the database (no decay date and current NORAD ID).
     For an example on how to use this endpoint to get all TLEs for the current date using Python and a Pandas DataFrame,
     check out the :doc:`examples page <examples>`.
 
+    If you need the TLE data in a single zip file, you can set the ``format`` query parameter to ``zip``.
+
 **Endpoint**
 
 .. http:get:: /tools/tles-at-epoch/
@@ -250,6 +252,7 @@ in the database (no decay date and current NORAD ID).
     :query epoch: (*optional*) -- The epoch date for the TLE data, in Julian Date format. Defaults to the current date if not provided.
     :query page: (*optional*) -- The page number for pagination. Defaults to 1.
     :query per_page: (*optional*) -- The number of results per page for pagination. Defaults to 100.
+    :query format: (*optional*) -- The format of the response. Valid values are "json" (default) or "zip". The "zip" option will return a zip file containing a CSV file with the TLE data.
 
     **Example Request**
 
