@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
 
 from flask import current_app as app
-from flask import jsonify, request
+from flask import jsonify, request, send_file
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.entrypoints.extensions import db, get_forwarded_address, limiter
 from api.services.tools_service import (
-    get_all_tles_at_epoch,
+    get_all_tles_at_epoch_paginated,
+    get_all_tles_at_epoch_zipped,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_satellite_data,
@@ -207,18 +208,34 @@ def get_tles_at_epoch():
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
 
-    parameter_list = ["epoch", "page", "per_page"]
+    parameter_list = ["epoch", "page", "per_page", "format"]
     parameters = validate_parameters(request, parameter_list, [])
 
     epoch_date = parameters.get("epoch")
     if not epoch_date:
         epoch_date = datetime.now(timezone.utc)
 
+    # paginated results by default
+    format = parameters.get("format")
+    if not format:
+        format = "json"
+
     page = int(parameters.get("page", 1) or 1)
     per_page = int(parameters.get("per_page") or 100)
 
-    tles = get_all_tles_at_epoch(
-        tle_repo, epoch_date, page, per_page, api_source, api_version
-    )
+    if format == "json":
+        tles = get_all_tles_at_epoch_paginated(
+            tle_repo, epoch_date, page, per_page, api_source, api_version
+        )
 
-    return jsonify(tles)
+        return jsonify(tles)
+    else:
+        zipped_data = get_all_tles_at_epoch_zipped(
+            tle_repo, epoch_date, page, per_page, api_source, api_version
+        )
+        return send_file(
+            zipped_data,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="tle_data.zip",
+        )

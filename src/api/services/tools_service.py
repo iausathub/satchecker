@@ -1,3 +1,6 @@
+import csv
+import io
+import zipfile
 from datetime import datetime
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
@@ -119,7 +122,7 @@ def get_satellite_data(
     return satellite_data
 
 
-def get_all_tles_at_epoch(
+def get_all_tles_at_epoch_paginated(
     tle_repo: AbstractTLERepository,
     epoch_date: datetime,
     page: int,
@@ -172,6 +175,57 @@ def get_all_tles_at_epoch(
         }
     ]
     return json_results
+
+
+def get_all_tles_at_epoch_zipped(
+    tle_repo: AbstractTLERepository,
+    epoch_date: datetime,
+    page: int,
+    per_page: int,
+    api_source: str,
+    api_version: str,
+):
+    tles, total_count = tle_repo.get_all_tles_at_epoch(epoch_date, page, per_page)
+
+    # Create CSV data in memory
+    csv_buffer = io.StringIO()
+    csv_writer = csv.writer(csv_buffer)
+
+    # Write header
+    csv_writer.writerow(
+        [
+            "satellite_name",
+            "satellite_id",
+            "tle_line1",
+            "tle_line2",
+            "epoch",
+            "date_collected",
+            "data_source",
+        ]
+    )
+
+    # Write data
+    for tle in tles:
+        csv_writer.writerow(
+            [
+                tle.satellite.sat_name,
+                tle.satellite.sat_number,
+                tle.tle_line1,
+                tle.tle_line2,
+                tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                tle.data_source,
+            ]
+        )
+
+    # Create zip file in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr("tle_data.csv", csv_buffer.getvalue())
+
+    zip_buffer.seek(0)
+
+    return zip_buffer
 
 
 def get_ids_for_satellite_name(
