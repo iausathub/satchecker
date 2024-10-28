@@ -60,7 +60,7 @@ class AbstractTLERepository(abc.ABC):
         )
 
     def get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int
+        self, epoch_date: datetime, page: int, per_page: int, format: str
     ) -> Tuple[List[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
@@ -97,6 +97,10 @@ class AbstractTLERepository(abc.ABC):
         )
 
         total_count = query.count()
+
+        if format == "zip":
+            return query.all(), total_count
+
         paginated_query = query.limit(per_page).offset((page - 1) * per_page)
         return (paginated_query.all(), total_count)
 

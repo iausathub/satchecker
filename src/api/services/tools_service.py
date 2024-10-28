@@ -148,7 +148,9 @@ def get_all_tles_at_epoch_paginated(
         List[Dict[str, Any]]: A list containing a dictionary with TLE data and
         pagination info.
     """
-    tles, total_count = tle_repo.get_all_tles_at_epoch(epoch_date, page, per_page)
+    tles, total_count = tle_repo.get_all_tles_at_epoch(
+        epoch_date, page, per_page, "json"
+    )
 
     # Extract the TLE data from the result set
     tle_data = [
@@ -185,7 +187,9 @@ def get_all_tles_at_epoch_zipped(
     api_source: str,
     api_version: str,
 ):
-    tles, total_count = tle_repo.get_all_tles_at_epoch(epoch_date, page, per_page)
+    tles, total_count = tle_repo.get_all_tles_at_epoch(
+        epoch_date, page, per_page, "zip"
+    )
 
     # Create CSV data in memory
     csv_buffer = io.StringIO()
