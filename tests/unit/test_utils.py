@@ -218,6 +218,7 @@ def test_position_data_to_json():
     name = "ISS (ZARYA)"
     catalog_id = 25544
     date_collected = datetime.now()
+    tle_epoch = datetime.now()
     data_source = "spacetrack"
     intl_designator = "1998-067A"
 
@@ -246,6 +247,7 @@ def test_position_data_to_json():
         intl_designator,
         catalog_id,
         date_collected,
+        tle_epoch,
         data_source,
         results,
         api_source,

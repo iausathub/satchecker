@@ -3,6 +3,10 @@ Release History
 
 See the full changelog `here <https://github.com/iausathub/satchecker/releases>`_.
 
+v1.1.0
+------------
+* Add TLE epoch date to ephemeris data response
+
 v1.0.4
 ------------
 * Add endpoint to get all TLEs for active objects at the current (or specified ) epoch.
