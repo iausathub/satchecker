@@ -6,6 +6,7 @@ def position_data_to_json(
     intl_designator,
     catalog_id,
     date_collected,
+    tle_epoch_date,
     data_source,
     results,
     api_source,
@@ -28,6 +29,8 @@ def position_data_to_json(
         Catalog ID of the satellite
     date_collected: datetime
         Date when the data was collected
+    tle_epoch_date: datetime
+        Date when the TLE was created
     data_source: str
         Source of the data
     results: list
@@ -60,6 +63,12 @@ def position_data_to_json(
         else date_collected
     )
 
+    tle_epoch = (
+        tle_epoch_date.strftime("%Y-%m-%d %H:%M:%S %Z")
+        if tle_epoch_date is not None
+        else tle_epoch_date
+    )
+
     fields = [
         "name",
         "catalog_id",
@@ -79,6 +88,7 @@ def position_data_to_json(
         "data_source",
         "observer_gcrs_km",
         "international_designator",
+        "tle_epoch",
     ]
     data = []
     for result in results:
@@ -125,6 +135,7 @@ def position_data_to_json(
                 data_source,
                 observer_gcrs,
                 intl_designator,
+                tle_epoch,
             ]
         )
 

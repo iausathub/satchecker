@@ -44,6 +44,7 @@ def test_process_results_within_altitude_range():
     min_altitude = 40
     max_altitude = 70
     date_collected = datetime(2023, 1, 1)
+    tle_epoch = datetime(2023, 1, 1)
     name = "Satellite"
     intl_designator = "2024-test"
     catalog_id = "12345"
@@ -72,6 +73,7 @@ def test_process_results_within_altitude_range():
             "data_source",
             "observer_gcrs_km",
             "international_designator",
+            "tle_epoch",
         ],
         "data": [
             [
@@ -93,6 +95,7 @@ def test_process_results_within_altitude_range():
                 "Source",
                 [4, 5, 6],
                 "2024-test",
+                "2023-01-01 00:00:00 ",  # noqa: E501
             ],  # noqa: E501
             [
                 "Satellite",
@@ -113,6 +116,7 @@ def test_process_results_within_altitude_range():
                 "Source",
                 [10, 11, 12],
                 "2024-test",
+                "2023-01-01 00:00:00 ",  # noqa: E501
             ],
         ],  # noqa: E501
         "source": "API",
@@ -124,6 +128,7 @@ def test_process_results_within_altitude_range():
         min_altitude,
         max_altitude,
         date_collected,
+        tle_epoch,
         name,
         intl_designator,
         catalog_id,
@@ -174,6 +179,7 @@ def test_process_results_outside_altitude_range():
     min_altitude = 80
     max_altitude = 90
     date_collected = datetime(2023, 1, 1)
+    tle_epoch = datetime(2023, 1, 1)
     name = "Satellite"
     intl_designator = "2024-test"
     catalog_id = "12345"
@@ -192,6 +198,7 @@ def test_process_results_outside_altitude_range():
         min_altitude,
         max_altitude,
         date_collected,
+        tle_epoch,
         name,
         intl_designator,
         catalog_id,
@@ -207,6 +214,7 @@ def test_process_results_empty_tles():
     min_altitude = 40
     max_altitude = 70
     date_collected = "2023-01-01"
+    tle_epoch = "2023-01-01"
     name = "Satellite"
     intl_designator = "2024-test"
     catalog_id = "12345"
@@ -225,6 +233,7 @@ def test_process_results_empty_tles():
         min_altitude,
         max_altitude,
         date_collected,
+        tle_epoch,
         name,
         intl_designator,
         catalog_id,
