@@ -44,6 +44,8 @@ The API response is a JSON object with the following fields:
      - Date that the TLE used to calculate the satellite position was collected from the specified data source (UTC timezone)
    * - international_designator
      - International Designator for the satellite (COSPAR ID)
+   * - tle_epoch
+     - Date that the TLE used to calculate the satellite position was created/valid for (UTC timezone)
 
 
 The API response is structured as follows:
@@ -117,7 +119,8 @@ Example Response
                     -3281.0604185873253,
                     4079.547075333211
                 ],
-                "2020-057AW"
+                "2020-057AW",
+                "2024-02-06 00:12:42 UTC"
             ]
         ],
         "fields": [
@@ -136,9 +139,10 @@ Example Response
             "phase_angle_deg",
             "illuminated",
             "data_source",
-            "observer_gcrs_km"
-            "international_designator"
+            "observer_gcrs_km",
+            "international_designator",
+            "tle_epoch"
         ],
-    "source": "IAU CPS SatChecker",
-    "version": "1.0.4"
+        "source": "IAU CPS SatChecker",
+        "version": "1.1.0"
     }
