@@ -178,15 +178,15 @@ def test_skyfield_propagation_strategy():
         SkyfieldPropagationStrategy(),
         tle_line_1,
         tle_line_2,
-        julian_date,
+        [julian_date],
         latitude,
         longitude,
         elevation,
     )
     result = propagation_info.propagate()
 
-    assert result.ra == pytest.approx(234.01865005681205, rel=1e-9)
-    assert result.dec == pytest.approx(-51.424189307650366, rel=1e-9)
+    assert result[0].ra == pytest.approx(234.01865005681205, rel=1e-9)
+    assert result[0].dec == pytest.approx(-51.424189307650366, rel=1e-9)
 
 
 def test_skyfield_propagation_strategy_error():
@@ -201,7 +201,7 @@ def test_skyfield_propagation_strategy_error():
         SkyfieldPropagationStrategy(),
         tle_line_1,
         tle_line_2,
-        julian_date,
+        [julian_date],
         latitude,
         longitude,
         elevation,
@@ -210,8 +210,8 @@ def test_skyfield_propagation_strategy_error():
     # Weird lat/long./elevation values will not cause errors -
     # they will be normalized to a valid range; invalid TLE data
     # will cause a NaN result, but not throw an exception
-    assert math.isnan(result.ra)
-    assert math.isnan(result.dec)
+    assert math.isnan(result[0].ra)
+    assert math.isnan(result[0].dec)
 
 
 def test_position_data_to_json():

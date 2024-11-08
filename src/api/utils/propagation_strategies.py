@@ -82,114 +82,112 @@ satellite_position = namedtuple(
 class SkyfieldPropagationStrategy:
     def propagate(
         self,
-        julian_date: float,
+        julian_dates: list[float],
         tle_line_1: str,
         tle_line_2: str,
         latitude: float,
         longitude: float,
         elevation: float,
-    ) -> satellite_position:
+    ) -> list[satellite_position]:
         """
         Use Skyfield (https://rhodesmill.org/skyfield/earth-satellites.html)
         to propagate satellite and observer states.
 
         Args:
+            julian_dates (list[float]): List of Julian Dates to propagate
             tle_line_1 (str): TLE line 1
             tle_line_2 (str): TLE line 2
             latitude (float): The observer WGS84 latitude in degrees
             longitude (float): The observers WGS84 longitude in degrees (positive value
                 represents east, negative value represents west)
             elevation (float): The observer elevation above WGS84 ellipsoid in meters
-            julian_date (float): UT1 Universal Time Julian Date. An input of 0 will use
-                the TLE epoch.
 
         Returns:
-            satellite_position: A named tuple containing the satellite position results
-
+            list[satellite_position]: List of propagated positions
         """
-
-        # This is the skyfield implementation
         ts = load.timescale()
         satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
-
-        # Get current position and find topocentric ra and dec
         curr_pos = wgs84.latlon(latitude, longitude, elevation)
-        # Set time to satellite epoch if input jd is 0, otherwise time is inputted jd
-        # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
-        # astropy.Time.TT.jd instead of UT1
-        jd = Time(julian_date, format="jd", scale="ut1")
 
-        if jd.jd == 0:
-            t = ts.ut1_jd(satellite.model.jdsatepoch)
-        else:
-            t = ts.ut1_jd(jd.jd)
+        results = []
+        for julian_date in julian_dates:
+            jd = Time(julian_date, format="jd", scale="ut1")
 
-        difference = satellite - curr_pos
-        topocentric = difference.at(t)
-        topocentricn = topocentric.position.km / np.linalg.norm(topocentric.position.km)
+            if jd.jd == 0:
+                # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
+                # astropy.Time.TT.jd instead of UT1
+                t = ts.ut1_jd(satellite.model.jdsatepoch)
+            else:
+                t = ts.ut1_jd(jd.jd)
 
-        ra, dec, distance = topocentric.radec()
-        alt, az, distance = topocentric.altaz()
+            difference = satellite - curr_pos
+            topocentric = difference.at(t)
+            topocentricn = topocentric.position.km / np.linalg.norm(
+                topocentric.position.km
+            )
 
-        dtday = TimeDelta(1, format="sec")
-        tplusdt = ts.ut1_jd((jd + dtday).jd)
-        tminusdt = ts.ut1_jd((jd - dtday).jd)
+            ra, dec, distance = topocentric.radec()
+            alt, az, distance = topocentric.altaz()
 
-        dtsec = 1
-        dtx2 = 2 * dtsec
+            dtday = TimeDelta(1, format="sec")
+            tplusdt = ts.ut1_jd((jd + dtday).jd)
+            tminusdt = ts.ut1_jd((jd - dtday).jd)
 
-        sat_gcrs = satellite.at(t).position.km
+            dtsec = 1
+            dtx2 = 2 * dtsec
 
-        # satn = sat / np.linalg.norm(sat)
-        # satpdt = satellite.at(tplusdt).position.km
-        # satmdt = satellite.at(tminusdt).position.km
-        # vsat = (satpdt - satmdt) / dtx2
+            sat_gcrs = satellite.at(t).position.km
 
-        sattop = difference.at(t).position.km
-        sattopr = np.linalg.norm(sattop)
-        sattopn = sattop / sattopr
-        sattoppdt = difference.at(tplusdt).position.km
-        sattopmdt = difference.at(tminusdt).position.km
+            # satn = sat / np.linalg.norm(sat)
+            # satpdt = satellite.at(tplusdt).position.km
+            # satmdt = satellite.at(tminusdt).position.km
+            # vsat = (satpdt - satmdt) / dtx2
+            sattop = difference.at(t).position.km
+            sattopr = np.linalg.norm(sattop)
+            sattopn = sattop / sattopr
+            sattoppdt = difference.at(tplusdt).position.km
+            sattopmdt = difference.at(tminusdt).position.km
 
-        ratoppdt, dectoppdt = icrf2radec(sattoppdt)
-        ratopmdt, dectopmdt = icrf2radec(sattopmdt)
+            ratoppdt, dectoppdt = icrf2radec(sattoppdt)
+            ratopmdt, dectopmdt = icrf2radec(sattopmdt)
 
-        vsattop = (sattoppdt - sattopmdt) / dtx2
+            vsattop = (sattoppdt - sattopmdt) / dtx2
 
-        ddistance = np.dot(vsattop, sattopn)
-        rxy = np.dot(sattop[0:2], sattop[0:2])
-        dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
-        ddec = vsattop[2] / np.sqrt(1 - sattopn[2] * sattopn[2])
-        dracosdec = dra * np.cos(dec.radians)
+            ddistance = np.dot(vsattop, sattopn)
+            rxy = np.dot(sattop[0:2], sattop[0:2])
+            dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
+            ddec = vsattop[2] / np.sqrt(1 - sattopn[2] * sattopn[2])
+            dracosdec = dra * np.cos(dec.radians)
 
-        dra = (ratoppdt - ratopmdt) / dtx2
-        ddec = (dectoppdt - dectopmdt) / dtx2
-        dracosdec = dra * np.cos(dec.radians)
+            dra = (ratoppdt - ratopmdt) / dtx2
+            ddec = (dectoppdt - dectopmdt) / dtx2
+            dracosdec = dra * np.cos(dec.radians)
 
-        # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
-        # dracosdecv = drav * np.cos(dec.radians)
+            # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
+            # dracosdecv = drav * np.cos(dec.radians)
+            phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
+            illuminated = is_illuminated(sat_gcrs, julian_date)
+            obs_gcrs = curr_pos.at(t).position.km
 
-        phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
+            results.append(
+                satellite_position(
+                    ra._degrees,
+                    dec.degrees,
+                    dracosdec,
+                    ddec,
+                    alt._degrees,
+                    az._degrees,
+                    distance.km,
+                    ddistance,
+                    phase_angle,
+                    illuminated,
+                    sat_gcrs.tolist(),
+                    obs_gcrs.tolist(),
+                    julian_date,
+                )
+            )
 
-        illuminated = is_illuminated(sat_gcrs, julian_date)
-
-        obs_gcrs = curr_pos.at(t).position.km
-
-        return satellite_position(
-            ra._degrees,
-            dec.degrees,
-            dracosdec,
-            ddec,
-            alt._degrees,
-            az._degrees,
-            distance.km,
-            ddistance,
-            phase_angle,
-            illuminated,
-            sat_gcrs.tolist(),
-            obs_gcrs.tolist(),
-            julian_date,
-        )
+        return results
 
 
 class SGP4PropagationStrategy:
