@@ -9,6 +9,7 @@ from api.config import get_db_login
 from api.entrypoints.extensions import db, limiter
 from api.entrypoints.v1.routes import api_main, api_v1
 from api.entrypoints.v1.routes import ephemeris_routes as ephem_routes  # noqa: F401
+from api.entrypoints.v1.routes import fov_routes as fov_routes  # noqa: F401, I001
 from api.entrypoints.v1.routes import routes as v1_routes  # noqa: F401, I001
 from api.entrypoints.v1.routes import tools_routes as tool_routes  # noqa: F401, I001
 

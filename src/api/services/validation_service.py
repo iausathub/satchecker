@@ -178,6 +178,17 @@ def validate_parameters(
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
+    if (
+        "mid_obs_time_jd" in parameters.keys()
+        and parameters["mid_obs_time_jd"] is not None
+    ):
+        try:
+            parameters["mid_obs_time_jd"] = Time(
+                parameters["mid_obs_time_jd"], format="jd", scale="ut1"
+            )
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+
     if "epoch" in parameters.keys() and parameters["epoch"] is not None:
         try:
             parameters["epoch"] = (
@@ -187,6 +198,18 @@ def validate_parameters(
             )
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e
+
+    if "ra" in parameters.keys() and parameters["ra"] is not None:
+        parameters["ra"] = float(parameters["ra"])
+
+    if "dec" in parameters.keys() and parameters["dec"] is not None:
+        parameters["dec"] = float(parameters["dec"])
+
+    if "fov_radius" in parameters.keys() and parameters["fov_radius"] is not None:
+        parameters["fov_radius"] = float(parameters["fov_radius"])
+
+    if "duration" in parameters.keys() and parameters["duration"] is not None:
+        parameters["duration"] = float(parameters["duration"])
 
     if "format" in parameters.keys() and parameters["format"] is not None:
         parameters["format"] = parameters["format"].lower()

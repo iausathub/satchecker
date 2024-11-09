@@ -1,0 +1,65 @@
+from flask import current_app as app
+from flask import jsonify, request
+
+from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
+from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.services.fov_service import get_satellite_passes_in_fov
+from api.services.validation_service import validate_parameters
+
+from . import api_main, api_source, api_v1, api_version
+
+
+@api_v1.route("/fov/satellite-passes/")
+@api_main.route("/fov/satellite-passes/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_satellite_passes():
+    parameter_list = [
+        "latitude",
+        "longitude",
+        "elevation",
+        "mid_obs_time_jd",
+        "duration",
+        "ra",
+        "dec",
+        "fov_radius",
+    ]
+    parameters = validate_parameters(
+        request,
+        parameter_list,
+        parameter_list,
+    )
+
+    session = db.session
+    sat_repo = SqlAlchemySatelliteRepository(session)
+    tle_repo = SqlAlchemyTLERepository(session)
+
+    try:
+        satellite_passes = get_satellite_passes_in_fov(
+            sat_repo,
+            tle_repo,
+            parameters["location"],
+            parameters["mid_obs_time_jd"],
+            parameters["duration"],
+            parameters["ra"],
+            parameters["dec"],
+            parameters["fov_radius"],
+            api_source,
+            api_version,
+        )
+        if not satellite_passes:
+            return {
+                "info": "No position information found with this criteria",
+                "api_source": api_source,
+                "version": api_version,
+            }
+
+        return jsonify(satellite_passes)
+    except ValueError as e:
+        app.logger.error(e)
+        return jsonify({"error": "Incorrect parameters"}), 400
+    except Exception as e:
+        app.logger.error(e)
+        return jsonify({"error": str(e)}), 500
