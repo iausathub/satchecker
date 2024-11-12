@@ -8,7 +8,7 @@ from skyfield.api import EarthSatellite, load, wgs84
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
-from api.utils import coordinate_systems
+from api.utils import coordinate_systems, output_utils
 
 
 def get_satellite_passes_in_fov(
@@ -20,9 +20,10 @@ def get_satellite_passes_in_fov(
     ra: float,
     dec: float,
     fov_radius: float,
+    group_by: str,
     api_source: str,
     api_version: str,
-) -> list[dict]:
+) -> dict:
     start_time = python_time.time()
     print(f"\nStarting FOV calculation at: {datetime.now().isoformat()}")
     print(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
@@ -33,15 +34,13 @@ def get_satellite_passes_in_fov(
     tles, count = tle_repo.get_all_tles_at_epoch(
         mid_obs_time_jd.to_datetime(), 1, 10000, "zip"
     )
+
     tle_time = python_time.time() - tle_start
     print(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
+
+    # Pre-compute time arrays and constants
     ts = load.timescale()
-
     time_step = 1 / 86400  # 1 second
-    # Get times to check based on the mid point of the observation and the duration
-    # the mid point is in JD and the duration is in seconds, use a time step of 1 second
-
-    # convert duration to JD
     duration_jd = duration / 86400
 
     prop_start = python_time.time()
@@ -50,58 +49,60 @@ def get_satellite_passes_in_fov(
         mid_obs_time_jd.jd + duration_jd / 2,
         time_step,
     )
-    t = ts.ut1_jd(jd_times)  # Convert entire array to Skyfield time objects
+    t = ts.ut1_jd(jd_times)
     print(f"Checking {len(jd_times)} time points")
 
-    # Set up observer position once
+    # Set up observer and FOV vectors once
     curr_pos = wgs84.latlon(
         location.lat.value, location.lon.value, location.height.value
     )
+    icrf = coordinate_systems.radec2icrf(ra, dec).reshape(3, 1)
 
     all_results = []
     satellites_processed = 0
     points_in_fov = 0
     total_sat_time = 0
 
-    # Prepare ICRF vector once
-    icrf = coordinate_systems.radec2icrf(ra, dec)
-    icrf = icrf.reshape(3, 1)  # Reshape for broadcasting
-
     for tle in tles:
         sat_start = python_time.time()
         try:
             satellite = EarthSatellite(tle.tle_line1, tle.tle_line2, ts=ts)
             difference = satellite - curr_pos
-
-            # Propagate all times at once
             topocentric = difference.at(t)
             topocentricn = topocentric.position.km / np.linalg.norm(
                 topocentric.position.km, axis=0, keepdims=True
             )
 
-            # Calculate angles for all times at once
+            # Vectorized angle calculation
             sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
-
-            # Find times where satellite is in FOV
             in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
 
-            # Process only the points that are in FOV
-            for i, in_fov in enumerate(in_fov_mask):
-                if in_fov:
-                    # Get RA/Dec for this position
-                    this_pos = topocentricn[:, i]
-                    ra_sat, dec_sat = coordinate_systems.icrf2radec(this_pos)
+            if np.any(in_fov_mask):  # Only get alt/az if satellite is ever in FOV
+                alt, az, _ = topocentric.altaz()
+                fov_indices = np.where(in_fov_mask)[0]
 
-                    satellite_pass = {
-                        "ra": ra_sat,
-                        "dec": dec_sat,
+                # Vectorized creation of results
+                positions = topocentricn[:, fov_indices]
+                ra_decs = np.array(
+                    [coordinate_systems.icrf2radec(pos) for pos in positions.T]
+                )
+
+                results = [
+                    {
+                        "ra": ra_dec[0],
+                        "dec": ra_dec[1],
+                        "altitude": float(alt._degrees[idx]),
+                        "azimuth": float(az._degrees[idx]),
                         "name": tle.satellite.sat_name,
                         "norad_id": tle.satellite.sat_number,
-                        "julian_date": jd_times[i],
-                        "angle": np.degrees(sat_fov_angles[i]),
+                        "julian_date": jd_times[idx],
+                        "angle": np.degrees(sat_fov_angles[idx]),
                     }
-                    all_results.append(satellite_pass)
-                    points_in_fov += 1
+                    for idx, ra_dec in zip(fov_indices, ra_decs)
+                ]
+
+                all_results.extend(results)
+                points_in_fov += len(results)
 
             sat_time = python_time.time() - sat_start
             total_sat_time += sat_time
@@ -111,13 +112,15 @@ def get_satellite_passes_in_fov(
                 elapsed = python_time.time() - start_time
                 avg_sat_time = total_sat_time / satellites_processed
                 print(
-                    f"Processed {satellites_processed}/{count} satellites in {elapsed:.2f} seconds"  # noqa: E501
+                    f"Processed {satellites_processed}/{count} "
+                    f"satellites in {elapsed:.2f} seconds"
                 )
                 print(f"Average time per satellite: {avg_sat_time:.3f} seconds")
                 print(f"Found {points_in_fov} points in FOV so far")
 
         except Exception as e:
             print(f"Error processing TLE {tle.satellite.sat_name}: {e}")
+            satellites_processed += 1
             continue
 
     end_time = python_time.time()
@@ -133,12 +136,26 @@ def get_satellite_passes_in_fov(
     print(
         f"Propagation time: {prop_time:.2f} seconds ({(prop_time/total_time)*100:.1f}%)"
     )
-    print(
-        f"Average time per satellite: {total_sat_time/satellites_processed:.3f} seconds"
-    )
     print("\nResults Summary:")
     print(f"Satellites processed: {satellites_processed}/{count}")
     print(f"Points in FOV: {points_in_fov}")
     print(f"End time: {datetime.now().isoformat()}")
 
-    return all_results
+    performance_metrics = {
+        "total_time": round(total_time, 3),
+        "tle_time": round(tle_time, 3),
+        "propagation_time": round(prop_time, 3),
+        "satellites_processed": satellites_processed,
+        "points_in_fov": points_in_fov,
+    }
+
+    return output_utils.fov_data_to_json(
+        all_results,
+        satellites_processed,
+        count,
+        points_in_fov,
+        performance_metrics,
+        api_source,
+        api_version,
+        group_by,
+    )

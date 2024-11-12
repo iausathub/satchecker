@@ -146,3 +146,83 @@ def position_data_to_json(
         "source": api_source,
         "version": api_version,
     }
+
+
+def fov_data_to_json(
+    results: list,
+    satellites_processed: int,
+    total_satellites: int,
+    points_in_fov: int,
+    performance_metrics: dict,
+    api_source: str,
+    api_version: str,
+    group_by: str,
+    precision_angles=8,
+    precision_date=8,
+) -> dict:
+    """Convert FOV results to JSON format with optional grouping by satellite."""
+    my_round = np.round
+
+    if group_by == "satellite":
+        # Group passes by satellite
+        satellites = {}
+        for result in results:
+            sat_name = result["name"]
+            if sat_name not in satellites:
+                satellites[sat_name] = {"norad_id": result["norad_id"], "positions": []}
+            # Add pass data without redundant satellite info
+            pass_data = {
+                "ra": (
+                    my_round(result["ra"], precision_angles)
+                    if result["ra"] is not None
+                    else None
+                ),
+                "dec": (
+                    my_round(result["dec"], precision_angles)
+                    if result["dec"] is not None
+                    else None
+                ),
+                "altitude": (
+                    my_round(result["altitude"], precision_angles)
+                    if result["altitude"] is not None
+                    else None
+                ),
+                "azimuth": (
+                    my_round(result["azimuth"], precision_angles)
+                    if result["azimuth"] is not None
+                    else None
+                ),
+                "julian_date": (
+                    my_round(result["julian_date"], precision_date)
+                    if result["julian_date"] is not None
+                    else None
+                ),
+                "angle": (
+                    my_round(result["angle"], precision_angles)
+                    if result["angle"] is not None
+                    else None
+                ),
+            }
+            satellites[sat_name]["positions"].append(pass_data)
+
+        formatted_results = {
+            "data": {
+                "satellites": satellites,
+                "total_satellites": len(satellites),
+                "total_position_results": points_in_fov,
+            },
+            "performance": performance_metrics,
+            "source": api_source,
+            "version": api_version,
+        }
+    else:
+        # Original chronological format
+        formatted_results = {
+            "data": results,
+            "count": len(results),
+            "performance": performance_metrics,
+            "source": api_source,
+            "version": api_version,
+        }
+
+    return formatted_results
