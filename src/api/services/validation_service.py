@@ -217,6 +217,16 @@ def validate_parameters(
         if parameters["format"] not in ["json", "zip"]:
             raise ValidationError(500, error_messages.INVALID_FORMAT)
 
+    if "group_by" in parameters.keys() and parameters["group_by"] is not None:
+        parameters["group_by"] = (
+            parameters["group_by"].lower()
+            if parameters["group_by"] is not None
+            else "time"
+        )
+
+        if parameters["group_by"] not in ["satellite", "time"]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
     return parameters
 
 

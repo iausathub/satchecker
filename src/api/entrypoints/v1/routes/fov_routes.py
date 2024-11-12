@@ -1,8 +1,9 @@
+from flask import abort, jsonify, request
 from flask import current_app as app
-from flask import jsonify, request
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, get_forwarded_address, limiter
 from api.services.fov_service import get_satellite_passes_in_fov
 from api.services.validation_service import validate_parameters
@@ -16,7 +17,7 @@ from . import api_main, api_source, api_v1, api_version
     "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
 )
 def get_satellite_passes():
-    parameter_list = [
+    required_parameters = [
         "latitude",
         "longitude",
         "elevation",
@@ -26,11 +27,15 @@ def get_satellite_passes():
         "dec",
         "fov_radius",
     ]
-    parameters = validate_parameters(
-        request,
-        parameter_list,
-        parameter_list,
-    )
+
+    optional_parameters = ["group_by"]
+
+    try:
+        parameters = validate_parameters(
+            request, required_parameters + optional_parameters, required_parameters
+        )
+    except ValidationError as e:
+        abort(e.status_code, e.message)
 
     session = db.session
     sat_repo = SqlAlchemySatelliteRepository(session)
@@ -46,6 +51,7 @@ def get_satellite_passes():
             parameters["ra"],
             parameters["dec"],
             parameters["fov_radius"],
+            parameters["group_by"],
             api_source,
             api_version,
         )
