@@ -172,24 +172,36 @@ def fov_data_to_json(
                 satellites[sat_name] = {"norad_id": result["norad_id"], "positions": []}
             # Add pass data without redundant satellite info
             pass_data = {
-                "ra": my_round(result["ra"], precision_angles)
-                if result["ra"] is not None
-                else None,
-                "dec": my_round(result["dec"], precision_angles)
-                if result["dec"] is not None
-                else None,
-                "altitude": my_round(result["altitude"], precision_angles)
-                if result["altitude"] is not None
-                else None,
-                "azimuth": my_round(result["azimuth"], precision_angles)
-                if result["azimuth"] is not None
-                else None,
-                "julian_date": my_round(result["julian_date"], precision_date)
-                if result["julian_date"] is not None
-                else None,
-                "angle": my_round(result["angle"], precision_angles)
-                if result["angle"] is not None
-                else None,
+                "ra": (
+                    my_round(result["ra"], precision_angles)
+                    if result["ra"] is not None
+                    else None
+                ),
+                "dec": (
+                    my_round(result["dec"], precision_angles)
+                    if result["dec"] is not None
+                    else None
+                ),
+                "altitude": (
+                    my_round(result["altitude"], precision_angles)
+                    if result["altitude"] is not None
+                    else None
+                ),
+                "azimuth": (
+                    my_round(result["azimuth"], precision_angles)
+                    if result["azimuth"] is not None
+                    else None
+                ),
+                "julian_date": (
+                    my_round(result["julian_date"], precision_date)
+                    if result["julian_date"] is not None
+                    else None
+                ),
+                "angle": (
+                    my_round(result["angle"], precision_angles)
+                    if result["angle"] is not None
+                    else None
+                ),
             }
             satellites[sat_name]["positions"].append(pass_data)
 
