@@ -64,13 +64,15 @@ class AbstractTLERepository(abc.ABC):
     ) -> Tuple[List[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
+        # First get the latest TLE for each satellite within our date range
         latest_tles = (
             self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
             .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
             .group_by(TLEDb.sat_id)
-            .cte("latest_tles")
+            .subquery()
         )
 
+        # Main query
         query = (
             self.session.query(TLEDb)
             .join(
@@ -104,7 +106,6 @@ class AbstractTLERepository(abc.ABC):
             return query.all(), total_count
 
         paginated_query = query.limit(per_page).offset((page - 1) * per_page)
-
         return (paginated_query.all(), total_count)
 
     @abc.abstractmethod
