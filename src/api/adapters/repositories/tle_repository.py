@@ -82,12 +82,15 @@ class AbstractTLERepository(abc.ABC):
                     TLEDb.epoch == latest_tles.c.max_epoch,
                 ),
             )
-            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
-            .filter(
-                or_(
-                    SatelliteDb.decay_date.is_(None),
-                    SatelliteDb.decay_date > epoch_date,
-                )
+            .join(
+                SatelliteDb,
+                and_(
+                    TLEDb.sat_id == SatelliteDb.id,
+                    or_(
+                        SatelliteDb.decay_date.is_(None),
+                        SatelliteDb.decay_date > epoch_date,
+                    ),
+                ),
             )
             .filter(
                 not_(
