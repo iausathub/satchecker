@@ -178,13 +178,35 @@ def validate_parameters(
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
-    if (
-        "mid_obs_time_jd" in parameters.keys()
-        and parameters["mid_obs_time_jd"] is not None
-    ):
+    # If either mid_obs_time_jd or start_time_jd is provided, use the appropriate one
+
+    # Validate mid_obs_time_jd and start_time_jd are mutually exclusive
+    if "mid_obs_time_jd" in parameters and "start_time_jd" in parameters:
+        if (
+            parameters["mid_obs_time_jd"] is not None
+            and parameters["start_time_jd"] is not None
+        ):
+            raise ValidationError(
+                400, "Cannot specify both mid_obs_time_jd and start_time_jd"
+            )
+        if (
+            parameters["mid_obs_time_jd"] is None
+            and parameters["start_time_jd"] is None
+        ):
+            raise ValidationError(
+                400, "Must specify either mid_obs_time_jd or start_time_jd"
+            )
+
+    # Convert whichever time parameter is provided to a Time object
+    if "mid_obs_time_jd" in parameters.keys() or "start_time_jd" in parameters.keys():
+        time_param = (
+            "mid_obs_time_jd"
+            if parameters.get("mid_obs_time_jd") is not None
+            else "start_time_jd"
+        )
         try:
-            parameters["mid_obs_time_jd"] = Time(
-                parameters["mid_obs_time_jd"], format="jd", scale="ut1"
+            parameters[time_param] = Time(
+                parameters[time_param], format="jd", scale="ut1"
             )
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e

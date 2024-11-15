@@ -177,6 +177,56 @@ def test_validate_parameters_invalid_id_type(app):
             )
 
 
+def test_validate_parameters_invalid_group_by(app):
+    with app.test_request_context(
+        "/?latitude=1&longitude=2&elevation=3&group_by=invalid"
+    ):
+        parameter_list = ["latitude", "longitude", "elevation", "group_by"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_fov_obs_time(app):
+    with app.test_request_context(
+        "?start_time_jd=2459000&mid_obs_time_jd=2459001&duration=30"
+    ):
+        parameter_list = ["start_time_jd", "mid_obs_time_jd", "duration"]
+        required_parameters = ["duration"]
+
+        with pytest.raises(
+            ValidationError,
+            match="Cannot specify both mid_obs_time_jd and start_time_jd",
+        ):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("?duration=30"):
+        parameter_list = ["start_time_jd", "mid_obs_time_jd", "duration"]
+        required_parameters = ["duration"]
+
+        with pytest.raises(
+            ValidationError,
+            match="Must specify either mid_obs_time_jd or start_time_jd",
+        ):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("?start_time_jd=test&duration=30"):
+        parameter_list = ["start_time_jd", "mid_obs_time_jd", "duration"]
+        required_parameters = ["duration"]
+
+        with pytest.raises(ValidationError, match="Invalid Julian Date"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
 def test_validate_parameters_too_many_times(app):
     with app.test_request_context(
         "/?latitude=1&longitude=2&elevation=3&startjd=2459000&stopjd=2459001&stepjd=0.000001"

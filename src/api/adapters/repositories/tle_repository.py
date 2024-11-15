@@ -62,50 +62,7 @@ class AbstractTLERepository(abc.ABC):
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
     ) -> Tuple[List[TLE], int]:
-        two_weeks_prior = epoch_date - timedelta(weeks=2)
-
-        latest_tles = (
-            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
-            .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
-            .group_by(TLEDb.sat_id)
-            .cte("latest_tles")
-        )
-
-        query = (
-            self.session.query(TLEDb)
-            .join(
-                latest_tles,
-                and_(
-                    TLEDb.sat_id == latest_tles.c.sat_id,
-                    TLEDb.epoch == latest_tles.c.max_epoch,
-                ),
-            )
-            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
-            .filter(
-                or_(
-                    SatelliteDb.decay_date.is_(None),
-                    SatelliteDb.decay_date > epoch_date,
-                )
-            )
-            .filter(
-                not_(
-                    and_(
-                        TLEDb.epoch < two_weeks_prior,
-                        SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
-                    )
-                )
-            )
-            .order_by(TLEDb.epoch)
-        )
-
-        total_count = query.count()
-
-        if format == "zip":
-            return query.all(), total_count
-
-        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
-
-        return (paginated_query.all(), total_count)
+        return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
@@ -135,6 +92,10 @@ class AbstractTLERepository(abc.ABC):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> TLE:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -255,6 +216,54 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             query = query.filter(TLEDb.epoch <= end_date)
 
         return query.all()
+
+    def _get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int, format: str
+    ) -> Tuple[List[TLE], int]:
+        two_weeks_prior = epoch_date - timedelta(weeks=2)
+
+        latest_tles = (
+            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
+            .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
+            .group_by(TLEDb.sat_id)
+            .cte("latest_tles")
+        )
+
+        query = (
+            self.session.query(TLEDb)
+            .join(
+                latest_tles,
+                and_(
+                    TLEDb.sat_id == latest_tles.c.sat_id,
+                    TLEDb.epoch == latest_tles.c.max_epoch,
+                ),
+            )
+            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
+            .filter(
+                or_(
+                    SatelliteDb.decay_date.is_(None),
+                    SatelliteDb.decay_date > epoch_date,
+                )
+            )
+            .filter(
+                not_(
+                    and_(
+                        TLEDb.epoch < two_weeks_prior,
+                        SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
+                    )
+                )
+            )
+            .order_by(TLEDb.epoch)
+        )
+
+        total_count = query.count()
+
+        if format == "zip":
+            return query.all(), total_count
+
+        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
+
+        return (paginated_query.all(), total_count)
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)

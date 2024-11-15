@@ -1,7 +1,6 @@
 from flask import abort, jsonify, request
 from flask import current_app as app
 
-from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, get_forwarded_address, limiter
@@ -21,14 +20,13 @@ def get_satellite_passes():
         "latitude",
         "longitude",
         "elevation",
-        "mid_obs_time_jd",
         "duration",
         "ra",
         "dec",
         "fov_radius",
     ]
 
-    optional_parameters = ["group_by"]
+    optional_parameters = ["start_time_jd", "mid_obs_time_jd", "group_by"]
 
     try:
         parameters = validate_parameters(
@@ -38,15 +36,14 @@ def get_satellite_passes():
         abort(e.status_code, e.message)
 
     session = db.session
-    sat_repo = SqlAlchemySatelliteRepository(session)
     tle_repo = SqlAlchemyTLERepository(session)
 
     try:
         satellite_passes = get_satellite_passes_in_fov(
-            sat_repo,
             tle_repo,
             parameters["location"],
             parameters["mid_obs_time_jd"],
+            parameters["start_time_jd"],
             parameters["duration"],
             parameters["ra"],
             parameters["dec"],

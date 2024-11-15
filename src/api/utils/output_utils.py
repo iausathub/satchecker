@@ -150,8 +150,6 @@ def position_data_to_json(
 
 def fov_data_to_json(
     results: list,
-    satellites_processed: int,
-    total_satellites: int,
     points_in_fov: int,
     performance_metrics: dict,
     api_source: str,
@@ -160,7 +158,21 @@ def fov_data_to_json(
     precision_angles=8,
     precision_date=8,
 ) -> dict:
-    """Convert FOV results to JSON format with optional grouping by satellite."""
+    """Convert FOV results to JSON format with optional grouping by satellite.
+
+    Args:
+        results: List of satellite position results
+        points_in_fov: Total number of position points in field of view
+        performance_metrics: Dictionary of performance measurements
+        api_source: Source of the API
+        api_version: Version of the API
+        group_by: Grouping strategy ('satellite' or 'time', time by default)
+        precision_angles: Decimal precision for angle values
+        precision_date: Decimal precision for dates
+
+    Returns:
+        dict: Formatted results either grouped by satellite or chronologically
+    """
     my_round = np.round
 
     if group_by == "satellite":
