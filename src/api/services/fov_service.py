@@ -6,16 +6,15 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from skyfield.api import EarthSatellite, load, wgs84
 
-from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.utils import coordinate_systems, output_utils
 
 
 def get_satellite_passes_in_fov(
-    sat_repo: AbstractSatelliteRepository,
     tle_repo: AbstractTLERepository,
     location: EarthLocation,
     mid_obs_time_jd: Time,
+    start_time_jd: Time,
     duration: float,
     ra: float,
     dec: float,
@@ -31,8 +30,9 @@ def get_satellite_passes_in_fov(
 
     # Get all current TLEs
     tle_start = python_time.time()
+    time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
     tles, count = tle_repo.get_all_tles_at_epoch(
-        mid_obs_time_jd.to_datetime(), 1, 10000, "zip"
+        time_param.to_datetime(), 1, 10000, "zip"
     )
 
     tle_time = python_time.time() - tle_start
@@ -44,11 +44,18 @@ def get_satellite_passes_in_fov(
     duration_jd = duration / 86400
 
     prop_start = python_time.time()
-    jd_times = np.arange(
-        mid_obs_time_jd.jd - duration_jd / 2,
-        mid_obs_time_jd.jd + duration_jd / 2,
-        time_step,
-    )
+    if mid_obs_time_jd is not None:
+        jd_times = np.arange(
+            mid_obs_time_jd.jd - duration_jd / 2,
+            mid_obs_time_jd.jd + duration_jd / 2,
+            time_step,
+        )
+    elif start_time_jd is not None:
+        jd_times = np.arange(
+            start_time_jd.jd,
+            start_time_jd.jd + duration_jd,
+            time_step,
+        )
     t = ts.ut1_jd(jd_times)
     print(f"Checking {len(jd_times)} time points")
 
@@ -147,15 +154,116 @@ def get_satellite_passes_in_fov(
         "propagation_time": round(prop_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
+        "jd_times": jd_times.tolist(),
     }
 
     return output_utils.fov_data_to_json(
         all_results,
-        satellites_processed,
-        count,
         points_in_fov,
         performance_metrics,
         api_source,
         api_version,
         group_by,
+    )
+
+
+def get_satellites_above_horizon(
+    tle_repo: AbstractTLERepository,
+    location: EarthLocation,
+    julian_dates: list[Time],
+    min_altitude: float = 0.0,
+    api_source: str = "",
+    api_version: str = "",
+) -> dict:
+    """
+    Get all satellites above the horizon at a specific time.
+
+    Args:
+        tle_repo: Repository for TLE data
+        location: Observer's location
+        time_jd: Time to check (as Time object)
+        min_altitude: Minimum altitude in degrees (default: 0.0 = horizon)
+        api_source: Source of the API call
+        api_version: Version of the API
+    """
+    start_time = python_time.time()
+    print(f"\nStarting horizon check at: {datetime.now().isoformat()}")
+    print(f"Minimum altitude: {min_altitude}°")
+    print(f"Time: {julian_dates}")
+    print(f"Location: {location}")
+
+    time_jd = julian_dates[0]
+
+    # Get all current TLEs
+    tle_start = python_time.time()
+    tles, count = tle_repo.get_all_tles_at_epoch(time_jd.to_datetime(), 1, 10000, "zip")
+    tle_time = python_time.time() - tle_start
+
+    # Set up time and observer
+    ts = load.timescale()
+    t = ts.ut1_jd([time_jd.jd])  # Single time point
+    curr_pos = wgs84.latlon(
+        location.lat.value, location.lon.value, location.height.value
+    )
+
+    all_results = []
+    satellites_processed = 0
+    visible_satellites = 0
+
+    for tle in tles:
+        try:
+            satellite = EarthSatellite(tle.tle_line1, tle.tle_line2, ts=ts)
+            difference = satellite - curr_pos
+            topocentric = difference.at(t)
+
+            # Get altitude and azimuth
+            alt, az, distance = topocentric.altaz()
+
+            # Check if above minimum altitude
+            if float(alt._degrees[0]) >= min_altitude:
+                # Get position in RA/Dec
+                topocentricn = topocentric.position.km / np.linalg.norm(
+                    topocentric.position.km, axis=0
+                )
+                ra_sat, dec_sat = coordinate_systems.icrf2radec(topocentricn[:, 0])
+
+                result = {
+                    "ra": ra_sat,
+                    "dec": dec_sat,
+                    "altitude": float(alt._degrees[0]),
+                    "azimuth": float(az._degrees[0]),
+                    "name": tle.satellite.sat_name,
+                    "norad_id": tle.satellite.sat_number,
+                    "julian_date": time_jd.jd,
+                    "range": float(distance.km[0]),
+                }
+                all_results.append(result)
+                visible_satellites += 1
+
+            satellites_processed += 1
+
+            if satellites_processed % 100 == 0:
+                elapsed = python_time.time() - start_time
+                print(
+                    f"Processed {satellites_processed}/{count} satellites in {elapsed:.2f} seconds"  # noqa: E501
+                )
+                print(f"Found {visible_satellites} visible satellites so far")
+
+        except Exception as e:
+            print(f"Error processing TLE {tle.satellite.sat_name}: {e}")
+            satellites_processed += 1
+            continue
+
+    end_time = python_time.time()
+    total_time = end_time - start_time
+
+    performance_metrics = {
+        "total_time": round(total_time, 3),
+        "tle_time": round(tle_time, 3),
+        "satellites_processed": satellites_processed,
+        "visible_satellites": visible_satellites,
+    }
+
+    return output_utils.fov_data_to_json(
+        all_results, count, performance_metrics, api_source, api_version, "time"
     )

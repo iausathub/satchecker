@@ -166,7 +166,7 @@ class FakeTLERepository(AbstractTLERepository):
             default=None,
         )
 
-    def _get_all_tles_at_epoch(self, epoch_date, page, per_page):
+    def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
         return list(self._tles), len(self._tles)
 
 
