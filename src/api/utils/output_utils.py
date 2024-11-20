@@ -1,4 +1,5 @@
 import numpy as np
+from astropy.time import Time
 
 
 def position_data_to_json(
@@ -177,11 +178,20 @@ def fov_data_to_json(
 
     if group_by == "satellite":
         # Group passes by satellite
+        # need to account for different satellites with the same name (usually debris)
+        # but different NORAD IDs
         satellites = {}
         for result in results:
             sat_name = result["name"]
-            if sat_name not in satellites:
-                satellites[sat_name] = {"norad_id": result["norad_id"], "positions": []}
+            sat_norad_id = result["norad_id"]
+            sat_key = f"{sat_name} ({sat_norad_id})"
+
+            if sat_key not in satellites:
+                satellites[sat_key] = {
+                    "name": sat_name,
+                    "norad_id": sat_norad_id,
+                    "positions": [],
+                }
             # Add pass data without redundant satellite info
             pass_data = {
                 "ra": (
@@ -209,13 +219,19 @@ def fov_data_to_json(
                     if result["julian_date"] is not None
                     else None
                 ),
+                "date_time": (
+                    # convert julian date to iso format
+                    Time(result["julian_date"], format="jd").iso
+                    if result["julian_date"] is not None
+                    else None
+                ),
                 "angle": (
                     my_round(result["angle"], precision_angles)
                     if result["angle"] is not None
                     else None
                 ),
             }
-            satellites[sat_name]["positions"].append(pass_data)
+            satellites[sat_key]["positions"].append(pass_data)
 
         formatted_results = {
             "data": {
