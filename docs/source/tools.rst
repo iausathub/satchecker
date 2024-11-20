@@ -331,6 +331,6 @@ in the database (no decay date and current NORAD ID).
                 "per_page": 5,
                 "source": "IAU CPS SatChecker",
                 "total_results": 385,
-                "version": "1.1.0"
+                "version": "1.2.0"
             }
         ]
