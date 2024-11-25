@@ -176,6 +176,22 @@ def fov_data_to_json(
     """
     my_round = np.round
 
+    # Round all results first
+    for result in results:
+        fields_to_round = list(
+            result.items()
+        )  # Create a static list of items to iterate
+        for field, value in fields_to_round:
+            if value is None:
+                continue
+            if field in ["ra", "dec", "altitude", "azimuth", "angle", "range_km"]:
+                result[field] = my_round(value, precision_angles)
+            elif field == "julian_date":
+                result[field] = my_round(value, precision_date)
+                result["date_time"] = (
+                    Time(value, format="jd").iso if value is not None else None
+                )
+
     if group_by == "satellite":
         # Group passes by satellite
         # need to account for different satellites with the same name (usually debris)
@@ -194,42 +210,14 @@ def fov_data_to_json(
                 }
             # Add pass data without redundant satellite info
             pass_data = {
-                "ra": (
-                    my_round(result["ra"], precision_angles)
-                    if result["ra"] is not None
-                    else None
-                ),
-                "dec": (
-                    my_round(result["dec"], precision_angles)
-                    if result["dec"] is not None
-                    else None
-                ),
-                "altitude": (
-                    my_round(result["altitude"], precision_angles)
-                    if result["altitude"] is not None
-                    else None
-                ),
-                "azimuth": (
-                    my_round(result["azimuth"], precision_angles)
-                    if result["azimuth"] is not None
-                    else None
-                ),
-                "julian_date": (
-                    my_round(result["julian_date"], precision_date)
-                    if result["julian_date"] is not None
-                    else None
-                ),
-                "date_time": (
-                    # convert julian date to iso format
-                    Time(result["julian_date"], format="jd").iso
-                    if result["julian_date"] is not None
-                    else None
-                ),
-                "angle": (
-                    my_round(result["angle"], precision_angles)
-                    if result["angle"] is not None
-                    else None
-                ),
+                "ra": result["ra"],
+                "dec": result["dec"],
+                "altitude": result["altitude"],
+                "azimuth": result["azimuth"],
+                "julian_date": result["julian_date"],
+                "date_time": result.get("date_time"),
+                "angle": result.get("angle"),
+                "range_km": result.get("range_km"),
             }
             satellites[sat_key]["positions"].append(pass_data)
 

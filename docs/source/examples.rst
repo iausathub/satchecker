@@ -1,4 +1,4 @@
-Examples
+API Examples
 =============
 
 Here are a few examples of how to use the API:

@@ -149,6 +149,9 @@ def test_satellites_above_horizon():
         tle_repo,
         location=EarthLocation(lat=43, lon=-81, height=300),
         julian_dates=[Time("2024-10-01 18:19:13")],
+        min_altitude=0,
+        min_range=0,
+        max_range=1500000,
     )
 
     assert len(result["data"]) == 1
@@ -160,6 +163,8 @@ def test_satellites_above_horizon():
         location=EarthLocation(lat=43, lon=-81, height=300),
         julian_dates=[Time("2024-10-01 18:19:13")],
         min_altitude=30,
+        min_range=0,
+        max_range=1500000,
     )
 
     assert len(result["data"]) == 0
@@ -170,6 +175,42 @@ def test_satellites_above_horizon():
         location=EarthLocation(lat=43, lon=-81, height=300),
         julian_dates=[Time("2024-10-01 15:19:13")],
         min_altitude=0,
+        min_range=0,
+        max_range=1500000,
+    )
+
+    assert len(result["data"]) == 0
+
+    # range is 1292
+    result = get_satellites_above_horizon(
+        tle_repo,
+        location=EarthLocation(lat=43, lon=-81, height=300),
+        julian_dates=[Time("2024-10-01 18:19:13")],
+        min_altitude=0,
+        min_range=0,
+        max_range=1000,
+    )
+
+    assert len(result["data"]) == 0
+
+    result = get_satellites_above_horizon(
+        tle_repo,
+        location=EarthLocation(lat=43, lon=-81, height=300),
+        julian_dates=[Time("2024-10-01 18:19:13")],
+        min_altitude=0,
+        min_range=1000,
+        max_range=1500000,
+    )
+
+    assert len(result["data"]) == 1
+
+    result = get_satellites_above_horizon(
+        tle_repo,
+        location=EarthLocation(lat=43, lon=-81, height=300),
+        julian_dates=[Time("2024-10-01 18:19:13")],
+        min_altitude=0,
+        min_range=1500,
+        max_range=1500000,
     )
 
     assert len(result["data"]) == 0

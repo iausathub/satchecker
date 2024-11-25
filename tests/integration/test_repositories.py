@@ -1,6 +1,6 @@
 # ruff: noqa: S101
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from src.api.adapters.database_orm import SatelliteDb, TLEDb
 from src.api.adapters.repositories.satellite_repository import (
@@ -369,4 +369,31 @@ def test_get_satellite_data_by_name_no_match(sqlite_session_factory):
 
     results = sat_repository.get_satellite_data_by_name("NO_MATCH")
     assert results is None
+    session.close()
+
+
+def test_get_all_tles_at_epoch(sqlite_session_factory):
+    session = sqlite_session_factory()
+    tle_repository = SqlAlchemyTLERepository(session)
+
+    satellite = SatelliteFactory(decay_date=None)
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+
+    # add 2 tles to the database, one with one epoch, one with another outside the range
+    tle_1 = TLEFactory(epoch=datetime.now(), satellite=satellite)
+    tle_2 = TLEFactory(epoch=datetime.now() - timedelta(days=30), satellite=satellite)
+    tle_repository.add(tle_1)
+    tle_repository.add(tle_2)
+    session.commit()
+
+    results = tle_repository.get_all_tles_at_epoch(datetime.now(), 1, 10, "zip")
+    assert len(results[0]) == 1
+
+    tle_3 = TLEFactory(epoch=datetime.now() - timedelta(days=12), satellite=satellite)
+    tle_repository.add(tle_3)
+    session.commit()
+
+    results = tle_repository.get_all_tles_at_epoch(datetime.now(), 1, 10, "zip")
+    assert len(results[0]) == 2
     session.close()
