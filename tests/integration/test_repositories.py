@@ -377,12 +377,14 @@ def test_get_all_tles_at_epoch(sqlite_session_factory):
     tle_repository = SqlAlchemyTLERepository(session)
 
     satellite = SatelliteFactory(decay_date=None)
+    satellite_2 = SatelliteFactory(decay_date=None)
+    satellite_3 = SatelliteFactory(decay_date=None)
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
 
     # add 2 tles to the database, one with one epoch, one with another outside the range
     tle_1 = TLEFactory(epoch=datetime.now(), satellite=satellite)
-    tle_2 = TLEFactory(epoch=datetime.now() - timedelta(days=30), satellite=satellite)
+    tle_2 = TLEFactory(epoch=datetime.now() - timedelta(days=30), satellite=satellite_2)
     tle_repository.add(tle_1)
     tle_repository.add(tle_2)
     session.commit()
@@ -390,7 +392,7 @@ def test_get_all_tles_at_epoch(sqlite_session_factory):
     results = tle_repository.get_all_tles_at_epoch(datetime.now(), 1, 10, "zip")
     assert len(results[0]) == 1
 
-    tle_3 = TLEFactory(epoch=datetime.now() - timedelta(days=12), satellite=satellite)
+    tle_3 = TLEFactory(epoch=datetime.now() - timedelta(days=12), satellite=satellite_3)
     tle_repository.add(tle_3)
     session.commit()
 
