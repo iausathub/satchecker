@@ -28,3 +28,28 @@ def test_get_satellite_passes_in_fov_missing_parameters(client):
     # Check that the correct error code was returned
     assert response.status_code == 400
     assert "Incorrect parameters" in response.text
+
+
+def test_get_satellites_above_horizon(client):
+    response = client.get(
+        "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5&min_altitude=0"
+    )
+    assert response.status_code == 200
+
+    response = client.get(
+        "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5&min_altitude=30"
+    )
+    assert response.status_code == 200
+
+    response = client.get(
+        "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
+    )
+    assert response.status_code == 200
+
+
+def test_get_satellites_above_horizon_missing_parameters(client):
+    response = client.get(
+        "/fov/satellites-above-horizon/?latitude=0&longitude=0&julian_date=2459000.5"
+    )
+    assert response.status_code == 400
+    assert "Incorrect parameters" in response.text

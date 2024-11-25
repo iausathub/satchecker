@@ -1,6 +1,6 @@
 import re
 from datetime import timezone
-from typing import Any, List
+from typing import Any
 
 import astropy.units as u
 import numpy as np
@@ -41,8 +41,8 @@ def extract_parameters(request, parameter_list):
 
 
 def validate_parameters(
-    request: Any, parameter_list: List[str], required_parameters: List[str]
-) -> List[str]:
+    request: Any, parameter_list: list[str], required_parameters: list[str]
+) -> list[str]:
     """
     Validates and sanitizes parameters for satellite tracking.
 
@@ -248,6 +248,34 @@ def validate_parameters(
 
         if parameters["group_by"] not in ["satellite", "time"]:
             raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+    if (
+        "illuminated_only" in parameters.keys()
+        and parameters["illuminated_only"] is not None
+    ):
+        if parameters["illuminated_only"] not in ["true", "false"]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+        parameters["illuminated_only"] = (
+            parameters["illuminated_only"].lower() == "true"
+        )
+
+    try:
+        if "min_range" in parameters:
+            parameters["min_range"] = (
+                float(parameters["min_range"])
+                if parameters["min_range"] is not None
+                else 0
+            )
+
+        if "max_range" in parameters:
+            parameters["max_range"] = (
+                float(parameters["max_range"])
+                if parameters["max_range"] is not None
+                else 1500000  # farthest possible distance in Earth's gravity
+            )
+    except Exception as e:
+        raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
 
     return parameters
 

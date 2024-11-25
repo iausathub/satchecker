@@ -84,7 +84,7 @@ def get_all_satellites_above_horizon():
         "julian_date",
     ]
 
-    optional_parameters = ["min_altitude"]
+    optional_parameters = ["min_altitude", "illuminated_only", "min_range", "max_range"]
 
     try:
         parameters = validate_parameters(
@@ -95,13 +95,15 @@ def get_all_satellites_above_horizon():
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
-
     try:
         satellite_passes = get_satellites_above_horizon(
             tle_repo,
             parameters["location"],
             parameters["julian_dates"],
             parameters["min_altitude"],
+            parameters["min_range"],
+            parameters["max_range"],
+            parameters["illuminated_only"],
             api_source,
             api_version,
         )

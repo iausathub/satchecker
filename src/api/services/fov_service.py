@@ -171,7 +171,10 @@ def get_satellites_above_horizon(
     tle_repo: AbstractTLERepository,
     location: EarthLocation,
     julian_dates: list[Time],
-    min_altitude: float = 0.0,
+    min_altitude: float,
+    min_range: float,
+    max_range: float,
+    illuminated_only: bool = False,
     api_source: str = "",
     api_version: str = "",
 ) -> dict:
@@ -219,14 +222,23 @@ def get_satellites_above_horizon(
             # Get altitude and azimuth
             alt, az, distance = topocentric.altaz()
 
-            # Check if above minimum altitude
-            if float(alt._degrees[0]) >= min_altitude:
+            # Check if above minimum altitude and within range
+            if (
+                float(alt._degrees[0]) >= min_altitude
+                and min_range <= distance.km[0] <= max_range
+            ):
                 # Get position in RA/Dec
                 topocentricn = topocentric.position.km / np.linalg.norm(
                     topocentric.position.km, axis=0
                 )
                 ra_sat, dec_sat = coordinate_systems.icrf2radec(topocentricn[:, 0])
-
+                if illuminated_only:
+                    sat_gcrs = satellite.at(t).position.km
+                    illuminated = coordinate_systems.is_illuminated(
+                        sat_gcrs[:, 0], time_jd.jd
+                    )
+                    if not illuminated:
+                        continue
                 result = {
                     "ra": ra_sat,
                     "dec": dec_sat,
@@ -235,7 +247,7 @@ def get_satellites_above_horizon(
                     "name": tle.satellite.sat_name,
                     "norad_id": tle.satellite.sat_number,
                     "julian_date": time_jd.jd,
-                    "range": float(distance.km[0]),
+                    "range_km": float(distance.km[0]),
                 }
                 all_results.append(result)
                 visible_satellites += 1
@@ -250,7 +262,7 @@ def get_satellites_above_horizon(
                 print(f"Found {visible_satellites} visible satellites so far")
 
         except Exception as e:
-            print(f"Error processing TLE {tle.satellite.sat_name}: {e}")
+            print(f"Error processing Satellite {tle.satellite.sat_name}: {e}")
             satellites_processed += 1
             continue
 

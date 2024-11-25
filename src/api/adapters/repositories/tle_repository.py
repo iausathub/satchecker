@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
@@ -61,7 +61,7 @@ class AbstractTLERepository(abc.ABC):
 
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
-    ) -> Tuple[List[TLE], int]:
+    ) -> tuple[list[TLE], int]:
         return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
 
     @abc.abstractmethod
@@ -219,25 +219,21 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
     def _get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
-    ) -> Tuple[List[TLE], int]:
+    ) -> tuple[list[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
-        latest_tles = (
-            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
+        # Get one ID per unique TLE
+        subquery = (
+            self.session.query(func.min(TLEDb.id).label("id"))
             .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
-            .group_by(TLEDb.sat_id)
-            .cte("latest_tles")
+            .group_by(TLEDb.tle_line1, TLEDb.tle_line2)
+            .subquery()
         )
 
+        # Main query
         query = (
             self.session.query(TLEDb)
-            .join(
-                latest_tles,
-                and_(
-                    TLEDb.sat_id == latest_tles.c.sat_id,
-                    TLEDb.epoch == latest_tles.c.max_epoch,
-                ),
-            )
+            .join(subquery, TLEDb.id == subquery.c.id)
             .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
             .filter(
                 or_(
@@ -253,7 +249,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     )
                 )
             )
-            .order_by(TLEDb.epoch)
+            .order_by(TLEDb.epoch.desc())
         )
 
         total_count = query.count()
