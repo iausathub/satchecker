@@ -222,11 +222,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     ) -> tuple[list[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
-        # Get one ID per unique TLE
+        # Get one ID per unique satellite's most recent TLE
         subquery = (
             self.session.query(func.min(TLEDb.id).label("id"))
+            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
             .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
-            .group_by(TLEDb.tle_line1, TLEDb.tle_line2)
+            .group_by(TLEDb.sat_id)
             .subquery()
         )
 
