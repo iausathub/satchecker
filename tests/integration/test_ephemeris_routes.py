@@ -5,7 +5,6 @@ from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.entrypoints.extensions import db
 
 
 def cannot_connect_to_redis():
@@ -18,12 +17,12 @@ def cannot_connect_to_redis():
 
 
 @pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_name(client):
+def test_get_ephemeris_by_name(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
-    # test if it can connect to redis
+    session.commit()
 
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -32,24 +31,27 @@ def test_get_ephemeris_by_name(client):
 
 
 @pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_name_jd_step(client):
+def test_get_ephemeris_by_name_jd_step(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
+    session.commit()  # Commit to ensure data is saved
 
     response = client.get(
-        "/ephemeris/name-jdstep/?name=ISS&latitude=0&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
+        "/ephemeris/name-jdstep/?name=ISS&latitude=0&longitude=0&elevation=0"
+        "&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
     assert response.status_code == 200
 
 
 @pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_catalog_number(client):
+def test_get_ephemeris_by_catalog_number(client, session):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
+    session.commit()
 
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -58,11 +60,12 @@ def test_get_ephemeris_by_catalog_number(client):
 
 
 @pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_catalog_number_jdstep(client):
+def test_get_ephemeris_by_catalog_number_jdstep(client, session):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
+    session.commit()
 
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=0&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"

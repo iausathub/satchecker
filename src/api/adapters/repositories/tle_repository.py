@@ -2,7 +2,7 @@ import abc
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import and_, func, not_, or_
+from sqlalchemy import DateTime, and_, func, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from api.adapters.database_orm import SatelliteDb, TLEDb
@@ -148,7 +148,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             )
             .order_by(
                 func.abs(
-                    func.extract("epoch", TLEDb.epoch) - func.extract("epoch", epoch)
+                    func.extract("epoch", TLEDb.epoch)
+                    - func.extract("epoch", func.cast(epoch, DateTime(timezone=True)))
                 )
             )
             .first()
@@ -173,7 +174,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             )
             .order_by(
                 func.abs(
-                    func.extract("epoch", TLEDb.epoch) - func.extract("epoch", epoch)
+                    func.extract("epoch", TLEDb.epoch)
+                    - func.extract("epoch", func.cast(epoch, DateTime(timezone=True)))
                 )
             )
             .first()
@@ -190,6 +192,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             .join(TLEDb.satellite)
             .filter(SatelliteDb.sat_number == satellite_number)
         )
+
         if start_date is not None:
             query = query.filter(TLEDb.epoch >= start_date)
 
