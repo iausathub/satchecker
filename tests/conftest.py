@@ -15,9 +15,9 @@ from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.entrypoints.extensions import db as database
 
-os.environ[
-    "SQLALCHEMY_DATABASE_URI"
-] = "postgresql://postgres:postgres@localhost:5432/test_satchecker"
+os.environ["SQLALCHEMY_DATABASE_URI"] = (
+    "postgresql://postgres:postgres@localhost:5432/test_satchecker"
+)
 os.environ["LOCAL_DB"] = "1"
 
 

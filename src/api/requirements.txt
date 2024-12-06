@@ -10,7 +10,7 @@ Babel==2.12.1
 backcall==0.2.0
 beautifulsoup4==4.12.2
 billiard==4.2.0
-black==24.8.0
+black==24.10.0
 bleach==6.0.0
 blinker==1.6.2
 boto3==1.28.42
@@ -112,7 +112,7 @@ referencing==0.30.2
 requests==2.32.3
 rich==13.5.2
 rpds-py==0.10.2
-ruff==0.1.1
+ruff==0.8.0
 s3transfer==0.6.2
 setuptools==70.0.0
 sgp4==2.22
