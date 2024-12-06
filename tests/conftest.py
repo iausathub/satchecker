@@ -2,8 +2,11 @@
 
 import os
 from datetime import datetime
+from urllib.parse import urlparse
 
+import psycopg2
 import pytest
+import redis
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import sessionmaker
@@ -154,6 +157,33 @@ def cleanup_database(session):
 def client(app):
     with app.test_client() as client:
         yield client
+
+
+def cannot_connect_to_services():
+    """Check if required services (Redis and Postgres) are available."""
+    # Check Redis
+    try:
+        r = redis.Redis(host="localhost", port=6379, db=0)
+        r.ping()
+    except redis.ConnectionError:
+        return "Can't connect to Redis"
+
+    # Check Postgres
+    try:
+        db_url = os.environ["SQLALCHEMY_DATABASE_URI"]
+        parsed = urlparse(db_url)
+        conn = psycopg2.connect(
+            dbname=parsed.path[1:],
+            user=parsed.username,
+            password=parsed.password,
+            host=parsed.hostname,
+            port=parsed.port,
+        )
+        conn.close()
+    except (psycopg2.OperationalError, KeyError):
+        return "Can't connect to PostgreSQL"
+
+    return False
 
 
 class FakeSatelliteRepository(AbstractSatelliteRepository):

@@ -1,10 +1,16 @@
 # ruff: noqa: E501, S101, F841
+import pytest
+from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_passes_in_fov(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
@@ -20,6 +26,10 @@ def test_get_satellite_passes_in_fov(client, session):
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_passes_in_fov_missing_parameters(client):
     # Missing 'latitude' parameter
     response = client.get(
@@ -30,6 +40,10 @@ def test_get_satellite_passes_in_fov_missing_parameters(client):
     assert "Incorrect parameters" in response.text
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellites_above_horizon(client):
     response = client.get(
         "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5&min_altitude=0"
@@ -47,6 +61,10 @@ def test_get_satellites_above_horizon(client):
     assert response.status_code == 200
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellites_above_horizon_missing_parameters(client):
     response = client.get(
         "/fov/satellites-above-horizon/?latitude=0&longitude=0&julian_date=2459000.5"

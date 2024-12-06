@@ -2,14 +2,20 @@
 
 from datetime import datetime, timedelta
 
+import pytest
 from src.api.adapters.database_orm import SatelliteDb, TLEDb
 from src.api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
 from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from tests.conftest import cannot_connect_to_services
 from tests.factories import SatelliteFactory, TLEFactory
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_by_id(session):
     repository = SqlAlchemySatelliteRepository(session)
     satellite = SatelliteFactory(sat_name="ISS")
@@ -21,6 +27,10 @@ def test_get_satellite_by_id(session):
     assert repo_sat.sat_name == "ISS"
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_by_id_no_match(session):
     repository = SqlAlchemySatelliteRepository(session)
     session.commit()
@@ -29,6 +39,10 @@ def test_get_satellite_by_id_no_match(session):
     assert repo_sat is None
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_add_satellite(session):
     repository = SqlAlchemySatelliteRepository(session)
     satellite = SatelliteFactory(sat_name="ISS")
@@ -40,6 +54,10 @@ def test_add_satellite(session):
     assert repo_sat.sat_name == "ISS"
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_by_id_multiple(session):
     repository = SqlAlchemySatelliteRepository(session)
     satellite1 = SatelliteFactory(
@@ -61,6 +79,10 @@ def test_get_satellite_by_id_multiple(session):
     assert repo_sat.sat_name == "ISS"
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_add_tle(session):
     tle = TLEFactory()
     tle_repository = SqlAlchemyTLERepository(session)
@@ -72,6 +94,10 @@ def test_add_tle(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_add_tle_existing_satellite(session):
     tle = TLEFactory()
     satellite = SatelliteFactory()
@@ -89,6 +115,10 @@ def test_add_tle_existing_satellite(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_tle_by_satellite_number(session):
     tle = TLEFactory()
     tle_repository = SqlAlchemyTLERepository(session)
@@ -102,6 +132,10 @@ def test_get_tle_by_satellite_number(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_tle_by_satellite_name(session):
     tle = TLEFactory()
     tle_repository = SqlAlchemyTLERepository(session)
@@ -115,6 +149,10 @@ def test_get_tle_by_satellite_name(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_tle_by_satellite_number_no_match(session):
     tle_repository = SqlAlchemyTLERepository(session)
 
@@ -126,6 +164,10 @@ def test_get_tle_by_satellite_number_no_match(session):
     assert repo_tle is None
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_tle_by_satellite_name_no_match(session):
     tle_repository = SqlAlchemyTLERepository(session)
 
@@ -137,6 +179,10 @@ def test_get_tle_by_satellite_name_no_match(session):
     assert repo_tle is None
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_all_for_date_range_by_satellite_number(session):
 
     satellite = SatelliteFactory()
@@ -159,6 +205,10 @@ def test_get_all_for_date_range_by_satellite_number(session):
     assert len(repo_tles) == 2
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_all_for_date_range_by_satellite_name(session):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
@@ -180,6 +230,10 @@ def test_get_all_for_date_range_by_satellite_name(session):
     assert len(repo_tles) == 2
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_all_for_date_range_by_satellite_number_no_match(session):
     tle_repository = SqlAlchemyTLERepository(session)
 
@@ -189,6 +243,10 @@ def test_get_all_for_date_range_by_satellite_number_no_match(session):
     assert repo_tles == []
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_all_for_date_range_by_satellite_name_no_match(session):
     tle_repository = SqlAlchemyTLERepository(session)
 
@@ -198,6 +256,10 @@ def test_get_all_for_date_range_by_satellite_name_no_match(session):
     assert repo_tles == []
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_all_for_date_range_with_dates(session):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
@@ -229,6 +291,10 @@ def test_get_all_for_date_range_with_dates(session):
     assert len(repo_tles) == 1
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_norad_ids_from_satellite_name(session):
     satellite = SatelliteFactory()
     satellite_new = SatelliteFactory(sat_name=satellite.sat_name)
@@ -243,6 +309,10 @@ def test_get_norad_ids_from_satellite_name(session):
     assert satellite_new.sat_number in sat_numbers
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_names_from_norad_id(session):
     satellite = SatelliteFactory()
     satellite_new = SatelliteFactory(sat_number=satellite.sat_number)
@@ -259,6 +329,10 @@ def test_get_satellite_names_from_norad_id(session):
     assert satellite_new.sat_name in sat_names
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_names_from_norad_id_no_match(session):
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -273,6 +347,10 @@ def test_get_satellite_names_from_norad_id_no_match(session):
     assert results == []
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_norad_ids_from_satellite_name_no_match(session):
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -287,6 +365,10 @@ def test_get_norad_ids_from_satellite_name_no_match(session):
     assert results == []
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_data_by_id(session):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
@@ -297,6 +379,10 @@ def test_get_satellite_data_by_id(session):
     assert results.sat_name == satellite.sat_name
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_data_by_id_no_match(session):
     sat_repository = SqlAlchemySatelliteRepository(session)
     session.commit()
@@ -305,6 +391,10 @@ def test_get_satellite_data_by_id_no_match(session):
     assert results is None
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_data_by_name(session):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
@@ -315,6 +405,10 @@ def test_get_satellite_data_by_name(session):
     assert results.sat_number == satellite.sat_number
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_satellite_data_by_name_no_match(session):
     sat_repository = SqlAlchemySatelliteRepository(session)
     session.commit()
@@ -323,6 +417,10 @@ def test_get_satellite_data_by_name_no_match(session):
     assert results is None
 
 
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_all_tles_at_epoch(session):
     tle_repository = SqlAlchemyTLERepository(session)
 
