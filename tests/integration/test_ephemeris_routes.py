@@ -1,4 +1,8 @@
 # ruff: noqa: E501, S101, F841
+import os
+from urllib.parse import urlparse
+
+import psycopg2
 import pytest
 import redis
 from tests.factories.satellite_factory import SatelliteFactory
@@ -7,16 +11,37 @@ from tests.factories.tle_factory import TLEFactory
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 
 
-def cannot_connect_to_redis():
+def cannot_connect_to_services():
+    """Check if required services (Redis and Postgres) are available."""
+    # Check Redis
     try:
         r = redis.Redis(host="localhost", port=6379, db=0)
         r.ping()
-        return False
     except redis.ConnectionError:
-        return True
+        return "Can't connect to Redis"
+
+    # Check Postgres
+    try:
+        db_url = os.environ["SQLALCHEMY_DATABASE_URI"]
+        parsed = urlparse(db_url)
+        conn = psycopg2.connect(
+            dbname=parsed.path[1:],
+            user=parsed.username,
+            password=parsed.password,
+            host=parsed.hostname,
+            port=parsed.port,
+        )
+        conn.close()
+    except (psycopg2.OperationalError, KeyError):
+        return "Can't connect to PostgreSQL"
+
+    return False
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason=cannot_connect_to_services() or "Services not available",
+)
 def test_get_ephemeris_by_name(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
@@ -30,7 +55,7 @@ def test_get_ephemeris_by_name(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_name_jd_step(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
@@ -45,7 +70,7 @@ def test_get_ephemeris_by_name_jd_step(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_catalog_number(client, session):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite)
@@ -59,7 +84,7 @@ def test_get_ephemeris_by_catalog_number(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_catalog_number_jdstep(client, session):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite)
@@ -73,7 +98,7 @@ def test_get_ephemeris_by_catalog_number_jdstep(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_no_tle(client):
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -100,7 +125,7 @@ def test_get_ephemeris_no_tle(client):
     assert "No TLE found" in response.text
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_data_from_tle(client):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -112,7 +137,7 @@ def test_get_ephemeris_data_from_tle(client):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_data_from_tle_jdstep(client):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
