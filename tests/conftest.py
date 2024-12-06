@@ -140,6 +140,9 @@ def session(pg_session_factory):
 @pytest.fixture(autouse=True)
 def cleanup_database(session):
     """Cleanup database after each test."""
+    if cannot_connect_to_services():
+        pytest.skip("PostgreSQL not available - skipping database cleanup")
+
     yield
     try:
         # Delete from tle_partitioned first since it references satellites
