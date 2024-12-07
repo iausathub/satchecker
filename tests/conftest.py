@@ -115,7 +115,7 @@ def app():
             Base.metadata.create_all(bind=database.engine)
             create_partitions(database.engine)
         except Exception as e:
-            if cannot_connect_to_services():
+            if cannot_connect_to_services() != False:  # noqa: E712
                 pytest.skip(
                     "PostgreSQL not available - skipping database initialization"
                 )
