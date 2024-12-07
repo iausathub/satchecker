@@ -111,13 +111,24 @@ def app():
 
     with app.app_context():
         database.init_app(app)
+        try:
+            Base.metadata.create_all(bind=database.engine)
+            create_partitions(database.engine)
+        except Exception as e:
+            if cannot_connect_to_services():
+                pytest.skip(
+                    "PostgreSQL not available - skipping database initialization"
+                )
+            else:
+                raise e
 
-        Base.metadata.create_all(bind=database.engine)
-
-        create_partitions(database.engine)
         yield app
-        database.session.remove()
-        Base.metadata.drop_all(bind=database.engine)
+
+        try:
+            database.session.remove()
+            Base.metadata.drop_all(bind=database.engine)
+        except Exception as e:
+            print(f"Failed to cleanup database: {e}")
 
 
 @pytest.fixture
