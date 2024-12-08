@@ -13,18 +13,33 @@ include:
 .test:
   image: python:3.11
   services:
-    - redis:latest
-    - postgres:latest
+    - name: redis:latest
+      alias: redis
+    - name: postgres:latest
+      alias: postgres
+      variables:
+        POSTGRES_DB: test_satchecker
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+      # Add healthcheck
+      command: ["postgres", "-c", "fsync=off"]
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
   variables:
     POSTGRES_DB: test_satchecker
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     SQLALCHEMY_DATABASE_URI: "postgresql://postgres:postgres@postgres:5432/test_satchecker"
     REDIS_URL: "redis://redis:6379/0"
+    LOCAL_DB: "1"
   before_script:
     - python -m pip install --upgrade pip
     - pip install pytest pytest-mock
-    - pip install -r src/api/requirements.txt;
+    - pip install -r src/api/requirements.txt
+    - until pg_isready -h postgres -p 5432; do echo "Waiting for postgres..."; sleep 2; done
   script:
     - export PYTHONPATH=src/
     - pytest
