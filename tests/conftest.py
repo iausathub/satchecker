@@ -167,8 +167,15 @@ def cannot_connect_to_services():
     """Check if required services (Redis and Postgres) are available."""
     # Check Redis
     try:
-        redis_host = os.getenv("REDIS_HOST", "redis")
-        redis_port = int(os.getenv("REDIS_PORT", 6379))
+        # Use localhost for local development
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        # Handle GitLab CI's TCP URL format
+        redis_port_str = os.getenv("REDIS_PORT", "6379")
+        if "tcp://" in redis_port_str:
+            redis_port = int(redis_port_str.split(":")[-1])
+        else:
+            redis_port = int(redis_port_str)
+
         r = redis.Redis(host=redis_host, port=redis_port, db=0)
         r.ping()
     except redis.ConnectionError:
@@ -176,7 +183,11 @@ def cannot_connect_to_services():
 
     # Check Postgres using the environment variable
     try:
-        db_url = os.environ["SQLALCHEMY_DATABASE_URI"]
+        # Use environment variable if set, otherwise use default local connection
+        db_url = os.environ.get(
+            "SQLALCHEMY_DATABASE_URI",
+            "postgresql://postgres:postgres@localhost:5432/test_satchecker",
+        )
         parsed = urlparse(db_url)
         conn = psycopg2.connect(
             dbname=parsed.path[1:],
