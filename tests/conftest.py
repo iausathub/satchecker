@@ -169,7 +169,7 @@ def cannot_connect_to_services():
         r = redis.Redis(host="localhost", port=6379, db=0)
         r.ping()
     except redis.ConnectionError:
-        return "Can't connect to Redis"
+        return "Cannot connect to Redis"
 
     # Check Postgres
     try:
@@ -184,7 +184,7 @@ def cannot_connect_to_services():
         )
         conn.close()
     except (psycopg2.OperationalError, KeyError):
-        return "Can't connect to PostgreSQL"
+        return "Cannot connect to PostgreSQL"
 
     return False
 
