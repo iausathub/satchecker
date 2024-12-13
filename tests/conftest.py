@@ -18,9 +18,10 @@ from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.entrypoints.extensions import db as database
 
-os.environ["SQLALCHEMY_DATABASE_URI"] = (
-    "postgresql://postgres:postgres@localhost:5432/test_satchecker"
-)
+if "SQLALCHEMY_DATABASE_URI" not in os.environ:
+    os.environ["SQLALCHEMY_DATABASE_URI"] = (
+        "postgresql://postgres:postgres@localhost:5432/test_satchecker"
+    )
 os.environ["LOCAL_DB"] = "1"
 
 
@@ -166,12 +167,14 @@ def cannot_connect_to_services():
     """Check if required services (Redis and Postgres) are available."""
     # Check Redis
     try:
-        r = redis.Redis(host="localhost", port=6379, db=0)
+        redis_host = os.getenv("REDIS_HOST", "redis")
+        redis_port = int(os.getenv("REDIS_PORT", 6379))
+        r = redis.Redis(host=redis_host, port=redis_port, db=0)
         r.ping()
     except redis.ConnectionError:
-        return "Cannot connect to Redis"
+        return True
 
-    # Check Postgres
+    # Check Postgres using the environment variable
     try:
         db_url = os.environ["SQLALCHEMY_DATABASE_URI"]
         parsed = urlparse(db_url)
@@ -184,7 +187,7 @@ def cannot_connect_to_services():
         )
         conn.close()
     except (psycopg2.OperationalError, KeyError):
-        return "Cannot connect to PostgreSQL"
+        return True
 
     return False
 

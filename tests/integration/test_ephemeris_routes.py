@@ -9,7 +9,7 @@ from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_ephemeris_by_name(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
