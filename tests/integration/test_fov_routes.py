@@ -9,7 +9,7 @@ from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_satellite_passes_in_fov(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
@@ -28,7 +28,7 @@ def test_get_satellite_passes_in_fov(client, session):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_satellite_passes_in_fov_missing_parameters(client):
     # Missing 'latitude' parameter
@@ -42,7 +42,7 @@ def test_get_satellite_passes_in_fov_missing_parameters(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_satellites_above_horizon(client):
     response = client.get(
@@ -63,7 +63,7 @@ def test_get_satellites_above_horizon(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_satellites_above_horizon_missing_parameters(client):
     response = client.get(

@@ -12,7 +12,7 @@ from api.entrypoints.extensions import db
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_tle_data(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
@@ -28,7 +28,7 @@ def test_get_tle_data(client, session):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_tle_data_no_match(client):
     response = client.get("/tools/get-tle-data/?id=ISS&id_type=name")
@@ -39,7 +39,7 @@ def test_get_tle_data_no_match(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_names_from_norad_id(client):
     satellite = SatelliteFactory(sat_number="25544")
@@ -54,7 +54,7 @@ def test_get_names_from_norad_id(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_names_from_norad_id_no_match(client):
     response = client.get("/tools/names-from-norad-id/?id=25544")
@@ -64,7 +64,7 @@ def test_get_names_from_norad_id_no_match(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_norad_ids_from_name(client):
     satellite = SatelliteFactory(sat_name="ISS")
@@ -79,7 +79,7 @@ def test_get_norad_ids_from_name(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_norad_ids_from_name_no_match(client):
     response = client.get("/tools/norad-ids-from-name/?name=ISS")
@@ -89,7 +89,7 @@ def test_get_norad_ids_from_name_no_match(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_satellite_data(client):
     satellite = SatelliteFactory(sat_name="ISS")
@@ -104,7 +104,7 @@ def test_get_satellite_data(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_satellite_data_no_match(client):
     response = client.get("/tools/get-satellite-data/?id=ISS&id_type=name")
@@ -114,7 +114,7 @@ def test_get_satellite_data_no_match(client):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_tles_at_epoch(client, session):
     satellite = SatelliteFactory(
@@ -145,7 +145,7 @@ def test_get_tles_at_epoch(client, session):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_tles_at_epoch_pagination(client, session):
     satellite = SatelliteFactory(
@@ -167,7 +167,7 @@ def test_get_tles_at_epoch_pagination(client, session):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_tles_at_epoch_optional_epoch_date(client, session):
     satellite = SatelliteFactory(
@@ -191,7 +191,7 @@ def test_get_tles_at_epoch_optional_epoch_date(client, session):
 
 @pytest.mark.skipif(
     cannot_connect_to_services(),
-    reason=cannot_connect_to_services() or "Services not available",
+    reason="Services not available",
 )
 def test_get_tles_at_epoch_zipped(client, session):
     satellite = SatelliteFactory(
