@@ -2,7 +2,7 @@ import abc
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import DateTime, and_, func, or_
+from sqlalchemy import DateTime, and_, func, or_, text
 from sqlalchemy.orm.exc import NoResultFound
 
 from api.adapters.database_orm import SatelliteDb, TLEDb
@@ -226,7 +226,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
         # Fast count query
-        count_sql = """
+        count_sql = text(
+            """
         SELECT COUNT(DISTINCT t.sat_id)
         FROM tle_partitioned t
         JOIN satellites s ON t.sat_id = s.id
@@ -234,6 +235,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
         AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
         """
+        )
 
         total_count = self.session.execute(
             count_sql,
@@ -245,7 +247,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         ).scalar()
 
         # Main data query with all needed fields
-        data_sql = """
+        data_sql = text(
+            """
         WITH latest_tles AS (
             SELECT t.*, s.sat_name, s.sat_number, s.decay_date, s.has_current_sat_number,
                    ROW_NUMBER() OVER (PARTITION BY t.sat_id ORDER BY t.epoch DESC) as rn
@@ -262,9 +265,10 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         WHERE rn = 1
         ORDER BY epoch DESC
         """  # noqa: E501
+        )
 
         if format != "zip":
-            data_sql += " LIMIT :limit OFFSET :offset"
+            data_sql = text(data_sql.text + " LIMIT :limit OFFSET :offset")
             params = {
                 "start_date": two_weeks_prior,
                 "end_date": epoch_date,
