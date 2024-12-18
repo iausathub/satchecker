@@ -225,45 +225,64 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     ) -> tuple[list[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
-        # Get one ID per unique satellite's most recent TLE
-        subquery = (
-            self.session.query(func.min(TLEDb.id).label("id"))
-            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
-            .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
-            .group_by(TLEDb.sat_id)
-            .subquery()
-        )
-
-        # Main query
-        query = (
-            self.session.query(TLEDb)
-            .join(subquery, TLEDb.id == subquery.c.id)
-            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
+        # First get the count using a simpler query
+        count_query = (
+            self.session.query(func.count(func.distinct(TLEDb.sat_id)))
+            .join(SatelliteDb)
             .filter(
+                TLEDb.epoch.between(two_weeks_prior, epoch_date),
                 or_(
                     SatelliteDb.decay_date.is_(None),
                     SatelliteDb.decay_date > epoch_date,
-                )
-            )
-            .filter(
+                ),
                 not_(
                     and_(
                         TLEDb.epoch < two_weeks_prior,
                         SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
                     )
-                )
+                ),
             )
-            .order_by(TLEDb.epoch.desc())
         )
 
-        total_count = query.count()
+        total_count = count_query.scalar()
+
+        # Then get the actual TLEs using window functions
+        latest_tle_cte = (
+            self.session.query(
+                TLEDb,
+                func.row_number()
+                .over(partition_by=TLEDb.sat_id, order_by=TLEDb.epoch.desc())
+                .label("rn"),
+            )
+            .join(SatelliteDb)
+            .filter(
+                TLEDb.epoch.between(two_weeks_prior, epoch_date),
+                or_(
+                    SatelliteDb.decay_date.is_(None),
+                    SatelliteDb.decay_date > epoch_date,
+                ),
+                not_(
+                    and_(
+                        TLEDb.epoch < two_weeks_prior,
+                        SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
+                    )
+                ),
+            )
+            .cte("latest_tles")
+        )
+
+        query = (
+            self.session.query(TLEDb)
+            .join(latest_tle_cte, TLEDb.id == latest_tle_cte.c.id)
+            .filter(latest_tle_cte.c.rn == 1)
+            .order_by(TLEDb.epoch.desc())
+        )
 
         if format == "zip":
             return query.all(), total_count
 
         paginated_query = query.limit(per_page).offset((page - 1) * per_page)
-
-        return (paginated_query.all(), total_count)
+        return paginated_query.all(), total_count
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)
