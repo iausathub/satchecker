@@ -225,46 +225,30 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     ) -> tuple[list[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
-        # Fast count query
-        count_sql = text(
-            """
-        SELECT COUNT(DISTINCT t.sat_id)
-        FROM tle_partitioned t
-        JOIN satellites s ON t.sat_id = s.id
-        WHERE t.epoch BETWEEN :start_date AND :end_date
-        AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-        AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
-        """
-        )
-
-        total_count = self.session.execute(
-            count_sql,
-            {
-                "start_date": two_weeks_prior,
-                "end_date": epoch_date,
-                "epoch_date": epoch_date,
-            },
-        ).scalar()
-
-        # Main data query with all needed fields
+        # Main data query with subquery for count
         data_sql = text(
             """
-        WITH latest_tles AS (
-            SELECT t.*, s.sat_name, s.sat_number, s.decay_date, s.has_current_sat_number,
-                   ROW_NUMBER() OVER (PARTITION BY t.sat_id ORDER BY t.epoch DESC) as rn
-            FROM tle_partitioned t
-            JOIN satellites s ON t.sat_id = s.id
-            WHERE t.epoch BETWEEN :start_date AND :end_date
-            AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-            AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
-        )
-        SELECT id, sat_id, date_collected, tle_line1, tle_line2, epoch,
-               is_supplemental, data_source, sat_name, sat_number,
-               decay_date, has_current_sat_number
-        FROM latest_tles
-        WHERE rn = 1
-        ORDER BY epoch DESC
-        """  # noqa: E501
+            WITH base_query AS (
+                SELECT t.id, t.sat_id, t.date_collected, t.tle_line1, t.tle_line2, t.epoch,
+                       t.is_supplemental, t.data_source, s.sat_name, s.sat_number,
+                       s.decay_date, s.has_current_sat_number
+                FROM satellites s
+                LEFT JOIN LATERAL (
+                    SELECT *
+                    FROM tle_partitioned t
+                    WHERE t.sat_id = s.id
+                    AND t.epoch BETWEEN :start_date AND :end_date
+                    ORDER BY t.epoch DESC
+                    LIMIT 1
+                ) t ON true
+                WHERE (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                AND (t.id IS NOT NULL)
+                AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
+            )
+            SELECT *, (SELECT COUNT(*) FROM base_query) as total_count
+            FROM base_query
+            ORDER BY epoch DESC
+            """  # noqa: E501
         )
 
         if format != "zip":
@@ -287,6 +271,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
         # Map results to domain objects
         tles = []
+        total_count = rows[0].total_count if rows else 0  # Get count from first row
+
         for row in rows:
             satellite = Satellite(
                 sat_name=row.sat_name,
