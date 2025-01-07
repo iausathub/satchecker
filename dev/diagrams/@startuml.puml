@@ -1,0 +1,33 @@
+@startuml
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+
+title SatChecker - Container Diagram
+
+Person(user, "User", "Interacts with the system")
+Person(operator, "Scheduler/Operator", "Enters satellite observations")
+System_Boundary(SatChecker, "SatChecker") {
+    ContainerDb(shared_Database, "Database", "PostgreSQL", "Stores all data")
+    ContainerQueue(shared_Cache, "Cache", "Redis", "Stores cached ephemeris results")
+
+    Container(web, "Web Application", "TBD", "Provides an interface for users to visualize query results")
+    Container(api, "API", "Flask", "Provides an API for users to query satellite positions")
+}
+System_Ext(celestrak, "Celestrak", "Provides TLE data")
+System_Ext(spaceTrack, "Space-Track", "Provides TLE data")
+
+Rel(user, web, "Visits for prediction information","")
+Rel(user, api, "Query for satellite positions and predictions")
+Rel(shared_Database, celestrak, "Retrieves data from")
+Rel(shared_Database, spaceTrack, "Retrieves data from")
+Rel(web, api, "Calls")
+Rel(api, shared_Database, "Queries")
+Rel(api, shared_Cache, "Queries")
+
+
+@enduml
