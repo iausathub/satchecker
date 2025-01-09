@@ -271,6 +271,17 @@ def test_validate_parameters_invalid_data_source(app):
             )
 
 
+def test_validate_parameters_invalid_object_type(app):
+    with app.test_request_context("/?object_type=invalid"):
+        parameter_list = ["object_type"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
 def test_validate_parameters_tle(app):
     # valid TLE
     with app.test_request_context(

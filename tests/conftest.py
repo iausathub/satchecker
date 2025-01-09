@@ -246,6 +246,19 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
             if satellite.sat_name == name
         ]
 
+    def _get_active_satellites(self, object_type: str = None):
+        """
+        Mock implementation that matches the repository interface used by tools_service.
+        Returns filtered satellites that tools_service will then format.
+        """
+        return [
+            satellite
+            for satellite in self._satellites
+            if (object_type is None or satellite.object_type == object_type)
+            and satellite.decay_date is None
+            and satellite.has_current_sat_number
+        ]
+
     def _get(self, satellite_id):
         return next(
             (

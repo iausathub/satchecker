@@ -260,6 +260,17 @@ def validate_parameters(
             parameters["illuminated_only"].lower() == "true"
         )
 
+    if "object_type" in parameters.keys() and parameters["object_type"] is not None:
+        parameters["object_type"] = parameters["object_type"].lower()
+        if parameters["object_type"] not in [
+            "payload",
+            "debris",
+            "rocket body",
+            "tba",
+            "unknown",
+        ]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
     try:
         if "min_range" in parameters:
             parameters["min_range"] = (

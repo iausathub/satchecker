@@ -212,3 +212,27 @@ def test_get_tles_at_epoch_zipped(client, session):
     assert (
         response.headers["Content-Disposition"] == "attachment; filename=tle_data.zip"
     )
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_active_satellites(client):
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        has_current_sat_number=True,
+        decay_date=None,
+        object_type="PAYLOAD",
+    )
+    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
+    sat_repo.add(satellite)
+    db.session.commit()
+
+    response = client.get("/tools/get-active-satellites/?object_type=payload")
+    assert response.status_code == 200
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["satellite_name"] == "ISS"
+
+    response = client.get("/tools/get-active-satellites/?object_type=invalid")
+    assert response.status_code == 400
