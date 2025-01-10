@@ -1,12 +1,14 @@
 # ruff: noqa: E501, S101, F841
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
+from astropy.time import Time
 from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.common import error_messages
 
 
 @pytest.mark.skipif(
@@ -15,7 +17,7 @@ from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 )
 def test_get_ephemeris_by_name(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -25,21 +27,11 @@ def test_get_ephemeris_by_name(client, session):
     )
     assert response.status_code == 200
 
-    # test with a TLE that is older than 1 month
-    tle = TLEFactory(satellite=satellite, epoch=datetime(2024, 1, 1))
-    tle_repo.add(tle)
-    session.commit()
-
-    response = client.get(
-        "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2460685.5"
-    )
-    assert response.status_code == 500
-
 
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_name_jd_step(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()  # Commit to ensure data is saved
@@ -54,7 +46,7 @@ def test_get_ephemeris_by_name_jd_step(client, session):
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_catalog_number(client, session):
     satellite = SatelliteFactory(sat_number="25544")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -68,7 +60,7 @@ def test_get_ephemeris_by_catalog_number(client, session):
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_catalog_number_jdstep(client, session):
     satellite = SatelliteFactory(sat_number="25544")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -187,3 +179,49 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
     )
     assert response.status_code == 500
     assert "Invalid TLE format" in response.text
+
+
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
+def test_get_ephemeris_tle_date_range(client, session):
+
+    # Create a TLE with a fixed epoch
+    current_time = datetime.now()
+    satellite = SatelliteFactory(sat_name="ISS")
+    tle = TLEFactory(satellite=satellite, epoch=current_time)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    # Test future date more than 30 days after TLE epoch
+    future_date = current_time + timedelta(days=31)
+    julian_date = Time(future_date).jd
+    response = client.get(
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={julian_date}"
+    )
+    assert response.status_code == 500
+    assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
+
+    # Test past date more than 30 days before TLE epoch
+    past_date = current_time - timedelta(days=31)
+    julian_date = Time(past_date).jd
+    response = client.get(
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={julian_date}"
+    )
+    assert response.status_code == 500
+    assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
+
+    # Test valid date within 30 days after TLE epoch
+    valid_future = current_time + timedelta(days=29)
+    julian_date = Time(valid_future).jd
+    response = client.get(
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={julian_date}"
+    )
+    assert response.status_code == 200
+
+    # Test valid date within 30 days before TLE epoch
+    valid_past = current_time - timedelta(days=29)
+    julian_date = Time(valid_past).jd
+    response = client.get(
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={julian_date}"
+    )
+    assert response.status_code == 200
