@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 
 import pytest
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
@@ -186,7 +186,7 @@ def test_get_ephemeris_tle_date_range(client, session):
     base_time = datetime(
         2020, 5, 30, tzinfo=timezone.utc
     )  # UTC timezone-aware datetime
-    base_jd = Time(base_time).jd
+    base_jd = Time(base_time)
 
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite, epoch=base_time)
@@ -195,31 +195,31 @@ def test_get_ephemeris_tle_date_range(client, session):
     session.commit()
 
     # Test future date more than 30 days after TLE epoch
-    future_jd = base_jd + 31
+    future_jd = base_jd + TimeDelta(31, format="jd")
     response = client.get(
-        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={future_jd}"
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={future_jd.jd}"
     )
     assert response.status_code == 500
     assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
 
     # Test past date more than 30 days before TLE epoch
-    past_jd = base_jd - 31
+    past_jd = base_jd - TimeDelta(31, format="jd")
     response = client.get(
-        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={past_jd}"
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={past_jd.jd}"
     )
     assert response.status_code == 500
     assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
 
     # Test valid date within 30 days after TLE epoch
-    valid_future_jd = base_jd + 29
+    valid_future_jd = base_jd + TimeDelta(29, format="jd")
     response = client.get(
-        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={valid_future_jd}"
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={valid_future_jd.jd}"
     )
     assert response.status_code == 200
 
     # Test valid date within 30 days before TLE epoch
-    valid_past_jd = base_jd - 29
+    valid_past_jd = base_jd - TimeDelta(29, format="jd")
     response = client.get(
-        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={valid_past_jd}"
+        f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={valid_past_jd.jd}"
     )
     assert response.status_code == 200
