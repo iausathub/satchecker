@@ -20,6 +20,10 @@ INVALID_SOURCE = "Error: Invalid data source"
 INVALID_TLE = "Error: Invalid TLE format"
 INVALID_FORMAT = "Error: Invalid result format"
 NO_TLE_FOUND = "Error: No TLE found"
+TLE_DATE_OUT_OF_RANGE = (
+    "Error: TLE date out of range - oldest TLE is older than 1 month "
+    "before the first date"
+)
 TOO_MANY_RESULTS = (
     "Error: Too many results to return (maximum of 1000 in a single request)"
 )

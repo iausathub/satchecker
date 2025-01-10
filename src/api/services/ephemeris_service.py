@@ -1,5 +1,5 @@
 from astropy.coordinates import EarthLocation
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
@@ -37,6 +37,10 @@ def generate_ephemeris_data(
 
     if tle is None:
         raise DataError(500, error_messages.NO_TLE_FOUND)
+
+    # if the TLE is older than 1 month before the first date, return an error
+    if tle.epoch < dates[0] - TimeDelta(30, format="jd"):  # 30 days
+        raise DataError(500, error_messages.TLE_DATE_OUT_OF_RANGE)
 
     # get the list of position data for each date/time in the requested range
     result_list_task = generate_position_data.apply(

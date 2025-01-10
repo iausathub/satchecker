@@ -1,4 +1,6 @@
 # ruff: noqa: E501, S101, F841
+from datetime import datetime
+
 import pytest
 from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
@@ -22,6 +24,16 @@ def test_get_ephemeris_by_name(client, session):
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
     )
     assert response.status_code == 200
+
+    # test with a TLE that is older than 1 month
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2024, 1, 1))
+    tle_repo.add(tle)
+    session.commit()
+
+    response = client.get(
+        "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2460685.5"
+    )
+    assert response.status_code == 500
 
 
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
