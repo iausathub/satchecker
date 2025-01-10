@@ -38,8 +38,9 @@ def generate_ephemeris_data(
     if tle is None:
         raise DataError(500, error_messages.NO_TLE_FOUND)
 
-    # if the TLE is older than 1 month before the first date, return an error
-    if tle.epoch < dates[0] - TimeDelta(30, format="jd"):  # 30 days
+    # Check if the requested date is within 30 days of the TLE epoch
+    tle_epoch_time = Time(tle.epoch, scale="utc")
+    if abs(dates[0] - tle_epoch_time) > TimeDelta(30, format="jd"):  # 30 days
         raise DataError(500, error_messages.TLE_DATE_OUT_OF_RANGE)
 
     # get the list of position data for each date/time in the requested range
