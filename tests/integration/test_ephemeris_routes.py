@@ -183,9 +183,9 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
 
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_tle_date_range(client, session):
-    # Create a TLE with a fixed epoch - use 2460000.0 as base Julian date
-    base_jd = 2460000.0  # Some fixed Julian date
-    base_time = Time(base_jd, format="jd").datetime
+    base_time = datetime(2020, 5, 30)  # This corresponds to around JD 2459000.5
+    base_jd = Time(base_time).jd
+
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite, epoch=base_time)
     tle_repo = SqlAlchemyTLERepository(session)
@@ -193,7 +193,7 @@ def test_get_ephemeris_tle_date_range(client, session):
     session.commit()
 
     # Test future date more than 30 days after TLE epoch
-    future_jd = base_jd + 31  # Julian days are directly additive
+    future_jd = base_jd + 31
     response = client.get(
         f"/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date={future_jd}"
     )
