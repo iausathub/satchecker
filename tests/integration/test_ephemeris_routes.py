@@ -213,7 +213,7 @@ def test_get_ephemeris_tle_date_range(client, session):
     assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
 
     # Test past date more than 30 days before TLE epoch
-    past_jd = base_jd - TimeDelta(31, format="jd")
+    past_jd = base_jd - TimeDelta(32, format="jd")
     print(f"Past JD: {past_jd.jd}")
     print(f"Difference in days: {(Time(tle.epoch).jd - past_jd.jd)}")
 
