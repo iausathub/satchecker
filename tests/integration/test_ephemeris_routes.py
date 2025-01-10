@@ -1,5 +1,5 @@
 # ruff: noqa: E501, S101, F841
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from astropy.time import Time
@@ -183,7 +183,9 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
 
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_tle_date_range(client, session):
-    base_time = datetime(2020, 5, 30)  # This corresponds to around JD 2459000.5
+    base_time = datetime(
+        2020, 5, 30, tzinfo=timezone.utc
+    )  # UTC timezone-aware datetime
     base_jd = Time(base_time).jd
 
     satellite = SatelliteFactory(sat_name="ISS")
