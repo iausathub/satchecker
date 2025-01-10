@@ -183,13 +183,12 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
 
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_tle_date_range(client, session):
-    base_time = datetime(
-        2020, 5, 30, tzinfo=timezone.utc
-    )  # UTC timezone-aware datetime
-    base_jd = Time(base_time)
+    # Use a fixed Julian date as the base time to avoid any timezone issues
+    base_jd = Time("2020-05-30T00:00:00", format="isot", scale="utc")
+    base_datetime = base_jd.to_datetime(timezone=timezone.utc)
 
     satellite = SatelliteFactory(sat_name="ISS")
-    tle = TLEFactory(satellite=satellite, epoch=base_time)
+    tle = TLEFactory(satellite=satellite, epoch=base_datetime)
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
