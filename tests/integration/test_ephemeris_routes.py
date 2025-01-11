@@ -1,10 +1,14 @@
 # ruff: noqa: E501, S101, F841
+from datetime import datetime, timezone
+
 import pytest
+from astropy.time import Time, TimeDelta
 from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.common import error_messages
 
 
 @pytest.mark.skipif(
@@ -13,7 +17,7 @@ from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 )
 def test_get_ephemeris_by_name(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -27,7 +31,7 @@ def test_get_ephemeris_by_name(client, session):
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_name_jd_step(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()  # Commit to ensure data is saved
@@ -42,7 +46,7 @@ def test_get_ephemeris_by_name_jd_step(client, session):
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_catalog_number(client, session):
     satellite = SatelliteFactory(sat_number="25544")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -56,7 +60,7 @@ def test_get_ephemeris_by_catalog_number(client, session):
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_by_catalog_number_jdstep(client, session):
     satellite = SatelliteFactory(sat_number="25544")
-    tle = TLEFactory(satellite=satellite)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -175,3 +179,58 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
     )
     assert response.status_code == 500
     assert "Invalid TLE format" in response.text
+
+
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
+def test_get_ephemeris_tle_date_out_of_range(client, session):
+    # Use a fixed Julian date as the base time to avoid any timezone issues
+    base_jd = Time("2020-05-30T00:00:00", format="isot", scale="utc")
+    base_datetime = base_jd.to_datetime(timezone=timezone.utc)
+
+    satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
+    tle = TLEFactory(satellite=satellite, epoch=base_datetime)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    # Test past date more than 30 days before TLE epoch
+    past_jd = base_jd - TimeDelta(31, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={past_jd.jd}"
+    )
+    assert response.status_code == 500
+    assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
+
+    # Test future date more than 30 days after TLE epoch
+    future_jd = base_jd + TimeDelta(31, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={future_jd.jd}"
+    )
+    assert response.status_code == 500
+    assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
+
+
+def test_get_ephemeris_tle_date_in_range(client, session):
+    # Use a fixed Julian date as the base time to avoid any timezone issues
+    base_jd = Time("2020-05-30T00:00:00", format="isot", scale="utc")
+    base_datetime = base_jd.to_datetime(timezone=timezone.utc)
+
+    satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
+    tle = TLEFactory(satellite=satellite, epoch=base_datetime)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    # Test valid date within 30 days after TLE epoch
+    valid_future_jd = base_jd + TimeDelta(29, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={valid_future_jd.jd}"
+    )
+    assert response.status_code == 200
+
+    # Test valid date within 30 days before TLE epoch
+    valid_past_jd = base_jd - TimeDelta(29, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={valid_past_jd.jd}"
+    )
+    assert response.status_code == 200

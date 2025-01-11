@@ -1,5 +1,7 @@
 import abc
 
+from sqlalchemy import func
+
 from api.adapters.database_orm import SatelliteDb
 from api.domain.models.satellite import Satellite
 
@@ -30,6 +32,9 @@ class AbstractSatelliteRepository(abc.ABC):
     def get_satellite_data_by_name(self, name):
         return self._get_satellite_data_by_name(name)
 
+    def get_active_satellites(self, object_type: str = None):
+        return self._get_active_satellites(object_type)
+
     @abc.abstractmethod
     def _get(self, satellite_id: str) -> Satellite:
         raise NotImplementedError
@@ -52,6 +57,10 @@ class AbstractSatelliteRepository(abc.ABC):
 
     @abc.abstractmethod
     def _add(self, satellite: Satellite):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_active_satellites(self, object_type: str = None):
         raise NotImplementedError
 
 
@@ -167,6 +176,31 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         )
 
         return satellite
+
+    def _get_active_satellites(self, object_type: str = None):
+        """
+        Retrieves active satellites based on the provided object type (optional).
+        Only returns satellites that are active (no decay date) and have current
+        satellite numbers (to eliminate duplicates).
+
+        Args:
+            object_type (str): The type of the object, either "payload", "debris",
+            "rocket body", "tba", or "unknown".
+
+        Returns:
+            List[SatelliteDb]: A list of active satellites.
+        """
+        query = self.session.query(SatelliteDb).filter(
+            SatelliteDb.decay_date.is_(None),
+            SatelliteDb.has_current_sat_number == True,  # noqa: E712
+        )
+
+        if object_type:
+            query = query.filter(
+                func.lower(SatelliteDb.object_type) == func.lower(object_type)
+            )
+
+        return query.all()
 
     def _add(self, satellite: Satellite):
         orm_satellite = self._to_orm(satellite)
