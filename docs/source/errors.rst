@@ -31,3 +31,4 @@ This one is used for any other error that may occur. Below are the current reaso
 * **Invalid data source:** Anything other than 'celestrak' or 'spacetrack' will fail.
 * **Incorrect TLE format:** Check to make sure the TLE string used is in the correct format, and doesn't include any extra characters
 * **No TLE found:** No data found for that satellite - if this occurs, try a different data source or check the spelling of the satellite name. If the satellite is new, it may not be in the database yet. If none of these work, please contact us with the details of the issue.
+* **TLE date out of range:** TLE epoch is more than 30 days before or after the requested date.
