@@ -1,5 +1,4 @@
 import logging
-from typing import Tuple
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @celery.task
 def process_results(
-    data_points: list[Tuple[float, float]],
+    data_points: list[tuple[float, float]],
     min_altitude: float,
     max_altitude: float,
     date_collected: str,
@@ -42,7 +41,7 @@ def process_results(
     adds the remaining metadata to the results.
 
     Args:
-        data_points (list[Tuple[float, float]]): The satellite position results.
+        data_points (list[tuple[float, float]]): The satellite position results.
         min_altitude (float): The minimum altitude.
         max_altitude (float): The maximum altitude.
         date_collected (str): The date the data was collected.

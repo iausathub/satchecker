@@ -1,6 +1,6 @@
 import abc
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from sqlalchemy import and_, func, not_, or_
 from sqlalchemy.orm.exc import NoResultFound
@@ -61,7 +61,7 @@ class AbstractTLERepository(abc.ABC):
 
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
-    ) -> Tuple[List[TLE], int]:
+    ) -> tuple[list[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
         latest_tles = (
