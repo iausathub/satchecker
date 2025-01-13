@@ -166,8 +166,8 @@ class FakeTLERepository(AbstractTLERepository):
             default=None,
         )
 
-    def _get_most_recent_full_tle_set(self):
-        return self._tles
+    def _get_all_tles_at_epoch(self, epoch_date, page, per_page):
+        return list(self._tles), len(self._tles)
 
 
 class FakeSession:

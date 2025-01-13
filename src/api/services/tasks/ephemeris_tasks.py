@@ -26,6 +26,7 @@ def process_results(
     min_altitude: float,
     max_altitude: float,
     date_collected: str,
+    tle_epoch_date: str,
     name: str,
     intl_designator: str,
     catalog_id: str,
@@ -44,6 +45,7 @@ def process_results(
         min_altitude (float): The minimum altitude.
         max_altitude (float): The maximum altitude.
         date_collected (str): The date the data was collected.
+        tle_epoch_date (str): The date the TLE was created.
         name (str): The name of the satellite.
         catalog_id (str): The catalog ID of the satellite.
         data_source (str): The data source.
@@ -71,6 +73,7 @@ def process_results(
         intl_designator,
         catalog_id,
         date_collected,
+        tle_epoch_date,
         data_source,
         results,
         api_source,
@@ -88,6 +91,7 @@ def generate_position_data(
     tle_line_1: str,
     tle_line_2: str,
     date_collected: str,
+    tle_epoch_date: str,
     name: str,
     intl_designator: str,
     min_altitude: float,
@@ -110,6 +114,7 @@ def generate_position_data(
         tle_line_1 (str): The first line of the TLE data for the satellite.
         tle_line_2 (str): The second line of the TLE data for the satellite.
         date_collected (str): The date the TLE data was collected.
+        tle_epoch_date (str): The date the TLE was created.
         name (str): The name of the satellite.
         min_altitude (float): The minimum altitude for the results.
         max_altitude (float): The maximum altitude for the results.
@@ -144,6 +149,7 @@ def generate_position_data(
             min_altitude,
             max_altitude,
             date_collected,
+            tle_epoch_date,
             name,
             intl_designator,
             catalog_id,
