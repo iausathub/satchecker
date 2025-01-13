@@ -1,5 +1,4 @@
 import functools
-from typing import Tuple  # noqa: I001
 
 import numpy as np
 from skyfield.api import EarthSatellite, load, wgs84
@@ -144,7 +143,7 @@ def itrs_to_gcrs(r_itrs, julian_date):
 # The results of this function in combination with the other coordinate system updates
 # for SGP4 give results similar to, but not identical to, the Skyfield results, so each
 # new conversion needs to be individually verified
-def enu_to_az_el(r_enu: np.ndarray) -> Tuple[float, float]:
+def enu_to_az_el(r_enu: np.ndarray) -> tuple[float, float]:
     """
     Convert ENU (East, North, Up) coordinates to azimuth and elevation.
 
@@ -154,7 +153,7 @@ def enu_to_az_el(r_enu: np.ndarray) -> Tuple[float, float]:
         r_enu (np.ndarray): The ENU coordinates.
 
     Returns:
-        Tuple[float, float]: The azimuth and elevation in degrees.
+        tuple[float, float]: The azimuth and elevation in degrees.
     """
     # Calculate horizontal distance
     p = np.hypot(r_enu[0], r_enu[1])
@@ -215,7 +214,7 @@ def ecef_to_eci(r_ecef: list[float], theta_gst: float) -> np.ndarray:
 # new conversion needs to be individually verified
 def az_el_to_ra_dec(
     az: float, el: float, lat: float, lon: float, jd: float
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """
     Convert azimuth and elevation to right ascension and declination.
 
@@ -230,7 +229,7 @@ def az_el_to_ra_dec(
         jd (float): The Julian Day.
 
     Returns:
-        Tuple[float, float]: The right ascension and declination in degrees.
+        tuple[float, float]: The right ascension and declination in degrees.
     """
     lst = calculate_lst(lon, jd)
     # Convert to radians
