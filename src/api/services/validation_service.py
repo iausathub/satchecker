@@ -1,6 +1,6 @@
 import re
 from datetime import timezone
-from typing import Any, List
+from typing import Any
 
 import astropy.units as u
 import numpy as np
@@ -41,8 +41,8 @@ def extract_parameters(request, parameter_list):
 
 
 def validate_parameters(
-    request: Any, parameter_list: List[str], required_parameters: List[str]
-) -> List[str]:
+    request: Any, parameter_list: list[str], required_parameters: list[str]
+) -> list[str]:
     """
     Validates and sanitizes parameters for satellite tracking.
 
