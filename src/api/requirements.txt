@@ -143,7 +143,7 @@ typing_extensions==4.7.1
 tzdata==2024.1
 urllib3==1.26.19
 vine==5.1.0
-virtualenv==20.24.5
+virtualenv==20.26.6
 wcwidth==0.2.6
 webencodings==0.5.1
 Werkzeug==3.0.3
