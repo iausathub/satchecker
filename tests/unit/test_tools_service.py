@@ -7,6 +7,7 @@ from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.services.tools_service import (
+    get_active_satellites,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_tle_data,
@@ -184,3 +185,58 @@ def test_get_names_for_satellite_id_errors():
         results = get_names_for_satellite_id(  # noqa: F841
             sat_repo=sat_repo, satellite_id=123, api_source="test"
         )
+
+
+def test_get_active_satellites():
+    sat_repo = FakeSatelliteRepository([])
+    results = get_active_satellites(sat_repo, None, "test", "1.0")
+    assert results["count"] == 0
+
+    satellite = SatelliteFactory(
+        sat_name="ISS", has_current_sat_number=True, decay_date=None
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    results = get_active_satellites(sat_repo, None, "test", "1.0")
+    assert results["count"] == 1
+    assert results["data"][0]["satellite_name"] == "ISS"
+    assert results["data"][0]["satellite_id"] == satellite.sat_number
+    assert results["data"][0]["international_designator"] == satellite.object_id
+    assert results["data"][0]["rcs_size"] == satellite.rcs_size
+    assert results["data"][0]["launch_date"] == satellite.launch_date.strftime(
+        "%Y-%m-%d"
+    )
+    assert results["data"][0]["decay_date"] == satellite.decay_date
+    assert results["data"][0]["object_type"] == satellite.object_type
+
+
+def test_get_active_satellites_with_object_type():
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        has_current_sat_number=True,
+        decay_date=None,
+        object_type="payload",
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    results = get_active_satellites(sat_repo, "payload", "test", "1.0")
+    assert results["count"] == 1
+    assert results["data"][0]["satellite_name"] == "ISS"
+    assert results["data"][0]["satellite_id"] == satellite.sat_number
+    assert results["data"][0]["international_designator"] == satellite.object_id
+    assert results["data"][0]["rcs_size"] == satellite.rcs_size
+    assert results["data"][0]["launch_date"] == satellite.launch_date.strftime(
+        "%Y-%m-%d"
+    )
+    assert results["data"][0]["decay_date"] == satellite.decay_date
+    assert results["data"][0]["object_type"] == satellite.object_type
+
+
+def test_get_active_satellites_with_invalid_object_type():
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        has_current_sat_number=True,
+        decay_date=None,
+        object_type="payload",
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    results = get_active_satellites(sat_repo, "invalid", "test", "1.0")
+    assert results["count"] == 0

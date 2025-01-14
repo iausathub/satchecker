@@ -1,12 +1,14 @@
 from datetime import datetime, timezone
 
+from flask import abort, jsonify, request, send_file
 from flask import current_app as app
-from flask import jsonify, request, send_file
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, get_forwarded_address, limiter
 from api.services.tools_service import (
+    get_active_satellites,
     get_all_tles_at_epoch_paginated,
     get_all_tles_at_epoch_zipped,
     get_ids_for_satellite_name,
@@ -172,6 +174,28 @@ def get_satellite_data_list():
     )
 
     return jsonify(satellite_data)
+
+
+@api_v1.route("/tools/get-active-satellites/")
+@api_main.route("/tools/get-active-satellites/")
+@limiter.limit(
+    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
+)
+def get_active_satellites_list():
+    session = db.session
+    sat_repo = SqlAlchemySatelliteRepository(session)
+
+    parameter_list = ["object_type"]
+    try:
+        parameters = validate_parameters(request, parameter_list, [])
+    except ValidationError as e:
+        abort(e.status_code, e.message)
+
+    active_satellites = get_active_satellites(
+        sat_repo, parameters.get("object_type"), api_source, api_version
+    )
+
+    return jsonify(active_satellites)
 
 
 @api_v1.route("/tools/tles-at-epoch/")

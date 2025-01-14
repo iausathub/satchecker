@@ -154,6 +154,7 @@ Satellites above the horizon
    :query min_altitude: (*optional*) -- Minimum altitude in degrees. Default is 0.
    :query min_range: (*optional*) -- Minimum range in kilometers. Default is 0.
    :query max_range: (*optional*) -- Maximum range in kilometers. Default is 1500000.
+   :query illuminated_only: (*optional*) -- If True, only return satellites that are illuminated. Default is False.
 
 
 **Example Request**

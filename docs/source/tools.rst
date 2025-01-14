@@ -262,6 +262,22 @@ in the database (no decay date and current NORAD ID).
 
             https://satchecker.cps.iau.org/tools/tles-at-epoch/?epoch=2459488.5&page=1&per_page=10
 
+        .. tab:: Python
+
+            .. code-tab:: Python
+
+                import requests
+                import json
+
+                url = 'https://satchecker.cps.iau.org/tools/tles-at-epoch/'
+                params = {'epoch': '2459488.5',
+                          'page': '1',
+                          'per_page': '10'
+                        }
+
+                r = requests.get(url, params=params)
+                print(json.dumps(r.json(), indent=4))
+
         .. tab:: Bash
 
             .. code-tab:: Bash
@@ -334,3 +350,75 @@ in the database (no decay date and current NORAD ID).
                 "version": "1.2.0"
             }
         ]
+
+Retrieve active satellites
+---------------------------------------------------------------
+
+This endpoint retrieves all active satellites/objects from the database. Active satellites are defined
+as those with no decay date and as having a current NORAD ID. This endpoint also supports filtering
+by object type - "PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", or "UNKNOWN".
+
+**Endpoint**
+
+.. http:get:: /tools/get-active-satellites/
+
+    **Parameters**
+
+    :query object_type: (*optional*) -- The type of the object, either "payload", "debris", "rocket body", "tba", or "unknown".
+
+    **Example Request**
+
+    .. tabs::
+
+        .. tab:: Browser
+
+            https://satchecker.cps.iau.org/tools/get-active-satellites/?object_type=unknown
+
+        .. code-tab:: Python
+
+            import requests
+            import json
+
+            url = 'https://satchecker.cps.iau.org/tools/get-active-satellites/'
+            params = {'object_type': 'unknown'}
+
+            r = requests.get(url, params=params)
+            print(json.dumps(r.json(), indent=4))
+
+        .. tab:: Bash
+
+            curl -X GET "https://satchecker.cps.iau.org/tools/get-active-satellites/?object_type=unknown" -H "accept: application/json"
+
+        .. tab:: Powershell
+
+            curl.exe -X GET "https://satchecker.cps.iau.org/tools/get-active-satellites/?object_type=unknown" -H "accept: application/json"
+
+    **Example Response**
+
+    .. sourcecode:: json
+
+        {
+            "count": 2,
+            "data": [
+                {
+                    "decay_date": null,
+                    "international_designator": "2024-110D",
+                    "launch_date": "2024-06-06",
+                    "object_type": "UNKNOWN",
+                    "rcs_size": "SMALL",
+                    "satellite_id": 60015,
+                    "satellite_name": "OBJECT D"
+                },
+                {
+                    "decay_date": null,
+                    "international_designator": "2024-128A",
+                    "launch_date": "2024-07-09",
+                    "object_type": "UNKNOWN",
+                    "rcs_size": "SMALL",
+                    "satellite_id": 60235,
+                    "satellite_name": "OBJECT A"
+                }
+            ],
+            "source": "IAU CPS SatChecker",
+            "version": "1.2.0"
+    }
