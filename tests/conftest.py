@@ -114,8 +114,8 @@ def app():
         database.init_app(app)
 
         Base.metadata.create_all(bind=database.engine)
-
-        create_partitions(database.engine)
+        # disable partitioning for now
+        # create_partitions(database.engine)
         yield app
         database.session.remove()
         Base.metadata.drop_all(bind=database.engine)
@@ -147,7 +147,7 @@ def cleanup_database(session):
     yield
     try:
         # Delete from tle_partitioned first since it references satellites
-        session.execute(text("DELETE FROM tle_partitioned"))
+        session.execute(text("DELETE FROM tle"))
         session.execute(text("DELETE FROM satellites"))
         session.commit()
     except Exception as e:

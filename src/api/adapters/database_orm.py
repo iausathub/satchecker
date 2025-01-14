@@ -5,7 +5,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    Sequence,
     Text,
     UniqueConstraint,
     func,
@@ -38,26 +37,18 @@ class SatelliteDb(Base):
 
 
 class TLEDb(Base):
-    __tablename__ = "tle_partitioned"
+    __tablename__ = "tle"
 
-    id = Column(
-        Integer,
-        Sequence("tle_partitioned_id_seq"),
-        server_default=Sequence("tle_partitioned_id_seq", start=1).next_value(),
-        primary_key=True,
-    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
     sat_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
     date_collected = Column(DateTime(timezone=True), nullable=False)
     tle_line1 = Column(Text, nullable=False)
     tle_line2 = Column(Text, nullable=False)
-    epoch = Column(DateTime(timezone=True), nullable=False, primary_key=True)
+    epoch = Column(DateTime(timezone=True), nullable=False)
     is_supplemental = Column(Boolean, nullable=False)
     data_source = Column(Text, nullable=False)
-    satellite = relationship("SatelliteDb", backref="tle_partitioned")
-    __table_args__ = (
-        UniqueConstraint("sat_id", "epoch", "data_source"),
-        {"postgresql_partition_by": "RANGE (epoch)"},
-    )
+    satellite = relationship("SatelliteDb", backref="tle")
+    __table_args__ = (UniqueConstraint("sat_id", "epoch", "data_source"),)
 
 
 # Define the index on the date_collected column

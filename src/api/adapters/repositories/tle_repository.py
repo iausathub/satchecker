@@ -235,7 +235,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 FROM satellites s
                 LEFT JOIN LATERAL (
                     SELECT *
-                    FROM tle_partitioned t
+                    FROM tle t
                     WHERE t.sat_id = s.id
                     AND t.epoch BETWEEN :start_date AND :end_date
                     ORDER BY t.epoch DESC
