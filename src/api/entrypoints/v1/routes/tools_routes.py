@@ -9,8 +9,7 @@ from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, get_forwarded_address, limiter
 from api.services.tools_service import (
     get_active_satellites,
-    get_all_tles_at_epoch_paginated,
-    get_all_tles_at_epoch_zipped,
+    get_all_tles_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_satellite_data,
@@ -247,19 +246,24 @@ def get_tles_at_epoch():
     page = int(parameters.get("page", 1) or 1)
     per_page = int(parameters.get("per_page") or 100)
 
-    if format == "json":
-        tles = get_all_tles_at_epoch_paginated(
-            tle_repo, epoch_date, page, per_page, api_source, api_version
-        )
+    tles = get_all_tles_at_epoch_formatted(
+        tle_repo,
+        epoch_date,
+        format=format,
+        page=page,
+        per_page=per_page,
+        api_source=api_source,
+        api_version=api_version,
+    )
 
-        return jsonify(tles)
-    else:
-        zipped_data = get_all_tles_at_epoch_zipped(
-            tle_repo, epoch_date, page, per_page, api_source, api_version
-        )
+    if format == "txt":
+        return send_file(tles, mimetype="text/plain", as_attachment=False)
+    elif format == "zip":
         return send_file(
-            zipped_data,
+            tles,
             mimetype="application/zip",
             as_attachment=True,
             download_name="tle_data.zip",
         )
+    else:
+        return jsonify(tles)
