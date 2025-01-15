@@ -8,6 +8,7 @@ from tests.factories.tle_factory import TLEFactory
 
 from api.services.tools_service import (
     get_active_satellites,
+    get_all_tles_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_tle_data,
@@ -240,3 +241,48 @@ def test_get_active_satellites_with_invalid_object_type():
     sat_repo = FakeSatelliteRepository([satellite])
     results = get_active_satellites(sat_repo, "invalid", "test", "1.0")
     assert results["count"] == 0
+
+
+def test_get_all_tles_at_epoch_formatted():
+    tle_repo = FakeTLERepository([])
+    tle_1 = TLEFactory(satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now())
+    tle_2 = TLEFactory(satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now())
+    tle_repo = FakeTLERepository([tle_1, tle_2])
+    results = get_all_tles_at_epoch_formatted(
+        tle_repo, datetime.now(), "json", 1, 100, "test", "1.0"
+    )
+
+    # Results should be a list with one dictionary
+    assert isinstance(results, list)
+    assert len(results) == 1
+
+    # Check the structure matches the actual API response
+    result = results[0]
+    assert result["per_page"] == 100
+    assert result["page"] == 1
+    assert len(result["data"]) == 2
+    assert result["source"] == "test"
+    assert result["version"] == "1.0"
+
+    # Check the data contents
+    for tle_data in result["data"]:
+        assert "satellite_name" in tle_data
+        assert "satellite_id" in tle_data
+        assert "tle_line1" in tle_data
+        assert "tle_line2" in tle_data
+        assert "epoch" in tle_data
+        assert "date_collected" in tle_data
+        assert isinstance(tle_data["satellite_name"], str)
+        assert isinstance(tle_data["satellite_id"], int)
+        assert isinstance(tle_data["tle_line1"], str)
+        assert isinstance(tle_data["tle_line2"], str)
+        assert tle_data["satellite_name"] == "ISS"
+
+    results = get_all_tles_at_epoch_formatted(
+        tle_repo, datetime.now(), "txt", 1, 100, "test", "1.0"
+    )
+    text_content = results.getvalue().decode("utf-8")
+    assert tle_1.tle_line1 in text_content
+    assert tle_1.tle_line2 in text_content
+    assert tle_2.tle_line1 in text_content
+    assert tle_2.tle_line2 in text_content

@@ -236,7 +236,7 @@ def validate_parameters(
     if "format" in parameters.keys() and parameters["format"] is not None:
         parameters["format"] = parameters["format"].lower()
 
-        if parameters["format"] not in ["json", "zip"]:
+        if parameters["format"] not in ["json", "zip", "txt"]:
             raise ValidationError(500, error_messages.INVALID_FORMAT)
 
     if "group_by" in parameters.keys() and parameters["group_by"] is not None:

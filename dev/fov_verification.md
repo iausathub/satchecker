@@ -4,7 +4,7 @@
 This uses position data obtained from SCORE to verify/compare the position data obtained from the FOV API.
 For Pelican 3001, other satellites found in the FOV query are also plotted, but not for ACS 3 since with the longer duration and field of view, there were too many satellites to plot.
 
-The track separation is currently the difference is between points on the observed/predicted tracks. This means that the separation noted might be larger than the actual track separation if there are gaps in the data. Track separation should either calculate the distance between the tracks themselves or the FOV/data set should be split into smaller chunks to avoid gaps.
+The track separation is currently the difference is between points on the observed/predicted tracks. This means that the separation noted might be larger than the actual track separation if there are gaps in the data. The cadence of the observations also affects this - the FOV API returns position on a preset basis (1 second) so if the observations are more/less frequent, the separation between points might be larger. Track separation should either calculate the distance between the tracks themselves or the FOV/data set should be split into smaller chunks to avoid gaps.
 
 ### Pelican 3001 - 8 degree FOV
 <img src="../docs/source/images/pelican_3001_05082024.png" alt="Pelican 3001 - 05-08-2024" width="100%"/>
