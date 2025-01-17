@@ -228,26 +228,18 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         # Main data query with subquery for count
         data_sql = text(
             """
-            WITH base_query AS (
-                SELECT t.id, t.sat_id, t.date_collected, t.tle_line1, t.tle_line2, t.epoch,
-                       t.is_supplemental, t.data_source, s.sat_name, s.sat_number,
-                       s.decay_date, s.has_current_sat_number
-                FROM satellites s
-                LEFT JOIN LATERAL (
-                    SELECT *
-                    FROM tle_partitioned t
-                    WHERE t.sat_id = s.id
-                    AND t.epoch BETWEEN :start_date AND :end_date
-                    ORDER BY t.epoch DESC
-                    LIMIT 1
-                ) t ON true
-                WHERE (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-                AND (t.id IS NOT NULL)
-                AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
+            WITH recent_tles AS (
+                SELECT DISTINCT ON (sat_id) *
+                FROM tle
+                WHERE epoch BETWEEN :start_date AND :end_date
+                ORDER BY sat_id, epoch DESC
             )
-            SELECT *, (SELECT COUNT(*) FROM base_query) as total_count
-            FROM base_query
-            ORDER BY epoch DESC
+            SELECT *
+            FROM satellites s
+            JOIN recent_tles t ON s.id = t.sat_id
+            WHERE (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+            AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
+            ORDER BY t.epoch DESC;
             """  # noqa: E501
         )
 
@@ -267,11 +259,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 "epoch_date": epoch_date,
             }
 
-        rows = self.session.execute(data_sql, params).fetchall()
+        result = self.session.execute(data_sql, params)
+        rows = result.fetchall()
 
         # Map results to domain objects
         tles = []
-        total_count = rows[0].total_count if rows else 0  # Get count from first row
+        total_count = result.rowcount
 
         for row in rows:
             satellite = Satellite(
