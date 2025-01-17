@@ -225,67 +225,68 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     ) -> tuple[list[TLE], int]:
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
-        # Main data query with subquery for count
-        data_sql = text(
-            """
-            WITH recent_tles AS (
-                SELECT DISTINCT ON (sat_id) *
-                FROM tle
-                WHERE epoch BETWEEN :start_date AND :end_date
-                ORDER BY sat_id, epoch DESC
-            )
-            SELECT *
-            FROM satellites s
-            JOIN recent_tles t ON s.id = t.sat_id
-            WHERE (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-            AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
-            ORDER BY t.epoch DESC;
-            """  # noqa: E501
-        )
+        try:
+            base_sql = """
+                WITH recent_tles AS (
+                    SELECT DISTINCT ON (sat_id) *
+                    FROM tle
+                    WHERE epoch BETWEEN :start_date AND :end_date
+                    ORDER BY sat_id, epoch DESC
+                )
+                SELECT *
+                FROM satellites s
+                JOIN recent_tles t ON s.id = t.sat_id
+                WHERE (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                AND NOT (t.epoch < :start_date AND s.sat_name = 'TBA - TO BE ASSIGNED')
+                ORDER BY t.epoch DESC"""
 
-        if format != "zip":
-            data_sql = text(data_sql.text + " LIMIT :limit OFFSET :offset")
-            params = {
-                "start_date": two_weeks_prior,
-                "end_date": epoch_date,
-                "epoch_date": epoch_date,
-                "limit": per_page,
-                "offset": (page - 1) * per_page,
-            }
-        else:
-            params = {
-                "start_date": two_weeks_prior,
-                "end_date": epoch_date,
-                "epoch_date": epoch_date,
-            }
+            if format != "zip":
+                data_sql = text(base_sql + " LIMIT :limit OFFSET :offset")
+                params = {
+                    "start_date": two_weeks_prior,
+                    "end_date": epoch_date,
+                    "epoch_date": epoch_date,
+                    "limit": per_page,
+                    "offset": (page - 1) * per_page,
+                }
+            else:
+                data_sql = text(base_sql)
+                params = {
+                    "start_date": two_weeks_prior,
+                    "end_date": epoch_date,
+                    "epoch_date": epoch_date,
+                }
 
-        result = self.session.execute(data_sql, params)
-        rows = result.fetchall()
+            result = self.session.execute(data_sql, params)
+            rows = result.fetchall()
+            total_count = result.rowcount
 
-        # Map results to domain objects
-        tles = []
-        total_count = result.rowcount
+            # Map results to domain objects
+            tles = []
+            for row in rows:
+                satellite = Satellite(
+                    sat_name=row.sat_name,
+                    sat_number=row.sat_number,
+                    decay_date=row.decay_date,
+                    has_current_sat_number=row.has_current_sat_number,
+                )
 
-        for row in rows:
-            satellite = Satellite(
-                sat_name=row.sat_name,
-                sat_number=row.sat_number,
-                decay_date=row.decay_date,
-                has_current_sat_number=row.has_current_sat_number,
-            )
+                tle = TLE(
+                    satellite=satellite,
+                    date_collected=row.date_collected,
+                    tle_line1=row.tle_line1,
+                    tle_line2=row.tle_line2,
+                    epoch=row.epoch,
+                    is_supplemental=row.is_supplemental,
+                    data_source=row.data_source,
+                )
+                tles.append(tle)
 
-            tle = TLE(
-                satellite=satellite,
-                date_collected=row.date_collected,
-                tle_line1=row.tle_line1,
-                tle_line2=row.tle_line2,
-                epoch=row.epoch,
-                is_supplemental=row.is_supplemental,
-                data_source=row.data_source,
-            )
-            tles.append(tle)
+            return tles, total_count
 
-        return tles, total_count
+        except Exception:
+            self.session.rollback()
+            raise
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)

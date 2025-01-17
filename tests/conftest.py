@@ -93,7 +93,7 @@ def create_test_db():
     test_engine = create_engine(db_url)
     with test_engine.connect() as conn:
         conn.execute(text("commit"))
-        create_partitions(test_engine)
+        # create_partitions(test_engine)
 
 
 @pytest.fixture(scope="session")
@@ -115,7 +115,7 @@ def app():
 
         Base.metadata.create_all(bind=database.engine)
 
-        create_partitions(database.engine)
+        # create_partitions(database.engine)
         yield app
         database.session.remove()
         Base.metadata.drop_all(bind=database.engine)
@@ -146,8 +146,8 @@ def cleanup_database(session):
 
     yield
     try:
-        # Delete from tle_partitioned first since it references satellites
-        session.execute(text("DELETE FROM tle_partitioned"))
+        # Delete from tle first since it references satellites
+        session.execute(text("DELETE FROM tle"))
         session.execute(text("DELETE FROM satellites"))
         session.commit()
     except Exception as e:
