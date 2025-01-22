@@ -192,6 +192,11 @@ Prod Data Push Tag:
     - pip install alembic psycopg2-binary
   variables:
     PYTHONPATH: "src"
+    DB_HOST: ${DB_HOST}
+    DB_PORT: ${DB_PORT}
+    DB_NAME: ${DB_NAME}
+    DB_USERNAME: ${DB_USERNAME}
+    DB_PASSWORD: ${DB_PASSWORD}
 
 Dev DB Migrate:
   extends: .migrate_base
