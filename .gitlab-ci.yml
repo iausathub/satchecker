@@ -189,6 +189,8 @@ Prod Data Push Tag:
   before_script:
     - pip install -r src/api/requirements.txt
     - pip install alembic psycopg2-binary
+  variables:
+    PYTHONPATH: "src"
 
 Dev DB Migrate:
   extends: .migrate_base
