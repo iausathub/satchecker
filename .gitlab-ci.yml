@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - migrate
   - push
 
 include:
@@ -181,3 +182,34 @@ Prod Data Push Tag:
       changes:
         paths:
           - "src/data/**/*"
+
+.migrate_base:
+  image: python:3.11
+  stage: migrate
+  before_script:
+    - pip install -r src/api/requirements.txt
+    - pip install alembic psycopg2-binary
+
+Dev DB Migrate:
+  extends: .migrate_base
+  script:
+    - cd src/api
+    - alembic -c migrations/alembic.ini upgrade head
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+      changes:
+        paths:
+          - "src/api/migrations/**/*"
+
+# Commented out during testing
+# Prod DB Migrate:
+#   extends: .migrate_base
+#   script:
+#     - cd src/api
+#     - alembic -c migrations/alembic.ini upgrade head
+#   rules:
+#     - if: $CI_COMMIT_BRANCH == "main"
+#       changes:
+#         paths:
+#           - "src/api/migrations/**/*"
+#   when: manual  # Requires manual approval for production migrations
