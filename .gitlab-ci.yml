@@ -195,6 +195,7 @@ Prod Data Push Tag:
 Dev DB Migrate:
   extends: .migrate_base
   script:
+    - export PYTHONPATH=src
     - cd src/api
     - alembic -c migrations/alembic.ini upgrade head
   rules:
@@ -207,6 +208,7 @@ Dev DB Migrate:
 # Prod DB Migrate:
 #   extends: .migrate_base
 #   script:
+#     - export PYTHONPATH=src
 #     - cd src/api
 #     - alembic -c migrations/alembic.ini upgrade head
 #   rules:
