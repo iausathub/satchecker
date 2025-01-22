@@ -187,6 +187,7 @@ Prod Data Push Tag:
   image: python:3.11
   stage: migrate
   before_script:
+    - export PYTHONPATH="${CI_PROJECT_DIR}/src:${PYTHONPATH}"
     - pip install -r src/api/requirements.txt
     - pip install alembic psycopg2-binary
   variables:
@@ -195,7 +196,6 @@ Prod Data Push Tag:
 Dev DB Migrate:
   extends: .migrate_base
   script:
-    - export PYTHONPATH=src
     - cd src/api
     - alembic -c migrations/alembic.ini upgrade head
   rules:
