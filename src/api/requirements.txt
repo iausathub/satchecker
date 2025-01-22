@@ -137,7 +137,7 @@ SQLAlchemy==2.0.20
 stack-data==0.6.2
 tinycss2==1.2.1
 tomlkit==0.12.1
-tornado==6.4.1
+tornado==6.4.2
 traitlets==5.9.0
 typing_extensions==4.7.1
 tzdata==2024.1
