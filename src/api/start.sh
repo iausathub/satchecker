@@ -2,7 +2,7 @@
 
 # Set PYTHONPATH to include the parent directory of api
 cd /usr/src/app/api
-export PYTHONPATH="/usr/src/app/api"
+export PYTHONPATH="/usr/src/app"
 
 # Run database migrations
 alembic -c migrations/alembic.ini upgrade head
