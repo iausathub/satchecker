@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+export PYTHONPATH="/usr/src/app/api:${PYTHONPATH}:$(pwd)/src"
 
 # Run database migrations
 cd /usr/src/app/api
