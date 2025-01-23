@@ -1,5 +1,6 @@
 import logging
 from logging.config import fileConfig
+from urllib.parse import quote_plus
 
 from alembic import context
 from flask import current_app
@@ -23,7 +24,9 @@ def get_url():
     except RuntimeError:
         # If Flask app context isn't available, construct URL from config
         username, password, host, port, dbname = get_db_login()
-        return f"postgresql://{username}:{password}@{host}:{port}/{dbname}"
+        # URL encode the password to handle special characters
+        encoded_password = quote_plus(password)
+        return f"postgresql://{username}:{encoded_password}@{host}:{port}/{dbname}"
 
 
 config.set_main_option("sqlalchemy.url", get_url())
