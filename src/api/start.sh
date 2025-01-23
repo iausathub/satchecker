@@ -1,8 +1,10 @@
 #!/bin/bash
 
-
 export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
 
+# Run database migrations
+cd /usr/src/app/api
+alembic -c migrations/alembic.ini upgrade head
 
 # Start the Celery worker in the background
 celery -A api.satchecker.celery worker --loglevel INFO &
