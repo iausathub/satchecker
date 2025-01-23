@@ -25,15 +25,25 @@ def get_url():
         # If Flask app context isn't available, construct URL from config
         username, password, host, port, dbname = get_db_login()
         # URL encode the password to handle special characters
-        encoded_password = quote_plus(password)
+        encoded_password = quote_plus(password).replace("%", "%%")
         return f"postgresql://{username}:{encoded_password}@{host}:{port}/{dbname}"
-
-
-config.set_main_option("sqlalchemy.url", get_url())
 
 
 def get_metadata():
     return Base.metadata
+
+
+def run_migrations():
+    try:
+        if context.is_offline_mode():
+            run_migrations_offline()
+        else:
+            run_migrations_online()
+    except ValueError:
+        # Log sanitized error message
+        logger.error("Database URL configuration error")
+        # Re-raise with sanitized message
+        raise ValueError("Invalid database URL configuration") from None
 
 
 def run_migrations_offline():
@@ -93,7 +103,4 @@ def run_migrations_online():
             context.run_migrations()
 
 
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+run_migrations()
