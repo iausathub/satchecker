@@ -4,6 +4,7 @@ from urllib.parse import quote_plus
 
 from alembic import context
 from flask import current_app
+from sqlalchemy import create_engine
 
 from api.adapters.database_orm import Base
 from api.config import get_db_login
@@ -25,7 +26,7 @@ def get_url():
         # If Flask app context isn't available, construct URL from config
         username, password, host, port, dbname = get_db_login()
         # URL encode the password to handle special characters
-        encoded_password = quote_plus(password).replace("%", "%%")
+        encoded_password = quote_plus(password)
         return f"postgresql://{username}:{encoded_password}@{host}:{port}/{dbname}"
 
 
@@ -58,16 +59,19 @@ def run_migrations_offline():
     script output.
 
     """
-    url = get_url()
-    context.configure(
-        url=url,
-        target_metadata=get_metadata(),
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
+    # Create engine directly with the URL instead of storing in config
+    engine = create_engine(get_url())
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with engine.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=get_metadata(),
+            literal_binds=True,
+            dialect_opts={"paramstyle": "named"},
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 def run_migrations_online():
@@ -88,11 +92,10 @@ def run_migrations_online():
                 directives[:] = []
                 logger.info("No changes in schema detected.")
 
-    from sqlalchemy import create_engine
+    # Create engine directly with the URL
+    engine = create_engine(get_url())
 
-    connectable = create_engine(get_url())
-
-    with connectable.connect() as connection:
+    with engine.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
