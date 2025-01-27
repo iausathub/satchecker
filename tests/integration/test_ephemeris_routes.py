@@ -129,28 +129,28 @@ def test_get_ephemeris_missing_parameter(client):
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         "/ephemeris/name-jdstep/?name=ISS&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&longitude=0&elevation=0&julian_date=2459000.5"
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -160,7 +160,7 @@ def test_get_ephemeris_missing_parameter(client):
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         f"/ephemeris/tle-jdstep/?elevation=150&longitude=-110\
@@ -168,7 +168,7 @@ def test_get_ephemeris_missing_parameter(client):
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
 
 def test_get_ephemeris_by_tle_incorrect_format(client):
