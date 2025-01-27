@@ -37,7 +37,7 @@ def test_get_satellite_passes_in_fov_missing_parameters(client):
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
 
 @pytest.mark.skipif(
@@ -70,4 +70,4 @@ def test_get_satellites_above_horizon_missing_parameters(client):
         "/fov/satellites-above-horizon/?latitude=0&longitude=0&julian_date=2459000.5"
     )
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text

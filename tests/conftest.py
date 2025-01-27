@@ -1,6 +1,13 @@
 # import api.core
 
 import os
+
+if "SQLALCHEMY_DATABASE_URI" not in os.environ:
+    os.environ["SQLALCHEMY_DATABASE_URI"] = (
+        "postgresql://postgres:postgres@localhost:5432/test_satchecker"
+    )
+os.environ["LOCAL_DB"] = "1"
+
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -17,12 +24,6 @@ from api.adapters.repositories.satellite_repository import AbstractSatelliteRepo
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.entrypoints.extensions import db as database
-
-if "SQLALCHEMY_DATABASE_URI" not in os.environ:
-    os.environ["SQLALCHEMY_DATABASE_URI"] = (
-        "postgresql://postgres:postgres@localhost:5432/test_satchecker"
-    )
-os.environ["LOCAL_DB"] = "1"
 
 
 def create_partitions(engine):
