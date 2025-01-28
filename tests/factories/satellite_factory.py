@@ -7,6 +7,13 @@ from src.api.domain.models.satellite import Satellite
 faker = Faker()
 
 
+def generate_object_id():
+    year = faker.random_int(min=1957, max=datetime.datetime.now().year)
+    launch_num = str(faker.random_int(min=1, max=999)).zfill(3)
+    piece = faker.random_element(elements=tuple("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
+    return f"{year}-{launch_num}{piece}"
+
+
 class SatelliteFactory(factory.Factory):
     class Meta:
         model = Satellite
@@ -21,6 +28,7 @@ class SatelliteFactory(factory.Factory):
     decay_date = faker.date_time_between(
         start_date="-10y", end_date=datetime.datetime.now()
     )
-    object_id = faker.word()
+
+    object_id = factory.LazyFunction(generate_object_id)
     object_type = faker.word()
     has_current_sat_number = factory.LazyAttribute(lambda o: True)

@@ -6,6 +6,7 @@ from typing import Union
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.utils.output_utils import satellite_data_to_json
 
 
 def get_tle_data(
@@ -149,33 +150,22 @@ def get_active_satellites(
     """
     satellites = sat_repo.get_active_satellites(object_type)
 
-    satellite_list = [
-        {
-            "satellite_name": satellite.sat_name,
-            "satellite_id": satellite.sat_number,
-            "international_designator": satellite.object_id,
-            "rcs_size": satellite.rcs_size,
-            "launch_date": (
-                satellite.launch_date.strftime("%Y-%m-%d")
-                if satellite.launch_date
-                else None
-            ),
-            "decay_date": (
-                satellite.decay_date.strftime("%Y-%m-%d")
-                if satellite.decay_date
-                else None
-            ),
-            "object_type": satellite.object_type,
-        }
-        for satellite in satellites
-    ]
+    satellite_json = satellite_data_to_json(satellites, api_source, api_version)
 
-    return {
-        "count": len(satellite_list),
-        "data": satellite_list,
-        "source": api_source,
-        "version": api_version,
-    }
+    return satellite_json
+
+
+def search_all_satellites(
+    sat_repo: AbstractSatelliteRepository,
+    parameters: dict,
+    api_source: str,
+    api_version: str,
+):
+    satellites = sat_repo.search_all_satellites(parameters)
+
+    satellite_json = satellite_data_to_json(satellites, api_source, api_version)
+
+    return satellite_json
 
 
 def get_all_tles_at_epoch_formatted(

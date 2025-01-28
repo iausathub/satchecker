@@ -260,6 +260,9 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
             and satellite.has_current_sat_number
         ]
 
+    def _search_all_satellites(self, parameters):
+        return self._satellites
+
     def _get(self, satellite_id):
         return next(
             (

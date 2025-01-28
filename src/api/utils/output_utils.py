@@ -242,3 +242,43 @@ def fov_data_to_json(
         }
 
     return formatted_results
+
+
+def satellite_data_to_json(satellites: list, api_source: str, api_version: str) -> dict:
+    """
+    Convert satellite data to JSON format
+
+    Args:
+        satellites: List of satellites
+        api_source: Source of the API
+        api_version: Version of the API
+
+    Returns:
+        dict: JSON dictionary of the satellite data
+    """
+    satellite_list = [
+        {
+            "satellite_name": satellite.sat_name,
+            "satellite_id": satellite.sat_number,
+            "international_designator": satellite.object_id,
+            "rcs_size": satellite.rcs_size,
+            "launch_date": (
+                satellite.launch_date.strftime("%Y-%m-%d")
+                if satellite.launch_date
+                else None
+            ),
+            "decay_date": (
+                satellite.decay_date.strftime("%Y-%m-%d")
+                if satellite.decay_date
+                else None
+            ),
+            "object_type": satellite.object_type,
+        }
+        for satellite in satellites
+    ]
+    return {
+        "count": len(satellite_list),
+        "data": satellite_list,
+        "source": api_source,
+        "version": api_version,
+    }
