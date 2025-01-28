@@ -422,3 +422,88 @@ by object type - "PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", or "UNKNOWN".
             "source": "IAU CPS SatChecker",
             "version": "1.2.0"
     }
+
+
+Search all satellites
+---------------------------------------------------------------
+
+This endpoint allows for searching all satellites/objects in the database. Search parameters
+include the satellite name, NORAD ID, international designator, launch date, decay date, and
+object type.
+
+**Endpoint**
+
+.. http:get:: /tools/search-satellites/
+
+    **Parameters**
+
+    :query name: (*optional*) -- The name of the satellite (partial matches supported)
+    :query norad_id: (*optional*) -- The NORAD ID/catalog number of the satellite
+    :query object_id: (*optional*) -- The international designator/COSPAR ID (e.g., "1998-067A")
+    :query rcs_size: (*optional*) -- The radar cross-section size ("SMALL", "MEDIUM", "LARGE")
+    :query launch_id: (*optional*) -- Search by launch ID (partial international designator, e.g., "1998-067")
+    :query object_type: (*optional*) -- The type of object ("PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", "UNKNOWN")
+    :query launch_date_start: (*optional*) -- Filter objects launched after this date (Julian Date)
+    :query launch_date_end: (*optional*) -- Filter objects launched before this date (Julian Date)
+    :query decay_date_start: (*optional*) -- Filter objects that decayed after this date (Julian Date)
+    :query decay_date_end: (*optional*) -- Filter objects that decayed before this date (Julian Date)
+
+    **Example Request**
+
+    .. tabs::
+
+        .. tab:: Browser
+
+            https://satchecker.cps.iau.org/tools/search-satellites/?object_type=payload&launch_date_start=2024-01-01
+
+        .. code-tab:: Python
+
+            import requests
+            import json
+
+            url = 'https://satchecker.cps.iau.org/tools/search-satellites/'
+            params = {
+                'object_type': 'payload',
+                'launch_date_start': '2460311.5'
+            }
+
+            r = requests.get(url, params=params)
+            print(json.dumps(r.json(), indent=4))
+
+        .. code-tab:: Bash
+
+            curl -X GET "https://satchecker.cps.iau.org/tools/search-satellites/?object_type=payload&launch_date_start=2024-01-01" -H "accept: application/json"
+
+        .. code-tab:: Powershell
+
+            curl.exe -X GET "https://satchecker.cps.iau.org/tools/search-satellites/?object_type=payload&launch_date_start=2024-01-01" -H "accept: application/json"
+
+    **Example Response**
+
+    .. sourcecode:: json
+
+        {
+            "count": 2,
+            "data": [
+                {
+                    "decay_date": null,
+                    "international_designator": "2024-110D",
+                    "launch_date": "2024-06-06",
+                    "object_type": "PAYLOAD",
+                    "rcs_size": "SMALL",
+                    "satellite_id": 60015,
+                    "satellite_name": "STARLINK-5234"
+                },
+                {
+                    "decay_date": null,
+                    "international_designator": "2024-128A",
+                    "launch_date": "2024-07-09",
+                    "object_type": "PAYLOAD",
+                    "rcs_size": "SMALL",
+                    "satellite_id": 60235,
+                    "satellite_name": "STARLINK-5678"
+                }
+            ],
+            "source": "IAU CPS SatChecker",
+            "version": "1.2.0"
+        }
