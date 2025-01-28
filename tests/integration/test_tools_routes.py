@@ -34,7 +34,7 @@ def test_get_tle_data_no_match(client):
     response = client.get("/tools/get-tle-data/?id=ISS&id_type=name")
 
     assert response.status_code == 200
-    assert response.json == []
+    assert response.json["count"] == 0
 
 
 @pytest.mark.skipif(
@@ -49,7 +49,8 @@ def test_get_names_from_norad_id(client):
 
     response = client.get("/tools/names-from-norad-id/?id=25544")
     assert response.status_code == 200
-    assert response.json[0]["norad_id"] == "25544"
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["norad_id"] == "25544"
 
 
 @pytest.mark.skipif(
@@ -59,7 +60,7 @@ def test_get_names_from_norad_id(client):
 def test_get_names_from_norad_id_no_match(client):
     response = client.get("/tools/names-from-norad-id/?id=25544")
     assert response.status_code == 200
-    assert response.json == []
+    assert response.json["count"] == 0
 
 
 @pytest.mark.skipif(
@@ -74,7 +75,8 @@ def test_get_norad_ids_from_name(client):
 
     response = client.get("/tools/norad-ids-from-name/?name=ISS")
     assert response.status_code == 200
-    assert response.json[0]["name"] == "ISS"
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["name"] == "ISS"
 
 
 @pytest.mark.skipif(
@@ -84,7 +86,7 @@ def test_get_norad_ids_from_name(client):
 def test_get_norad_ids_from_name_no_match(client):
     response = client.get("/tools/norad-ids-from-name/?name=ISS")
     assert response.status_code == 200
-    assert response.json == []
+    assert response.json["count"] == 0
 
 
 @pytest.mark.skipif(
@@ -99,7 +101,8 @@ def test_get_satellite_data(client):
 
     response = client.get("/tools/get-satellite-data/?id=ISS&id_type=name")
     assert response.status_code == 200
-    assert response.json[0]["satellite_name"] == "ISS"
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["satellite_name"] == "ISS"
 
 
 @pytest.mark.skipif(

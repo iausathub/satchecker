@@ -63,7 +63,15 @@ def get_tle_data(
         }
         for tle in tles
     ]
-    return tle_data
+
+    results = {
+        "count": len(tle_data),
+        "data": tle_data,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results
 
 
 def get_satellite_data(
@@ -121,7 +129,14 @@ def get_satellite_data(
         }
     ]
 
-    return satellite_data
+    results = {
+        "count": len(satellite_data),
+        "data": satellite_data,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results
 
 
 def get_active_satellites(
@@ -312,7 +327,14 @@ def get_ids_for_satellite_name(
         for id_date in satellite_ids_dates
     ]
 
-    return ids_and_dates
+    results = {
+        "count": len(ids_and_dates),
+        "data": ids_and_dates,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results
 
 
 def get_names_for_satellite_id(
@@ -352,4 +374,12 @@ def get_names_for_satellite_id(
         }
         for name_date in satellite_names_and_dates
     ]
-    return names_and_dates
+
+    results = {
+        "count": len(names_and_dates),
+        "data": names_and_dates,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results

@@ -40,15 +40,19 @@ Retrieve any NORAD ID(s) associated with a satellite name
 **Example Response**
 
 .. sourcecode:: json
-
-    [
-        {
-            "date_added": "2024-02-06 00:12:42 UTC",
-            "is_current_version": true,
-            "norad_id": 46161,
-            "name": "STARLINK-1600"
-        }
-    ]
+    {
+        "count": 1,
+        "data": [
+            {
+                "date_added": "2024-02-06 00:12:42 UTC",
+                "is_current_version": true,
+                "norad_id": 46161,
+                "name": "STARLINK-1600"
+            }
+        ],
+        "source": "IAU CPS SatChecker",
+        "version": "1.2.0"
+    }
 
 Retrieve any satellite names associated with a NORAD ID
 -----------------------------------------------------------
@@ -90,20 +94,25 @@ Retrieve any satellite names associated with a NORAD ID
 
 .. sourcecode:: json
 
-    [
-        {
-            "date_added": "2024-05-01 16:30:20 UTC",
-            "is_current_version": true,
-            "name": "STARLINK-31701",
-            "norad_id": 59582
+    {
+        "count": 2,
+        "data": [
+            {
+                "date_added": "2024-05-01 16:30:20 UTC",
+                "is_current_version": true,
+                "name": "STARLINK-31701",
+                "norad_id": 59582
         },
         {
             "date_added": "2024-04-29 23:12:07 UTC",
             "is_current_version": false,
             "name": "TBA - TO BE ASSIGNED",
             "norad_id": 59582
-        }
-    ]
+            }
+        ],
+        "source": "IAU CPS SatChecker",
+        "version": "1.2.0"
+    }
 
 
 Retrieve raw TLE data for a satellite over a given time period
@@ -158,17 +167,22 @@ Retrieve raw TLE data for a satellite over a given time period
 
 .. sourcecode:: json
 
-    [
-        {
-            "data_source": "celestrak",
-            "date_collected": "2024-04-26 00:35:57 UTC",
-            "epoch": "2024-04-25 18:22:37 UTC",
-            "satellite_id": 25544,
-            "satellite_name": "ISS (ZARYA)",
+    {
+        "count": 1,
+        "data": [
+            {
+                "data_source": "celestrak",
+                "date_collected": "2024-04-26 00:35:57 UTC",
+                "epoch": "2024-04-25 18:22:37 UTC",
+                "satellite_id": 25544,
+                "satellite_name": "ISS (ZARYA)",
             "tle_line1": "1 25544U 98067A   24116.76570894  .00062894  00000+0  10654-2 0  9996",
             "tle_line2": "2 25544  51.6396 215.3361 0004566  95.7745   7.6568 15.50926567450413"
-        }
-    ]
+            }
+        ],
+        "source": "IAU CPS SatChecker",
+        "version": "1.2.0"
+    }
 
 
 Retrieve satellite metadata
@@ -217,17 +231,22 @@ Retrieve satellite metadata
 
 .. sourcecode:: json
 
-    [
-        {
-            "decay_date": null,
+    {
+        "count": 1,
+        "data": [
+            {
+                "decay_date": null,
             "international_designator": "1998-067A",
             "launch_date": "1998-11-20",
             "object_type": "PAYLOAD",
             "rcs_size": "LARGE",
             "satellite_id": 25544,
             "satellite_name": "ISS (ZARYA)"
-        }
-    ]
+            }
+        ],
+        "source": "IAU CPS SatChecker",
+        "version": "1.2.0"
+    }
 
 
 Get full TLE set at Epoch
