@@ -3,7 +3,7 @@ from flask import current_app as app
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import ValidationError
-from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.entrypoints.extensions import db, limiter
 from api.services.fov_service import (
     get_satellite_passes_in_fov,
     get_satellites_above_horizon,
@@ -15,9 +15,7 @@ from . import api_main, api_source, api_v1, api_version
 
 @api_v1.route("/fov/satellite-passes/")
 @api_main.route("/fov/satellite-passes/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("50 per second, 1000 per minute")
 def get_satellite_passes():
     required_parameters = [
         "latitude",
@@ -73,9 +71,7 @@ def get_satellite_passes():
 
 @api_v1.route("/fov/satellites-above-horizon/")
 @api_main.route("/fov/satellites-above-horizon/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("50 per second, 1000 per minute")
 def get_all_satellites_above_horizon():
     required_parameters = [
         "latitude",

@@ -1,17 +1,14 @@
+import os
+
+from flask import request
+from flask_apscheduler import APScheduler
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
-
-# TODO: Review default limits and see if they should be different for FOV and standard
-# ephemeris endpoints
-limiter = Limiter(
-    key_func=get_remote_address, default_limits=["100 per second", "2000 per minute"]
-)
+from redis import Redis
 
 
-def get_forwarded_address(request):
+def get_forwarded_address():
     """
     Retrieves the original IP address from the 'X-Forwarded-For' header of a
     HTTP request.
@@ -31,3 +28,24 @@ def get_forwarded_address(request):
     if forwarded_header:
         return request.headers.getlist("X-Forwarded-For")[0]
     return get_remote_address
+
+
+db = SQLAlchemy()
+
+limiter = Limiter(
+    key_func=get_forwarded_address,
+    default_limits=["100 per second", "2000 per minute"],
+    storage_uri=(
+        f"redis://{os.getenv('REDIS_HOST', 'localhost')}:"
+        f"{os.getenv('REDIS_PORT', 6379)}/0"
+    ),
+    headers_enabled=True,
+    strategy="fixed-window",
+)
+scheduler = APScheduler()
+redis_client = Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=int(os.getenv("REDIS_DB", 0)),
+    decode_responses=True,
+)

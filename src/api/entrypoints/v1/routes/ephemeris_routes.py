@@ -3,7 +3,7 @@ from flask import abort, request
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import DataError, ValidationError
-from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.entrypoints.extensions import db, limiter
 from api.services.ephemeris_service import (
     generate_ephemeris_data,
     generate_ephemeris_data_user,
@@ -15,9 +15,7 @@ from . import api_main, api_source, api_v1, api_version
 
 @api_v1.route("/ephemeris/name/")
 @api_main.route("/ephemeris/name/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_name():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -102,9 +100,7 @@ def get_ephemeris_by_name():
 
 @api_v1.route("/ephemeris/name-jdstep/")
 @api_main.route("/ephemeris/name-jdstep/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_name_jdstep():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -194,9 +190,7 @@ def get_ephemeris_by_name_jdstep():
 
 @api_v1.route("/ephemeris/catalog-number/")
 @api_main.route("/ephemeris/catalog-number/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_catalog_number():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -277,9 +271,7 @@ def get_ephemeris_by_catalog_number():
 
 @api_v1.route("/ephemeris/catalog-number-jdstep/")
 @api_main.route("/ephemeris/catalog-number-jdstep/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_catalog_number_jdstep():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -369,9 +361,7 @@ def get_ephemeris_by_catalog_number_jdstep():
 
 @api_v1.route("/ephemeris/tle/")
 @api_main.route("/ephemeris/tle/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_tle():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -441,9 +431,7 @@ def get_ephemeris_by_tle():
 
 @api_v1.route("/ephemeris/tle-jdstep/")
 @api_main.route("/ephemeris/tle-jdstep/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_tle_jdstep():
     """
     Returns satellite location and velocity information relative to the observer's
