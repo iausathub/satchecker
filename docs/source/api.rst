@@ -14,6 +14,7 @@ Retrieve satellite ephemeris by name with JD time step
    :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
    :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
    :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+   :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
    :query startjd: (*required*) -- UT1 Julian Start Date
    :query stopjd: (*required*) -- UT1 Julian End Date
    :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
@@ -71,6 +72,7 @@ Retrieve satellite ephemeris by name
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+    :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
@@ -124,6 +126,7 @@ Retrieve satellite ephemeris by catalog number with JD time step
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+    :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
     :query startjd: (*required*) -- UT1 Julian Start Date
     :query stopjd: (*required*) -- UT1 Julian End Date
     :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
@@ -180,6 +183,7 @@ Retrieve satellite ephemeris by catalog number
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+    :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.
@@ -232,6 +236,7 @@ Calculate satellite ephemeris given a TLE with JD time step
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+    :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
     :query startjd: (*required*) -- UT1 Julian Start Date
     :query stopjd: (*required*) -- UT1 Julian End Date
     :query stepjd: (*optional*) -- UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
@@ -287,6 +292,7 @@ Calculate satellite ephemeris with a given TLE
     :query latitude: (*required*) -- Observer Latitude (North is positive) (decimal deg)
     :query longitude: (*required*) -- Observer Longitude (East is positive) (decimal deg)
     :query elevation: (*required*) -- Observer Elevation above WGS84 ellipsoid in meters (m)
+    :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
     :query julian_date: (*required*) -- UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     :query min_altitude: (*optional*) -- Minimum altitude to return satellite positions (degrees). Default is 0.
     :query max_altitude: (*optional*) -- Maximum altitude to return satellite positions (degrees). Default is 90.

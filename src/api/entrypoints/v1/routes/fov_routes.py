@@ -17,22 +17,35 @@ from . import api_main, api_source, api_v1, api_version
 @api_main.route("/fov/satellite-passes/")
 @limiter.limit("50 per second, 1000 per minute")
 def get_satellite_passes():
-    required_parameters = [
+    parameters = [
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "duration",
         "ra",
         "dec",
         "fov_radius",
+        "start_time_jd",
+        "mid_obs_time_jd",
+        "group_by",
     ]
 
-    optional_parameters = ["start_time_jd", "mid_obs_time_jd", "group_by"]
+    if "site" not in request.args:
+        required_parameters = [
+            "latitude",
+            "longitude",
+            "elevation",
+            "duration",
+            "ra",
+            "dec",
+            "fov_radius",
+        ]
+    else:
+        required_parameters = ["site", "duration", "ra", "dec", "fov_radius"]
 
     try:
-        parameters = validate_parameters(
-            request, required_parameters + optional_parameters, required_parameters
-        )
+        parameters = validate_parameters(request, parameters, required_parameters)
     except ValidationError as e:
         abort(e.status_code, e.message)
 
@@ -73,19 +86,25 @@ def get_satellite_passes():
 @api_main.route("/fov/satellites-above-horizon/")
 @limiter.limit("50 per second, 1000 per minute")
 def get_all_satellites_above_horizon():
-    required_parameters = [
+    parameters = [
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "julian_date",
+        "min_altitude",
+        "illuminated_only",
+        "min_range",
+        "max_range",
     ]
 
-    optional_parameters = ["min_altitude", "illuminated_only", "min_range", "max_range"]
+    if "site" not in request.args:
+        required_parameters = ["latitude", "longitude", "elevation", "julian_date"]
+    else:
+        required_parameters = ["site", "julian_date"]
 
     try:
-        parameters = validate_parameters(
-            request, required_parameters + optional_parameters, required_parameters
-        )
+        parameters = validate_parameters(request, parameters, required_parameters)
     except ValidationError as e:
         abort(e.status_code, e.message)
 

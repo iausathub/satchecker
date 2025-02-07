@@ -17,6 +17,7 @@ Satellite passes Through FOV
    :query latitude: (*required*) -- Observer's latitude in degrees
    :query longitude: (*required*) -- Observer's longitude in degrees
    :query elevation: (*required*) -- Observer's elevation in meters
+   :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
    :query start_time_jd: (*optional*) -- Julian Date for start of observation window
    :query mid_obs_time_jd: (*optional*) -- Julian Date for middle of observation window
    :query duration: (*required*) -- Duration to check in seconds
@@ -54,6 +55,7 @@ Satellite passes Through FOV
 **Example Response**
 
 .. sourcecode:: json
+
     [
         {
             "data": {
@@ -150,6 +152,7 @@ Satellites above the horizon
    :query latitude: (*required*) -- Observer's latitude in degrees
    :query longitude: (*required*) -- Observer's longitude in degrees
    :query elevation: (*required*) -- Observer's elevation in meters
+   :query site: (*optional*) -- Site name (e.g. 'greenwich') - if provided, latitude, longitude, and elevation can't be used; see `astropy site names <https://www.astropy.org/astropy-data/coordinates/sites.json>`_ for a list of valid site names
    :query julian_date: (*required*) -- Julian Date for time to check
    :query min_altitude: (*optional*) -- Minimum altitude in degrees. Default is 0.
    :query min_range: (*optional*) -- Minimum range in kilometers. Default is 0.
