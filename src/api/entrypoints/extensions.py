@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlparse
 
 from flask import request
 from flask_apscheduler import APScheduler
@@ -43,9 +44,23 @@ limiter = Limiter(
     strategy="fixed-window",
 )
 scheduler = APScheduler()
+
+# Parse Redis URL if provided, otherwise use host/port
+redis_url = os.getenv("REDIS_PORT")
+if redis_url and "://" in redis_url:
+    # Parse URL like 'tcp://172.17.0.3:6379'
+    parsed = urlparse(redis_url)
+    redis_host = parsed.hostname
+    redis_port = parsed.port
+else:
+    # Use separate host/port env vars
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = int(os.getenv("REDIS_PORT", 6379))
+
+# Use parsed values
 redis_client = Redis(
-    host=os.getenv("REDIS_HOST", "localhost"),
-    port=int(os.getenv("REDIS_PORT", 6379)),
+    host=redis_host,
+    port=redis_port,
     db=int(os.getenv("REDIS_DB", 0)),
     decode_responses=True,
 )
