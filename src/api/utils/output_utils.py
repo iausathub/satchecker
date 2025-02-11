@@ -256,6 +256,9 @@ def format_date(date):
     if date is None:
         return None
 
+    if isinstance(date, str):
+        return date
+
     if date.tzinfo is None:
         date = date.replace(tzinfo=timezone.utc)
 
