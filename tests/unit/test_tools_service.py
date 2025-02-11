@@ -13,6 +13,7 @@ from api.services.tools_service import (
     get_names_for_satellite_id,
     get_tle_data,
 )
+from api.utils.output_utils import format_date
 
 
 def test_get_tle_data():
@@ -31,21 +32,13 @@ def test_get_tle_data():
     assert any(tle_1.tle_line2 in result.values() for result in results)
     assert any(tle_2.tle_line1 in result.values() for result in results)
     assert any(tle_2.tle_line2 in result.values() for result in results)
+    assert any(format_date(tle_1.epoch) in result.values() for result in results)
+    assert any(format_date(tle_2.epoch) in result.values() for result in results)
     assert any(
-        tle_1.epoch.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
+        format_date(tle_1.date_collected) in result.values() for result in results
     )
     assert any(
-        tle_2.epoch.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
-    )
-    assert any(
-        tle_1.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
-    )
-    assert any(
-        tle_2.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
+        format_date(tle_2.date_collected) in result.values() for result in results
     )
     assert any(tle_1.data_source in result.values() for result in results)
     assert any(tle_2.data_source in result.values() for result in results)
@@ -85,9 +78,7 @@ def test_get_ids_for_satellite_name():
     assert len(results) == 1
     assert results[0]["name"] == "ISS"
     assert results[0]["norad_id"] == satellite.sat_number
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
 
     results = get_ids_for_satellite_name(sat_repo, "not_found", "test", "1.0")
@@ -108,15 +99,11 @@ def test_get_ids_for_satellite_name_multiple_matches():
     assert len(results) == 2
     assert results[0]["name"] == "ISS"
     assert results[0]["norad_id"] == satellite.sat_number
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
     assert results[1]["name"] == "ISS"
     assert results[1]["norad_id"] == satellite_new.sat_number
-    assert results[1]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[1]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[1]["is_current_version"] == satellite_new.has_current_sat_number
 
 
@@ -140,9 +127,7 @@ def test_get_names_for_satellite_id():
     assert len(results) == 1
     assert results[0]["name"] == satellite.sat_name
     assert results[0]["norad_id"] == 25544
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
 
     results = get_names_for_satellite_id(sat_repo, 99999, "test", "1.0")
@@ -163,15 +148,11 @@ def test_get_names_for_satellite_id_multiple_matches():
     assert len(results) == 2
     assert results[0]["name"] == satellite.sat_name
     assert results[0]["norad_id"] == 25544
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
     assert results[1]["name"] == satellite_new.sat_name
     assert results[1]["norad_id"] == 25544
-    assert results[1]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[1]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[1]["is_current_version"] == satellite_new.has_current_sat_number
 
 

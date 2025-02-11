@@ -104,6 +104,7 @@ def get_satellite_passes_in_fov(
                         "norad_id": tle.satellite.sat_number,
                         "julian_date": jd_times[idx],
                         "angle": np.degrees(sat_fov_angles[idx]),
+                        "tle_epoch": output_utils.format_date(tle.epoch),
                     }
                     for idx, ra_dec in zip(fov_indices, ra_decs)
                 ]
@@ -248,6 +249,7 @@ def get_satellites_above_horizon(
                     "norad_id": tle.satellite.sat_number,
                     "julian_date": time_jd.jd,
                     "range_km": float(distance.km[0]),
+                    "tle_epoch": output_utils.format_date(tle.epoch),
                 }
                 all_results.append(result)
                 visible_satellites += 1

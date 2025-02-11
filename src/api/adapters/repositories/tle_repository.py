@@ -231,7 +231,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 """
                 SELECT id, sat_name, sat_number, decay_date, has_current_sat_number
                 FROM satellites s
-                WHERE (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                WHERE s.launch_date <= :epoch_date
+                AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
                 AND s.sat_name != 'TBA - TO BE ASSIGNED'
             """
             )

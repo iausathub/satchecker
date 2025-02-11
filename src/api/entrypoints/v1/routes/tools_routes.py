@@ -6,7 +6,7 @@ from flask import current_app as app
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import ValidationError
-from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
     get_active_satellites,
     get_all_tles_at_epoch_formatted,
@@ -22,9 +22,7 @@ from . import api_main, api_source, api_v1, api_version
 
 @api_v1.route("/tools/norad-ids-from-name/")
 @api_main.route("/tools/norad-ids-from-name/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_norad_ids_from_name():
     """
     Returns the NORAD ID(s) for a given satellite name.
@@ -59,9 +57,7 @@ def get_norad_ids_from_name():
 
 @api_v1.route("/tools/names-from-norad-id/")
 @api_main.route("/tools/names-from-norad-id/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_names_from_norad_id():
     """
     Returns the name(s) for a given NORAD id.
@@ -96,9 +92,7 @@ def get_names_from_norad_id():
 
 @api_v1.route("/tools/get-tle-data/")
 @api_main.route("/tools/get-tle-data/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_tles():
     """
     Fetches Two-Line Element set (TLE) data for a given satellite.
@@ -153,9 +147,7 @@ def get_tles():
 
 @api_v1.route("/tools/get-satellite-data/")
 @api_main.route("/tools/get-satellite-data/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_satellite_data_list():
     session = db.session
     sat_repo = SqlAlchemySatelliteRepository(session)
@@ -177,9 +169,7 @@ def get_satellite_data_list():
 
 @api_v1.route("/tools/get-active-satellites/")
 @api_main.route("/tools/get-active-satellites/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_active_satellites_list():
     session = db.session
     sat_repo = SqlAlchemySatelliteRepository(session)
@@ -199,9 +189,7 @@ def get_active_satellites_list():
 
 @api_v1.route("/tools/tles-at-epoch/")
 @api_main.route("/tools/tles-at-epoch/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_tles_at_epoch():
     """
     Fetches all TLEs at a specific epoch date.

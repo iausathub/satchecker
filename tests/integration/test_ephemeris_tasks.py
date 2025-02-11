@@ -83,7 +83,7 @@ def test_process_results_within_altitude_range():
                 [1, 2, 3],
                 1.0,
                 2.0,
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
                 3.0,
                 4.0,
                 50.0,
@@ -95,7 +95,7 @@ def test_process_results_within_altitude_range():
                 "Source",
                 [4, 5, 6],
                 "2024-test",
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
             ],  # noqa: E501
             [
                 "Satellite",
@@ -104,7 +104,7 @@ def test_process_results_within_altitude_range():
                 [7, 8, 9],
                 5.0,
                 6.0,
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
                 7.0,
                 8.0,
                 60.0,
@@ -116,7 +116,7 @@ def test_process_results_within_altitude_range():
                 "Source",
                 [10, 11, 12],
                 "2024-test",
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
             ],
         ],  # noqa: E501
         "source": "API",

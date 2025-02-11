@@ -6,6 +6,7 @@ from typing import Union
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.utils.output_utils import format_date
 
 
 def get_tle_data(
@@ -56,8 +57,8 @@ def get_tle_data(
             "satellite_id": tle.satellite.sat_number,
             "tle_line1": tle.tle_line1,
             "tle_line2": tle.tle_line2,
-            "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
-            "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "epoch": format_date(tle.epoch),
+            "date_collected": format_date(tle.date_collected),
             "data_source": tle.data_source,
         }
         for tle in tles
@@ -243,8 +244,8 @@ def get_all_tles_at_epoch_formatted(
                     tle.satellite.sat_number,
                     tle.tle_line1,
                     tle.tle_line2,
-                    tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
-                    tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                    format_date(tle.epoch),
+                    format_date(tle.date_collected),
                     tle.data_source,
                 ]
             )
@@ -264,8 +265,8 @@ def get_all_tles_at_epoch_formatted(
                 "satellite_id": tle.satellite.sat_number,
                 "tle_line1": tle.tle_line1,
                 "tle_line2": tle.tle_line2,
-                "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
-                "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "epoch": format_date(tle.epoch),
+                "date_collected": format_date(tle.date_collected),
                 "data_source": tle.data_source,
             }
             for tle in tles
@@ -316,7 +317,7 @@ def get_ids_for_satellite_name(
         {
             "name": satellite_name,
             "norad_id": id_date[0],
-            "date_added": id_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "date_added": format_date(id_date[1]),
             "is_current_version": id_date[2],
         }
         for id_date in satellite_ids_dates
@@ -357,7 +358,7 @@ def get_names_for_satellite_id(
         {
             "name": name_date[0],
             "norad_id": satellite_id,
-            "date_added": name_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "date_added": format_date(name_date[1]),
             "is_current_version": name_date[2],
         }
         for name_date in satellite_names_and_dates

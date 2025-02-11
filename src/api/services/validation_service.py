@@ -11,6 +11,7 @@ import api.common.error_messages as error_messages
 from api.common.exceptions import ValidationError
 from api.domain.models.satellite import Satellite
 from api.domain.models.tle import TLE
+from api.utils.location_utils import get_location_from_astropy_site
 
 
 def extract_parameters(request, parameter_list):
@@ -68,11 +69,33 @@ def validate_parameters(
         if param not in parameters.keys() or parameters[param] is None:
             raise ValidationError(400, f"Missing parameter: {param}")
 
+    # Check if site is provide first, so that if it and other location parameters
+    # are provided, an error can be thrown
+    if "site" in parameters.keys() and parameters["site"] is not None:
+        if (
+            ("latitude" in parameters.keys() and parameters["latitude"] is not None)
+            or (
+                "longitude" in parameters.keys() and parameters["longitude"] is not None
+            )
+            or (
+                "elevation" in parameters.keys() and parameters["elevation"] is not None
+            )
+        ):
+            raise ValidationError(400, error_messages.SITE_AND_LOCATION_ERROR)
+        try:
+            site_location = get_location_from_astropy_site(parameters["site"])
+            parameters["location"] = site_location
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_SITE, e) from e
+
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
     if (
         "latitude" in parameters.keys()
+        and parameters["latitude"] is not None
         and "longitude" in parameters.keys()
+        and parameters["longitude"] is not None
         and "elevation" in parameters.keys()
+        and parameters["elevation"] is not None
     ):
         try:
             parameters["location"] = EarthLocation(

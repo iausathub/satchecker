@@ -28,3 +28,9 @@ TOO_MANY_RESULTS = (
     "Error: Too many results to return (maximum of 1000 in a single request)"
 )
 PAGINATION_LIMIT_EXCEEDED = "Error: Pagination limit exceeded"
+SITE_AND_LOCATION_ERROR = "Error: Cannot specify both site and location parameters"
+INVALID_SITE = (
+    "Error: Invalid site - please see "
+    "https://www.astropy.org/astropy-data/coordinates/sites.json "
+    "for a list of valid sites"
+)

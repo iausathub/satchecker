@@ -1,7 +1,7 @@
 import requests
-from flask import abort, redirect, request
+from flask import abort, redirect
 
-from api.entrypoints.extensions import get_forwarded_address, limiter
+from api.entrypoints.extensions import limiter
 
 from . import api_main, api_v1
 
@@ -82,9 +82,7 @@ def internal_server_error(e):
 @api_v1.route("/index")
 @api_main.route("/")
 @api_main.route("/index")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def root():
     """
     Redirect to API documentation
