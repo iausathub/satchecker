@@ -430,3 +430,41 @@ def test_parse_tle_missing_data():
     tle = "ISS (ZARYA) 1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997 2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"  # noqa: E501
     with pytest.raises(ValidationError, match="Invalid TLE format"):
         parse_tle(tle)
+
+
+def test_validate_parameters_site(app):
+    with app.test_request_context("/?site=greenwich"):
+        parameter_list = ["site"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["location"].lat.deg == pytest.approx(51.477811, rel=1e-9)
+        assert parameters["location"].lon.deg == pytest.approx(-0.001475, rel=1e-9)
+        assert parameters["location"].height.value == pytest.approx(46, rel=1e-9)
+
+
+def test_validate_parameters_site_invalid(app):
+    with app.test_request_context("/?site=invalid"):
+        parameter_list = ["site"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid site"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_site_and_location(app):
+    with app.test_request_context(
+        "/?site=greenwich&latitude=1&longitude=2&elevation=3"
+    ):
+        parameter_list = ["site", "latitude", "longitude", "elevation"]
+        required_parameters = []
+
+        with pytest.raises(
+            ValidationError, match="Cannot specify both site and location parameters"
+        ):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )

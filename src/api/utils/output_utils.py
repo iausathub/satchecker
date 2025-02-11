@@ -1,3 +1,5 @@
+from datetime import timezone
+
 import numpy as np
 from astropy.time import Time
 
@@ -58,17 +60,9 @@ def position_data_to_json(
     # makes things a little faster
     my_round = np.round
 
-    tle_date = (
-        date_collected.strftime("%Y-%m-%d %H:%M:%S %Z")
-        if date_collected is not None
-        else date_collected
-    )
+    tle_date = format_date(date_collected)
 
-    tle_epoch = (
-        tle_epoch_date.strftime("%Y-%m-%d %H:%M:%S %Z")
-        if tle_epoch_date is not None
-        else tle_epoch_date
-    )
+    tle_epoch = format_date(tle_epoch_date)
 
     fields = [
         "name",
@@ -188,8 +182,8 @@ def fov_data_to_json(
                 result[field] = my_round(value, precision_angles)
             elif field == "julian_date":
                 result[field] = my_round(value, precision_date)
-                result["date_time"] = (
-                    Time(value, format="jd").iso if value is not None else None
+                result["date_time"] = format_date(
+                    Time(value, format="jd").to_datetime()
                 )
 
     if group_by == "satellite":
@@ -215,7 +209,7 @@ def fov_data_to_json(
                 "altitude": result["altitude"],
                 "azimuth": result["azimuth"],
                 "julian_date": result["julian_date"],
-                "date_time": result.get("date_time"),
+                "date_time": format_date(result.get("date_time")),
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
             }
@@ -242,3 +236,29 @@ def fov_data_to_json(
         }
 
     return formatted_results
+
+
+def format_date(date):
+    """
+    Format a datetime object into a standardized string format.
+
+    Args:
+        date: A datetime object to format, or None
+
+    Returns:
+        A formatted date string in the format 'YYYY-MM-DD HH:MM:SS TZ' if date is
+        provided, otherwise returns None
+
+    Example:
+        >>> format_date(datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc))
+        '2024-01-01 12:00:00 UTC'
+    """
+    if date is None:
+        return None
+
+    if date.tzinfo is None:
+        date = date.replace(tzinfo=timezone.utc)
+
+    formatted_date = date.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    return formatted_date
