@@ -212,6 +212,7 @@ def fov_data_to_json(
                 "date_time": format_date(result.get("date_time")),
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
+                "tle_epoch": result.get("tle_epoch"),
             }
             satellites[sat_key]["positions"].append(pass_data)
 
