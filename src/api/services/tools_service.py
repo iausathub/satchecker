@@ -66,6 +66,140 @@ def get_tle_data(
     return tle_data
 
 
+def get_tles_around_epoch_results(
+    tle_repo: AbstractTLERepository,
+    id: str,
+    id_type: str,
+    epoch: datetime,
+    count_before: int,
+    count_after: int,
+    api_source: str,
+    api_version: str,
+):
+    """
+    Fetches TLEs around a specific epoch date.
+
+    This function retrieves TLEs from the repository that are around the specified
+    epoch date. It allows for a count of TLEs to be specified before and after
+    the epoch date.
+
+    Parameters:
+        tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        id (str): The ID of the satellite.
+        id_type (str): The type of the ID, either "catalog" or "name".
+        epoch (datetime): The epoch date to fetch TLEs around.
+        count_before (int): The number of TLEs to fetch before the epoch date.
+        count_after (int): The number of TLEs to fetch after the epoch date.
+
+    Returns:
+        List[dict]: A list of dictionaries containing the TLE data.
+    """
+    tles = tle_repo.get_tles_around_epoch(id, id_type, epoch, count_before, count_after)
+
+    # Extract the TLE data from the result set
+    tle_data = [
+        {
+            "satellite_name": tle.satellite.sat_name,
+            "satellite_id": tle.satellite.sat_number,
+            "tle_line1": tle.tle_line1,
+            "tle_line2": tle.tle_line2,
+            "epoch": format_date(tle.epoch),
+            "date_collected": format_date(tle.date_collected),
+            "data_source": tle.data_source,
+        }
+        for tle in tles
+    ]
+    return tle_data
+
+
+def get_nearest_tle_result(
+    tle_repo: AbstractTLERepository,
+    id: str,
+    id_type: str,
+    epoch: datetime,
+    api_source: str,
+    api_version: str,
+) -> list[dict[str, str | int | None]]:
+    """
+    Fetches the nearest TLE to a specific epoch date.
+
+    This function retrieves the TLE from the repository that is closest to the
+    specified epoch date.
+
+    Parameters:
+        tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        id (str): The ID of the satellite.
+        id_type (str): The type of the ID, either "catalog" or "name".
+        epoch (datetime): The epoch date to fetch the nearest TLE to.
+        api_source (str): The source of the API request.
+        api_version (str): The version of the API request.
+
+    Returns:
+        list[dict[str, str | int | None]]: A single-item list containing a
+        dictionary with:
+            - satellite_name (str): Name of the satellite
+            - satellite_id (int): NORAD catalog number
+            - tle_line1 (str): First line of the TLE
+            - tle_line2 (str): Second line of the TLE
+            - epoch (str): Epoch of the TLE in 'YYYY-MM-DD HH:MM:SS TZ' format
+            - date_collected (str): Date TLE was collected
+            - data_source (str): Source of the TLE data
+    """
+    tle = tle_repo.get_nearest_tle(id, id_type, epoch)
+
+    # Extract the TLE data from the result set
+    tle_data = [
+        {
+            "satellite_name": tle.satellite.sat_name,
+            "satellite_id": tle.satellite.sat_number,
+            "tle_line1": tle.tle_line1,
+            "tle_line2": tle.tle_line2,
+            "epoch": format_date(tle.epoch),
+            "date_collected": format_date(tle.date_collected),
+            "data_source": tle.data_source,
+        }
+    ]
+    return tle_data
+
+
+def get_adjacent_tle_results(
+    tle_repo: AbstractTLERepository,
+    id: str,
+    id_type: str,
+    epoch: datetime,
+    api_source: str,
+    api_version: str,
+):
+    """
+    Fetches the adjacent TLEs to a specific epoch date - one TLE before and one after.
+
+    Parameters:
+        tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        id (str): The ID of the satellite.
+        id_type (str): The type of the ID, either "catalog" or "name".
+        epoch (datetime): The epoch date to fetch the adjacent TLEs to.
+
+    Returns:
+        List[dict]: A list of dictionaries containing the TLE data.
+    """
+    tles = tle_repo.get_adjacent_tles(id, id_type, epoch)
+
+    # Extract the TLE data from the result set
+    tle_data = [
+        {
+            "satellite_name": tle.satellite.sat_name,
+            "satellite_id": tle.satellite.sat_number,
+            "tle_line1": tle.tle_line1,
+            "tle_line2": tle.tle_line2,
+            "epoch": format_date(tle.epoch),
+            "date_collected": format_date(tle.date_collected),
+            "data_source": tle.data_source,
+        }
+        for tle in tles
+    ]
+    return tle_data
+
+
 def get_satellite_data(
     sat_repo: AbstractSatelliteRepository,
     id: str,

@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import DateTime, and_, func, or_, text
@@ -64,6 +64,26 @@ class AbstractTLERepository(abc.ABC):
     ) -> tuple[list[TLE], int]:
         return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
 
+    def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
+        return self._get_nearest_tle(id, id_type, epoch)
+
+    def get_adjacent_tles(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> tuple[TLE, TLE]:
+        return self._get_adjacent_tles(id, id_type, epoch)
+
+    def get_tles_around_epoch(
+        self,
+        id: str,
+        id_type: str,
+        epoch: datetime,
+        count_before: int,
+        count_after: int,
+    ) -> list[TLE]:
+        return self._get_tles_around_epoch(
+            id, id_type, epoch, count_before, count_after
+        )
+
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
@@ -96,6 +116,27 @@ class AbstractTLERepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_tles_around_epoch(
+        self,
+        id: str,
+        id_type: str,
+        epoch: datetime,
+        count_before: int,
+        count_after: int,
+    ) -> list[TLE]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_adjacent_tles(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> tuple[TLE, TLE]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -223,65 +264,43 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     def _get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
     ) -> tuple[list[TLE], int]:
-        two_weeks_prior = epoch_date - timedelta(weeks=2)
-
         try:
-            # First get valid satellites
-            satellites_sql = text(
+            # Use the materialized view for efficient querying
+            query = text(
                 """
-                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number
-                FROM satellites s
-                WHERE s.launch_date <= :epoch_date
-                AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-                AND s.sat_name != 'TBA - TO BE ASSIGNED'
-            """
-            )
-
-            # Then get their latest TLEs
-            tles_sql = text(
-                """
-                WITH latest_tles AS (
-                    SELECT DISTINCT ON (sat_id)
-                        id, sat_id, date_collected, tle_line1, tle_line2,
-                        epoch, is_supplemental, data_source
-                    FROM tle
-                    WHERE epoch BETWEEN :start_date AND :end_date
-                    AND sat_id = ANY(:satellite_ids)
-                    ORDER BY sat_id, epoch DESC
+                WITH time_window AS (
+                    SELECT satellite_id,
+                           MIN(ABS(EXTRACT(EPOCH FROM (epoch - :epoch_date))))
+                            as min_distance
+                    FROM satellite_tle_epochs
+                    WHERE epoch >= :epoch_date - INTERVAL '14 days'
+                    AND epoch <= :epoch_date
+                    AND launch_date <= :epoch_date
+                    AND (decay_date IS NULL OR decay_date > :epoch_date)
+                    GROUP BY satellite_id
                 )
-                SELECT * FROM latest_tles
-                ORDER BY epoch DESC
-            """
+                SELECT s.*
+                FROM satellite_tle_epochs s
+                JOIN time_window w ON
+                    s.satellite_id = w.satellite_id
+                    AND ABS(EXTRACT(EPOCH FROM (s.epoch - :epoch_date))) =
+                        w.min_distance
+                WHERE s.epoch >= :epoch_date - INTERVAL '14 days'
+                AND s.epoch <= :epoch_date
+                ORDER BY w.min_distance
+                """
             )
 
-            # Get valid satellites first
-            satellites_result = self.session.execute(
-                satellites_sql, {"epoch_date": epoch_date}
-            )
-            valid_satellites = {row.id: row for row in satellites_result}
-
-            if not valid_satellites:
-                return [], 0
-
-            # Then get TLEs for those satellites
-            tles_result = self.session.execute(
-                tles_sql,
-                {
-                    "start_date": two_weeks_prior,
-                    "end_date": epoch_date,
-                    "satellite_ids": list(valid_satellites.keys()),
-                },
-            )
+            result = self.session.execute(query, {"epoch_date": epoch_date})
 
             # Map results to domain objects
             tles = []
-            for row in tles_result:
-                sat_data = valid_satellites[row.sat_id]
+            for row in result:
                 satellite = Satellite(
-                    sat_name=sat_data.sat_name,
-                    sat_number=sat_data.sat_number,
-                    decay_date=sat_data.decay_date,
-                    has_current_sat_number=sat_data.has_current_sat_number,
+                    sat_name=row.sat_name,
+                    sat_number=row.sat_number,
+                    decay_date=row.decay_date,
+                    has_current_sat_number=row.has_current_sat_number,
                 )
 
                 tle = TLE(
@@ -303,6 +322,73 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 tles = tles[start_idx:end_idx]
 
             return tles, total_count
+
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
+        try:
+            if id_type == "catalog":
+                satellite = (
+                    self.session.query(SatelliteDb)
+                    .filter(SatelliteDb.sat_number == id)
+                    .one()
+                )
+            else:
+                satellite = (
+                    self.session.query(SatelliteDb)
+                    .filter(SatelliteDb.sat_name == id)
+                    .one()
+                )
+
+            # Then get the nearest TLE for this satellite
+            nearest_tle = (
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == satellite.id)
+                .order_by(
+                    func.abs(
+                        func.extract("epoch", TLEDb.epoch)
+                        - func.extract(
+                            "epoch", func.cast(epoch, DateTime(timezone=True))
+                        )
+                    )
+                )
+                .first()
+            )
+
+            if nearest_tle is None:
+                return None
+
+            return self._to_domain(nearest_tle)
+
+        except NoResultFound:
+            return None
+
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _get_adjacent_tles(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> tuple[TLE, TLE]:
+        try:
+            if id_type == "catalog":
+                satellite = (
+                    self.session.query(SatelliteDb)
+                    .filter(SatelliteDb.sat_number == id)
+                    .one()
+                )
+            else:
+                satellite = (
+                    self.session.query(SatelliteDb)
+                    .filter(SatelliteDb.sat_name == id)
+                    .one()
+                )
+            print(satellite)
+
+        except NoResultFound:
+            return None
 
         except Exception:
             self.session.rollback()

@@ -256,6 +256,12 @@ def validate_parameters(
     if "duration" in parameters.keys() and parameters["duration"] is not None:
         parameters["duration"] = float(parameters["duration"])
 
+    if "count_before" in parameters.keys() and parameters["count_before"] is not None:
+        parameters["count_before"] = int(parameters["count_before"])
+
+    if "count_after" in parameters.keys() and parameters["count_after"] is not None:
+        parameters["count_after"] = int(parameters["count_after"])
+
     if "format" in parameters.keys() and parameters["format"] is not None:
         parameters["format"] = parameters["format"].lower()
 
