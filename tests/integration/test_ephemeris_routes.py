@@ -1,29 +1,26 @@
 # ruff: noqa: E501, S101, F841
+from datetime import datetime, timezone
+
 import pytest
-import redis
+from astropy.time import Time, TimeDelta
+from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.entrypoints.extensions import db
+from api.common import error_messages
 
 
-def cannot_connect_to_redis():
-    try:
-        r = redis.Redis(host="localhost", port=6379, db=0)
-        r.ping()
-        return False
-    except redis.ConnectionError:
-        return True
-
-
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_name(client):
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_ephemeris_by_name(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
-    tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
-    # test if it can connect to redis
+    session.commit()
 
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -31,25 +28,28 @@ def test_get_ephemeris_by_name(client):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_name_jd_step(client):
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
+def test_get_ephemeris_by_name_jd_step(client, session):
     satellite = SatelliteFactory(sat_name="ISS")
-    tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
+    session.commit()  # Commit to ensure data is saved
 
     response = client.get(
-        "/ephemeris/name-jdstep/?name=ISS&latitude=0&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
+        "/ephemeris/name-jdstep/?name=ISS&latitude=0&longitude=0&elevation=0"
+        "&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_catalog_number(client):
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
+def test_get_ephemeris_by_catalog_number(client, session):
     satellite = SatelliteFactory(sat_number="25544")
-    tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
+    session.commit()
 
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -57,12 +57,13 @@ def test_get_ephemeris_by_catalog_number(client):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
-def test_get_ephemeris_by_catalog_number_jdstep(client):
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
+def test_get_ephemeris_by_catalog_number_jdstep(client, session):
     satellite = SatelliteFactory(sat_number="25544")
-    tle = TLEFactory(satellite=satellite)
-    tle_repo = SqlAlchemyTLERepository(db.session)
+    tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
+    tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
+    session.commit()
 
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=0&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
@@ -70,7 +71,7 @@ def test_get_ephemeris_by_catalog_number_jdstep(client):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_no_tle(client):
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
@@ -97,7 +98,7 @@ def test_get_ephemeris_no_tle(client):
     assert "No TLE found" in response.text
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_data_from_tle(client):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -109,7 +110,7 @@ def test_get_ephemeris_data_from_tle(client):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_redis(), reason="Can't connect to Redis")
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
 def test_get_ephemeris_data_from_tle_jdstep(client):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -128,28 +129,28 @@ def test_get_ephemeris_missing_parameter(client):
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         "/ephemeris/name-jdstep/?name=ISS&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         "/ephemeris/catalog-number/?catalog=25544&longitude=0&elevation=0&julian_date=2459000.5"
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
@@ -159,7 +160,7 @@ def test_get_ephemeris_missing_parameter(client):
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
     response = client.get(
         f"/ephemeris/tle-jdstep/?elevation=150&longitude=-110\
@@ -167,7 +168,7 @@ def test_get_ephemeris_missing_parameter(client):
     )
     # Check that the correct error code was returned
     assert response.status_code == 400
-    assert "Incorrect parameters" in response.text
+    assert "Missing parameter" in response.text
 
 
 def test_get_ephemeris_by_tle_incorrect_format(client):
@@ -178,3 +179,58 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
     )
     assert response.status_code == 500
     assert "Invalid TLE format" in response.text
+
+
+@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
+def test_get_ephemeris_tle_date_out_of_range(client, session):
+    # Use a fixed Julian date as the base time to avoid any timezone issues
+    base_jd = Time("2020-05-30T00:00:00", format="isot", scale="utc")
+    base_datetime = base_jd.to_datetime(timezone=timezone.utc)
+
+    satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
+    tle = TLEFactory(satellite=satellite, epoch=base_datetime)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    # Test past date more than 30 days before TLE epoch
+    past_jd = base_jd - TimeDelta(31, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={past_jd.jd}"
+    )
+    assert response.status_code == 500
+    assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
+
+    # Test future date more than 30 days after TLE epoch
+    future_jd = base_jd + TimeDelta(31, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={future_jd.jd}"
+    )
+    assert response.status_code == 500
+    assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
+
+
+def test_get_ephemeris_tle_date_in_range(client, session):
+    # Use a fixed Julian date as the base time to avoid any timezone issues
+    base_jd = Time("2020-05-30T00:00:00", format="isot", scale="utc")
+    base_datetime = base_jd.to_datetime(timezone=timezone.utc)
+
+    satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
+    tle = TLEFactory(satellite=satellite, epoch=base_datetime)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    # Test valid date within 30 days after TLE epoch
+    valid_future_jd = base_jd + TimeDelta(29, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={valid_future_jd.jd}"
+    )
+    assert response.status_code == 200
+
+    # Test valid date within 30 days before TLE epoch
+    valid_past_jd = base_jd - TimeDelta(29, format="jd")
+    response = client.get(
+        f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={valid_past_jd.jd}"
+    )
+    assert response.status_code == 200

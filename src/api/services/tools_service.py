@@ -2,9 +2,11 @@ import csv
 import io
 import zipfile
 from datetime import datetime
+from typing import Union
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.utils.output_utils import format_date
 
 
 def get_tle_data(
@@ -55,8 +57,8 @@ def get_tle_data(
             "satellite_id": tle.satellite.sat_number,
             "tle_line1": tle.tle_line1,
             "tle_line2": tle.tle_line2,
-            "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
-            "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "epoch": format_date(tle.epoch),
+            "date_collected": format_date(tle.date_collected),
             "data_source": tle.data_source,
         }
         for tle in tles
@@ -122,114 +124,164 @@ def get_satellite_data(
     return satellite_data
 
 
-def get_all_tles_at_epoch_paginated(
-    tle_repo: AbstractTLERepository,
-    epoch_date: datetime,
-    page: int,
-    per_page: int,
+def get_active_satellites(
+    sat_repo: AbstractSatelliteRepository,
+    object_type: str,
     api_source: str,
     api_version: str,
 ):
     """
-    Fetches all TLEs at a specific epoch date with pagination support.
-
-    This function retrieves TLE data from the repository based on the provided epoch
-    date.It supports pagination to handle large result sets.
+    Fetches active satellites based on the provided object type (optional).
 
     Parameters:
-        tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
-        epoch_date (datetime): The epoch date for the TLE data.
-        page (int): The page number for pagination.
-        per_page (int): The number of results per page for pagination.
+        sat_repo (AbstractSatelliteRepository): The repository to fetch satellite data
+        from.
+        object_type (str): The type of the object, either "payload", "debris",
+        "rocket body", "tba", or "unknown".
         api_source (str): The source of the API request.
         api_version (str): The version of the API request.
 
     Returns:
-        List[Dict[str, Any]]: A list containing a dictionary with TLE data and
-        pagination info.
+        dict: A dictionary containing:
+            - count: number of satellites found
+            - data: list of satellite data
+            - source: API source
+            - version: API version
     """
-    tles, total_count = tle_repo.get_all_tles_at_epoch(
-        epoch_date, page, per_page, "json"
-    )
+    satellites = sat_repo.get_active_satellites(object_type)
 
-    # Extract the TLE data from the result set
-    tle_data = [
+    satellite_list = [
         {
-            "satellite_name": tle.satellite.sat_name,
-            "satellite_id": tle.satellite.sat_number,
-            "tle_line1": tle.tle_line1,
-            "tle_line2": tle.tle_line2,
-            "epoch": tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
-            "date_collected": tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
-            "data_source": tle.data_source,
+            "satellite_name": satellite.sat_name,
+            "satellite_id": satellite.sat_number,
+            "international_designator": satellite.object_id,
+            "rcs_size": satellite.rcs_size,
+            "launch_date": (
+                satellite.launch_date.strftime("%Y-%m-%d")
+                if satellite.launch_date
+                else None
+            ),
+            "decay_date": (
+                satellite.decay_date.strftime("%Y-%m-%d")
+                if satellite.decay_date
+                else None
+            ),
+            "object_type": satellite.object_type,
         }
-        for tle in tles
+        for satellite in satellites
     ]
 
-    json_results = [
-        {
-            "per_page": per_page,
-            "page": page,
-            "total_results": total_count,
-            "data": tle_data,
-            "source": api_source,
-            "version": api_version,
-        }
-    ]
-    return json_results
+    return {
+        "count": len(satellite_list),
+        "data": satellite_list,
+        "source": api_source,
+        "version": api_version,
+    }
 
 
-def get_all_tles_at_epoch_zipped(
+def get_all_tles_at_epoch_formatted(
     tle_repo: AbstractTLERepository,
     epoch_date: datetime,
-    page: int,
-    per_page: int,
-    api_source: str,
-    api_version: str,
-):
+    format: str = "json",
+    page: int = 1,
+    per_page: int = 100,
+    api_source: str = "",
+    api_version: str = "",
+) -> Union[list, io.BytesIO]:
+    """
+    Fetches all TLEs at a specific epoch date with support for different output formats.
+
+    Parameters:
+        tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        epoch_date (datetime): The epoch date for the TLE data.
+        format (str): Output format - either "json", "txt", or "zip".
+        page (int): The page number for pagination (used for JSON format).
+        per_page (int): The number of results per page (used for JSON format).
+        api_source (str): The source of the API request.
+        api_version (str): The version of the API request.
+
+    Returns:
+        Union[list, io.BytesIO]: Either a list containing TLE data and pagination info
+                                (JSON) or a BytesIO object containing formatted TLE data
+                                (TXT/ZIP).
+    """
+    # For text format, get all records
+    actual_per_page = 1000000 if format == "txt" else per_page
+    actual_page = 1 if format == "txt" else page
+
     tles, total_count = tle_repo.get_all_tles_at_epoch(
-        epoch_date, page, per_page, "zip"
+        epoch_date, actual_page, actual_per_page, format
     )
 
-    # Create CSV data in memory
-    csv_buffer = io.StringIO()
-    csv_writer = csv.writer(csv_buffer)
-
-    # Write header
-    csv_writer.writerow(
-        [
-            "satellite_name",
-            "satellite_id",
-            "tle_line1",
-            "tle_line2",
-            "epoch",
-            "date_collected",
-            "data_source",
+    if format == "txt":
+        tle_data = [
+            f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
+            for tle in tles
         ]
-    )
+        text_content = "".join(tle_data)
+        return io.BytesIO(text_content.encode())
 
-    # Write data
-    for tle in tles:
+    elif format == "zip":
+        csv_buffer = io.StringIO()
+        csv_writer = csv.writer(csv_buffer)
+
         csv_writer.writerow(
             [
-                tle.satellite.sat_name,
-                tle.satellite.sat_number,
-                tle.tle_line1,
-                tle.tle_line2,
-                tle.epoch.strftime("%Y-%m-%d %H:%M:%S %Z"),
-                tle.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z"),
-                tle.data_source,
+                "satellite_name",
+                "satellite_id",
+                "tle_line1",
+                "tle_line2",
+                "epoch",
+                "date_collected",
+                "data_source",
             ]
         )
 
-    # Create zip file in memory
-    zip_buffer = io.BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr("tle_data.csv", csv_buffer.getvalue())
+        for tle in tles:
+            csv_writer.writerow(
+                [
+                    tle.satellite.sat_name,
+                    tle.satellite.sat_number,
+                    tle.tle_line1,
+                    tle.tle_line2,
+                    format_date(tle.epoch),
+                    format_date(tle.date_collected),
+                    tle.data_source,
+                ]
+            )
 
-    zip_buffer.seek(0)
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            zip_file.writestr("tle_data.csv", csv_buffer.getvalue())
 
-    return zip_buffer
+        zip_buffer.seek(0)
+        return zip_buffer
+
+    else:
+        # Format as JSON
+        tle_data = [
+            {
+                "satellite_name": tle.satellite.sat_name,
+                "satellite_id": tle.satellite.sat_number,
+                "tle_line1": tle.tle_line1,
+                "tle_line2": tle.tle_line2,
+                "epoch": format_date(tle.epoch),
+                "date_collected": format_date(tle.date_collected),
+                "data_source": tle.data_source,
+            }
+            for tle in tles
+        ]
+
+        return [
+            {
+                "per_page": per_page,
+                "page": page,
+                "total_results": total_count,
+                "data": tle_data,
+                "source": api_source,
+                "version": api_version,
+            }
+        ]
 
 
 def get_ids_for_satellite_name(
@@ -265,7 +317,7 @@ def get_ids_for_satellite_name(
         {
             "name": satellite_name,
             "norad_id": id_date[0],
-            "date_added": id_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "date_added": format_date(id_date[1]),
             "is_current_version": id_date[2],
         }
         for id_date in satellite_ids_dates
@@ -306,7 +358,7 @@ def get_names_for_satellite_id(
         {
             "name": name_date[0],
             "norad_id": satellite_id,
-            "date_added": name_date[1].strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "date_added": format_date(name_date[1]),
             "is_current_version": name_date[2],
         }
         for name_date in satellite_names_and_dates

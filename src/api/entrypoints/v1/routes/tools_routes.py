@@ -1,14 +1,15 @@
 from datetime import datetime, timezone
 
+from flask import abort, jsonify, request, send_file
 from flask import current_app as app
-from flask import jsonify, request, send_file
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.common.exceptions import ValidationError
+from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
-    get_all_tles_at_epoch_paginated,
-    get_all_tles_at_epoch_zipped,
+    get_active_satellites,
+    get_all_tles_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_satellite_data,
@@ -21,9 +22,7 @@ from . import api_main, api_source, api_v1, api_version
 
 @api_v1.route("/tools/norad-ids-from-name/")
 @api_main.route("/tools/norad-ids-from-name/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_norad_ids_from_name():
     """
     Returns the NORAD ID(s) for a given satellite name.
@@ -58,9 +57,7 @@ def get_norad_ids_from_name():
 
 @api_v1.route("/tools/names-from-norad-id/")
 @api_main.route("/tools/names-from-norad-id/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_names_from_norad_id():
     """
     Returns the name(s) for a given NORAD id.
@@ -95,9 +92,7 @@ def get_names_from_norad_id():
 
 @api_v1.route("/tools/get-tle-data/")
 @api_main.route("/tools/get-tle-data/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_tles():
     """
     Fetches Two-Line Element set (TLE) data for a given satellite.
@@ -152,9 +147,7 @@ def get_tles():
 
 @api_v1.route("/tools/get-satellite-data/")
 @api_main.route("/tools/get-satellite-data/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_satellite_data_list():
     session = db.session
     sat_repo = SqlAlchemySatelliteRepository(session)
@@ -174,11 +167,29 @@ def get_satellite_data_list():
     return jsonify(satellite_data)
 
 
+@api_v1.route("/tools/get-active-satellites/")
+@api_main.route("/tools/get-active-satellites/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_active_satellites_list():
+    session = db.session
+    sat_repo = SqlAlchemySatelliteRepository(session)
+
+    parameter_list = ["object_type"]
+    try:
+        parameters = validate_parameters(request, parameter_list, [])
+    except ValidationError as e:
+        abort(e.status_code, e.message)
+
+    active_satellites = get_active_satellites(
+        sat_repo, parameters.get("object_type"), api_source, api_version
+    )
+
+    return jsonify(active_satellites)
+
+
 @api_v1.route("/tools/tles-at-epoch/")
 @api_main.route("/tools/tles-at-epoch/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_tles_at_epoch():
     """
     Fetches all TLEs at a specific epoch date.
@@ -223,19 +234,24 @@ def get_tles_at_epoch():
     page = int(parameters.get("page", 1) or 1)
     per_page = int(parameters.get("per_page") or 100)
 
-    if format == "json":
-        tles = get_all_tles_at_epoch_paginated(
-            tle_repo, epoch_date, page, per_page, api_source, api_version
-        )
+    tles = get_all_tles_at_epoch_formatted(
+        tle_repo,
+        epoch_date,
+        format=format,
+        page=page,
+        per_page=per_page,
+        api_source=api_source,
+        api_version=api_version,
+    )
 
-        return jsonify(tles)
-    else:
-        zipped_data = get_all_tles_at_epoch_zipped(
-            tle_repo, epoch_date, page, per_page, api_source, api_version
-        )
+    if format == "txt":
+        return send_file(tles, mimetype="text/plain", as_attachment=False)
+    elif format == "zip":
         return send_file(
-            zipped_data,
+            tles,
             mimetype="application/zip",
             as_attachment=True,
             download_name="tle_data.zip",
         )
+    else:
+        return jsonify(tles)

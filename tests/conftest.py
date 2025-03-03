@@ -1,10 +1,21 @@
 # import api.core
 
 import os
-from datetime import datetime
 
+if "SQLALCHEMY_DATABASE_URI" not in os.environ:
+    os.environ["SQLALCHEMY_DATABASE_URI"] = (
+        "postgresql://postgres:postgres@localhost:5432/test_satchecker"
+    )
+os.environ["LOCAL_DB"] = "1"
+
+from datetime import datetime
+from urllib.parse import urlparse
+
+import psycopg2
 import pytest
-from sqlalchemy import create_engine
+import redis
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import sessionmaker
 
 from api import create_app
@@ -14,32 +25,85 @@ from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.entrypoints.extensions import db as database
 
-os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-os.environ["LOCAL_DB"] = "1"
+
+def create_partitions(engine):
+    """Create partitions for test data"""
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS tle_partitioned_historical
+            PARTITION OF tle_partitioned
+            FOR VALUES FROM (TIMESTAMP '-infinity') TO ('2020-01-01 00:00:00+00')
+        """
+            )
+        )
+
+        conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS tle_partitioned_2020_2023
+            PARTITION OF tle_partitioned
+            FOR VALUES FROM ('2020-01-01 00:00:00+00') TO ('2024-01-01 00:00:00+00')
+        """
+            )
+        )
+
+        conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS tle_partitioned_2024
+            PARTITION OF tle_partitioned
+            FOR VALUES FROM ('2024-01-01 00:00:00+00') TO ('2025-01-01 00:00:00+00')
+        """
+            )
+        )
+
+        conn.execute(
+            text(
+                """
+            CREATE TABLE IF NOT EXISTS tle_partitioned_future
+            PARTITION OF tle_partitioned
+            FOR VALUES FROM ('2025-01-01 00:00:00+00') TO (TIMESTAMP 'infinity')
+        """
+            )
+        )
+
+        conn.execute(text("commit"))
 
 
-@pytest.fixture
-def in_memory_sqlite_db():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    yield engine
-    Base.metadata.drop_all(engine)
+def create_test_db():
+    """Set up the test database with partitions."""
+    db_url = os.environ["SQLALCHEMY_DATABASE_URI"]
+    db_name = db_url.rsplit("/", 1)[-1]
+    default_db_url = db_url.rsplit("/", 1)[0] + "/postgres"
+
+    engine = create_engine(default_db_url)
+
+    with engine.connect() as conn:
+        conn.execute(text("commit"))
+        try:
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+        except ProgrammingError:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {db_name}"))
+            conn.execute(text(f"CREATE DATABASE {db_name}"))
+        finally:
+            conn.execute(text("commit"))
+
+    # Initialize the database and partitions
+    test_engine = create_engine(db_url)
+    with test_engine.connect() as conn:
+        conn.execute(text("commit"))
+        # create_partitions(test_engine)
 
 
-@pytest.fixture
-def sqlite_session_factory(in_memory_sqlite_db):
-    session = sessionmaker(bind=in_memory_sqlite_db)
-    yield session
-    Base.metadata.drop_all(in_memory_sqlite_db)
-
-
-@pytest.fixture
+@pytest.fixture(scope="session")
 def app():
     app = create_app()
     app.config.update(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+            "SQLALCHEMY_DATABASE_URI": os.environ["SQLALCHEMY_DATABASE_URI"],
         }
     )
 
@@ -49,16 +113,95 @@ def app():
 
     with app.app_context():
         database.init_app(app)
+
         Base.metadata.create_all(bind=database.engine)
+
+        # create_partitions(database.engine)
         yield app
         database.session.remove()
         Base.metadata.drop_all(bind=database.engine)
 
 
 @pytest.fixture
+def pg_session_factory(app):
+    """Create a new session factory for each test"""
+    Session = sessionmaker(bind=database.engine)  # noqa: N806
+    return Session
+
+
+@pytest.fixture
+def session(pg_session_factory):
+    """Provide a transactional scope around a series of operations."""
+    session = pg_session_factory()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+@pytest.fixture(autouse=True)
+def cleanup_database(session):
+    """Cleanup database after each test."""
+    if cannot_connect_to_services():
+        pytest.skip("PostgreSQL not available - skipping database cleanup")
+
+    yield
+    try:
+        # Delete from tle first since it references satellites
+        session.execute(text("DELETE FROM tle"))
+        session.execute(text("DELETE FROM satellites"))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
+
+
+@pytest.fixture
 def client(app):
     with app.test_client() as client:
         yield client
+
+
+def cannot_connect_to_services():
+    """Check if required services (Redis and Postgres) are available."""
+    # Check Redis
+    try:
+        # Use localhost for local development
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        # Handle GitLab CI's TCP URL format
+        redis_port_str = os.getenv("REDIS_PORT", "6379")
+        if "tcp://" in redis_port_str:
+            redis_port = int(redis_port_str.split(":")[-1])
+        else:
+            redis_port = int(redis_port_str)
+
+        r = redis.Redis(host=redis_host, port=redis_port, db=0)
+        r.ping()
+    except redis.ConnectionError:
+        return True
+
+    # Check Postgres using the environment variable
+    try:
+        # Use environment variable if set, otherwise use default local connection
+        db_url = os.environ.get(
+            "SQLALCHEMY_DATABASE_URI",
+            "postgresql://postgres:postgres@localhost:5432/test_satchecker",
+        )
+        parsed = urlparse(db_url)
+        conn = psycopg2.connect(
+            dbname=parsed.path[1:],
+            user=parsed.username,
+            password=parsed.password,
+            host=parsed.hostname,
+            port=parsed.port,
+        )
+        conn.close()
+    except (psycopg2.OperationalError, KeyError):
+        return True
+
+    return False
 
 
 class FakeSatelliteRepository(AbstractSatelliteRepository):
@@ -102,6 +245,19 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
             ]
             for satellite in self._satellites
             if satellite.sat_name == name
+        ]
+
+    def _get_active_satellites(self, object_type: str = None):
+        """
+        Mock implementation that matches the repository interface used by tools_service.
+        Returns filtered satellites that tools_service will then format.
+        """
+        return [
+            satellite
+            for satellite in self._satellites
+            if (object_type is None or satellite.object_type == object_type)
+            and satellite.decay_date is None
+            and satellite.has_current_sat_number
         ]
 
     def _get(self, satellite_id):
@@ -166,7 +322,7 @@ class FakeTLERepository(AbstractTLERepository):
             default=None,
         )
 
-    def _get_all_tles_at_epoch(self, epoch_date, page, per_page):
+    def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
         return list(self._tles), len(self._tles)
 
 

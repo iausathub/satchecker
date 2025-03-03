@@ -38,6 +38,7 @@ class SatelliteDb(Base):
 
 class TLEDb(Base):
     __tablename__ = "tle"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     sat_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
     date_collected = Column(DateTime(timezone=True), nullable=False)

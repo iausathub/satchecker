@@ -3,7 +3,7 @@ from flask import abort, request
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import DataError, ValidationError
-from api.entrypoints.extensions import db, get_forwarded_address, limiter
+from api.entrypoints.extensions import db, limiter
 from api.services.ephemeris_service import (
     generate_ephemeris_data,
     generate_ephemeris_data_user,
@@ -15,9 +15,7 @@ from . import api_main, api_source, api_v1, api_version
 
 @api_v1.route("/ephemeris/name/")
 @api_main.route("/ephemeris/name/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_name():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -39,6 +37,8 @@ def get_ephemeris_by_name():
         negative value represents west)
     elevation: float
         Elevation in meters
+    site: str
+        Site name (from Astropy list: https://www.astropy.org/astropy-data/coordinates/sites.json)
     julian_date: float
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     min_altitude: float
@@ -63,17 +63,29 @@ def get_ephemeris_by_name():
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "julian_date",
         "min_altitude",
         "max_altitude",
         "data_source",
     ]
 
+    if "site" not in request.args:
+        required_parameters = [
+            "name",
+            "latitude",
+            "longitude",
+            "elevation",
+            "julian_date",
+        ]
+    else:
+        required_parameters = ["name", "site", "julian_date"]
+
     try:
         parameters = validate_parameters(
             request,
             parameter_list,
-            ["name", "latitude", "longitude", "elevation", "julian_date"],
+            required_parameters,
         )
     except ValidationError as e:
         abort(e.status_code, e.message)
@@ -102,9 +114,7 @@ def get_ephemeris_by_name():
 
 @api_v1.route("/ephemeris/name-jdstep/")
 @api_main.route("/ephemeris/name-jdstep/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_name_jdstep():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -126,6 +136,8 @@ def get_ephemeris_by_name_jdstep():
         negative value represents west)
     elevation: float
         Elevation in meters
+    site: str
+        Site name (from Astropy list: https://www.astropy.org/astropy-data/coordinates/sites.json)
     startjd: float
         UT1 Universal Time Julian Date to start ephmeris calculation.
     stopjd: float
@@ -154,6 +166,7 @@ def get_ephemeris_by_name_jdstep():
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "startjd",
         "stopjd",
         "stepjd",
@@ -162,11 +175,23 @@ def get_ephemeris_by_name_jdstep():
         "data_source",
     ]
 
+    if "site" not in request.args:
+        required_parameters = [
+            "name",
+            "latitude",
+            "longitude",
+            "elevation",
+            "startjd",
+            "stopjd",
+        ]
+    else:
+        required_parameters = ["name", "site", "startjd", "stopjd"]
+
     try:
         parameters = validate_parameters(
             request,
             parameter_list,
-            ["name", "latitude", "longitude", "elevation", "startjd", "stopjd"],
+            required_parameters,
         )
     except ValidationError as e:
         abort(e.status_code, e.message)
@@ -194,9 +219,7 @@ def get_ephemeris_by_name_jdstep():
 
 @api_v1.route("/ephemeris/catalog-number/")
 @api_main.route("/ephemeris/catalog-number/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_catalog_number():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -218,6 +241,8 @@ def get_ephemeris_by_catalog_number():
         negative value represents west)
     elevation: float
         Elevation in meters
+    site: str
+        Site name (from Astropy list: https://www.astropy.org/astropy-data/coordinates/sites.json)
     julian_date: float
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     min_altitude: float
@@ -242,17 +267,29 @@ def get_ephemeris_by_catalog_number():
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "julian_date",
         "min_altitude",
         "max_altitude",
         "data_source",
     ]
 
+    if "site" not in request.args:
+        required_parameters = [
+            "catalog",
+            "latitude",
+            "longitude",
+            "elevation",
+            "julian_date",
+        ]
+    else:
+        required_parameters = ["catalog", "site", "julian_date"]
+
     try:
         parameters = validate_parameters(
             request,
             parameter_list,
-            ["catalog", "latitude", "longitude", "elevation", "julian_date"],
+            required_parameters,
         )
     except ValidationError as e:
         abort(e.status_code, e.message)
@@ -277,9 +314,7 @@ def get_ephemeris_by_catalog_number():
 
 @api_v1.route("/ephemeris/catalog-number-jdstep/")
 @api_main.route("/ephemeris/catalog-number-jdstep/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_catalog_number_jdstep():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -301,6 +336,8 @@ def get_ephemeris_by_catalog_number_jdstep():
         negative value represents west)
     elevation: float
         Elevation in meters
+    site: str
+        Site name (from Astropy list: https://www.astropy.org/astropy-data/coordinates/sites.json)
     startjd: float
         UT1 Universal Time Julian Date to start ephmeris calculation.
     stopjd: float
@@ -329,6 +366,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "startjd",
         "stopjd",
         "stepjd",
@@ -337,11 +375,23 @@ def get_ephemeris_by_catalog_number_jdstep():
         "data_source",
     ]
 
+    if "site" not in request.args:
+        required_parameters = [
+            "catalog",
+            "latitude",
+            "longitude",
+            "elevation",
+            "startjd",
+            "stopjd",
+        ]
+    else:
+        required_parameters = ["catalog", "site", "startjd", "stopjd"]
+
     try:
         parameters = validate_parameters(
             request,
             parameter_list,
-            ["catalog", "latitude", "longitude", "elevation", "startjd", "stopjd"],
+            required_parameters,
         )
     except ValidationError as e:
         abort(e.status_code, e.message)
@@ -369,9 +419,7 @@ def get_ephemeris_by_catalog_number_jdstep():
 
 @api_v1.route("/ephemeris/tle/")
 @api_main.route("/ephemeris/tle/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_tle():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -392,6 +440,8 @@ def get_ephemeris_by_tle():
         negative value represents west)
     elevation: float
         Elevation in meters
+    site: str
+        Site name (from Astropy list: https://www.astropy.org/astropy-data/coordinates/sites.json)
     julian_date: float
         UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
     min_altitude: float
@@ -411,16 +461,28 @@ def get_ephemeris_by_tle():
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "julian_date",
         "min_altitude",
         "max_altitude",
     ]
 
+    if "site" not in request.args:
+        required_parameters = [
+            "tle",
+            "latitude",
+            "longitude",
+            "elevation",
+            "julian_date",
+        ]
+    else:
+        required_parameters = ["tle", "site", "julian_date"]
+
     try:
         parameters = validate_parameters(
             request,
             parameter_list,
-            ["tle", "latitude", "longitude", "elevation", "julian_date"],
+            required_parameters,
         )
     except ValidationError as e:
         abort(e.status_code, e.message)
@@ -441,9 +503,7 @@ def get_ephemeris_by_tle():
 
 @api_v1.route("/ephemeris/tle-jdstep/")
 @api_main.route("/ephemeris/tle-jdstep/")
-@limiter.limit(
-    "100 per second, 2000 per minute", key_func=lambda: get_forwarded_address(request)
-)
+@limiter.limit("100 per second, 2000 per minute")
 def get_ephemeris_by_tle_jdstep():
     """
     Returns satellite location and velocity information relative to the observer's
@@ -465,6 +525,8 @@ def get_ephemeris_by_tle_jdstep():
         negative value represents west)
     elevation: float
         Elevation in meters
+    site: str
+        Site name (from Astropy list: https://www.astropy.org/astropy-data/coordinates/sites.json)
     startjd: float
         UT1 Universal Time Julian Date to start ephmeris calculation.
     stopjd: float
@@ -488,6 +550,7 @@ def get_ephemeris_by_tle_jdstep():
         "latitude",
         "longitude",
         "elevation",
+        "site",
         "startjd",
         "stopjd",
         "stepjd",
@@ -495,11 +558,23 @@ def get_ephemeris_by_tle_jdstep():
         "max_altitude",
     ]
 
+    if "site" not in request.args:
+        required_parameters = [
+            "tle",
+            "latitude",
+            "longitude",
+            "elevation",
+            "startjd",
+            "stopjd",
+        ]
+    else:
+        required_parameters = ["tle", "site", "startjd", "stopjd"]
+
     try:
         parameters = validate_parameters(
             request,
             parameter_list,
-            ["tle", "latitude", "longitude", "elevation", "startjd", "stopjd"],
+            required_parameters,
         )
     except ValidationError as e:
         abort(e.status_code, e.message)

@@ -1,4 +1,7 @@
+from datetime import timezone
+
 import numpy as np
+from astropy.time import Time
 
 
 def position_data_to_json(
@@ -57,17 +60,9 @@ def position_data_to_json(
     # makes things a little faster
     my_round = np.round
 
-    tle_date = (
-        date_collected.strftime("%Y-%m-%d %H:%M:%S %Z")
-        if date_collected is not None
-        else date_collected
-    )
+    tle_date = format_date(date_collected)
 
-    tle_epoch = (
-        tle_epoch_date.strftime("%Y-%m-%d %H:%M:%S %Z")
-        if tle_epoch_date is not None
-        else tle_epoch_date
-    )
+    tle_epoch = format_date(tle_epoch_date)
 
     fields = [
         "name",
@@ -146,3 +141,128 @@ def position_data_to_json(
         "source": api_source,
         "version": api_version,
     }
+
+
+def fov_data_to_json(
+    results: list,
+    points_in_fov: int,
+    performance_metrics: dict,
+    api_source: str,
+    api_version: str,
+    group_by: str,
+    precision_angles=8,
+    precision_date=8,
+) -> dict:
+    """Convert FOV results to JSON format with optional grouping by satellite.
+
+    Args:
+        results: List of satellite position results
+        points_in_fov: Total number of position points in field of view
+        performance_metrics: Dictionary of performance measurements
+        api_source: Source of the API
+        api_version: Version of the API
+        group_by: Grouping strategy ('satellite' or 'time', time by default)
+        precision_angles: Decimal precision for angle values
+        precision_date: Decimal precision for dates
+
+    Returns:
+        dict: Formatted results either grouped by satellite or chronologically
+    """
+    my_round = np.round
+
+    # Round all results first
+    for result in results:
+        fields_to_round = list(
+            result.items()
+        )  # Create a static list of items to iterate
+        for field, value in fields_to_round:
+            if value is None:
+                continue
+            if field in ["ra", "dec", "altitude", "azimuth", "angle", "range_km"]:
+                result[field] = my_round(value, precision_angles)
+            elif field == "julian_date":
+                result[field] = my_round(value, precision_date)
+                result["date_time"] = format_date(
+                    Time(value, format="jd").to_datetime()
+                )
+
+    if group_by == "satellite":
+        # Group passes by satellite
+        # need to account for different satellites with the same name (usually debris)
+        # but different NORAD IDs
+        satellites = {}
+        for result in results:
+            sat_name = result["name"]
+            sat_norad_id = result["norad_id"]
+            sat_key = f"{sat_name} ({sat_norad_id})"
+
+            if sat_key not in satellites:
+                satellites[sat_key] = {
+                    "name": sat_name,
+                    "norad_id": sat_norad_id,
+                    "positions": [],
+                }
+            # Add pass data without redundant satellite info
+            pass_data = {
+                "ra": result["ra"],
+                "dec": result["dec"],
+                "altitude": result["altitude"],
+                "azimuth": result["azimuth"],
+                "julian_date": result["julian_date"],
+                "date_time": format_date(result.get("date_time")),
+                "angle": result.get("angle"),
+                "range_km": result.get("range_km"),
+                "tle_epoch": result.get("tle_epoch"),
+            }
+            satellites[sat_key]["positions"].append(pass_data)
+
+        formatted_results = {
+            "data": {
+                "satellites": satellites,
+                "total_satellites": len(satellites),
+                "total_position_results": points_in_fov,
+            },
+            "performance": performance_metrics,
+            "source": api_source,
+            "version": api_version,
+        }
+    else:
+        # Original chronological format
+        formatted_results = {
+            "data": results,
+            "count": len(results),
+            "performance": performance_metrics,
+            "source": api_source,
+            "version": api_version,
+        }
+
+    return formatted_results
+
+
+def format_date(date):
+    """
+    Format a datetime object into a standardized string format.
+
+    Args:
+        date: A datetime object to format, or None
+
+    Returns:
+        A formatted date string in the format 'YYYY-MM-DD HH:MM:SS TZ' if date is
+        provided, otherwise returns None
+
+    Example:
+        >>> format_date(datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc))
+        '2024-01-01 12:00:00 UTC'
+    """
+    if date is None:
+        return None
+
+    if isinstance(date, str):
+        return date
+
+    if date.tzinfo is None:
+        date = date.replace(tzinfo=timezone.utc)
+
+    formatted_date = date.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    return formatted_date

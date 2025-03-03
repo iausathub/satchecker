@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - migrate
   - push
 
 include:
@@ -12,10 +13,29 @@ include:
 
 .test:
   image: python:3.11
+  services:
+    - name: redis:latest
+      alias: redis
+    - name: postgres:latest
+      alias: postgres
+      variables:
+        POSTGRES_DB: test_satchecker
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+      command: ["postgres", "-c", "fsync=off"]
+  variables:
+    POSTGRES_DB: test_satchecker
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    SQLALCHEMY_DATABASE_URI: "postgresql://postgres:postgres@postgres:5432/test_satchecker"
+    REDIS_URL: "redis://redis:6379/0"
+    LOCAL_DB: "1"
   before_script:
+    - apt-get update && apt-get install -y postgresql-client
     - python -m pip install --upgrade pip
     - pip install pytest pytest-mock
-    - pip install -r src/api/requirements.txt;
+    - pip install -r src/api/requirements.txt
+    - until pg_isready -h postgres -p 5432; do echo "Waiting for postgres..."; sleep 2; done
   script:
     - export PYTHONPATH=src/
     - pytest

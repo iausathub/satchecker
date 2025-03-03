@@ -1,8 +1,13 @@
 import logging
 from logging.config import fileConfig
+from urllib.parse import quote_plus
 
 from alembic import context
 from flask import current_app
+from sqlalchemy import create_engine
+
+from api.adapters.database_orm import Base
+from api.config import get_db_login
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -14,39 +19,32 @@ fileConfig(config.config_file_name)
 logger = logging.getLogger("alembic.env")
 
 
-def get_engine():
+def get_url():
     try:
-        # this works with Flask-SQLAlchemy<3 and Alchemical
-        return current_app.extensions["migrate"].db.get_engine()
-    except TypeError:
-        # this works with Flask-SQLAlchemy>=3
-        return current_app.extensions["migrate"].db.engine
-
-
-def get_engine_url():
-    try:
-        return get_engine().url.render_as_string(hide_password=False).replace("%", "%%")
-    except AttributeError:
-        return str(get_engine().url).replace("%", "%%")
-
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-config.set_main_option("sqlalchemy.url", get_engine_url())
-target_db = current_app.extensions["migrate"].db
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+        return current_app.config["SQLALCHEMY_DATABASE_URI"]
+    except RuntimeError:
+        # If Flask app context isn't available, construct URL from config
+        username, password, host, port, dbname = get_db_login()
+        # URL encode the password to handle special characters
+        encoded_password = quote_plus(password)
+        return f"postgresql://{username}:{encoded_password}@{host}:{port}/{dbname}"
 
 
 def get_metadata():
-    if hasattr(target_db, "metadatas"):
-        return target_db.metadatas[None]
-    return target_db.metadata
+    return Base.metadata
+
+
+def run_migrations():
+    try:
+        if context.is_offline_mode():
+            run_migrations_offline()
+        else:
+            run_migrations_online()
+    except ValueError:
+        # Log sanitized error message
+        logger.error("Database URL configuration error")
+        # Re-raise with sanitized message
+        raise ValueError("Invalid database URL configuration") from None
 
 
 def run_migrations_offline():
@@ -61,11 +59,19 @@ def run_migrations_offline():
     script output.
 
     """
-    url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, target_metadata=get_metadata(), literal_binds=True)
+    # Create engine directly with the URL instead of storing in config
+    engine = create_engine(get_url())
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with engine.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=get_metadata(),
+            literal_binds=True,
+            dialect_opts={"paramstyle": "named"},
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 def run_migrations_online():
@@ -86,21 +92,18 @@ def run_migrations_online():
                 directives[:] = []
                 logger.info("No changes in schema detected.")
 
-    connectable = get_engine()
+    # Create engine directly with the URL
+    engine = create_engine(get_url())
 
-    with connectable.connect() as connection:
+    with engine.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
             process_revision_directives=process_revision_directives,
-            **current_app.extensions["migrate"].configure_args,
         )
 
         with context.begin_transaction():
             context.run_migrations()
 
 
-if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+run_migrations()

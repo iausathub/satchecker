@@ -7,10 +7,13 @@ from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.services.tools_service import (
+    get_active_satellites,
+    get_all_tles_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_tle_data,
 )
+from api.utils.output_utils import format_date
 
 
 def test_get_tle_data():
@@ -29,21 +32,13 @@ def test_get_tle_data():
     assert any(tle_1.tle_line2 in result.values() for result in results)
     assert any(tle_2.tle_line1 in result.values() for result in results)
     assert any(tle_2.tle_line2 in result.values() for result in results)
+    assert any(format_date(tle_1.epoch) in result.values() for result in results)
+    assert any(format_date(tle_2.epoch) in result.values() for result in results)
     assert any(
-        tle_1.epoch.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
+        format_date(tle_1.date_collected) in result.values() for result in results
     )
     assert any(
-        tle_2.epoch.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
-    )
-    assert any(
-        tle_1.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
-    )
-    assert any(
-        tle_2.date_collected.strftime("%Y-%m-%d %H:%M:%S %Z") in result.values()
-        for result in results
+        format_date(tle_2.date_collected) in result.values() for result in results
     )
     assert any(tle_1.data_source in result.values() for result in results)
     assert any(tle_2.data_source in result.values() for result in results)
@@ -83,9 +78,7 @@ def test_get_ids_for_satellite_name():
     assert len(results) == 1
     assert results[0]["name"] == "ISS"
     assert results[0]["norad_id"] == satellite.sat_number
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
 
     results = get_ids_for_satellite_name(sat_repo, "not_found", "test", "1.0")
@@ -106,15 +99,11 @@ def test_get_ids_for_satellite_name_multiple_matches():
     assert len(results) == 2
     assert results[0]["name"] == "ISS"
     assert results[0]["norad_id"] == satellite.sat_number
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
     assert results[1]["name"] == "ISS"
     assert results[1]["norad_id"] == satellite_new.sat_number
-    assert results[1]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[1]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[1]["is_current_version"] == satellite_new.has_current_sat_number
 
 
@@ -138,9 +127,7 @@ def test_get_names_for_satellite_id():
     assert len(results) == 1
     assert results[0]["name"] == satellite.sat_name
     assert results[0]["norad_id"] == 25544
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
 
     results = get_names_for_satellite_id(sat_repo, 99999, "test", "1.0")
@@ -161,15 +148,11 @@ def test_get_names_for_satellite_id_multiple_matches():
     assert len(results) == 2
     assert results[0]["name"] == satellite.sat_name
     assert results[0]["norad_id"] == 25544
-    assert results[0]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[0]["is_current_version"] == satellite.has_current_sat_number
     assert results[1]["name"] == satellite_new.sat_name
     assert results[1]["norad_id"] == 25544
-    assert results[1]["date_added"] == datetime(2024, 1, 1).strftime(
-        "%Y-%m-%d %H:%M:%S %Z"
-    )
+    assert results[1]["date_added"] == format_date(datetime(2024, 1, 1))
     assert results[1]["is_current_version"] == satellite_new.has_current_sat_number
 
 
@@ -184,3 +167,103 @@ def test_get_names_for_satellite_id_errors():
         results = get_names_for_satellite_id(  # noqa: F841
             sat_repo=sat_repo, satellite_id=123, api_source="test"
         )
+
+
+def test_get_active_satellites():
+    sat_repo = FakeSatelliteRepository([])
+    results = get_active_satellites(sat_repo, None, "test", "1.0")
+    assert results["count"] == 0
+
+    satellite = SatelliteFactory(
+        sat_name="ISS", has_current_sat_number=True, decay_date=None
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    results = get_active_satellites(sat_repo, None, "test", "1.0")
+    assert results["count"] == 1
+    assert results["data"][0]["satellite_name"] == "ISS"
+    assert results["data"][0]["satellite_id"] == satellite.sat_number
+    assert results["data"][0]["international_designator"] == satellite.object_id
+    assert results["data"][0]["rcs_size"] == satellite.rcs_size
+    assert results["data"][0]["launch_date"] == satellite.launch_date.strftime(
+        "%Y-%m-%d"
+    )
+    assert results["data"][0]["decay_date"] == satellite.decay_date
+    assert results["data"][0]["object_type"] == satellite.object_type
+
+
+def test_get_active_satellites_with_object_type():
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        has_current_sat_number=True,
+        decay_date=None,
+        object_type="payload",
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    results = get_active_satellites(sat_repo, "payload", "test", "1.0")
+    assert results["count"] == 1
+    assert results["data"][0]["satellite_name"] == "ISS"
+    assert results["data"][0]["satellite_id"] == satellite.sat_number
+    assert results["data"][0]["international_designator"] == satellite.object_id
+    assert results["data"][0]["rcs_size"] == satellite.rcs_size
+    assert results["data"][0]["launch_date"] == satellite.launch_date.strftime(
+        "%Y-%m-%d"
+    )
+    assert results["data"][0]["decay_date"] == satellite.decay_date
+    assert results["data"][0]["object_type"] == satellite.object_type
+
+
+def test_get_active_satellites_with_invalid_object_type():
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        has_current_sat_number=True,
+        decay_date=None,
+        object_type="payload",
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    results = get_active_satellites(sat_repo, "invalid", "test", "1.0")
+    assert results["count"] == 0
+
+
+def test_get_all_tles_at_epoch_formatted():
+    tle_repo = FakeTLERepository([])
+    tle_1 = TLEFactory(satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now())
+    tle_2 = TLEFactory(satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now())
+    tle_repo = FakeTLERepository([tle_1, tle_2])
+    results = get_all_tles_at_epoch_formatted(
+        tle_repo, datetime.now(), "json", 1, 100, "test", "1.0"
+    )
+
+    # Results should be a list with one dictionary
+    assert isinstance(results, list)
+    assert len(results) == 1
+
+    # Check the structure matches the actual API response
+    result = results[0]
+    assert result["per_page"] == 100
+    assert result["page"] == 1
+    assert len(result["data"]) == 2
+    assert result["source"] == "test"
+    assert result["version"] == "1.0"
+
+    # Check the data contents
+    for tle_data in result["data"]:
+        assert "satellite_name" in tle_data
+        assert "satellite_id" in tle_data
+        assert "tle_line1" in tle_data
+        assert "tle_line2" in tle_data
+        assert "epoch" in tle_data
+        assert "date_collected" in tle_data
+        assert isinstance(tle_data["satellite_name"], str)
+        assert isinstance(tle_data["satellite_id"], int)
+        assert isinstance(tle_data["tle_line1"], str)
+        assert isinstance(tle_data["tle_line2"], str)
+        assert tle_data["satellite_name"] == "ISS"
+
+    results = get_all_tles_at_epoch_formatted(
+        tle_repo, datetime.now(), "txt", 1, 100, "test", "1.0"
+    )
+    text_content = results.getvalue().decode("utf-8")
+    assert tle_1.tle_line1 in text_content
+    assert tle_1.tle_line2 in text_content
+    assert tle_2.tle_line1 in text_content
+    assert tle_2.tle_line2 in text_content

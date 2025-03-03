@@ -317,6 +317,31 @@ def icrf2radec(pos, unit_vector=False, deg=True):
     return ra, dec
 
 
+def radec2icrf(ra, dec, deg=True):
+    """Convert Right Ascension and Declination to ICRF xyz unit vector.
+    Geometric states on unit sphere, no light travel time/aberration correction.
+    Parameters:
+    -----------
+    ra ... Right Ascension [deg]
+    dec ... Declination [deg]
+    deg ... True: angles in degrees, False: angles in radians
+    Returns:
+    --------
+    x,y,z ... 3D vector of unit length (ICRF)
+    """
+    if deg:
+        a = np.deg2rad(ra)
+        d = np.deg2rad(dec)
+    else:
+        a = np.array(ra)
+        d = np.array(dec)
+    cosd = np.cos(d)
+    x = cosd * np.cos(a)
+    y = cosd * np.sin(a)
+    z = np.sin(d)
+    return np.array([x, y, z])
+
+
 @functools.lru_cache(maxsize=128)
 def calculate_current_position(lat, long, height):
     """

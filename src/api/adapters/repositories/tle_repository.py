@@ -2,7 +2,7 @@ import abc
 from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlalchemy import and_, func, not_, or_
+from sqlalchemy import DateTime, and_, func, or_, text
 from sqlalchemy.orm.exc import NoResultFound
 
 from api.adapters.database_orm import SatelliteDb, TLEDb
@@ -62,50 +62,7 @@ class AbstractTLERepository(abc.ABC):
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
     ) -> tuple[list[TLE], int]:
-        two_weeks_prior = epoch_date - timedelta(weeks=2)
-
-        latest_tles = (
-            self.session.query(TLEDb.sat_id, func.max(TLEDb.epoch).label("max_epoch"))
-            .filter(TLEDb.epoch.between(two_weeks_prior, epoch_date))
-            .group_by(TLEDb.sat_id)
-            .cte("latest_tles")
-        )
-
-        query = (
-            self.session.query(TLEDb)
-            .join(
-                latest_tles,
-                and_(
-                    TLEDb.sat_id == latest_tles.c.sat_id,
-                    TLEDb.epoch == latest_tles.c.max_epoch,
-                ),
-            )
-            .join(SatelliteDb, TLEDb.sat_id == SatelliteDb.id)
-            .filter(
-                or_(
-                    SatelliteDb.decay_date.is_(None),
-                    SatelliteDb.decay_date > epoch_date,
-                )
-            )
-            .filter(
-                not_(
-                    and_(
-                        TLEDb.epoch < two_weeks_prior,
-                        SatelliteDb.sat_name == "TBA - TO BE ASSIGNED",
-                    )
-                )
-            )
-            .order_by(TLEDb.epoch)
-        )
-
-        total_count = query.count()
-
-        if format == "zip":
-            return query.all(), total_count
-
-        paginated_query = query.limit(per_page).offset((page - 1) * per_page)
-
-        return (paginated_query.all(), total_count)
+        return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
@@ -135,6 +92,10 @@ class AbstractTLERepository(abc.ABC):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> TLE:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -187,7 +148,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             )
             .order_by(
                 func.abs(
-                    func.extract("epoch", TLEDb.epoch) - func.extract("epoch", epoch)
+                    func.extract("epoch", TLEDb.epoch)
+                    - func.extract("epoch", func.cast(epoch, DateTime(timezone=True)))
                 )
             )
             .first()
@@ -212,7 +174,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             )
             .order_by(
                 func.abs(
-                    func.extract("epoch", TLEDb.epoch) - func.extract("epoch", epoch)
+                    func.extract("epoch", TLEDb.epoch)
+                    - func.extract("epoch", func.cast(epoch, DateTime(timezone=True)))
                 )
             )
             .first()
@@ -229,6 +192,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             .join(TLEDb.satellite)
             .filter(SatelliteDb.sat_number == satellite_number)
         )
+
         if start_date is not None:
             query = query.filter(TLEDb.epoch >= start_date)
 
@@ -255,6 +219,94 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             query = query.filter(TLEDb.epoch <= end_date)
 
         return query.all()
+
+    def _get_all_tles_at_epoch(
+        self, epoch_date: datetime, page: int, per_page: int, format: str
+    ) -> tuple[list[TLE], int]:
+        two_weeks_prior = epoch_date - timedelta(weeks=2)
+
+        try:
+            # First get valid satellites
+            satellites_sql = text(
+                """
+                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number
+                FROM satellites s
+                WHERE s.launch_date <= :epoch_date
+                AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                AND s.sat_name != 'TBA - TO BE ASSIGNED'
+            """
+            )
+
+            # Then get their latest TLEs
+            tles_sql = text(
+                """
+                WITH latest_tles AS (
+                    SELECT DISTINCT ON (sat_id)
+                        id, sat_id, date_collected, tle_line1, tle_line2,
+                        epoch, is_supplemental, data_source
+                    FROM tle
+                    WHERE epoch BETWEEN :start_date AND :end_date
+                    AND sat_id = ANY(:satellite_ids)
+                    ORDER BY sat_id, epoch DESC
+                )
+                SELECT * FROM latest_tles
+                ORDER BY epoch DESC
+            """
+            )
+
+            # Get valid satellites first
+            satellites_result = self.session.execute(
+                satellites_sql, {"epoch_date": epoch_date}
+            )
+            valid_satellites = {row.id: row for row in satellites_result}
+
+            if not valid_satellites:
+                return [], 0
+
+            # Then get TLEs for those satellites
+            tles_result = self.session.execute(
+                tles_sql,
+                {
+                    "start_date": two_weeks_prior,
+                    "end_date": epoch_date,
+                    "satellite_ids": list(valid_satellites.keys()),
+                },
+            )
+
+            # Map results to domain objects
+            tles = []
+            for row in tles_result:
+                sat_data = valid_satellites[row.sat_id]
+                satellite = Satellite(
+                    sat_name=sat_data.sat_name,
+                    sat_number=sat_data.sat_number,
+                    decay_date=sat_data.decay_date,
+                    has_current_sat_number=sat_data.has_current_sat_number,
+                )
+
+                tle = TLE(
+                    satellite=satellite,
+                    date_collected=row.date_collected,
+                    tle_line1=row.tle_line1,
+                    tle_line2=row.tle_line2,
+                    epoch=row.epoch,
+                    is_supplemental=row.is_supplemental,
+                    data_source=row.data_source,
+                )
+                tles.append(tle)
+
+            # Handle pagination
+            total_count = len(tles)
+            if format != "zip":
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+                tles = tles[start_idx:end_idx]
+
+            return tles, total_count
+
+        except Exception:
+            self.session.rollback()
+            raise
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)

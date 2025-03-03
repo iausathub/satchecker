@@ -1,17 +1,15 @@
+import os
+from urllib.parse import urlparse
+
+from flask import request
+from flask_apscheduler import APScheduler
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
-
-db = SQLAlchemy()
-
-# TODO: Review default limits and see if they should be different for FOV and standard
-# ephemeris endpoints
-limiter = Limiter(
-    key_func=get_remote_address, default_limits=["100 per second", "2000 per minute"]
-)
+from redis import Redis
 
 
-def get_forwarded_address(request):
+def get_forwarded_address():
     """
     Retrieves the original IP address from the 'X-Forwarded-For' header of a
     HTTP request.
@@ -31,3 +29,42 @@ def get_forwarded_address(request):
     if forwarded_header:
         return request.headers.getlist("X-Forwarded-For")[0]
     return get_remote_address
+
+
+db = SQLAlchemy()
+
+scheduler = APScheduler()
+
+# Parse Redis URL if provided, otherwise use host/port
+redis_url = os.getenv("REDIS_PORT")
+if redis_url and "://" in redis_url:
+    # Handle tcp:// URLs specifically
+    if redis_url.startswith("tcp://"):
+        parts = redis_url.replace("tcp://", "").split(":")
+        redis_host = parts[0]
+        redis_port = int(parts[1]) if len(parts) > 1 else 6379
+    else:
+        # Parse standard URLs
+        parsed = urlparse(redis_url)
+        redis_host = parsed.hostname
+        redis_port = parsed.port
+else:
+    # Use separate host/port env vars
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_port = int(os.getenv("REDIS_PORT", 6379))
+
+# Use parsed values
+redis_client = Redis(
+    host=redis_host,
+    port=redis_port,
+    db=int(os.getenv("REDIS_DB", 0)),
+    decode_responses=True,
+)
+
+limiter = Limiter(
+    key_func=get_forwarded_address,
+    default_limits=["100 per second", "2000 per minute"],
+    storage_uri=(f"redis://{redis_host}:{redis_port}/0"),
+    headers_enabled=True,
+    strategy="fixed-window",
+)

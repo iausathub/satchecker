@@ -2,7 +2,6 @@ import logging
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
-from celery import chord
 from flask import current_app, has_app_context
 
 from api import celery
@@ -133,19 +132,23 @@ def generate_position_data(
     else:
         raise ValueError(f"Invalid propagation strategy: {propagation_strategy}")
 
-    tasks = chord(
-        (
-            method.s(
-                tle_line_1,
-                tle_line_2,
-                location.lat.value,
-                location.lon.value,
-                location.height.value,
-                date.jd,
-            )
-            for date in dates
-        ),
-        process_results.s(
+    # Convert all dates to JD values
+    jd_dates = [date.jd for date in dates]
+
+    result = method.apply(
+        args=[
+            tle_line_1,
+            tle_line_2,
+            location.lat.value,
+            location.lon.value,
+            location.height.value,
+            jd_dates,  # Pass full list instead of individual dates
+        ]
+    )
+
+    processed_results = process_results.apply(
+        args=[
+            result.get(),
             min_altitude,
             max_altitude,
             date_collected,
@@ -156,9 +159,9 @@ def generate_position_data(
             data_source,
             api_source,
             api_version,
-        ),
-    )()
-    results = tasks.get()
+        ]
+    )
+    results = processed_results.get()
     if not results:
         return {"info": "No position information found with this criteria"}
     return results

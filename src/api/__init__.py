@@ -9,14 +9,19 @@ from api.config import get_db_login
 from api.entrypoints.extensions import db, limiter
 from api.entrypoints.v1.routes import api_main, api_v1
 from api.entrypoints.v1.routes import ephemeris_routes as ephem_routes  # noqa: F401
+from api.entrypoints.v1.routes import fov_routes as fov_routes  # noqa: F401, I001
 from api.entrypoints.v1.routes import routes as v1_routes  # noqa: F401, I001
 from api.entrypoints.v1.routes import tools_routes as tool_routes  # noqa: F401, I001
+from api.middleware.error_handler import init_error_handler
 
 
 def create_app():
     app = Flask(__name__)
+
     app.register_blueprint(api_main, url_prefix="/")
     app.register_blueprint(api_v1, url_prefix="/v1")
+    init_error_handler(app)
+
     db_login = get_db_login()
 
     if os.environ.get("SQLALCHEMY_DATABASE_URI"):
@@ -59,5 +64,4 @@ if __name__ != "__main__":
     app.logger.setLevel(logging.INFO)
 
 limiter.init_app(app)
-
 db.init_app(app)

@@ -177,6 +177,56 @@ def test_validate_parameters_invalid_id_type(app):
             )
 
 
+def test_validate_parameters_invalid_group_by(app):
+    with app.test_request_context(
+        "/?latitude=1&longitude=2&elevation=3&group_by=invalid"
+    ):
+        parameter_list = ["latitude", "longitude", "elevation", "group_by"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_fov_obs_time(app):
+    with app.test_request_context(
+        "?start_time_jd=2459000&mid_obs_time_jd=2459001&duration=30"
+    ):
+        parameter_list = ["start_time_jd", "mid_obs_time_jd", "duration"]
+        required_parameters = ["duration"]
+
+        with pytest.raises(
+            ValidationError,
+            match="Cannot specify both mid_obs_time_jd and start_time_jd",
+        ):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("?duration=30"):
+        parameter_list = ["start_time_jd", "mid_obs_time_jd", "duration"]
+        required_parameters = ["duration"]
+
+        with pytest.raises(
+            ValidationError,
+            match="Must specify either mid_obs_time_jd or start_time_jd",
+        ):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("?start_time_jd=test&duration=30"):
+        parameter_list = ["start_time_jd", "mid_obs_time_jd", "duration"]
+        required_parameters = ["duration"]
+
+        with pytest.raises(ValidationError, match="Invalid Julian Date"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
 def test_validate_parameters_too_many_times(app):
     with app.test_request_context(
         "/?latitude=1&longitude=2&elevation=3&startjd=2459000&stopjd=2459001&stepjd=0.000001"
@@ -216,6 +266,17 @@ def test_validate_parameters_invalid_data_source(app):
         required_parameters = []
 
         with pytest.raises(ValidationError, match="Invalid data source"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_invalid_object_type(app):
+    with app.test_request_context("/?object_type=invalid"):
+        parameter_list = ["object_type"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
             parameters = validate_parameters(  # noqa: F841
                 request, parameter_list, required_parameters
             )
@@ -369,3 +430,41 @@ def test_parse_tle_missing_data():
     tle = "ISS (ZARYA) 1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997 2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"  # noqa: E501
     with pytest.raises(ValidationError, match="Invalid TLE format"):
         parse_tle(tle)
+
+
+def test_validate_parameters_site(app):
+    with app.test_request_context("/?site=greenwich"):
+        parameter_list = ["site"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["location"].lat.deg == pytest.approx(51.477811, rel=1e-9)
+        assert parameters["location"].lon.deg == pytest.approx(-0.001475, rel=1e-9)
+        assert parameters["location"].height.value == pytest.approx(46, rel=1e-9)
+
+
+def test_validate_parameters_site_invalid(app):
+    with app.test_request_context("/?site=invalid"):
+        parameter_list = ["site"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid site"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_site_and_location(app):
+    with app.test_request_context(
+        "/?site=greenwich&latitude=1&longitude=2&elevation=3"
+    ):
+        parameter_list = ["site", "latitude", "longitude", "elevation"]
+        required_parameters = []
+
+        with pytest.raises(
+            ValidationError, match="Cannot specify both site and location parameters"
+        ):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )

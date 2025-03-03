@@ -11,6 +11,7 @@ import api.common.error_messages as error_messages
 from api.common.exceptions import ValidationError
 from api.domain.models.satellite import Satellite
 from api.domain.models.tle import TLE
+from api.utils.location_utils import get_location_from_astropy_site
 
 
 def extract_parameters(request, parameter_list):
@@ -68,11 +69,33 @@ def validate_parameters(
         if param not in parameters.keys() or parameters[param] is None:
             raise ValidationError(400, f"Missing parameter: {param}")
 
+    # Check if site is provide first, so that if it and other location parameters
+    # are provided, an error can be thrown
+    if "site" in parameters.keys() and parameters["site"] is not None:
+        if (
+            ("latitude" in parameters.keys() and parameters["latitude"] is not None)
+            or (
+                "longitude" in parameters.keys() and parameters["longitude"] is not None
+            )
+            or (
+                "elevation" in parameters.keys() and parameters["elevation"] is not None
+            )
+        ):
+            raise ValidationError(400, error_messages.SITE_AND_LOCATION_ERROR)
+        try:
+            site_location = get_location_from_astropy_site(parameters["site"])
+            parameters["location"] = site_location
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_SITE, e) from e
+
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
     if (
         "latitude" in parameters.keys()
+        and parameters["latitude"] is not None
         and "longitude" in parameters.keys()
+        and parameters["longitude"] is not None
         and "elevation" in parameters.keys()
+        and parameters["elevation"] is not None
     ):
         try:
             parameters["location"] = EarthLocation(
@@ -178,6 +201,39 @@ def validate_parameters(
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
+    # If either mid_obs_time_jd or start_time_jd is provided, use the appropriate one
+
+    # Validate mid_obs_time_jd and start_time_jd are mutually exclusive
+    if "mid_obs_time_jd" in parameters and "start_time_jd" in parameters:
+        if (
+            parameters["mid_obs_time_jd"] is not None
+            and parameters["start_time_jd"] is not None
+        ):
+            raise ValidationError(
+                400, "Cannot specify both mid_obs_time_jd and start_time_jd"
+            )
+        if (
+            parameters["mid_obs_time_jd"] is None
+            and parameters["start_time_jd"] is None
+        ):
+            raise ValidationError(
+                400, "Must specify either mid_obs_time_jd or start_time_jd"
+            )
+
+    # Convert whichever time parameter is provided to a Time object
+    if "mid_obs_time_jd" in parameters.keys() or "start_time_jd" in parameters.keys():
+        time_param = (
+            "mid_obs_time_jd"
+            if parameters.get("mid_obs_time_jd") is not None
+            else "start_time_jd"
+        )
+        try:
+            parameters[time_param] = Time(
+                parameters[time_param], format="jd", scale="ut1"
+            )
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+
     if "epoch" in parameters.keys() and parameters["epoch"] is not None:
         try:
             parameters["epoch"] = (
@@ -188,11 +244,72 @@ def validate_parameters(
         except Exception as e:
             raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
+    if "ra" in parameters.keys() and parameters["ra"] is not None:
+        parameters["ra"] = float(parameters["ra"])
+
+    if "dec" in parameters.keys() and parameters["dec"] is not None:
+        parameters["dec"] = float(parameters["dec"])
+
+    if "fov_radius" in parameters.keys() and parameters["fov_radius"] is not None:
+        parameters["fov_radius"] = float(parameters["fov_radius"])
+
+    if "duration" in parameters.keys() and parameters["duration"] is not None:
+        parameters["duration"] = float(parameters["duration"])
+
     if "format" in parameters.keys() and parameters["format"] is not None:
         parameters["format"] = parameters["format"].lower()
 
-        if parameters["format"] not in ["json", "zip"]:
+        if parameters["format"] not in ["json", "zip", "txt"]:
             raise ValidationError(500, error_messages.INVALID_FORMAT)
+
+    if "group_by" in parameters.keys() and parameters["group_by"] is not None:
+        parameters["group_by"] = (
+            parameters["group_by"].lower()
+            if parameters["group_by"] is not None
+            else "time"
+        )
+
+        if parameters["group_by"] not in ["satellite", "time"]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+    if (
+        "illuminated_only" in parameters.keys()
+        and parameters["illuminated_only"] is not None
+    ):
+        if parameters["illuminated_only"] not in ["true", "false"]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+        parameters["illuminated_only"] = (
+            parameters["illuminated_only"].lower() == "true"
+        )
+
+    if "object_type" in parameters.keys() and parameters["object_type"] is not None:
+        parameters["object_type"] = parameters["object_type"].lower()
+        if parameters["object_type"] not in [
+            "payload",
+            "debris",
+            "rocket body",
+            "tba",
+            "unknown",
+        ]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+    try:
+        if "min_range" in parameters:
+            parameters["min_range"] = (
+                float(parameters["min_range"])
+                if parameters["min_range"] is not None
+                else 0
+            )
+
+        if "max_range" in parameters:
+            parameters["max_range"] = (
+                float(parameters["max_range"])
+                if parameters["max_range"] is not None
+                else 1500000  # farthest possible distance in Earth's gravity
+            )
+    except Exception as e:
+        raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
 
     return parameters
 

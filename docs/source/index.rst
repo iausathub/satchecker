@@ -48,12 +48,21 @@ or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
    tools
 
 .. toctree::
+   :caption: FOV API
+   :maxdepth: 3
+   :hidden:
+
+   fov
+
+.. toctree::
    :caption: Examples
    :maxdepth: 3
    :hidden:
 
    examples
    notebooks/demo.ipynb
+   notebooks/fov.ipynb
+   notebooks/overhead.ipynb
 
 .. toctree::
    :caption: Development Documentation
