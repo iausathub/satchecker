@@ -55,17 +55,17 @@ Retrieve raw TLE data for a satellite over a given time period
 
 .. sourcecode:: json
 
-    [
-        {
-            "data_source": "celestrak",
-            "date_collected": "2024-04-26 00:35:57 UTC",
-            "epoch": "2024-04-25 18:22:37 UTC",
-            "satellite_id": 25544,
-            "satellite_name": "ISS (ZARYA)",
-            "tle_line1": "1 25544U 98067A   24116.76570894  .00062894  00000+0  10654-2 0  9996",
-            "tle_line2": "2 25544  51.6396 215.3361 0004566  95.7745   7.6568 15.50926567450413"
-        }
-    ]
+        [
+            {
+                "data_source": "celestrak",
+                "date_collected": "2024-04-26 00:35:57 UTC",
+                "epoch": "2024-04-25 18:22:37 UTC",
+                "satellite_id": 25544,
+                "satellite_name": "ISS (ZARYA)",
+                "tle_line1": "1 25544U 98067A   24116.76570894  .00062894  00000+0  10654-2 0  9996",
+                "tle_line2": "2 25544  51.6396 215.3361 0004566  95.7745   7.6568 15.50926567450413"
+            }
+        ]
 
 Get full TLE set at Epoch
 ---------------------------------------------------------------
@@ -321,32 +321,32 @@ by NORAD ID.
 
     .. sourcecode:: json
 
-    [
-        {
-            "source": "IAU CPS SatChecker",
-            "tle_data": [
-                {
-                    "data_source": "spacetrack",
-                    "date_collected": "2024-11-26 17:37:22 UTC",
-                    "epoch": "2019-06-30 20:27:51 UTC",
-                    "satellite_id": 25544,
-                    "satellite_name": "ISS (ZARYA)",
-                    "tle_line1": "1 25544U 98067A   19181.85268126 -.00006926  00000-0 -10819-3 0  9995",
-                    "tle_line2": "2 25544  51.6486 293.4711 0008267 104.5225  41.1392 15.51249855177371"
-                },
-                {
-                    "data_source": "spacetrack",
-                    "date_collected": "2024-06-04 19:16:53 UTC",
-                    "epoch": "2024-01-30 02:26:07 UTC",
-                    "satellite_id": 25544,
-                    "satellite_name": "ISS (ZARYA)",
-                    "tle_line1": "1 25544U 98067A   24030.10147156  .00014904  00000-0  27473-3 0  9998",
-                    "tle_line2": "2 25544  51.6414 284.5574 0002475 176.3471 287.7672 15.49357173436989"
-                }
-            ],
-            "version": "1.2.0"
-        }
-    ]
+        [
+            {
+                "source": "IAU CPS SatChecker",
+                "tle_data": [
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-11-26 17:37:22 UTC",
+                        "epoch": "2019-06-30 20:27:51 UTC",
+                        "satellite_id": 25544,
+                        "satellite_name": "ISS (ZARYA)",
+                        "tle_line1": "1 25544U 98067A   19181.85268126 -.00006926  00000-0 -10819-3 0  9995",
+                        "tle_line2": "2 25544  51.6486 293.4711 0008267 104.5225  41.1392 15.51249855177371"
+                    },
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-06-04 19:16:53 UTC",
+                        "epoch": "2024-01-30 02:26:07 UTC",
+                        "satellite_id": 25544,
+                        "satellite_name": "ISS (ZARYA)",
+                        "tle_line1": "1 25544U 98067A   24030.10147156  .00014904  00000-0  27473-3 0  9998",
+                        "tle_line2": "2 25544  51.6414 284.5574 0002475 176.3471 287.7672 15.49357173436989"
+                    }
+                ],
+                "version": "1.2.0"
+            }
+        ]
 
 Get TLEs around a specific epoch date
 ---------------------------------------------------------------
@@ -406,29 +406,29 @@ It currently only supports searching by NORAD ID.
 
     .. sourcecode:: json
 
-    [
-        {
-            "source": "IAU CPS SatChecker",
-            "tle_data": [
-                {
-                    "data_source": "spacetrack",
-                    "date_collected": "2024-11-26 17:37:22 UTC",
-                    "epoch": "2019-06-30 20:27:51 UTC",
-                    "satellite_id": 25544,
-                    "satellite_name": "ISS (ZARYA)",
-                    "tle_line1": "1 25544U 98067A   19181.85268126 -.00006926  00000-0 -10819-3 0  9995",
-                    "tle_line2": "2 25544  51.6486 293.4711 0008267 104.5225  41.1392 15.51249855177371"
-                },
-                {
-                    "data_source": "spacetrack",
-                    "date_collected": "2024-06-04 19:16:53 UTC",
-                    "epoch": "2024-01-30 02:26:07 UTC",
-                    "satellite_id": 25544,
-                    "satellite_name": "ISS (ZARYA)",
-                    "tle_line1": "1 25544U 98067A   24030.10147156  .00014904  00000-0  27473-3 0  9998",
-                    "tle_line2": "2 25544  51.6414 284.5574 0002475 176.3471 287.7672 15.49357173436989"
-                }
-            ],
-            "version": "1.2.0"
-        }
-    ]
+        [
+            {
+                "source": "IAU CPS SatChecker",
+                "tle_data": [
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-11-26 17:37:22 UTC",
+                        "epoch": "2019-06-30 20:27:51 UTC",
+                        "satellite_id": 25544,
+                        "satellite_name": "ISS (ZARYA)",
+                        "tle_line1": "1 25544U 98067A   19181.85268126 -.00006926  00000-0 -10819-3 0  9995",
+                        "tle_line2": "2 25544  51.6486 293.4711 0008267 104.5225  41.1392 15.51249855177371"
+                    },
+                    {
+                        "data_source": "spacetrack",
+                        "date_collected": "2024-06-04 19:16:53 UTC",
+                        "epoch": "2024-01-30 02:26:07 UTC",
+                        "satellite_id": 25544,
+                        "satellite_name": "ISS (ZARYA)",
+                        "tle_line1": "1 25544U 98067A   24030.10147156  .00014904  00000-0  27473-3 0  9998",
+                        "tle_line2": "2 25544  51.6414 284.5574 0002475 176.3471 287.7672 15.49357173436989"
+                    }
+                ],
+                "version": "1.2.0"
+            }
+        ]
