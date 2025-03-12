@@ -320,28 +320,28 @@ def get_adjacent_tles():
 
     Parameters:
         id (str): The ID of the satellite.
-        id_type (str): The type of the ID, either 'catalog' or 'name'.
-        epoch_jd (float): The Julian Date to bracket.
+        id_type (str): The type of the ID, currently only 'catalog' is supported.
+        epoch (float): The Julian Date to bracket.
     """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
-    parameter_list = ["id", "id_type", "epoch_jd"]
-    required_parameters = ["id", "id_type", "epoch_jd"]
+    parameter_list = ["id", "id_type", "epoch"]
+    required_parameters = ["id", "id_type", "epoch"]
     parameters = validate_parameters(request, parameter_list, required_parameters)
 
     tle_data = get_adjacent_tle_results(
         tle_repo,
         parameters["id"],
         parameters["id_type"],
-        parameters["epoch_jd"],
+        parameters["epoch"],
         api_source,
         api_version,
     )
     return jsonify(tle_data)
 
 
-@api_v1.route("/tools/get-tle-data-around-epoch/")
-@api_main.route("/tools/get-tle-data-around-epoch/")
+@api_v1.route("/tools/get-tles-around-epoch/")
+@api_main.route("/tools/get-tles-around-epoch/")
 @limiter.limit("100 per second, 2000 per minute")
 def get_tles_around_epoch():
     """
@@ -349,8 +349,8 @@ def get_tles_around_epoch():
 
     Parameters:
         id (str): The ID of the satellite.
-        id_type (str): The type of the ID, either 'catalog' or 'name'.
-        epoch_jd (float): The Julian Date to center the TLE search around.
+        id_type (str): The type of the ID, currently only 'catalog' is supported.
+        epoch (float): The Julian Date to center the TLE search around.
         count_before (int, optional): Number of TLEs to fetch before the epoch.
         Default: 2
         count_after (int, optional): Number of TLEs to fetch after the epoch.
@@ -358,15 +358,15 @@ def get_tles_around_epoch():
     """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
-    parameter_list = ["id", "id_type", "epoch_jd", "count_before", "count_after"]
-    required_parameters = ["id", "id_type", "epoch_jd"]
+    parameter_list = ["id", "id_type", "epoch", "count_before", "count_after"]
+    required_parameters = ["id", "id_type", "epoch"]
     parameters = validate_parameters(request, parameter_list, required_parameters)
 
     tle_data = get_tles_around_epoch_results(
         tle_repo,
         parameters["id"],
         parameters["id_type"],
-        parameters["epoch_jd"],
+        parameters["epoch"],
         parameters.get("count_before", 2),
         parameters.get("count_after", 2),
         api_source,

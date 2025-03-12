@@ -325,6 +325,23 @@ class FakeTLERepository(AbstractTLERepository):
     def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
         return list(self._tles), len(self._tles)
 
+    def _get_adjacent_tles(self, id, id_type, epoch):
+        # limit to one before and one after for the given id (satellite number)
+        tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
+        return tles[:1] + tles[1:]
+
+    def _get_tles_around_epoch(self, id, id_type, epoch, count_before, count_after):
+        # limit to count_before + count_after
+        tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
+        return tles[: count_before + count_after]
+
+    def _get_nearest_tle(self, id, id_type, epoch):
+        return min(
+            (tle for tle in self._tles if tle.satellite.sat_number == id),
+            key=lambda tle: abs(tle.epoch - epoch),
+            default=None,
+        )
+
 
 class FakeSession:
     committed = False

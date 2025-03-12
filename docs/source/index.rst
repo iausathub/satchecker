@@ -45,7 +45,8 @@ or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
    :maxdepth: 3
    :hidden:
 
-   tools
+   tools_satellites
+   tools_tle
 
 .. toctree::
    :caption: FOV API

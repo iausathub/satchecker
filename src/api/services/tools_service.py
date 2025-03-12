@@ -109,7 +109,14 @@ def get_tles_around_epoch_results(
         }
         for tle in tles
     ]
-    return tle_data
+
+    return [
+        {
+            "tle_data": tle_data,
+            "source": api_source,
+            "version": api_version,
+        }
+    ]
 
 
 def get_nearest_tle_result(
@@ -148,18 +155,28 @@ def get_nearest_tle_result(
     tle = tle_repo.get_nearest_tle(id, id_type, epoch)
 
     # Extract the TLE data from the result set
-    tle_data = [
+    if tle is not None:
+        tle_data = [
+            {
+                "satellite_name": tle.satellite.sat_name,
+                "satellite_id": tle.satellite.sat_number,
+                "tle_line1": tle.tle_line1,
+                "tle_line2": tle.tle_line2,
+                "epoch": format_date(tle.epoch),
+                "date_collected": format_date(tle.date_collected),
+                "data_source": tle.data_source,
+            }
+        ]
+    else:
+        tle_data = []
+
+    return [
         {
-            "satellite_name": tle.satellite.sat_name,
-            "satellite_id": tle.satellite.sat_number,
-            "tle_line1": tle.tle_line1,
-            "tle_line2": tle.tle_line2,
-            "epoch": format_date(tle.epoch),
-            "date_collected": format_date(tle.date_collected),
-            "data_source": tle.data_source,
+            "tle_data": tle_data,
+            "source": api_source,
+            "version": api_version,
         }
     ]
-    return tle_data
 
 
 def get_adjacent_tle_results(
@@ -178,26 +195,42 @@ def get_adjacent_tle_results(
         id (str): The ID of the satellite.
         id_type (str): The type of the ID, either "catalog" or "name".
         epoch (datetime): The epoch date to fetch the adjacent TLEs to.
-
+        format (str): The format of the TLE data, either "json" or "txt".
     Returns:
         List[dict]: A list of dictionaries containing the TLE data.
     """
     tles = tle_repo.get_adjacent_tles(id, id_type, epoch)
 
-    # Extract the TLE data from the result set
-    tle_data = [
-        {
-            "satellite_name": tle.satellite.sat_name,
-            "satellite_id": tle.satellite.sat_number,
-            "tle_line1": tle.tle_line1,
-            "tle_line2": tle.tle_line2,
-            "epoch": format_date(tle.epoch),
-            "date_collected": format_date(tle.date_collected),
-            "data_source": tle.data_source,
-        }
-        for tle in tles
-    ]
-    return tle_data
+    if format == "txt":
+        tle_data = [
+            f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
+            for tle in tles
+        ]
+        text_content = "".join(tle_data)
+        return io.BytesIO(text_content.encode())
+
+    else:
+        # Extract the TLE data from the result set
+        tle_data = [
+            {
+                "satellite_name": tle.satellite.sat_name,
+                "satellite_id": tle.satellite.sat_number,
+                "tle_line1": tle.tle_line1,
+                "tle_line2": tle.tle_line2,
+                "epoch": format_date(tle.epoch),
+                "date_collected": format_date(tle.date_collected),
+                "data_source": tle.data_source,
+            }
+            for tle in tles
+        ]
+
+        return [
+            {
+                "tle_data": tle_data,
+                "source": api_source,
+                "version": api_version,
+            }
+        ]
 
 
 def get_satellite_data(

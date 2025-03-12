@@ -1,7 +1,8 @@
 # ruff: noqa: E501, S101, F841
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
+from astropy.time import Time
 from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
@@ -212,6 +213,78 @@ def test_get_tles_at_epoch_zipped(client, session):
     assert (
         response.headers["Content-Disposition"] == "attachment; filename=tle_data.zip"
     )
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_adjacent_tles(client, session):
+    satellite = SatelliteFactory(
+        sat_number="25544", decay_date=None, has_current_sat_number=True
+    )
+    epoch = datetime.now()
+    tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
+    tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
+    tle_repo = tle_repository.SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    tle_repo.add(tle2)
+    session.commit()
+
+    epoch_jd = Time(epoch).jd
+    response = client.get(
+        f"/tools/get-adjacent-tles/?id=25544&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["tle_data"]) == 2
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_nearest_tle(client, session):
+    satellite = SatelliteFactory(
+        sat_number="25544", decay_date=None, has_current_sat_number=True
+    )
+    epoch = datetime.now()
+    tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
+    tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
+    tle_repo = tle_repository.SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    tle_repo.add(tle2)
+    session.commit()
+
+    epoch_jd = Time(epoch).jd
+    response = client.get(
+        f"/tools/get-nearest-tle/?id=25544&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["tle_data"]) == 1
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_tles_around_epoch(client, session):
+    satellite = SatelliteFactory(
+        sat_number="25544", decay_date=None, has_current_sat_number=True
+    )
+    epoch = datetime.now()
+    tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
+    tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
+    tle_repo = tle_repository.SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    tle_repo.add(tle2)
+    session.commit()
+
+    epoch_jd = Time(epoch).jd
+    response = client.get(
+        f"/tools/get-tles-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["tle_data"]) == 2
 
 
 @pytest.mark.skipif(

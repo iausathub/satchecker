@@ -181,6 +181,25 @@ def validate_parameters(
         if parameters["id_type"] not in ["catalog", "name"]:
             raise ValidationError(400, error_messages.INVALID_PARAMETER)
 
+        # Special case for get-adjacent-tles endpoint
+        if (
+            request.path.endswith("/get-adjacent-tles/")
+            and parameters["id_type"] != "catalog"
+        ):
+            raise ValidationError(
+                400,
+                "For get-adjacent-tles, only id_type='catalog' is currently supported",
+            )
+
+        if (
+            request.path.endswith("/get-tles-around-epoch/")
+            and parameters["id_type"] != "catalog"
+        ):
+            raise ValidationError(
+                400,
+                "For get-tles-around-epoch, only id_type='catalog' is currently supported",  # noqa: E501
+            )
+
     if "end_date_jd" in parameters.keys() and parameters["end_date_jd"] is not None:
         try:
             parameters["end_date_jd"] = (
@@ -256,11 +275,17 @@ def validate_parameters(
     if "duration" in parameters.keys() and parameters["duration"] is not None:
         parameters["duration"] = float(parameters["duration"])
 
-    if "count_before" in parameters.keys() and parameters["count_before"] is not None:
-        parameters["count_before"] = int(parameters["count_before"])
+    if "count_before" in parameters.keys():
+        if parameters["count_before"] is not None:
+            parameters["count_before"] = int(parameters["count_before"])
+        else:
+            parameters["count_before"] = 2
 
-    if "count_after" in parameters.keys() and parameters["count_after"] is not None:
-        parameters["count_after"] = int(parameters["count_after"])
+    if "count_after" in parameters.keys():
+        if parameters["count_after"] is not None:
+            parameters["count_after"] = int(parameters["count_after"])
+        else:
+            parameters["count_after"] = 2
 
     if "format" in parameters.keys() and parameters["format"] is not None:
         parameters["format"] = parameters["format"].lower()
