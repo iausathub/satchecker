@@ -3,6 +3,13 @@ Release History
 
 See the full changelog `here <https://github.com/iausathub/satchecker/releases>`_.
 
+v1.2.0
+------------
+* Initial field of view service to check satellite passes through a given field of view, and which satellites are currently above the horizon.
+* Added endpoint to get all active satellites
+* Add txt as a result format option for getting all TLEs from a given epoch
+* Support astropy site names as alternatives to lat/lon/elevation in ephemeris and FOV endpoints
+
 v1.1.0
 ------------
 * Add TLE epoch date to ephemeris data response
