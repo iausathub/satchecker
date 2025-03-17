@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import DateTime, and_, func, or_, text
@@ -64,6 +64,26 @@ class AbstractTLERepository(abc.ABC):
     ) -> tuple[list[TLE], int]:
         return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
 
+    def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
+        return self._get_nearest_tle(id, id_type, epoch)
+
+    def get_adjacent_tles(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> tuple[TLE, TLE]:
+        return self._get_adjacent_tles(id, id_type, epoch)
+
+    def get_tles_around_epoch(
+        self,
+        id: str,
+        id_type: str,
+        epoch: datetime,
+        count_before: int,
+        count_after: int,
+    ) -> list[TLE]:
+        return self._get_tles_around_epoch(
+            id, id_type, epoch, count_before, count_after
+        )
+
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
@@ -99,6 +119,25 @@ class AbstractTLERepository(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def _get_tles_around_epoch(
+        self,
+        id: str,
+        id_type: str,
+        epoch: datetime,
+        count_before: int,
+        count_after: int,
+    ) -> list[TLE]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_adjacent_tles(self, id: str, id_type: str, epoch: datetime) -> list[TLE]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def _add(self, satellite: TLE):
         raise NotImplementedError
 
@@ -131,6 +170,25 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             data_source=domain_tle.data_source,
             satellite=SqlAlchemySatelliteRepository._to_orm(domain_tle.satellite),
         )
+
+    def _add(self, tle: TLE):
+        orm_tle = self._to_orm(tle)
+
+        try:
+            existing_satellite = (
+                self.session.query(SatelliteDb)
+                .filter(
+                    SatelliteDb.sat_number == tle.satellite.sat_number,
+                    SatelliteDb.sat_name == tle.satellite.sat_name,
+                )
+                .one()
+            )
+            orm_tle.satellite = existing_satellite
+        except NoResultFound:
+            # Satellite does not exist, so it will be added with the TLE
+            pass
+
+        self.session.add(orm_tle)
 
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
@@ -308,21 +366,171 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             self.session.rollback()
             raise
 
-    def _add(self, tle: TLE):
-        orm_tle = self._to_orm(tle)
+    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
+        try:
+            if id_type == "catalog":
+                satellite = (
+                    self.session.query(SatelliteDb)
+                    .filter(SatelliteDb.sat_number == id)
+                    .one()
+                )
+            else:
+                satellite = (
+                    self.session.query(SatelliteDb)
+                    .filter(SatelliteDb.sat_name == id)
+                    .one()
+                )
+
+            # Then get the nearest TLE for this satellite
+            nearest_tle = (
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == satellite.id)
+                .order_by(
+                    func.abs(
+                        func.extract("epoch", TLEDb.epoch)
+                        - func.extract(
+                            "epoch", func.cast(epoch, DateTime(timezone=True))
+                        )
+                    )
+                )
+                .first()
+            )
+
+            if nearest_tle is None:
+                return None
+
+            return self._to_domain(nearest_tle)
+
+        except NoResultFound:
+            return None
+
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _get_adjacent_tles(self, id: str, id_type: str, epoch: datetime) -> list[TLE]:
+        if epoch.tzinfo is None:
+            epoch = epoch.replace(tzinfo=timezone.utc)
 
         try:
-            existing_satellite = (
-                self.session.query(SatelliteDb)
-                .filter(
-                    SatelliteDb.sat_number == tle.satellite.sat_number,
-                    SatelliteDb.sat_name == tle.satellite.sat_name,
-                )
-                .one()
-            )
-            orm_tle.satellite = existing_satellite
-        except NoResultFound:
-            # Satellite does not exist, so it will be added with the TLE
-            pass
+            if id_type == "catalog":
+                # Get all satellites with the same catalog number.
+                # This is because there are often multiple satellite names
+                # associated with the same catalog number, and until the
+                # database is updated to have a satellite name history, we
+                # need to see which one has the TLE that is closest to the
+                # specified epoch.
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(id, epoch)
+                if nearest_sat_id is None:
+                    return []
 
-        self.session.add(orm_tle)
+            # Get the TLE before the specified epoch
+            before_tle = (
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == nearest_sat_id, TLEDb.epoch < epoch)
+                .order_by(TLEDb.epoch.desc())
+                .first()
+            )
+
+            # Get the TLE after the specified epoch
+            after_tle = (
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == nearest_sat_id, TLEDb.epoch > epoch)
+                .order_by(TLEDb.epoch.asc())
+                .first()
+            )
+
+            # Convert to domain objects if they exist
+            result = []
+            if before_tle:
+                result.append(self._to_domain(before_tle))
+            if after_tle:
+                result.append(self._to_domain(after_tle))
+
+            return result
+
+        except NoResultFound:
+            return []
+
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _get_tles_around_epoch(
+        self,
+        id: str,
+        id_type: str,
+        epoch: datetime,
+        count_before: int,
+        count_after: int,
+    ) -> list[TLE]:
+        try:
+            if id_type == "catalog":
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(id, epoch)
+                if nearest_sat_id is None:
+                    return []
+
+            # Get the TLEs before the specified epoch
+            before_tles = (
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == nearest_sat_id, TLEDb.epoch < epoch)
+                .order_by(TLEDb.epoch.desc())
+                .limit(count_before)
+                .all()
+            )
+
+            # Get the TLEs after the specified epoch
+            after_tles = (
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == nearest_sat_id, TLEDb.epoch > epoch)
+                .order_by(TLEDb.epoch.asc())
+                .limit(count_after)
+                .all()
+            )
+
+            # Convert to domain objects
+            result = []
+            result.extend(self._to_domain(tle) for tle in before_tles)
+            result.extend(self._to_domain(tle) for tle in after_tles)
+
+            return result
+        except NoResultFound:
+            return []
+
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _get_correct_satellite_id_at_tle_epoch(
+        self, sat_number: str, epoch: datetime
+    ) -> Satellite:
+        satellites_with_this_number = (
+            self.session.query(SatelliteDb)
+            .filter(SatelliteDb.sat_number == sat_number)
+            .all()
+        )
+
+        if len(satellites_with_this_number) == 0:
+            return None
+
+        # get the closest TLE for each satellite
+        closest_tles = []
+        for sat in satellites_with_this_number:
+            closest_tles.append(
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == sat.id)
+                .order_by(
+                    func.abs(
+                        func.extract("epoch", TLEDb.epoch)
+                        - func.extract(
+                            "epoch", func.cast(epoch, DateTime(timezone=True))
+                        )
+                    )
+                )
+                .first()
+            )
+        # get the TLE with the epoch closest to the specified epoch
+        nearest_tle = min(closest_tles, key=lambda tle: abs(tle.epoch - epoch))
+        nearest_sat_id = nearest_tle.sat_id
+
+        return nearest_sat_id

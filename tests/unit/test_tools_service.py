@@ -1,17 +1,21 @@
 # ruff: noqa: S101
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
+from astropy.time import Time
 from tests.conftest import FakeSatelliteRepository, FakeTLERepository
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.services.tools_service import (
     get_active_satellites,
+    get_adjacent_tle_results,
     get_all_tles_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
+    get_nearest_tle_result,
     get_tle_data,
+    get_tles_around_epoch_results,
 )
 from api.utils.output_utils import format_date
 
@@ -267,3 +271,80 @@ def test_get_all_tles_at_epoch_formatted():
     assert tle_1.tle_line2 in text_content
     assert tle_2.tle_line1 in text_content
     assert tle_2.tle_line2 in text_content
+
+
+def test_get_adjacent_tles():
+    tle_repo = FakeTLERepository([])
+    tle_1 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544),
+        epoch=datetime.now() - timedelta(days=1),
+    )
+    tle_2 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544),
+        epoch=datetime.now() + timedelta(days=1),
+    )
+    tle_repo = FakeTLERepository([tle_1, tle_2])
+    epoch_jd = Time(datetime.now()).jd
+    results = get_adjacent_tle_results(
+        tle_repo, 25544, "catalog", epoch_jd, "test", "1.0"
+    )
+    assert len(results[0]["tle_data"]) == 2
+    assert results[0]["tle_data"][0]["satellite_id"] == 25544
+    assert results[0]["tle_data"][1]["satellite_id"] == 25544
+
+    results = get_adjacent_tle_results(tle_repo, 1, "catalog", epoch_jd, "test", "1.0")
+    assert len(results[0]["tle_data"]) == 0
+
+
+def test_get_nearest_tle():
+    tle_repo = FakeTLERepository([])
+    epoch = datetime.now()
+    tle_1 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch - timedelta(days=1)
+    )
+    tle_2 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=3)
+    )
+    tle_repo = FakeTLERepository([tle_1, tle_2])
+
+    results = get_nearest_tle_result(tle_repo, 25544, "catalog", epoch, "test", "1.0")
+    assert results[0]["tle_data"][0]["tle_line1"] == tle_1.tle_line1
+    assert results[0]["tle_data"][0]["tle_line2"] == tle_1.tle_line2
+
+    results = get_nearest_tle_result(tle_repo, 1, "catalog", epoch, "test", "1.0")
+    assert len(results[0]["tle_data"]) == 0
+
+
+def test_get_tles_around_epoch():
+    tle_repo = FakeTLERepository([])
+    epoch = datetime.now()
+    tle_1 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch - timedelta(days=1)
+    )
+    tle_2 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=3)
+    )
+    tle_3 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=5)
+    )
+    tle_repo = FakeTLERepository([tle_1, tle_2, tle_3])
+
+    results = get_tles_around_epoch_results(
+        tle_repo, 25544, "catalog", epoch, 2, 2, "test", "1.0"
+    )
+    assert len(results[0]["tle_data"]) == 3
+
+    results = get_tles_around_epoch_results(
+        tle_repo, 25544, "catalog", epoch, 1, 1, "test", "1.0"
+    )
+    assert len(results[0]["tle_data"]) == 2
+
+    results = get_tles_around_epoch_results(
+        tle_repo, 25544, "catalog", epoch, 1, 1, "test", "1.0"
+    )
+    assert len(results[0]["tle_data"]) == 2
+
+    results = get_tles_around_epoch_results(
+        tle_repo, 25544, "catalog", epoch, 0, 2, "test", "1.0"
+    )
+    assert len(results[0]["tle_data"]) == 2
