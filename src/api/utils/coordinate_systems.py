@@ -153,7 +153,7 @@ def enu_to_az_el(r_enu: np.ndarray) -> tuple[float, float]:
         r_enu (np.ndarray): The ENU coordinates.
 
     Returns:
-        Tuple[float, float]: The azimuth and elevation in degrees.
+        tuple[float, float]: The azimuth and elevation in degrees.
     """
     # Calculate horizontal distance
     p = np.hypot(r_enu[0], r_enu[1])
@@ -229,7 +229,7 @@ def az_el_to_ra_dec(
         jd (float): The Julian Day.
 
     Returns:
-        Tuple[float, float]: The right ascension and declination in degrees.
+        tuple[float, float]: The right ascension and declination in degrees.
     """
     lst = calculate_lst(lon, jd)
     # Convert to radians
