@@ -277,13 +277,23 @@ def validate_parameters(
 
     if "count_before" in parameters.keys():
         if parameters["count_before"] is not None:
-            parameters["count_before"] = int(parameters["count_before"])
+            try:
+                if int(parameters["count_before"]) < 0:
+                    raise ValidationError(500, error_messages.INVALID_PARAMETER)
+                parameters["count_before"] = int(parameters["count_before"])
+            except Exception as e:
+                raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
         else:
             parameters["count_before"] = 2
 
     if "count_after" in parameters.keys():
         if parameters["count_after"] is not None:
-            parameters["count_after"] = int(parameters["count_after"])
+            try:
+                if int(parameters["count_after"]) < 0:
+                    raise ValidationError(500, error_messages.INVALID_PARAMETER)
+                parameters["count_after"] = int(parameters["count_after"])
+            except Exception as e:
+                raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
         else:
             parameters["count_after"] = 2
 
