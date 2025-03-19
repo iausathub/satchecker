@@ -20,3 +20,9 @@ exclude = '''
 [tool.ruff]
 lint.select = ["E", "F", "I", "N", "UP", "S", "B"]
 src = ["src"]
+
+[tool.towncrier]
+directory = "src/api/changes"
+package_dir = "src"
+version = "1.2.1"
+filename = "changes.md"
