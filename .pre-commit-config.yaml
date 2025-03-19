@@ -16,3 +16,8 @@ repos:
   rev: v0.8.0
   hooks:
     - id: ruff
+
+- repo: https://github.com/twisted/towncrier
+  rev: 24.8.0
+  hooks:
+    - id: towncrier-check
