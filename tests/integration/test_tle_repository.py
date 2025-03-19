@@ -584,3 +584,41 @@ def test_get_tles_around_epoch(session):
 
     results = tle_repository.get_tles_around_epoch(-1, "catalog", epoch, 1, 1)
     assert len(results) == 0
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_nearest_tle(session):
+    tle_repository = SqlAlchemyTLERepository(session)
+    sat_repository = SqlAlchemySatelliteRepository(session)
+
+    satellite = SatelliteFactory(sat_name="ISS", sat_number=25544)
+    satellite_2 = SatelliteFactory(sat_name="ISS (ZARYA)", sat_number=25544)
+    sat_repository.add(satellite)
+    sat_repository.add(satellite_2)
+    session.commit()
+
+    epoch = datetime.now(timezone.utc)
+    tle = TLEFactory(epoch=epoch, satellite=satellite)
+    tle_2 = TLEFactory(epoch=epoch - timedelta(days=14), satellite=satellite_2)
+    tle_repository.add(tle)
+    tle_repository.add(tle_2)
+    session.commit()
+
+    result = tle_repository.get_nearest_tle(satellite.sat_number, "catalog", epoch)
+    assert result.satellite.sat_name == satellite.sat_name
+
+    result = tle_repository.get_nearest_tle(
+        satellite_2.sat_number, "catalog", epoch - timedelta(days=8)
+    )
+    assert result.satellite.sat_name == satellite_2.sat_name
+
+    result = tle_repository.get_nearest_tle(
+        satellite.sat_number, "catalog", epoch + timedelta(days=100)
+    )
+    assert result.satellite.sat_name == satellite.sat_name
+
+    result = tle_repository.get_nearest_tle(-1, "catalog", epoch)
+    assert result is None
