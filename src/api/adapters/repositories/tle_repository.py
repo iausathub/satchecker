@@ -369,22 +369,22 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
         try:
             if id_type == "catalog":
-                satellite = (
-                    self.session.query(SatelliteDb)
-                    .filter(SatelliteDb.sat_number == id)
-                    .one()
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
+                    id, id_type, epoch
                 )
+                if nearest_sat_id is None:
+                    return None
             else:
-                satellite = (
-                    self.session.query(SatelliteDb)
-                    .filter(SatelliteDb.sat_name == id)
-                    .one()
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
+                    id, id_type, epoch
                 )
+                if nearest_sat_id is None:
+                    return None
 
             # Then get the nearest TLE for this satellite
             nearest_tle = (
                 self.session.query(TLEDb)
-                .filter(TLEDb.sat_id == satellite.id)
+                .filter(TLEDb.sat_id == nearest_sat_id)
                 .order_by(
                     func.abs(
                         func.extract("epoch", TLEDb.epoch)
@@ -420,7 +420,9 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 # database is updated to have a satellite name history, we
                 # need to see which one has the TLE that is closest to the
                 # specified epoch.
-                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(id, epoch)
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
+                    id, id_type, epoch
+                )
                 if nearest_sat_id is None:
                     return []
 
@@ -466,7 +468,9 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     ) -> list[TLE]:
         try:
             if id_type == "catalog":
-                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(id, epoch)
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
+                    id, id_type, epoch
+                )
                 if nearest_sat_id is None:
                     return []
 
@@ -502,20 +506,25 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             raise
 
     def _get_correct_satellite_id_at_tle_epoch(
-        self, sat_number: str, epoch: datetime
+        self, id: str, id_type: str, epoch: datetime
     ) -> Satellite:
-        satellites_with_this_number = (
-            self.session.query(SatelliteDb)
-            .filter(SatelliteDb.sat_number == sat_number)
-            .all()
-        )
+        if id_type == "catalog":
+            satellites_with_this_identifier = (
+                self.session.query(SatelliteDb)
+                .filter(SatelliteDb.sat_number == id)
+                .all()
+            )
+        else:
+            satellites_with_this_identifier = (
+                self.session.query(SatelliteDb).filter(SatelliteDb.sat_name == id).all()
+            )
 
-        if len(satellites_with_this_number) == 0:
+        if len(satellites_with_this_identifier) == 0:
             return None
 
         # get the closest TLE for each satellite
         closest_tles = []
-        for sat in satellites_with_this_number:
+        for sat in satellites_with_this_identifier:
             closest_tles.append(
                 self.session.query(TLEDb)
                 .filter(TLEDb.sat_id == sat.id)
