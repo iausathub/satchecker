@@ -1,29 +1,31 @@
-# import api.core
-
+# noqa: I001
 import os
-
-if "SQLALCHEMY_DATABASE_URI" not in os.environ:
-    os.environ["SQLALCHEMY_DATABASE_URI"] = (
-        "postgresql://postgres:postgres@localhost:5432/test_satchecker"
-    )
-os.environ["LOCAL_DB"] = "1"
-
 from datetime import datetime
 from urllib.parse import urlparse
 
 import psycopg2
 import pytest
 import redis
+from astropy.coordinates import EarthLocation
+from astropy.time import Time
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import sessionmaker
 
 from api import create_app
 from api.adapters.database_orm import Base
-from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
+from api.adapters.repositories.satellite_repository import (
+    AbstractSatelliteRepository,
+)
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.entrypoints.extensions import db as database
+
+if "SQLALCHEMY_DATABASE_URI" not in os.environ:
+    os.environ["SQLALCHEMY_DATABASE_URI"] = (
+        "postgresql://postgres:postgres@localhost:5432/test_satchecker"
+    )
+os.environ["LOCAL_DB"] = "1"
 
 
 def create_partitions(engine):
@@ -325,9 +327,36 @@ class FakeTLERepository(AbstractTLERepository):
     def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
         return list(self._tles), len(self._tles)
 
+    def _get_adjacent_tles(self, id, id_type, epoch):
+        # limit to one before and one after for the given id (satellite number)
+        tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
+        return tles[:1] + tles[1:]
+
+    def _get_tles_around_epoch(self, id, id_type, epoch, count_before, count_after):
+        # limit to count_before + count_after
+        tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
+        return tles[: count_before + count_after]
+
+    def _get_nearest_tle(self, id, id_type, epoch):
+        return min(
+            (tle for tle in self._tles if tle.satellite.sat_number == id),
+            key=lambda tle: abs(tle.epoch - epoch),
+            default=None,
+        )
+
 
 class FakeSession:
     committed = False
 
     def commit(self):
         self.committed = True
+
+
+@pytest.fixture
+def test_location():
+    return EarthLocation(lat=43.1929, lon=-81.3256, height=300)
+
+
+@pytest.fixture
+def test_time():
+    return Time("2024-10-01T18:19:13", format="isot", scale="utc")

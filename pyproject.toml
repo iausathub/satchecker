@@ -20,3 +20,39 @@ exclude = '''
 [tool.ruff]
 lint.select = ["E", "F", "I", "N", "UP", "S", "B"]
 src = ["src"]
+
+[tool.towncrier]
+directory = "src/api/changes"
+package_dir = "src"
+filename = "changes.md"
+issue_format = "[#{issue}](https://github.com/iausathub/satchecker/pull/{issue})"
+
+[[tool.towncrier.type]]
+directory = "misc"
+name = "Miscellaneous"
+showcontent = true  # This ensures full content is shown
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bugfixes"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Improved Documentation"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "removal"
+name = "Deprecations and Removals"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "changed"
+name = "Changes"
+showcontent = true

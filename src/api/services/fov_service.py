@@ -1,5 +1,6 @@
+import json
 import time as python_time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -7,7 +8,33 @@ from astropy.time import Time
 from skyfield.api import EarthSatellite, load, wgs84
 
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.entrypoints.extensions import redis_client
 from api.utils import coordinate_systems, output_utils
+
+
+def _create_fov_cache_key(
+    location: EarthLocation,
+    mid_obs_time_jd: Time,
+    start_time_jd: Time,
+    duration: float,
+    ra: float,
+    dec: float,
+    fov_radius: float,
+) -> str:
+    """Create a unique cache key for the FOV calculation."""
+    key_parts = [
+        "fov",
+        f"lat_{location.lat.value:.6f}",
+        f"lon_{location.lon.value:.6f}",
+        f"height_{location.height.value:.6f}",
+        f"mid_time_{mid_obs_time_jd.jd if mid_obs_time_jd else 'None'}",
+        f"start_time_{start_time_jd.jd if start_time_jd else 'None'}",
+        f"duration_{duration}",
+        f"ra_{ra}",
+        f"dec_{dec}",
+        f"radius_{fov_radius}",
+    ]
+    return ":".join(key_parts)
 
 
 def get_satellite_passes_in_fov(
@@ -27,6 +54,30 @@ def get_satellite_passes_in_fov(
     print(f"\nStarting FOV calculation at: {datetime.now().isoformat()}")
     print(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
     print(f"Duration: {duration} seconds")
+
+    # Create cache key and check cache
+
+    cache_key = _create_fov_cache_key(
+        location, mid_obs_time_jd, start_time_jd, duration, ra, dec, fov_radius
+    )
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        cache_time = python_time.time() - start_time
+        print("Found cached result")
+        cached_results = json.loads(cached_data)
+        # Return cached results using the same formatting function
+        return output_utils.fov_data_to_json(
+            cached_results["results"],
+            cached_results["points_in_fov"],
+            {
+                "total_time": round(cache_time, 3),
+                "points_in_fov": cached_results["points_in_fov"],
+                "from_cache": True,
+            },
+            api_source,
+            api_version,
+            group_by,
+        )
 
     # Get all current TLEs
     tle_start = python_time.time()
@@ -158,7 +209,7 @@ def get_satellite_passes_in_fov(
         "jd_times": jd_times.tolist(),
     }
 
-    return output_utils.fov_data_to_json(
+    result = output_utils.fov_data_to_json(
         all_results,
         points_in_fov,
         performance_metrics,
@@ -166,6 +217,15 @@ def get_satellite_passes_in_fov(
         api_version,
         group_by,
     )
+
+    # Cache only the raw results and points_in_fov
+    cache_data = {
+        "results": all_results,
+        "points_in_fov": points_in_fov,
+    }
+    redis_client.setex(cache_key, timedelta(hours=1), json.dumps(cache_data))
+
+    return result
 
 
 def get_satellites_above_horizon(

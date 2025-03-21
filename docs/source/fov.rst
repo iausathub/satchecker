@@ -142,7 +142,7 @@ Satellite passes Through FOV
                 "total_satellites": 3
             },
             "source": "IAU CPS SatChecker",
-            "version": "1.2.0"
+            "version": "1.X.x"
         }
     ]
 
@@ -234,6 +234,6 @@ Satellites above the horizon
                 }
             ],
             "source": "IAU CPS SatChecker",
-            "version": "1.2.0"
+            "version": "1.X.x"
         }
     ]

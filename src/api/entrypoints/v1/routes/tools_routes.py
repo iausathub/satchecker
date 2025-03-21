@@ -9,11 +9,14 @@ from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
     get_active_satellites,
+    get_adjacent_tle_results,
     get_all_tles_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
+    get_nearest_tle_result,
     get_satellite_data,
     get_tle_data,
+    get_tles_around_epoch_results,
 )
 from api.services.validation_service import validate_parameters
 
@@ -171,6 +174,28 @@ def get_satellite_data_list():
 @api_main.route("/tools/get-active-satellites/")
 @limiter.limit("100 per second, 2000 per minute")
 def get_active_satellites_list():
+    """
+    Returns a list of all active satellites in the database.
+    A satellite is considered active if it has been launched and has not decayed.
+
+    Parameters:
+        object_type (str, optional):
+            Filter results by object type (e.g., 'PAYLOAD', 'ROCKET BODY', 'DEBRIS').
+            If not provided, returns all active satellites.
+
+    Returns:
+        response: JSON
+            A list of active satellites, containing:
+            - satellite_name: Name of the satellite
+            - satellite_id: NORAD Catalog Number
+            - object_type: Type of space object
+            - launch_date: Date the object was launched
+            - decay_date: (will be null since all objects here are still active)
+            - international_designator: International Designator (COSPAR ID)
+            - rcs_size: Radar Cross Section Size
+            - source: API name
+            - version: API version
+    """
     session = db.session
     sat_repo = SqlAlchemySatelliteRepository(session)
 
@@ -255,3 +280,96 @@ def get_tles_at_epoch():
         )
     else:
         return jsonify(tles)
+
+
+@api_v1.route("/tools/get-nearest-tle/")
+@api_main.route("/tools/get-nearest-tle/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_nearest_tle():
+    """
+    Fetches the TLE closest to the given epoch.
+
+    Parameters:
+        id (str): The ID of the satellite.
+        id_type (str): The type of the ID, either 'catalog' or 'name'.
+        epoch (float): The Julian Date to find the nearest TLE for.
+    """
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+    parameter_list = ["id", "id_type", "epoch"]
+    required_parameters = ["id", "id_type", "epoch"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    tle_data = get_nearest_tle_result(
+        tle_repo,
+        parameters["id"],
+        parameters["id_type"],
+        parameters["epoch"],
+        api_source,
+        api_version,
+    )
+    return jsonify(tle_data)
+
+
+@api_v1.route("/tools/get-adjacent-tles/")
+@api_main.route("/tools/get-adjacent-tles/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_adjacent_tles():
+    """
+    Fetches the TLEs immediately before and after the given epoch.
+
+    Parameters:
+        id (str): The ID of the satellite.
+        id_type (str): The type of the ID, currently only 'catalog' is supported.
+        epoch (float): The Julian Date to bracket.
+    """
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+    parameter_list = ["id", "id_type", "epoch"]
+    required_parameters = ["id", "id_type", "epoch"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    tle_data = get_adjacent_tle_results(
+        tle_repo,
+        parameters["id"],
+        parameters["id_type"],
+        parameters["epoch"],
+        api_source,
+        api_version,
+    )
+    return jsonify(tle_data)
+
+
+@api_v1.route("/tools/get-tles-around-epoch/")
+@api_main.route("/tools/get-tles-around-epoch/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_tles_around_epoch():
+    """
+    Fetches a specified number of TLEs before and after a given epoch.
+
+    Parameters:
+        id (str): The ID of the satellite.
+        id_type (str): The type of the ID, currently only 'catalog' is supported.
+        epoch (float): The Julian Date to center the TLE search around.
+        count_before (int, optional): Number of TLEs to fetch before the epoch.
+        Default: 2
+        count_after (int, optional): Number of TLEs to fetch after the epoch.
+        Default: 2
+    """
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+    parameter_list = ["id", "id_type", "epoch", "count_before", "count_after"]
+    required_parameters = ["id", "id_type", "epoch"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    tle_data = get_tles_around_epoch_results(
+        tle_repo,
+        parameters["id"],
+        parameters["id_type"],
+        parameters["epoch"],
+        parameters.get("count_before", 2),
+        parameters.get("count_after", 2),
+        api_source,
+        api_version,
+    )
+    return jsonify(tle_data)

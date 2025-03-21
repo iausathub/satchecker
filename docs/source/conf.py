@@ -32,7 +32,7 @@ copyright = "2024, IAU Centre for the Protection of Dark and Quiet Sky from \
 author = "IAU CPS"
 
 # The full version, including alpha/beta/rc tags
-release = "1.2.0"
+release = "1.3.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -49,6 +49,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "celery.contrib.sphinx",
+    "myst_parser",
 ]
 
 nbsphinx_allow_errors = True
