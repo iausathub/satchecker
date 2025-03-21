@@ -4,6 +4,22 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
+# 1.2.1 (2025-03-21)
+
+### Miscellaneous
+
+- Add support for Towncrier change logs ([#129](https://github.com/iausathub/satchecker/pull/129))
+
+### Improved Documentation
+
+- Separate documentation for TLE and satellite related endpoints for the Tools API ([#127](https://github.com/iausathub/satchecker/pull/127))
+
+### Features
+
+- Add endpoints to the tools API to get the TLE nearest to a given date, get TLEs immediately before and after a given date, and get any specified number of TLEs before or after a given date ([#127](https://github.com/iausathub/satchecker/pull/127))
+- Add caching for FOV queries with a 1 hour expiration. Caching is based on all FOV query parameters so only identical queries are cached. ([#129](https://github.com/iausathub/satchecker/pull/129))
+
+
 # 1.2.0 (2025-03-06)
 
 ### Features

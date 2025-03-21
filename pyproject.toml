@@ -26,6 +26,7 @@ directory = "src/api/changes"
 package_dir = "src"
 version = "1.2.1"
 filename = "changes.md"
+issue_format = "[#{issue}](https://github.com/iausathub/satchecker/pull/{issue})"
 
 [[tool.towncrier.type]]
 directory = "misc"
