@@ -184,7 +184,7 @@ in the database (no decay date and current NORAD ID).
                 "per_page": 5,
                 "source": "IAU CPS SatChecker",
                 "total_results": 385,
-                "version": "1.2.0"
+                "version": "1.X.x"
             }
         ]
 
@@ -261,7 +261,7 @@ check the epoch of the TLE to make sure that it is suitable for your needs.
                         "tle_line2": "2 25544  51.6414 284.5574 0002475 176.3471 287.7672 15.49357173436989"
                     }
                 ],
-                "version": "1.2.0"
+                "version": "1.X.x"
             }
         ]
 
@@ -344,7 +344,7 @@ by NORAD ID.
                         "tle_line2": "2 25544  51.6414 284.5574 0002475 176.3471 287.7672 15.49357173436989"
                     }
                 ],
-                "version": "1.2.0"
+                "version": "1.X.x"
             }
         ]
 
@@ -429,6 +429,6 @@ It currently only supports searching by NORAD ID.
                         "tle_line2": "2 25544  51.6414 284.5574 0002475 176.3471 287.7672 15.49357173436989"
                     }
                 ],
-                "version": "1.2.0"
+                "version": "1.X.x"
             }
         ]

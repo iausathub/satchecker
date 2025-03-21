@@ -4,7 +4,7 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
-# 1.2.1 (2025-03-21)
+# 1.3.0 (2025-03-21)
 
 ### Miscellaneous
 
