@@ -33,7 +33,7 @@ defusedxml==0.7.1
 Deprecated==1.2.14
 dill==0.3.7
 distlib==0.3.7
-docutils==0.18.1
+docutils==0.19
 executing==1.2.0
 factory-boy==3.3.0
 Faker==26.3.0
