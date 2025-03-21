@@ -49,6 +49,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "celery.contrib.sphinx",
+    "myst_parser",
 ]
 
 nbsphinx_allow_errors = True

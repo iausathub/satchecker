@@ -144,13 +144,13 @@ def get_nearest_tle_result(
     Returns:
         list[dict[str, str | int | None]]: A single-item list containing a
         dictionary with:
-            - satellite_name (str): Name of the satellite
-            - satellite_id (int): NORAD catalog number
-            - tle_line1 (str): First line of the TLE
-            - tle_line2 (str): Second line of the TLE
-            - epoch (str): Epoch of the TLE in 'YYYY-MM-DD HH:MM:SS TZ' format
-            - date_collected (str): Date TLE was collected
-            - data_source (str): Source of the TLE data
+        - satellite_name (str): Name of the satellite
+        - satellite_id (int): NORAD catalog number
+        - tle_line1 (str): First line of the TLE
+        - tle_line2 (str): Second line of the TLE
+        - epoch (str): Epoch of the TLE in 'YYYY-MM-DD HH:MM:SS TZ' format
+        - date_collected (str): Date TLE was collected
+        - data_source (str): Source of the TLE data
     """
     tle = tle_repo.get_nearest_tle(id, id_type, epoch)
 
@@ -471,11 +471,11 @@ def get_ids_for_satellite_name(
             A list of dictionaries containing the satellite name, NORAD ID,
             date added, and whether it is the current version. Each dictionary
             includes the following keys:
-                - "name": The name of the satellite.
-                - "norad_id": The NORAD ID of the satellite.
-                - "date_added": The date the NORAD ID was added.
-                - "is_current_version": A boolean indicating if it is the current
-                    version.
+            - "name": The name of the satellite.
+            - "norad_id": The NORAD ID of the satellite.
+            - "date_added": The date the NORAD ID was added.
+            - "is_current_version": A boolean indicating if it is the current
+              version.
     """
 
     satellite_ids_dates = sat_repo.get_norad_ids_from_satellite_name(satellite_name)
