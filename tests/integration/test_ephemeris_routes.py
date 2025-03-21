@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 
 import pytest
-from astropy.time import Time, TimeDelta
+from astropy.time import TimeDelta
 from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
@@ -182,9 +182,9 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
 
 
 @pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_tle_date_out_of_range(client, session):
+def test_get_ephemeris_tle_date_out_of_range(client, session, test_time):
     # Use a fixed Julian date as the base time to avoid any timezone issues
-    base_jd = Time("2020-05-30T00:00:00", format="isot", scale="utc")
+    base_jd = test_time
     base_datetime = base_jd.to_datetime(timezone=timezone.utc)
 
     satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
@@ -210,9 +210,9 @@ def test_get_ephemeris_tle_date_out_of_range(client, session):
     assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
 
 
-def test_get_ephemeris_tle_date_in_range(client, session):
+def test_get_ephemeris_tle_date_in_range(client, session, test_time):
     # Use a fixed Julian date as the base time to avoid any timezone issues
-    base_jd = Time("2020-05-30T00:00:00", format="isot", scale="utc")
+    base_jd = test_time
     base_datetime = base_jd.to_datetime(timezone=timezone.utc)
 
     satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
