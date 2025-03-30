@@ -22,7 +22,7 @@ jobs:
          uses: apisec-inc/ethicalcheck-action@005fac321dd843682b1af6b72f30caaf9952c641
          with:
           # The OpenAPI Specification URL or Swagger Path or Public Postman collection URL.
-          oas-url: "dev.satchecker.cps.iau.noirlab.edu/api/docs"
+          oas-url: "https://dev.satchecker.cps.iau.noirlab.edu/api/docs/"
           # The email address to which the penetration test report will be sent.
           email: ${{ secrets.ETHICALCHECK_EMAIL }}  # Reference the secret here
           sarif-result-file: "ethicalcheck-results.sarif"
