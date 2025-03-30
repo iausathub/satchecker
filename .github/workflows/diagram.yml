@@ -14,3 +14,9 @@ jobs:
         uses: githubocto/repo-visualizer@main
         with:
           excluded_paths: "ignore,.github"
+          should_push: false
+      - name: Get artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: "my-diagram"
+          path: "downloads"
