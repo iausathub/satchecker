@@ -33,13 +33,13 @@ jobs:
           ls -la  # List files in the directory to confirm the file paths
 
       - name: Upload load test results as artifact (JSON)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: artillery-results
           path: ./artillery-results.json
 
       - name: Upload HTML report as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: artillery-report
           path: ./artillery-report.html
