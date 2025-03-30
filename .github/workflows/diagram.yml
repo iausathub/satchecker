@@ -17,8 +17,8 @@ jobs:
           artifact_name: "my-diagram"
           excluded_paths: "ignore,.github"
           should_push: false
-      - name: Get artifact
-        uses: actions/download-artifact@v3
+      - name: Upload diagram artifact
+        uses: actions/upload-artifact@v4
         with:
           name: "my-diagram"
-          path: "downloads"
+          path: "output-diagram.svg"
