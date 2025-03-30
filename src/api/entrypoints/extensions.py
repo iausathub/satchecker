@@ -73,18 +73,20 @@ limiter = Limiter(
 # Initialize Swagger for documentation
 swagger = Swagger(
     template={
-        "swagger": "2.0",
+        "openapi": "3.0.2",
         "info": {
             "title": "SatChecker API",
             "description": "API for satellite information and tracking",
-            "version": "1.0",
+            "version": "1.3",
             "contact": {
                 "name": "IAU CPS",
                 "url": "https://cps.iau.org/tools/satchecker/api/",
             },
         },
-        "securityDefinitions": {
-            "APIKeyHeader": {"type": "apiKey", "name": "X-API-Key", "in": "header"}
+        "components": {
+            "securitySchemes": {
+                "APIKeyHeader": {"type": "apiKey", "name": "X-API-Key", "in": "header"}
+            },
         },
         "security": [{"APIKeyHeader": []}],
     },
@@ -101,5 +103,6 @@ swagger = Swagger(
         ],
         "swagger_ui": True,
         "specs_route": "/api/docs/",
+        "template_file": "flasgger/index.html",  # Use our custom template
     },
 )

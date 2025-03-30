@@ -16,7 +16,7 @@ from api.middleware.error_handler import init_error_handler
 
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, static_url_path="/static")
 
     app.register_blueprint(api_main, url_prefix="/")
     app.register_blueprint(api_v1, url_prefix="/v1")
@@ -54,6 +54,8 @@ def create_app():
         "uiversion": 3,
         "openapi": "3.0.2",
         "specs_route": "/api/docs/",
+        "static_url_path": "/static",
+        "template_file": "flasgger/index.html",  # Use our custom template
     }
 
     # Initialize Flask-Migrate
