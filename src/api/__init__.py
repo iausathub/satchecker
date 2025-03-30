@@ -6,7 +6,7 @@ from flask_migrate import Migrate
 
 from api.celery_app import celery
 from api.config import get_db_login
-from api.entrypoints.extensions import db, limiter
+from api.entrypoints.extensions import db, limiter, swagger
 from api.entrypoints.v1.routes import api_main, api_v1
 from api.entrypoints.v1.routes import ephemeris_routes as ephem_routes  # noqa: F401
 from api.entrypoints.v1.routes import fov_routes as fov_routes  # noqa: F401, I001
@@ -48,6 +48,14 @@ def create_app():
         ),
     )
 
+    # Swagger configuration
+    app.config["SWAGGER"] = {
+        "title": "SatChecker API",
+        "uiversion": 3,
+        "openapi": "3.0.2",
+        "specs_route": "/api/docs/",
+    }
+
     # Initialize Flask-Migrate
     migrate = Migrate(app, db)  # noqa: F841
     with app.app_context():
@@ -65,3 +73,4 @@ if __name__ != "__main__":
 
 limiter.init_app(app)
 db.init_app(app)
+swagger.init_app(app)

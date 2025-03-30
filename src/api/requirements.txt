@@ -154,3 +154,4 @@ wcwidth==0.2.6
 webencodings==0.5.1
 Werkzeug==3.0.6
 wrapt==1.15.0
+flasgger==0.9.7.1
