@@ -1,6 +1,7 @@
 import os
 from urllib.parse import urlparse
 
+from flasgger import Swagger
 from flask import request
 from flask_apscheduler import APScheduler
 from flask_limiter import Limiter
@@ -67,4 +68,41 @@ limiter = Limiter(
     storage_uri=(f"redis://{redis_host}:{redis_port}/0"),
     headers_enabled=True,
     strategy="fixed-window",
+)
+
+# Initialize Swagger for documentation
+swagger = Swagger(
+    template={
+        "openapi": "3.0.2",
+        "info": {
+            "title": "SatChecker API",
+            "description": "API for satellite information and tracking",
+            "version": "1.3",
+            "contact": {
+                "name": "IAU CPS",
+                "url": "https://satchecker.cps.iau.org/",
+            },
+        },
+        "components": {
+            "securitySchemes": {
+                "APIKeyHeader": {"type": "apiKey", "name": "X-API-Key", "in": "header"}
+            },
+        },
+        "security": [{"APIKeyHeader": []}],
+    },
+    parse=True,  # Parse docstrings
+    config={
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": "apispec",
+                "route": "/apispec.json",
+                "rule_filter": lambda rule: True,  # Include all endpoints
+                "model_filter": lambda tag: True,  # Include all models
+            }
+        ],
+        "swagger_ui": True,
+        "specs_route": "/api/docs/",
+        "template_file": "flasgger/index.html",  # Use our custom template
+    },
 )
