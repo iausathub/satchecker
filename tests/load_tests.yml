@@ -1,0 +1,10 @@
+config:
+  target: 'https://satchecker.cps.iau.org'  # Replace with the API or service you want to test
+  phases:
+    - duration: 60  # Duration in seconds
+      arrivalRate: 10  # Number of new virtual users per second
+
+scenarios:
+  - flow:
+      - get:
+          url: '/ephemeris/name/?name=STARLINK-1477&elevation=100&latitude=33&longitude=-110&julian_date=2460546.599502'  # Replace with the endpoint you want to test
