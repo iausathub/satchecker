@@ -38,6 +38,12 @@ jobs:
           name: artillery-results
           path: ./artillery-results.json
 
+      - name: Upload Artillery HTML report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artillery-report
+          path: ./artillery-report.html
+
       - name: Append Report Link to Summary
-        run: echo "[View Artillery Report](./artillery-report.html)" >> $GITHUB_STEP_SUMMARY
+        run: echo "[Download Artillery Report HTML](https://github.com/${{ github.repository }}/actions/artifacts/${{ steps.upload-artillery-report.outputs.artifact_id }})" >> $GITHUB_STEP_SUMMARY
 
