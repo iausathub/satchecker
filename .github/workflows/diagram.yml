@@ -13,6 +13,8 @@ jobs:
       - name: Update diagram
         uses: githubocto/repo-visualizer@main
         with:
+          output_file: "output-diagram.svg"
+          artifact_name: "my-diagram"
           excluded_paths: "ignore,.github"
           should_push: false
       - name: Get artifact
