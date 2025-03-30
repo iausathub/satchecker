@@ -1,0 +1,38 @@
+name: Load Testing with Artillery
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the main branch (adjust as needed)
+  pull_request:
+    branches:
+      - main  # Trigger on pull requests to the main branch (adjust as needed)
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'  
+          
+      - name: Install Artillery
+        run: npm install -g artillery
+
+      - name: Run Artillery load test
+        run: artillery run ./load-test.yml  
+        
+      - name: Upload load test results as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: artillery-results
+          path: "tests/artillery-results.json"
+          
+      - name: Generate HTML report
+        run: artillery report ./artillery-results.json --output ./artillery-report.html
+
