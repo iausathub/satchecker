@@ -80,7 +80,7 @@ swagger = Swagger(
             "version": "1.3",
             "contact": {
                 "name": "IAU CPS",
-                "url": "https://cps.iau.org/tools/satchecker/api/",
+                "url": "https://satchecker.cps.iau.org/",
             },
         },
         "components": {

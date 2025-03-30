@@ -8,7 +8,7 @@ from api.entrypoints.extensions import db, limiter
 from api.services.fov_service import (
     get_satellite_passes_in_fov,
     get_satellites_above_horizon,
-    get_satellites_above_horizon_range,
+    # get_satellites_above_horizon_range,
 )
 from api.services.validation_service import validate_parameters
 
@@ -427,6 +427,7 @@ def _handle_satellites_above_horizon(with_duration=False):
     try:
         # Choose the appropriate service function based on whether duration is included
         if with_duration:
+            """
             satellite_passes = get_satellites_above_horizon_range(
                 tle_repo,
                 parameters["location"],
@@ -439,6 +440,8 @@ def _handle_satellites_above_horizon(with_duration=False):
                 api_source,
                 api_version,
             )
+            """
+            pass
         else:
             satellite_passes = get_satellites_above_horizon(
                 tle_repo,
