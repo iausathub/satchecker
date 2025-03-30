@@ -25,7 +25,7 @@ jobs:
         run: npm install -g artillery
 
       - name: Run Artillery load test
-        run: artillery run tests/load_tests.yml
+        run: artillery run tests/load_tests.yml -o artillery-results.json
 
       - name: Generate HTML report from results
         run: |
