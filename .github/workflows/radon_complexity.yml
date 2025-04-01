@@ -1,0 +1,79 @@
+name: Radon Code Complexity Analysis
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  analyze-complexity:
+    name: Analyze Code Complexity
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install radon jq
+
+      - name: Run Radon and generate report
+        run: |
+          echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          radon cc . -a -nc --json | jq -r '
+          . as $root | to_entries | 
+          map(select(.value.functions != null)) |
+          .[] | .key as $file | .value.functions[] |
+          {
+            file: $file,
+            name: .name,
+            complexity: .complexity,
+            rating: 
+              (if .complexity < 10 then "🟢 A" 
+              elif .complexity < 20 then "🟡 B" 
+              else "🔴 C" end)
+          } |
+          "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🏗 Maintainability Index Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Score | Rating |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          radon mi . --json | jq -r '
+          to_entries[] | 
+          {
+            file: .key,
+            score: .value.mi,
+            rating: 
+              (if .value.mi >= 80 then "🟢 Good" 
+              elif .value.mi >= 50 then "🟡 Moderate" 
+              else "🔴 Poor" end)
+          } |
+          "| \(.file) | \(.score) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail on high complexity (Optional)
+        run: |
+          MAX_COMPLEXITY=10
+          EXIT_CODE=0
+          radon cc . -nc | awk -v max_complexity="$MAX_COMPLEXITY" '
+          /[0-9]+ [A-Za-z0-9_]+/ {
+            complexity = $1;
+            if (complexity > max_complexity) {
+              print "🚨 High complexity function detected:", $0;
+              EXIT_CODE=1
+            }
+          }
+          END { exit EXIT_CODE }'
+        continue-on-error: false
+
+
