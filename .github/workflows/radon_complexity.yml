@@ -30,35 +30,38 @@ jobs:
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
           
-          # Debug: save raw JSON output
+          # Save raw data
           radon cc src/api -a -nc --json > radon_output.json
           
-          # Process with improved jq command
+          # Direct approach - print each function explicitly
           cat radon_output.json | jq -r '
-            to_entries[] | 
-            .key as $file | 
-            .value[] | 
-            select(.type == "function") |  # Ensure we only process functions
-            {
-              file: $file,
-              name: .name,
-              complexity: .complexity,
-              rating: 
-                (if .complexity < 5 then "🟢 A"
-                 elif .complexity < 10 then "🟢 B"
-                 elif .complexity < 20 then "🟡 C"
-                 elif .complexity < 30 then "🟡 D"
-                 elif .complexity < 40 then "🔴 E"
-                 else "🔴 F" end)
-            } |
-            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"
+            . as $data |
+            keys[] as $file |
+            $data[$file][] |
+            "| \($file) | \(.name) | \(.complexity) | \(
+              if .complexity < 5 then "🟢 A"
+              elif .complexity < 10 then "🟢 B" 
+              elif .complexity < 20 then "🟡 C"
+              elif .complexity < 30 then "🟡 D"
+              elif .complexity < 40 then "🔴 E"
+              else "🔴 F" end
+            ) |"
           ' >> $GITHUB_STEP_SUMMARY
           
-          # Debug: count functions
+          # Debug section
           echo "## Debug Information" >> $GITHUB_STEP_SUMMARY
-          echo "Total functions found: $(cat radon_output.json | jq '[to_entries[] | .value | length] | add')" >> $GITHUB_STEP_SUMMARY
-
-
+          echo "Functions per file:" >> $GITHUB_STEP_SUMMARY
+          cat radon_output.json | jq -r '
+            to_entries[] | 
+            "- \(.key): \(.value | length) function(s)"
+          ' >> $GITHUB_STEP_SUMMARY
+          echo "Function names:" >> $GITHUB_STEP_SUMMARY
+          cat radon_output.json | jq -r '
+            to_entries[] | 
+            .key as $file |
+            .value[] |
+            "- \($file): \(.name)"
+          ' >> $GITHUB_STEP_SUMMARY
 
       - name: Run Maintainability Index Report
         run: |
