@@ -32,7 +32,7 @@ jobs:
           # Run radon complexity analysis, excluding tests/
           radon cc . --exclude tests -a -nc --json | jq -r '
             map(
-              select(.functions and (.functions | length > 0))  # Ensure functions exist
+              select(type == "object" and has("functions") and (.functions | length > 0))  # Ensure "functions" key exists
             ) |
             .[] | .filename as $file | .functions[] | 
             {
@@ -54,7 +54,7 @@ jobs:
           # Run radon maintainability analysis, excluding tests/
           radon mi . --exclude tests --json | jq -r '
             map(
-              { file: .filename, score: .mi }
+              select(type == "object") | { file: .filename, score: .mi }
             ) | 
             .[] | 
             {
@@ -66,6 +66,7 @@ jobs:
                 else "🔴 Poor" end)
             } |
             "| \(.file) | \(.score) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
 
 
 
