@@ -28,6 +28,9 @@ jobs:
           echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          radon cc src/api -a -nc --json | jq -r '. | to_entries[] | .key as $file | .value[] | "| \($file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
           
           # Run radon complexity analysis, ensuring all functions are included
           RESULTS=$(radon cc src/api -a -nc --json | jq -r '
