@@ -31,10 +31,9 @@ jobs:
           
           # Run radon complexity analysis, excluding tests/
           radon cc src/api -a -nc --json | jq -r '
-            map(
-              select(type == "object" and has("functions") and (.functions | length > 0))  # Ensure "functions" key exists
-            ) |
-            .[] | .filename as $file | .functions[] | 
+            to_entries[] | 
+            .key as $file | 
+            .value[] |
             {
               file: $file,
               name: .name,
@@ -45,37 +44,29 @@ jobs:
                 else "🔴 C" end)
             } |
             "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
           
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🏗 Maintainability Index Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| File | Score | Rating |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Maintainability Index | Rank |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----------------------|------|" >> $GITHUB_STEP_SUMMARY
           
-          # Run radon maintainability analysis, excluding tests/
-          radon mi arc/api --json | jq -r '
-            map(
-              select(type == "object") | { file: .filename, score: .mi }
-            ) | 
-            .[] | 
+          # Run radon mi analysis, excluding tests/
+          radon mi src/api -a -nc --json | jq -r '
+            to_entries[] | 
+            .key as $file | 
+            .value |
             {
-              file: .file,
-              score: .score,
-              rating: 
-                (if .score >= 80 then "🟢 Good" 
-                elif .score >= 50 then "🟡 Moderate" 
-                else "🔴 Poor" end)
+              file: $file,
+              mi: .mi,
+              rank: .rank
             } |
-            "| \(.file) | \(.score) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
-
-
-
-
+            "| \(.file) | \(.mi) | \(.rank) |"' >> $GITHUB_STEP_SUMMARY
 
       - name: Fail on high complexity (Optional)
         run: |
           MAX_COMPLEXITY=10
           EXIT_CODE=0
-          radon cc . -nc | awk -v max_complexity="$MAX_COMPLEXITY" '
+          radon cc src/api -nc | awk -v max_complexity="$MAX_COMPLEXITY" '
           /[0-9]+ [A-Za-z0-9_]+/ {
             complexity = $1;
             if (complexity > max_complexity) {
