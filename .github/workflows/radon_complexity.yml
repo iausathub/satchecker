@@ -31,17 +31,27 @@ jobs:
           
           # Run radon complexity analysis, ensuring all functions are included
           radon cc src/api -a -nc --json | jq -r '
-            to_entries[] | 
+          to_entries | 
+          map(
             .key as $file | 
-            .value[] | 
-            "| \($file) | \(.name) | \(.complexity) | " + 
-            (if .complexity < 5 then "🟢 A"
-             elif .complexity < 10 then "🟢 B"
-             elif .complexity < 20 then "🟡 C"
-             elif .complexity < 30 then "🟡 D"
-             elif .complexity < 40 then "🔴 E"
-             else "🔴 F" end) + " |"
-          ' >> $GITHUB_STEP_SUMMARY
+            .value | 
+            map({
+              file: $file,
+              name: .name,
+              complexity: .complexity,
+              rating: 
+                (if .complexity < 5 then "🟢 A"
+                elif .complexity < 10 then "🟢 B"
+                elif .complexity < 20 then "🟡 C"
+                elif .complexity < 30 then "🟡 D"
+                elif .complexity < 40 then "🔴 E"
+                else "🔴 F" end)
+            })
+          ) | 
+          flatten | 
+          .[] | 
+          "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
 
       - name: Run Maintainability Index Report
         run: |
