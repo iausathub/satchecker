@@ -30,53 +30,17 @@ jobs:
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
           
-          # Save raw JSON for reference
-          radon cc src/api -a -nc --json > radon_output.json
-          
-          # Process JSON with Python instead of jq - fixed quotes
-          python3 -c '
-          import json
-          import sys
-          
-          def get_rating(complexity):
-              if complexity < 5:
-                  return "🟢 A"
-              elif complexity < 10:
-                  return "🟢 B"
-              elif complexity < 20:
-                  return "🟡 C"
-              elif complexity < 30:
-                  return "🟡 D"
-              elif complexity < 40:
-                  return "🔴 E"
-              else:
-                  return "🔴 F"
-          
-          with open("radon_output.json", "r") as f:
-              data = json.load(f)
-              
-          for file_path, functions in data.items():
-              for func in functions:
-                  complexity = func.get("complexity", 0)
-                  rating = get_rating(complexity)
-                  print(f"| {file_path} | {func[\"name\"]} | {complexity} | {rating} |")
-          ' >> $GITHUB_STEP_SUMMARY
-          
-          # Add a count of functions found for verification - fixed quotes
-          echo "## Debug Information" >> $GITHUB_STEP_SUMMARY
-          python3 -c '
-          import json
-          
-          with open("radon_output.json", "r") as f:
-              data = json.load(f)
-              
-          total = sum(len(functions) for functions in data.values())
-          print(f"Total functions found: {total}")
-          
-          for file_path, functions in data.items():
-              print(f"- {file_path}: {len(functions)} function(s)")
-              for func in functions:
-                  print(f"  - {func[\"name\"]}: complexity {func[\"complexity\"]}")
+          radon cc src/api -a -nc --json | jq -r '
+            keys[] as $file |
+            .[$file][] | 
+            "| \($file) | \(.name) | \(.complexity) | \(
+              if .complexity < 5 then "🟢 A"
+              elif .complexity < 10 then "🟢 B" 
+              elif .complexity < 20 then "🟡 C"
+              elif .complexity < 30 then "🟡 D"
+              elif .complexity < 40 then "🔴 E"
+              else "🔴 F" end
+            ) |"
           ' >> $GITHUB_STEP_SUMMARY
           
       - name: Run Maintainability Index Report
