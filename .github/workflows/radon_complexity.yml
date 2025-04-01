@@ -51,7 +51,7 @@ jobs:
           echo "|------|-----------------------|------|" >> $GITHUB_STEP_SUMMARY
           
           # Run radon mi analysis, excluding tests/
-          radon mi src/api -a -nc --json | jq -r '
+          radon mi src/api --json | jq -r '
             to_entries[] | 
             .key as $file | 
             .value |
