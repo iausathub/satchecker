@@ -30,7 +30,7 @@ jobs:
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
           
           # Run radon complexity analysis, excluding tests/
-          radon cc . --exclude tests -a -nc --json | jq -r '
+          radon cc src/api -a -nc --json | jq -r '
             map(
               select(type == "object" and has("functions") and (.functions | length > 0))  # Ensure "functions" key exists
             ) |
@@ -52,7 +52,7 @@ jobs:
           echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
           
           # Run radon maintainability analysis, excluding tests/
-          radon mi . --exclude tests --json | jq -r '
+          radon mi arc/api --json | jq -r '
             map(
               select(type == "object") | { file: .filename, score: .mi }
             ) | 
