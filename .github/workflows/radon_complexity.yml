@@ -28,31 +28,26 @@ jobs:
           echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          radon cc src/api -a -nc --json | jq -r '. | to_entries[] | .key as $file | .value[] | "| \($file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
-
           
-          # Run radon complexity analysis, ensuring all functions are included
-          RESULTS=$(radon cc src/api -a -nc --json | jq -r '
-            to_entries[] |
-            .key as $file |
-            .value | 
-            map({
+          # Capture Radon output and ensure all functions are included
+          radon cc src/api -a -nc --json | jq -r '
+            to_entries[] | 
+            .key as $file | 
+            .value[] | 
+            {
               file: $file,
               name: .name,
-              complexity: .complexity,
+              complexity: (if .complexity == null then 0 else .complexity end),  # Handle null complexities
               rating: 
                 (if .complexity < 5 then "🟢 A"
-                elif .complexity < 10 then "🟢 B"
-                elif .complexity < 20 then "🟡 C"
-                elif .complexity < 30 then "🟡 D"
-                elif .complexity < 40 then "🔴 E"
-                else "🔴 F" end)
-            }) |
-            .[] |
-            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"')
-        
-          echo "$RESULTS" >> $GITHUB_STEP_SUMMARY
+                 elif .complexity < 10 then "🟢 B"
+                 elif .complexity < 20 then "🟡 C"
+                 elif .complexity < 30 then "🟡 D"
+                 elif .complexity < 40 then "🔴 E"
+                 else "🔴 F" end)
+            } |
+            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"
+          ' >> $GITHUB_STEP_SUMMARY
 
 
 
