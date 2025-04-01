@@ -54,7 +54,7 @@ jobs:
           echo "|------|-----------------------|------|" >> $GITHUB_STEP_SUMMARY
           
           # Run radon mi analysis, excluding tests/
-          radon mi src/api --exclude tests -a -nc --json | jq -r '
+          radon mi src/api --json | jq -r '
             to_entries[] |
             .key as $file |
             .value |
@@ -69,13 +69,18 @@ jobs:
         run: |
           MAX_COMPLEXITY=20
           EXIT_CODE=0
+          echo "## 🚨 High Complexity Functions Detected" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Complexity |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|------------|" >> $GITHUB_STEP_SUMMARY
           radon cc src/api -nc | awk -v max_complexity="$MAX_COMPLEXITY" '
           /[0-9]+ [A-Za-z0-9_]+/ {
             complexity = $1;
+            function_name = $2;
+            file = $3;
             if (complexity > max_complexity) {
-              echo "🚨 High complexity function detected:", $0;
+              print "| " file " | " function_name " | " complexity " |";
               EXIT_CODE=1
             }
           }
-          END { exit EXIT_CODE }'
+          END { exit EXIT_CODE }' >> $GITHUB_STEP_SUMMARY
         continue-on-error: false
