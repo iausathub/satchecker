@@ -25,19 +25,24 @@ jobs:
 
       - name: Run Radon and generate report
         run: |
+          run: |
           echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
           
-          # Capture Radon output and ensure all functions are included
-          radon cc src/api -a -nc --json | jq -r '
+          # Debug: save raw JSON output
+          radon cc src/api -a -nc --json > radon_output.json
+          
+          # Process with improved jq command
+          cat radon_output.json | jq -r '
             to_entries[] | 
             .key as $file | 
             .value[] | 
+            select(.type == "function") |  # Ensure we only process functions
             {
               file: $file,
               name: .name,
-              complexity: (if .complexity == null then 0 else .complexity end),  # Handle null complexities
+              complexity: .complexity,
               rating: 
                 (if .complexity < 5 then "🟢 A"
                  elif .complexity < 10 then "🟢 B"
@@ -48,6 +53,10 @@ jobs:
             } |
             "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"
           ' >> $GITHUB_STEP_SUMMARY
+          
+          # Debug: count functions
+          echo "## Debug Information" >> $GITHUB_STEP_SUMMARY
+          echo "Total functions found: $(cat radon_output.json | jq '[to_entries[] | .value | length] | add')" >> $GITHUB_STEP_SUMMARY
 
 
 
