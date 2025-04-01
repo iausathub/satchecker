@@ -31,8 +31,8 @@ jobs:
           
           # Run radon complexity analysis, excluding tests/
           radon cc src/api -a -nc --json | jq -r '
-            to_entries[] | 
-            .key as $file | 
+            to_entries[] |
+            .key as $file |
             .value[] |
             {
               file: $file,
@@ -54,9 +54,9 @@ jobs:
           echo "|------|-----------------------|------|" >> $GITHUB_STEP_SUMMARY
           
           # Run radon mi analysis, excluding tests/
-          radon mi src/api --json | jq -r '
-            to_entries[] | 
-            .key as $file | 
+          radon mi src/api --exclude tests -a -nc --json | jq -r '
+            to_entries[] |
+            .key as $file |
             .value |
             {
               file: $file,
@@ -73,11 +73,9 @@ jobs:
           /[0-9]+ [A-Za-z0-9_]+/ {
             complexity = $1;
             if (complexity > max_complexity) {
-              print "🚨 High complexity function detected:", $0;
+              echo "🚨 High complexity function detected:", $0;
               EXIT_CODE=1
             }
           }
           END { exit EXIT_CODE }'
         continue-on-error: false
-
-
