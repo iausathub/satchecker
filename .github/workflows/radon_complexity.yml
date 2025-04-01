@@ -30,9 +30,8 @@ jobs:
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
 
           radon cc . -a -nc --json | jq -r '
-          . as $root | to_entries | 
-          map(select(.value.functions != null)) |
-          .[] | .key as $file | .value.functions[] |
+          map(select(.functions != null)) |      # Ensure only entries with functions are processed
+          .[] | .filename as $file | .functions[] | 
           {
             file: $file,
             name: .name,
@@ -44,22 +43,25 @@ jobs:
           } |
           "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
 
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🏗 Maintainability Index Summary" >> $GITHUB_STEP_SUMMARY
           echo "| File | Score | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
 
           radon mi . --json | jq -r '
-          to_entries[] | 
-          {
-            file: .key,
-            score: .value.mi,
-            rating: 
-              (if .value.mi >= 80 then "🟢 Good" 
-              elif .value.mi >= 50 then "🟡 Moderate" 
-              else "🔴 Poor" end)
-          } |
-          "| \(.file) | \(.score) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+            map({ file: .filename, score: .mi }) | 
+            .[] | 
+            {
+              file: .file,
+              score: .score,
+              rating: 
+                (if .score >= 80 then "🟢 Good" 
+                elif .score >= 50 then "🟡 Moderate" 
+                else "🔴 Poor" end)
+            } |
+            "| \(.file) | \(.score) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
 
       - name: Fail on high complexity (Optional)
         run: |
