@@ -29,11 +29,12 @@ jobs:
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
           
-          # Run radon complexity analysis, excluding tests/
+          # Run radon complexity analysis, ensuring all functions are included
           radon cc src/api -a -nc --json | jq -r '
             to_entries[] |
             .key as $file |
             .value[] |
+            select(.type == "function" or .type == "method") |  # Ensure both functions & methods are captured
             {
               file: $file,
               name: .name,
@@ -48,12 +49,13 @@ jobs:
             } |
             "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
 
+
           
           echo "## 📊 Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Maintainability Index | Rank |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-----------------------|------|" >> $GITHUB_STEP_SUMMARY
           
-          # Run radon mi analysis, excluding tests/
+          # Run radon mi analysis
           radon mi src/api --json | jq -r '
             to_entries[] |
             .key as $file |
@@ -69,6 +71,9 @@ jobs:
         run: |
           MAX_COMPLEXITY=20
           EXIT_CODE=0
+          echo "## 🚨 High Complexity Functions Detected" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Complexity |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|------------|" >> $GITHUB_STEP_SUMMARY
           radon cc src/api -nc --json | jq -r '
             to_entries[] |
             .value[] |
