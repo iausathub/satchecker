@@ -28,28 +28,29 @@ jobs:
           echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          radon cc . -a -nc --json | jq -r '
-          map(select(.functions != null)) |      # Ensure only entries with functions are processed
-          .[] | .filename as $file | .functions[] | 
-          {
-            file: $file,
-            name: .name,
-            complexity: .complexity,
-            rating: 
-              (if .complexity < 10 then "🟢 A" 
-              elif .complexity < 20 then "🟡 B" 
-              else "🔴 C" end)
-          } |
-          "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
-
-
+          
+          # Run radon complexity analysis, excluding tests/
+          radon cc . --exclude tests -a -nc --json | jq -r '
+            map(select(has("functions") and (.functions | length > 0))) |  # Ensure functions exist
+            .[] | .filename as $file | .functions[] | 
+            {
+              file: $file,
+              name: .name,
+              complexity: .complexity,
+              rating: 
+                (if .complexity < 10 then "🟢 A" 
+                elif .complexity < 20 then "🟡 B" 
+                else "🔴 C" end)
+            } |
+            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🏗 Maintainability Index Summary" >> $GITHUB_STEP_SUMMARY
           echo "| File | Score | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          radon mi . --json | jq -r '
+          
+          # Run radon maintainability analysis, excluding tests/
+          radon mi . --exclude tests --json | jq -r '
             map({ file: .filename, score: .mi }) | 
             .[] | 
             {
@@ -61,6 +62,7 @@ jobs:
                 else "🔴 Poor" end)
             } |
             "| \(.file) | \(.score) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
 
 
       - name: Fail on high complexity (Optional)
