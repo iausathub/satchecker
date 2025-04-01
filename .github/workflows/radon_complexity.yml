@@ -30,10 +30,9 @@ jobs:
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
           
           # Run radon complexity analysis, ensuring all functions are included
-          radon cc src/api -a -nc --json | jq -r '
-          to_entries | 
-          map(
-            .key as $file | 
+          RESULTS=$(radon cc src/api -a -nc --json | jq -r '
+            to_entries[] |
+            .key as $file |
             .value | 
             map({
               file: $file,
@@ -46,11 +45,12 @@ jobs:
                 elif .complexity < 30 then "🟡 D"
                 elif .complexity < 40 then "🔴 E"
                 else "🔴 F" end)
-            })
-          ) | 
-          flatten | 
-          .[] | 
-          "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+            }) |
+            .[] |
+            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"')
+        
+          echo "$RESULTS" >> $GITHUB_STEP_SUMMARY
+
 
 
       - name: Run Maintainability Index Report
