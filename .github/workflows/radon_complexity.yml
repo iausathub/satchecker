@@ -69,18 +69,27 @@ jobs:
         run: |
           MAX_COMPLEXITY=20
           EXIT_CODE=0
-          echo "## 🚨 High Complexity Functions Detected" >> $GITHUB_STEP_SUMMARY
-          echo "| File | Function | Complexity |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|----------|------------|" >> $GITHUB_STEP_SUMMARY
-          radon cc src/api -nc | awk -v max_complexity="$MAX_COMPLEXITY" '
-          /[0-9]+ [A-Za-z0-9_]+/ {
-            complexity = $1;
-            function_name = $2;
-            file = $3;
-            if (complexity > max_complexity) {
-              print "| " file " | " function_name " | " complexity " |";
-              EXIT_CODE=1
-            }
-          }
-          END { exit EXIT_CODE }' >> $GITHUB_STEP_SUMMARY
+          radon cc src/api -nc --json | jq -r '
+            to_entries[] |
+            .value[] |
+            {
+              file: .file,
+              name: .name,
+              complexity: .complexity,
+              rating: 
+                (if .complexity < 5 then "🟢 A"
+                 elif .complexity < 10 then "🟢 B"
+                 elif .complexity < 20 then "🟡 C"
+                 elif .complexity < 30 then "🟡 D"
+                 elif .complexity < 40 then "🔴 E"
+                 else "🔴 F" end)
+            } |
+            select(.complexity > '"$MAX_COMPLEXITY"') |
+            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+          # If any high complexity function is found, set EXIT_CODE to 1
+          if [ $(wc -l < $GITHUB_STEP_SUMMARY) -gt 0 ]; then
+            EXIT_CODE=1
+          fi
+          exit $EXIT_CODE
         continue-on-error: false
+
