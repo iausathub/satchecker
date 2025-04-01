@@ -31,20 +31,26 @@ jobs:
           
           # Run radon complexity analysis, ensuring all functions are included
           radon cc src/api -a -nc --json | jq -r '
-            to_entries[] | 
-            .key as $file | 
-            .value[] | 
-            select(.type == "function" or .type == "method") |  # Capture both functions & methods
-            [
-              "| \($file) | \(.name) | \(.complexity) | \(
-                if .complexity < 5 then "🟢 A"
-                elif .complexity < 10 then "🟢 B"
-                elif .complexity < 20 then "🟡 C"
-                elif .complexity < 30 then "🟡 D"
-                elif .complexity < 40 then "🔴 E"
-                else "🔴 F" end
-              ) |"
-            ] | .[]' >> $GITHUB_STEP_SUMMARY
+            to_entries | 
+            map(
+              .key as $file | 
+              .value[] | 
+              {
+                file: $file,
+                name: .name,
+                complexity: .complexity,
+                rating: 
+                  (if .complexity < 5 then "🟢 A"
+                  elif .complexity < 10 then "🟢 B"
+                  elif .complexity < 20 then "🟡 C"
+                  elif .complexity < 30 then "🟡 D"
+                  elif .complexity < 40 then "🔴 E"
+                  else "🔴 F" end)
+              }
+            ) | 
+            .[] | 
+            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+
             
           
           echo "## 📊 Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
@@ -71,20 +77,23 @@ jobs:
           echo "| File | Function | Complexity |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|" >> $GITHUB_STEP_SUMMARY
           radon cc src/api -nc --json | jq -r '
-            to_entries[] |
-            .value[] |
-            {
-              file: .file,
-              name: .name,
-              complexity: .complexity,
-              rating: 
-                (if .complexity < 5 then "🟢 A"
-                 elif .complexity < 10 then "🟢 B"
-                 elif .complexity < 20 then "🟡 C"
-                 elif .complexity < 30 then "🟡 D"
-                 elif .complexity < 40 then "🔴 E"
-                 else "🔴 F" end)
-            } |
+            to_entries | 
+            map(
+              .key as $file | 
+              .value[] | 
+              {
+                file: $file,
+                name: .name,
+                complexity: .complexity,
+                rating: 
+                  (if .complexity < 5 then "🟢 A"
+                  elif .complexity < 10 then "🟢 B"
+                  elif .complexity < 20 then "🟡 C"
+                  elif .complexity < 30 then "🟡 D"
+                  elif .complexity < 40 then "🔴 E"
+                  else "🔴 F" end)
+              }
+            ) | 
             select(.complexity > '"$MAX_COMPLEXITY"') |
             "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
           # If any high complexity function is found, set EXIT_CODE to 1
