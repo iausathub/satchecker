@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: pip install radon jq
-
+      
       - name: Run Radon and generate report
         run: |
           echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
@@ -31,25 +31,21 @@ jobs:
           
           # Run radon complexity analysis, ensuring all functions are included
           radon cc src/api -a -nc --json | jq -r '
-            to_entries[] |
-            .key as $file |
-            .value[] |
-            select(.type == "function" or .type == "method") |  # Ensure both functions & methods are captured
-            {
-              file: $file,
-              name: .name,
-              complexity: .complexity,
-              rating: 
-                (if .complexity < 5 then "🟢 A"
+            to_entries[] | 
+            .key as $file | 
+            .value[] | 
+            select(.type == "function" or .type == "method") |  # Capture both functions & methods
+            [
+              "| \($file) | \(.name) | \(.complexity) | \(
+                if .complexity < 5 then "🟢 A"
                 elif .complexity < 10 then "🟢 B"
                 elif .complexity < 20 then "🟡 C"
                 elif .complexity < 30 then "🟡 D"
                 elif .complexity < 40 then "🔴 E"
-                else "🔴 F" end)
-            } |
-            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
-
-
+                else "🔴 F" end
+              ) |"
+            ] | .[]' >> $GITHUB_STEP_SUMMARY
+            
           
           echo "## 📊 Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Maintainability Index | Rank |" >> $GITHUB_STEP_SUMMARY
