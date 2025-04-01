@@ -33,7 +33,7 @@ jobs:
           # Save raw JSON for reference
           radon cc src/api -a -nc --json > radon_output.json
           
-          # Process JSON with Python instead of jq
+          # Process JSON with Python instead of jq - fixed quotes
           python3 -c '
           import json
           import sys
@@ -59,10 +59,10 @@ jobs:
               for func in functions:
                   complexity = func.get("complexity", 0)
                   rating = get_rating(complexity)
-                  print(f"| {file_path} | {func.get(\"name\")} | {complexity} | {rating} |")
+                  print(f"| {file_path} | {func[\"name\"]} | {complexity} | {rating} |")
           ' >> $GITHUB_STEP_SUMMARY
           
-          # Add a count of functions found for verification
+          # Add a count of functions found for verification - fixed quotes
           echo "## Debug Information" >> $GITHUB_STEP_SUMMARY
           python3 -c '
           import json
@@ -76,8 +76,9 @@ jobs:
           for file_path, functions in data.items():
               print(f"- {file_path}: {len(functions)} function(s)")
               for func in functions:
-                  print(f"  - {func.get(\"name\")}: complexity {func.get(\"complexity\")}")
+                  print(f"  - {func[\"name\"]}: complexity {func[\"complexity\"]}")
           ' >> $GITHUB_STEP_SUMMARY
+          
       - name: Run Maintainability Index Report
         run: |
           echo "## 📊 Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
