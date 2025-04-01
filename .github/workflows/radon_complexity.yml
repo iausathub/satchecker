@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: pip install radon jq
-      
+
       - name: Run Radon and generate report
         run: |
           echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
@@ -31,75 +31,53 @@ jobs:
           
           # Run radon complexity analysis, ensuring all functions are included
           radon cc src/api -a -nc --json | jq -r '
-            to_entries | 
-            map(
-              .key as $file | 
-              .value[] | 
-              {
-                file: $file,
-                name: .name,
-                complexity: .complexity,
-                rating: 
-                  (if .complexity < 5 then "🟢 A"
-                  elif .complexity < 10 then "🟢 B"
-                  elif .complexity < 20 then "🟡 C"
-                  elif .complexity < 30 then "🟡 D"
-                  elif .complexity < 40 then "🔴 E"
-                  else "🔴 F" end)
-              }
-            ) | 
-            .[] | 
-            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
+            to_entries[] | 
+            .key as $file | 
+            .value[] | 
+            "| \($file) | \(.name) | \(.complexity) | " + 
+            (if .complexity < 5 then "🟢 A"
+             elif .complexity < 10 then "🟢 B"
+             elif .complexity < 20 then "🟡 C"
+             elif .complexity < 30 then "🟡 D"
+             elif .complexity < 40 then "🔴 E"
+             else "🔴 F" end) + " |"
+          ' >> $GITHUB_STEP_SUMMARY
 
-            
-          
+      - name: Run Maintainability Index Report
+        run: |
           echo "## 📊 Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Maintainability Index | Rank |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-----------------------|------|" >> $GITHUB_STEP_SUMMARY
           
-          # Run radon mi analysis
           radon mi src/api --json | jq -r '
             to_entries[] |
-            .key as $file |
-            .value |
-            {
-              file: $file,
-              mi: .mi,
-              rank: .rank
-            } |
-            "| \(.file) | \(.mi) | \(.rank) |"' >> $GITHUB_STEP_SUMMARY
+            "| \(.key) | \(.value.mi) | \(.value.rank) |"
+          ' >> $GITHUB_STEP_SUMMARY
 
       - name: Fail on high complexity (Optional)
         run: |
           MAX_COMPLEXITY=20
           EXIT_CODE=0
           echo "## 🚨 High Complexity Functions Detected" >> $GITHUB_STEP_SUMMARY
-          echo "| File | Function | Complexity |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|----------|------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          
           radon cc src/api -nc --json | jq -r '
-            to_entries | 
-            map(
-              .key as $file | 
-              .value[] | 
-              {
-                file: $file,
-                name: .name,
-                complexity: .complexity,
-                rating: 
-                  (if .complexity < 5 then "🟢 A"
-                  elif .complexity < 10 then "🟢 B"
-                  elif .complexity < 20 then "🟡 C"
-                  elif .complexity < 30 then "🟡 D"
-                  elif .complexity < 40 then "🔴 E"
-                  else "🔴 F" end)
-              }
-            ) | 
+            to_entries[] | 
+            .key as $file | 
+            .value[] | 
             select(.complexity > '"$MAX_COMPLEXITY"') |
-            "| \(.file) | \(.name) | \(.complexity) | \(.rating) |"' >> $GITHUB_STEP_SUMMARY
-          # If any high complexity function is found, set EXIT_CODE to 1
-          if [ $(wc -l < $GITHUB_STEP_SUMMARY) -gt 0 ]; then
+            "| \($file) | \(.name) | \(.complexity) | " + 
+            (if .complexity < 5 then "🟢 A"
+             elif .complexity < 10 then "🟢 B"
+             elif .complexity < 20 then "🟡 C"
+             elif .complexity < 30 then "🟡 D"
+             elif .complexity < 40 then "🔴 E"
+             else "🔴 F" end) + " |"
+          ' >> $GITHUB_STEP_SUMMARY
+          
+          if grep -q "🔴 F" $GITHUB_STEP_SUMMARY; then
             EXIT_CODE=1
           fi
           exit $EXIT_CODE
         continue-on-error: false
-
