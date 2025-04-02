@@ -28,6 +28,11 @@ jobs:
         run: |
           python -m pytest --benchmark-only --benchmark-json output.json || true
           # keep going even if some tests fail
+        env:
+            REDIS_URL: redis://localhost:6379/0
+            PYTHONPATH: src
+            SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
+            LOCAL_DB: 1
 
       # Run `github-action-benchmark` action
       - name: Store benchmark result
