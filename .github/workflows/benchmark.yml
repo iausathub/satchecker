@@ -29,13 +29,6 @@ jobs:
           python -m pytest --benchmark-only --benchmark-json output.json || true
           # keep going even if some tests fail
 
-      # Download previous benchmark result from cache (if exists)
-      - name: Download previous benchmark data
-        uses: actions/cache@v4
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-benchmark
-
       # Run `github-action-benchmark` action
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
@@ -43,8 +36,7 @@ jobs:
         with:
           tool: 'pytest'
           output-file-path: output.json
-          # previous run info
-          external-data-json-path: ./cache/benchmark-data.json
+          # GitHub Pages configuration
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
           # Access token to deploy GitHub Pages
