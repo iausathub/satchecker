@@ -2,7 +2,8 @@ name: Performance Benchmark
 on:
   push:
     branches:
-      - develop
+      - main
+  workflow_call:
   workflow_dispatch: {}
 
 jobs:

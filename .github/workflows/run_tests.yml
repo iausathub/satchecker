@@ -4,6 +4,16 @@ name: Run tests
 
 on:
   push:
+  workflow_call:
+    inputs:
+      run_only_lint:
+        description: 'Run only linting part of the workflow'
+        type: boolean
+        default: false
+      run_only_tests:
+        description: 'Run only tests part of the workflow'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -11,6 +21,7 @@ permissions:
 
 jobs:
   lint:
+    if: ${{ github.event_name == 'push' || inputs.run_only_lint == true || inputs.run_only_tests != true }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -31,6 +42,7 @@ jobs:
 
 
   test:
+    if: ${{ github.event_name == 'push' || inputs.run_only_tests == true || inputs.run_only_lint != true }}
     runs-on: ubuntu-latest
 
     services:

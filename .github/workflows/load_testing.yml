@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  workflow_call:
 
 jobs:
   load-test:
@@ -37,10 +39,10 @@ jobs:
 
       - name: Upload Artillery HTML report as artifact
         uses: actions/upload-artifact@v4
+        id: upload-artillery-report
         with:
           name: artillery-report
           path: ./artillery-report.html
 
       - name: Append Report Link to Summary
         run: echo "[Download Artillery Report HTML](https://github.com/${{ github.repository }}/actions/artifacts/${{ steps.upload-artillery-report.outputs.artifact_id }})" >> $GITHUB_STEP_SUMMARY
-
