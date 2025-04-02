@@ -1,0 +1,83 @@
+name: Radon Code Complexity Analysis
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  analyze-complexity:
+    name: Analyze Code Complexity
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install radon jq
+
+      - name: Run Radon and generate report
+        run: |
+          run: |
+          echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          radon cc src/api -a -nc --json | jq -r '
+            keys[] as $file |
+            .[$file][] | 
+            "| \($file) | \(.name) | \(.complexity) | \(
+              if .complexity < 5 then "🟢 A"
+              elif .complexity < 10 then "🟢 B" 
+              elif .complexity < 20 then "🟡 C"
+              elif .complexity < 30 then "🟡 D"
+              elif .complexity < 40 then "🔴 E"
+              else "🔴 F" end
+            ) |"
+          ' >> $GITHUB_STEP_SUMMARY
+          
+      - name: Run Maintainability Index Report
+        run: |
+          echo "## 📊 Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Maintainability Index | Rank |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----------------------|------|" >> $GITHUB_STEP_SUMMARY
+          
+          radon mi src/api --json | jq -r '
+            to_entries[] |
+            "| \(.key) | \(.value.mi) | \(.value.rank) |"
+          ' >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail on high complexity (Optional)
+        run: |
+          MAX_COMPLEXITY=20
+          EXIT_CODE=0
+          echo "## 🚨 High Complexity Functions Detected" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          radon cc src/api -nc --json | jq -r '
+            to_entries[] | 
+            .key as $file | 
+            .value[] | 
+            select(.complexity > '"$MAX_COMPLEXITY"') |
+            "| \($file) | \(.name) | \(.complexity) | " + 
+            (if .complexity < 5 then "🟢 A"
+             elif .complexity < 10 then "🟢 B"
+             elif .complexity < 20 then "🟡 C"
+             elif .complexity < 30 then "🟡 D"
+             elif .complexity < 40 then "🔴 E"
+             else "🔴 F" end) + " |"
+          ' >> $GITHUB_STEP_SUMMARY
+          
+          if grep -q "🔴 F" $GITHUB_STEP_SUMMARY; then
+            EXIT_CODE=1
+          fi
+          exit $EXIT_CODE
+        continue-on-error: false
