@@ -201,6 +201,7 @@ def fov_data_to_json(
                     "name": sat_name,
                     "norad_id": sat_norad_id,
                     "positions": [],
+                    "tle_data": result.get("tle_data"),
                 }
             # Add pass data without redundant satellite info
             pass_data = {

@@ -20,6 +20,7 @@ def _create_fov_cache_key(
     ra: float,
     dec: float,
     fov_radius: float,
+    include_tles: bool = False,
 ) -> str:
     """Create a unique cache key for the FOV calculation."""
     key_parts = [
@@ -33,6 +34,7 @@ def _create_fov_cache_key(
         f"ra_{ra}",
         f"dec_{dec}",
         f"radius_{fov_radius}",
+        f"include_tles_{include_tles}",
     ]
     return ":".join(key_parts)
 
@@ -47,6 +49,7 @@ def get_satellite_passes_in_fov(
     dec: float,
     fov_radius: float,
     group_by: str,
+    include_tles: bool,
     api_source: str,
     api_version: str,
 ) -> dict:
@@ -58,7 +61,14 @@ def get_satellite_passes_in_fov(
     # Create cache key and check cache
 
     cache_key = _create_fov_cache_key(
-        location, mid_obs_time_jd, start_time_jd, duration, ra, dec, fov_radius
+        location,
+        mid_obs_time_jd,
+        start_time_jd,
+        duration,
+        ra,
+        dec,
+        fov_radius,
+        False if include_tles is None else include_tles,
     )
     cached_data = redis_client.get(cache_key)
     if cached_data:
@@ -156,6 +166,17 @@ def get_satellite_passes_in_fov(
                         "julian_date": jd_times[idx],
                         "angle": np.degrees(sat_fov_angles[idx]),
                         "tle_epoch": output_utils.format_date(tle.epoch),
+                        **(
+                            {
+                                "tle_data": {
+                                    "tle_line1": tle.tle_line1,
+                                    "tle_line2": tle.tle_line2,
+                                    "source": tle.data_source,
+                                }
+                            }
+                            if include_tles
+                            else {}
+                        ),
                     }
                     for idx, ra_dec in zip(fov_indices, ra_decs)
                 ]

@@ -102,6 +102,12 @@ def get_satellite_passes():
         description: Group results by 'satellite' or 'time' (default is 'satellite')
         enum: [satellite, time]
         example: satellite
+      - name: include_tles
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include TLE data used to calculate the passes in the response
+        example: true
     responses:
       200:
         description: Successful response with satellite passes
@@ -135,6 +141,7 @@ def get_satellite_passes():
         "start_time_jd",
         "mid_obs_time_jd",
         "group_by",
+        "include_tles",
     ]
 
     if "site" not in request.args:
@@ -169,6 +176,7 @@ def get_satellite_passes():
             parameters["dec"],
             parameters["fov_radius"],
             parameters["group_by"],
+            parameters["include_tles"],
             api_source,
             api_version,
         )

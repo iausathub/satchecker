@@ -313,6 +313,12 @@ def validate_parameters(
         if parameters["group_by"] not in ["satellite", "time"]:
             raise ValidationError(400, error_messages.INVALID_PARAMETER)
 
+    if "include_tles" in parameters.keys() and parameters["include_tles"] is not None:
+        if parameters["include_tles"] not in ["true", "false"]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+        parameters["include_tles"] = parameters["include_tles"].lower() == "true"
+
     if (
         "illuminated_only" in parameters.keys()
         and parameters["illuminated_only"] is not None

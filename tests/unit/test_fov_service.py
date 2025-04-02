@@ -33,6 +33,7 @@ def test_satellite_in_fov(test_location, test_time):
 
     tle_repo = FakeTLERepository([tle])
 
+    # Test with group_by=satellite
     result = get_satellite_passes_in_fov(
         tle_repo,
         location=test_location,
@@ -43,6 +44,7 @@ def test_satellite_in_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=2.0,
         group_by="satellite",
+        include_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -50,6 +52,7 @@ def test_satellite_in_fov(test_location, test_time):
     assert len(result["data"]["satellites"]) == 1
     assert result["data"]["total_position_results"] == 18
 
+    # Test with group_by=time
     result = get_satellite_passes_in_fov(
         tle_repo,
         location=test_location,
@@ -60,12 +63,58 @@ def test_satellite_in_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=2.0,
         group_by="time",
+        include_tles=False,
         api_source="test",
         api_version="1.0",
     )
 
     assert result["count"] == 18
     assert result["data"][0]["norad_id"] == 31746
+
+    # Test with group_by=time and include_tles=True
+    result = get_satellite_passes_in_fov(
+        tle_repo,
+        location=test_location,
+        mid_obs_time_jd=test_time,
+        start_time_jd=None,
+        duration=30,
+        ra=24.797270,
+        dec=75.774139,
+        fov_radius=2.0,
+        group_by="time",
+        include_tles=True,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    assert result["data"][0]["tle_data"]["tle_line1"] == tle.tle_line1
+    assert result["data"][0]["tle_data"]["tle_line2"] == tle.tle_line2
+
+    # Test with group_by=satellite and include_tles=True
+    result = get_satellite_passes_in_fov(
+        tle_repo,
+        location=test_location,
+        mid_obs_time_jd=test_time,
+        start_time_jd=None,
+        duration=30,
+        ra=24.797270,
+        dec=75.774139,
+        fov_radius=2.5,
+        group_by="satellite",
+        include_tles=True,
+        api_source="test",
+        api_version="1.0",
+    )
+    # Get the first satellite key (safer for tests)
+    satellite_key = list(result["data"]["satellites"].keys())[0]
+    assert (
+        result["data"]["satellites"][satellite_key]["tle_data"]["tle_line1"]
+        == tle.tle_line1
+    )
+    assert (
+        result["data"]["satellites"][satellite_key]["tle_data"]["tle_line2"]
+        == tle.tle_line2
+    )
 
 
 def test_satellite_outside_fov(test_location, test_time):
