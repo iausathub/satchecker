@@ -1,5 +1,7 @@
-# ruff: noqa: S101, E501
+# ruff: noqa: S101, E501, S311, I001
 from datetime import datetime, timedelta
+import random
+from time import sleep
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -315,3 +317,19 @@ def test_benchmark_get_satellites_above_horizon_setup(
     result = benchmark(setup_only)
     assert len(result) == 2
     assert result[0] > 0  # At least one TLE in the repository
+
+
+def test_simple_random_sleep(benchmark):
+    """
+    A simple benchmark that sleeps for a random period.
+    Perfect for demonstrating chart changes between runs.
+    """
+
+    def random_sleep():
+        # Sleep for a random period between 10ms and 100ms
+        sleep_time = random.uniform(0.01, 0.1)
+        sleep(sleep_time)
+        return 42
+
+    result = benchmark(random_sleep)
+    assert result == 42
