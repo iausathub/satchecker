@@ -1,0 +1,378 @@
+name: Overall Quality Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_lint:
+        description: 'Run code linting'
+        type: boolean
+        default: true
+      run_tests:
+        description: 'Run unit tests'
+        type: boolean
+        default: true
+      run_complexity:
+        description: 'Run complexity analysis'
+        type: boolean
+        default: true
+      run_coverage:
+        description: 'Run code coverage'
+        type: boolean
+        default: true
+      run_benchmarks:
+        description: 'Run performance benchmarks'
+        type: boolean
+        default: true
+      run_load_testing:
+        description: 'Run load testing'
+        type: boolean
+        default: true
+
+jobs:
+  # Linting check
+  lint:
+    if: ${{ inputs.run_lint == true }}
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      run_only_lint: true
+    secrets: inherit
+
+  # Tests
+  tests:
+    if: ${{ inputs.run_tests == true }}
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      run_only_tests: true
+    secrets: inherit
+
+  # Code complexity analysis
+  complexity-analysis:
+    if: ${{ inputs.run_complexity == true }}
+    uses: ./.github/workflows/radon_complexity.yml
+    secrets: inherit
+
+  # Code coverage
+  code-coverage:
+    if: ${{ inputs.run_coverage == true }}
+    uses: ./.github/workflows/code_coverage.yml
+    secrets: inherit
+
+  # Benchmarks
+  benchmark:
+    if: ${{ inputs.run_benchmarks == true }}
+    uses: ./.github/workflows/benchmark.yml
+    secrets: inherit
+
+  # Load testing
+  load-testing:
+    if: ${{ inputs.run_load_testing == true }}
+    uses: ./.github/workflows/load_testing.yml
+    secrets: inherit
+
+  # Final summary job that runs after all others complete
+  summary:
+    needs: [lint, tests, complexity-analysis, code-coverage, benchmark, load-testing]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create summary
+        run: |
+          echo "# 📊 Quality Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Lint status
+          if [[ "${{ inputs.run_lint }}" == "true" ]]; then
+            echo "| Linting | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Linting | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Tests status
+          if [[ "${{ inputs.run_tests }}" == "true" ]]; then
+            echo "| Tests | ${{ needs.tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Tests | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Complexity status
+          if [[ "${{ inputs.run_complexity }}" == "true" ]]; then
+            echo "| Complexity Analysis | ${{ needs.complexity-analysis.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Complexity Analysis | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Coverage status
+          if [[ "${{ inputs.run_coverage }}" == "true" ]]; then
+            echo "| Code Coverage | ${{ needs.code-coverage.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Code Coverage | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Benchmark status
+          if [[ "${{ inputs.run_benchmarks }}" == "true" ]]; then
+            echo "| Benchmarks | ${{ needs.benchmark.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Benchmarks | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Load testing status
+          if [[ "${{ inputs.run_load_testing }}" == "true" ]]; then
+            echo "| Load Testing | ${{ needs.load-testing.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Load Testing | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Publish combined dashboard to GitHub Pages
+  dashboard-publisher:
+    needs: [lint, tests, complexity-analysis, code-coverage, benchmark, load-testing, summary]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Get full history for metrics tracking
+
+      - name: Checkout GitHub Pages Branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: ls -R artifacts
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install jinja2 markdown
+
+      - name: Create dashboard directory structure
+        run: |
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)
+          mkdir -p gh-pages/dashboard/latest
+
+      - name: Copy Load Test Results
+        if: ${{ inputs.run_load_testing == true }}
+        run: |
+          if [ -d "artifacts/artillery-report" ]; then
+            cp -r artifacts/artillery-report/* gh-pages/dashboard/latest/load-testing/
+            cp -r artifacts/artillery-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load-testing/
+          fi
+
+      - name: Create Radon Complexity Report
+        if: ${{ inputs.run_complexity == true }}
+        run: |
+          mkdir -p gh-pages/dashboard/latest/complexity
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity
+
+          # Extract data from GitHub Step Summary
+          STEP_SUMMARY_PATH="${{ needs.complexity-analysis.outputs.summary-path || env.GITHUB_STEP_SUMMARY }}"
+          if [ -f "$STEP_SUMMARY_PATH" ]; then
+            cp "$STEP_SUMMARY_PATH" gh-pages/dashboard/latest/complexity/summary.md
+            cp "$STEP_SUMMARY_PATH" gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity/summary.md
+          else
+            echo "No complexity report summary found" > gh-pages/dashboard/latest/complexity/summary.md
+          fi
+
+      - name: Copy Code Coverage Results
+        if: ${{ inputs.run_coverage == true }}
+        run: |
+          mkdir -p gh-pages/dashboard/latest/coverage
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/coverage
+
+          if [ -d "artifacts/coverage-report" ]; then
+            cp -r artifacts/coverage-report/* gh-pages/dashboard/latest/coverage/
+            cp -r artifacts/coverage-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/coverage/
+          fi
+
+      - name: Generate Dashboard HTML
+        run: |
+          cat > dashboard_template.html << 'EOL'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Quality Check Dashboard</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+              body { padding: 20px; }
+              .card { margin-bottom: 20px; }
+              .dashboard-title { margin-bottom: 30px; }
+              .metric-value { font-size: 1.5em; font-weight: bold; }
+              .trend-positive { color: green; }
+              .trend-negative { color: red; }
+              .run-details { font-size: 0.8em; color: #666; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1 class="dashboard-title">Quality Check Dashboard</h1>
+              <div class="row run-details">
+                <div class="col-12">
+                  <p>Last updated: {{ timestamp }}</p>
+                  <p>Workflow run: <a href="https://github.com/{{ repo }}/actions/runs/{{ run_id }}">{{ run_id }}</a></p>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header">Linting Status</div>
+                    <div class="card-body">
+                      <p class="metric-value">{{ lint_status }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header">Test Status</div>
+                    <div class="card-body">
+                      <p class="metric-value">{{ test_status }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header">Code Complexity</div>
+                    <div class="card-body">
+                      <p>View the <a href="complexity/index.html">complexity report</a></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header">Code Coverage</div>
+                    <div class="card-body">
+                      <p class="metric-value">
+                        <span style="color: {{ coverage_color }};">{{ coverage_percentage }}%</span>
+                      </p>
+                      <p>View the <a href="coverage/index.html">coverage report</a></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header">Performance Benchmarks</div>
+                    <div class="card-body">
+                      <p>View the <a href="../bench/index.html">benchmark results</a></p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-header">Load Testing</div>
+                    <div class="card-body">
+                      <p>View the <a href="load-testing/artillery-report.html">load test report</a></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-12">
+                  <h3>Historical Runs</h3>
+                  <ul>
+                    {{ historical_runs }}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+          </body>
+          </html>
+          EOL
+
+          python - << 'EOL'
+          import os
+          import glob
+          from datetime import datetime
+          from jinja2 import Template
+
+          # Load template
+          with open('dashboard_template.html', 'r') as f:
+              template = Template(f.read())
+
+          # Generate data for template
+          data = {
+              'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+              'repo': os.environ.get('GITHUB_REPOSITORY', ''),
+              'run_id': os.environ.get('GITHUB_RUN_ID', ''),
+              'lint_status': "${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }}",
+              'test_status': "${{ needs.tests.result == 'success' && '✅ Passed' || '❌ Failed' }}",
+              'coverage_percentage': "${{ needs.code-coverage.outputs.coverage-percentage || 'N/A' }}",
+              'coverage_color': "${{ needs.code-coverage.outputs.coverage-color || 'gray' }}",
+              'historical_runs': ''
+          }
+
+          # Add historical runs
+          historical_dirs = sorted(glob.glob('gh-pages/dashboard/20*'), reverse=True)
+          historical_list = []
+          for run_dir in historical_dirs[:10]:  # Show the last 10 runs
+              run_name = os.path.basename(run_dir)
+              historical_list.append(f'<li><a href="../{run_name}/index.html">Run {run_name}</a></li>')
+
+          data['historical_runs'] = '\n'.join(historical_list)
+
+          # Render template
+          rendered = template.render(**data)
+
+          # Write to output files
+          date_dir = os.popen('date +%Y-%m-%d_%H-%M-%S').read().strip()
+
+          with open('gh-pages/dashboard/latest/index.html', 'w') as f:
+              f.write(rendered)
+
+          with open(f'gh-pages/dashboard/{date_dir}/index.html', 'w') as f:
+              f.write(rendered)
+
+          # Create main index.html that redirects to latest
+          main_index = """
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta http-equiv="refresh" content="0; url=dashboard/latest/index.html">
+          </head>
+          <body>
+            Redirecting to <a href="dashboard/latest/index.html">latest dashboard</a>...
+          </body>
+          </html>
+          """
+
+          with open('gh-pages/index.html', 'w') as f:
+              f.write(main_index)
+          EOL
+
+      - name: Publish to GitHub Pages
+        run: |
+          cd gh-pages
+          git config user.name "GitHub Actions Bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Update dashboard with latest quality check results [skip ci]"
+          git push

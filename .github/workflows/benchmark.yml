@@ -1,0 +1,94 @@
+name: Performance Benchmark
+on:
+  push:
+    branches:
+      - main
+  workflow_call:
+  workflow_dispatch: {}
+
+jobs:
+  benchmark:
+    name: Performance regression check
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_satchecker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Create test database
+        run: |
+            PGPASSWORD=postgres psql -h localhost -U postgres -c 'DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '\''test_satchecker'\'') THEN CREATE DATABASE test_satchecker; END IF; END $$;'
+
+      - name: Start Flask application
+        run: |
+            export FLASK_APP=satchecker.py
+            flask run &
+        working-directory: src/api
+      - name: Run Celery worker
+        run: |
+            celery -A api.satchecker.celery worker --loglevel INFO &
+        env:
+            REDIS_URL: redis://localhost:6379/0
+        working-directory: src
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/api/requirements.txt
+          pip install pytest pytest-benchmark
+
+      # Run benchmark with pytest-benchmark and store the output
+      - name: Run benchmark
+        run: |
+          python -m pytest --benchmark-only --benchmark-json output.json || true
+          # keep going even if some tests fail
+        env:
+            REDIS_URL: redis://localhost:6379/0
+            PYTHONPATH: src
+            SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
+            LOCAL_DB: 1
+
+      # Run `github-action-benchmark` action
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        if: always() # Run even if the benchmark tests have some failures
+        with:
+          tool: 'pytest'
+          output-file-path: output.json
+          # GitHub Pages configuration
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          # Access token to deploy GitHub Pages
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Push and deploy GitHub pages branch automatically
+          auto-push: true
+          # Workflow will fail when an alert happens
+          fail-on-alert: true
+          # Enable alert commit comment
+          comment-on-alert: false
+          # Mention @username if benchmark alert happens
+          # alert-comment-cc-users: '@yourusername

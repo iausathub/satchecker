@@ -9,15 +9,15 @@ from . import api_main, api_v1
 @api_main.app_errorhandler(404)
 @api_v1.app_errorhandler(404)
 def page_not_found(error):
-    """
-    Handles page not found errors by returning the error message and a 404 status code.
-
-    Args:
-        e (HTTPException): The exception instance with details about the error.
-
-    Returns:
-        str: A string containing a custom error message.
-        int: The HTTP status code for a page not found error (404).
+    """Handle page not found errors.
+    ---
+    tags:
+      - Errors
+    summary: Page not found error
+    description: Returns when a requested page or endpoint doesn't exist
+    responses:
+      404:
+        description: The requested page or endpoint was not found
     """
     return (
         "Error 404: Page not found<br /> \
@@ -29,15 +29,15 @@ def page_not_found(error):
 @api_main.app_errorhandler(400)
 @api_v1.app_errorhandler(400)
 def missing_parameter(e):
-    """
-    Handles bad request errors by returning the error message and a 400 status code.
-
-    Args:
-        e (HTTPException): The exception instance with details about the error.
-
-    Returns:
-        str: A string containing a custom error message and the error's description.
-        int: The HTTP status code for a bad request error (400).
+    """Handle bad request errors.
+    ---
+    tags:
+      - Errors
+    summary: Bad request error
+    description: Returns when request parameters are incorrect or missing
+    responses:
+      400:
+        description: The request contains invalid parameters or too many results
     """
     return (
         f"Error 400: Incorrect parameters or too many results to return \
@@ -50,30 +50,30 @@ def missing_parameter(e):
 @api_main.app_errorhandler(429)
 @api_v1.app_errorhandler(429)
 def ratelimit_handler(e):
-    """
-    Handles rate limit errors by returning the error message and a 429 status code.
-
-    Args:
-        e (HTTPException): The exception instance with details about the error.
-
-    Returns:
-        str: A string containing a custom error message and the error's description.
-        int: The HTTP status code for a rate limit error (429).
+    """Handle rate limit errors.
+    ---
+    tags:
+      - Errors
+    summary: Rate limit error
+    description: Returns when API request rate limits are exceeded
+    responses:
+      429:
+        description: The client has exceeded the allowed request rate
     """
     return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
 
 
 @api_main.app_errorhandler(500)
 def internal_server_error(e):
-    """
-    Handles internal server errors by returning the error message and a 500 status code.
-
-    Args:
-        e (HTTPException): The exception instance with details about the error.
-
-    Returns:
-        str: A string containing a custom error message and the error's description.
-        int: The HTTP status code for an internal server error (500).
+    """Handle internal server errors.
+    ---
+    tags:
+      - Errors
+    summary: Internal server error
+    description: Returns when an unexpected server error occurs
+    responses:
+      500:
+        description: An unexpected error occurred on the server
     """
     return "Error 500: Internal server error:<br />" + e.description, 500
 
@@ -84,8 +84,15 @@ def internal_server_error(e):
 @api_main.route("/index")
 @limiter.limit("100 per second, 2000 per minute")
 def root():
-    """
-    Redirect to API documentation
+    """Redirect to API documentation.
+    ---
+    tags:
+      - System
+    summary: API root endpoint
+    description: Redirects to the API documentation page
+    responses:
+      302:
+        description: Redirects to the API documentation URL
     """
     return redirect("https://satchecker.readthedocs.io/en/latest/")
 
@@ -94,20 +101,33 @@ def root():
 @api_main.route("/health")
 @limiter.exempt
 def health():
-    """
-    Checks the health of the application by making a GET request to the IAU CPS URL.
-
-    This function sends a GET request to the IAU CPS URL and checks the status of the
-    response. If the request is successful, it returns a JSON response with a
-    message indicating that the application is healthy. If the request fails for any
-    reason, it aborts the request and returns a 503 status code with an error message.
-
-    Returns:
-        dict: A dictionary containing a message indicating the health of the
-            application.
-    Raises:
-        HTTPException: An exception with a 503 status code and an error message if the
-            GET request fails.
+    """Check the health of the application.
+    ---
+    tags:
+      - System
+    summary: Check the health of the API
+    description: Checks if the application can connect to the IAU CPS URL and is healthy
+    responses:
+      200:
+        description: API is healthy and can connect to required services
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Healthy
+      503:
+        description: API is not healthy due to connection issues
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: string
+                  example: Error unable to connect to IAU CPS URL
     """
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

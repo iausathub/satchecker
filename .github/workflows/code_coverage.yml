@@ -4,6 +4,14 @@ name: Code coverage - pull request
 
 on:
   pull_request:
+  workflow_call:
+    outputs:
+      coverage-percentage:
+        description: "The total coverage percentage"
+        value: ${{ jobs.test.outputs.coverage-percentage }}
+      coverage-color:
+        description: "The coverage color indicator (red/yellow/green)"
+        value: ${{ jobs.test.outputs.coverage-color }}
 
 permissions:
   contents: read
@@ -12,8 +20,10 @@ permissions:
 
 jobs:
   test:
-
     runs-on: ubuntu-latest
+    outputs:
+      coverage-percentage: ${{ steps.extract-coverage.outputs.coverage-percentage }}
+      coverage-color: ${{ steps.extract-coverage.outputs.coverage-color }}
 
     services:
       redis:
@@ -64,14 +74,44 @@ jobs:
       working-directory: src
     - name: Test with pytest
       run: |
-        pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. --cov-config=pytest.ini tests/ | tee pytest-coverage.txt
+        pytest --ignore=tests/benchmark --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. --cov-config=pytest.ini tests/ | tee pytest-coverage.txt
       env:
         REDIS_URL: redis://localhost:6379/0
         PYTHONPATH: src
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
         LOCAL_DB: 1
+    - name: Extract coverage percentage
+      id: extract-coverage
+      run: |
+        COVERAGE_PCT=$(grep -oP 'TOTAL\s+\d+\s+\d+\s+\d+\s+\d+\s+\K\d+%' pytest-coverage.txt | sed 's/%//')
+        echo "coverage-percentage=$COVERAGE_PCT" >> $GITHUB_OUTPUT
+
+        # Set color based on coverage percentage
+        if [ "$COVERAGE_PCT" -lt "60" ]; then
+          echo "coverage-color=red" >> $GITHUB_OUTPUT
+        elif [ "$COVERAGE_PCT" -lt "80" ]; then
+          echo "coverage-color=yellow" >> $GITHUB_OUTPUT
+        else
+          echo "coverage-color=green" >> $GITHUB_OUTPUT
+        fi
+
+        echo "Code coverage: $COVERAGE_PCT%" >> $GITHUB_STEP_SUMMARY
+    - name: Generate HTML coverage report
+      run: |
+        pytest --ignore=tests/benchmark --cov-report=html:coverage-html-report --cov=. --cov-config=pytest.ini tests/
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        PYTHONPATH: src
+        SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
+        LOCAL_DB: 1
+    - name: Upload coverage HTML report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage-html-report/
     - name: Pytest coverage comment
       id: coverageComment
+      if: github.event_name == 'pull_request'
       uses: MishaKav/pytest-coverage-comment@main
       with:
         pytest-coverage-path: ./pytest-coverage.txt
