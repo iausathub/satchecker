@@ -9,6 +9,27 @@ jobs:
   benchmark:
     name: Performance regression check
     runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_satchecker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v4
 
@@ -16,6 +37,22 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+
+      - name: Create test database
+        run: |
+            PGPASSWORD=postgres psql -h localhost -U postgres -c 'DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '\''test_satchecker'\'') THEN CREATE DATABASE test_satchecker; END IF; END $$;'
+
+      - name: Start Flask application
+        run: |
+            export FLASK_APP=satchecker.py
+            flask run &
+        working-directory: src/api
+      - name: Run Celery worker
+        run: |
+            celery -A api.satchecker.celery worker --loglevel INFO &
+        env:
+            REDIS_URL: redis://localhost:6379/0
+        working-directory: src
 
       - name: Install dependencies
         run: |

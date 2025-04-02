@@ -64,7 +64,7 @@ jobs:
       working-directory: src
     - name: Test with pytest
       run: |
-        pytest --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. --cov-config=pytest.ini tests/ | tee pytest-coverage.txt
+        pytest --benchmark-skip --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. --cov-config=pytest.ini tests/ | tee pytest-coverage.txt
       env:
         REDIS_URL: redis://localhost:6379/0
         PYTHONPATH: src
