@@ -197,8 +197,8 @@ jobs:
           mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/code_coverage
 
           if [ -d "artifacts/coverage-report" ]; then
-            cp -r artifacts/coverage-report/* gh-pages/dashboard/latest/code_coverage/
-            cp -r artifacts/coverage-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/code_coverage/
+            cp -r artifacts/coverage-report/* gh-pages/dashboard/latest/coverage/
+            cp -r artifacts/coverage-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/coverage/
           fi
 
       - name: Generate Dashboard HTML
@@ -268,7 +268,7 @@ jobs:
                       <p class="metric-value">
                         <span style="color: {{ coverage_color }};">{{ coverage_percentage }}%</span>
                       </p>
-                      <p>View the <a href="code_coverage/index.html">coverage report</a></p>
+                      <p>View the <a href="coverage/index.html">coverage report</a></p>
                     </div>
                   </div>
                 </div>
@@ -279,7 +279,7 @@ jobs:
                   <div class="card">
                     <div class="card-header">Performance Benchmarks</div>
                     <div class="card-body">
-                      <p>View the <a href="../dev/bench/index.html">benchmark results</a></p>
+                      <p>View the <a href="/satchecker/dev/bench/index.html">benchmark results</a></p>
                     </div>
                   </div>
                 </div>
