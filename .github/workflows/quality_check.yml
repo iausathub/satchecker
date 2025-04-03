@@ -169,6 +169,9 @@ jobs:
       - name: Copy Load Test Results
         if: ${{ inputs.run_load_testing == true }}
         run: |
+          mkdir -p gh-pages/dashboard/latest/load-testing
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load-testing
+
           if [ -d "artifacts/artillery-report" ]; then
             cp -r artifacts/artillery-report/* gh-pages/dashboard/latest/load-testing/
             cp -r artifacts/artillery-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load-testing/
