@@ -193,8 +193,8 @@ jobs:
       - name: Copy Code Coverage Results
         if: ${{ inputs.run_coverage == true }}
         run: |
-          mkdir -p gh-pages/dashboard/latest/code_coverage
-          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/code_coverage
+          mkdir -p gh-pages/dashboard/latest/coverage
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/coverage
 
           if [ -d "artifacts/coverage-report" ]; then
             cp -r artifacts/coverage-report/* gh-pages/dashboard/latest/coverage/
