@@ -63,7 +63,7 @@ def get_norad_ids_from_name():
                     format: date-time
                     nullable: true
                     example: null
-                  api_source:
+                  source:
                     type: string
                   version:
                     type: string
@@ -129,7 +129,7 @@ def get_names_from_norad_id():
                     format: date-time
                     nullable: true
                     example: null
-                  api_source:
+                  source:
                     type: string
                   version:
                     type: string
@@ -230,7 +230,7 @@ def get_tles():
                       data_source:
                         type: string
                         example: "celestrak"
-                api_source:
+                source:
                   type: string
                 version:
                   type: string
@@ -282,7 +282,7 @@ def get_satellite_data_list():
         in: query
         type: string
         required: true
-        description: The type of ID provided
+        description: The type of ID provided, "catalog" for NORAD ID or "name" for satellite name
         enum: ["catalog", "name"]
         example: "catalog"
     responses:
@@ -298,7 +298,7 @@ def get_satellite_data_list():
                   example: 25544
                 satellite_name:
                   type: string
-                  example: "INTERNATIONAL SPACE STATION"
+                  example: "ISS (ZARYA)"
                 international_designator:
                   type: string
                   example: "1998-067A"
@@ -317,13 +317,6 @@ def get_satellite_data_list():
                 rcs_size:
                   type: string
                   example: "LARGE"
-                country_code:
-                  type: string
-                  example: "ISS"
-                api_source:
-                  type: string
-                version:
-                  type: string
       400:
         description: Bad request due to missing or invalid parameters
       404:
@@ -364,8 +357,8 @@ def get_active_satellites_list():
         in: query
         type: string
         required: false
-        description: Filter results by object type
-        enum: ["PAYLOAD", "ROCKET BODY", "DEBRIS", "UNKNOWN"]
+        description: Filter results by object type - either "PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", or "UNKNOWN"
+        enum: ["PAYLOAD", "ROCKET BODY", "DEBRIS", "UNKNOWN", "TBA"]
         example: "PAYLOAD"
     responses:
       200:
@@ -373,38 +366,49 @@ def get_active_satellites_list():
         content:
           application/json:
             schema:
-              type: array
-              items:
-                type: object
-                properties:
-                  satellite_name:
-                    type: string
-                    example: "INTERNATIONAL SPACE STATION"
-                  satellite_id:
-                    type: integer
-                    example: 25544
-                  object_type:
-                    type: string
-                    example: "PAYLOAD"
-                  launch_date:
-                    type: string
-                    format: date
-                    example: "1998-11-20"
-                  decay_date:
-                    type: string
-                    format: date
-                    nullable: true
-                    example: null
-                  international_designator:
-                    type: string
-                    example: "1998-067A"
-                  rcs_size:
-                    type: string
-                    example: "LARGE"
-                  api_source:
-                    type: string
-                  version:
-                    type: string
+              type: object
+              properties:
+                count:
+                  type: integer
+                  description: The number of satellites returned
+                data:
+                  type: array
+                  description: List of active satellites
+                  items:
+                    type: object
+                    properties:
+                      satellite_name:
+                        type: string
+                        example: "ISS (ZARYA)"
+                      satellite_id:
+                        type: integer
+                        example: 25544
+                      object_type:
+                        type: string
+                        example: "PAYLOAD"
+                      launch_date:
+                        type: string
+                        format: date
+                        example: "1998-11-20"
+                      decay_date:
+                        type: string
+                        format: date
+                        nullable: true
+                        example: null
+                      international_designator:
+                        type: string
+                        example: "1998-067A"
+                      rcs_size:
+                        type: string
+                        example: "LARGE"
+                source:
+                  type: string
+                  description: The source of the data
+                  example: "IAU CPS SatChecker"
+                version:
+                  type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to invalid parameters
       500:
@@ -459,7 +463,7 @@ def get_tles_at_epoch():
         in: query
         type: string
         required: false
-        description: Output format for TLE data
+        description: Output format for TLE data; zip contains a CSV file
         enum: ["json", "txt", "zip"]
         example: "json"
     responses:
@@ -470,8 +474,12 @@ def get_tles_at_epoch():
             schema:
               type: object
               properties:
-                tles:
+                count:
+                  type: integer
+                  description: The number of TLEs returned
+                data:
                   type: array
+                  description: List of TLEs
                   items:
                     type: object
                     properties:
@@ -486,13 +494,18 @@ def get_tles_at_epoch():
                       epoch:
                         type: number
                         format: float
+                      date_collected:
+                        type: string
+                        format: date-time
+                      data_source:
+                        type: string
                 page:
                   type: integer
                 per_page:
                   type: integer
-                total:
+                total_results:
                   type: integer
-                api_source:
+                source:
                   type: string
                 version:
                   type: string
@@ -572,7 +585,7 @@ def get_nearest_tle():
         in: query
         type: string
         required: true
-        description: The type of ID provided
+        description: The type of ID provided, "catalog" for NORAD ID or "name" for satellite name
         enum: ["catalog", "name"]
         example: "catalog"
       - name: epoch
@@ -590,33 +603,45 @@ def get_nearest_tle():
             schema:
               type: object
               properties:
-                satellite_name:
+                tle_data:
+                  type: array
+                  description: The TLE data closest to the specified epoch
+                  items:
+                    type: object
+                    properties:
+                      satellite_name:
+                        type: string
+                        example: "ISS (ZARYA)"
+                      satellite_id:
+                        type: integer
+                        example: 25544
+                      tle_line1:
+                        type: string
+                        example: "1 25544U 98067A   22273.60868672  .00009356  00000+0  17303-3 0  9993"
+                      tle_line2:
+                        type: string
+                        example: "2 25544  51.6432 335.0388 0003454 276.8059 212.5635 15.50267821360921"
+                      epoch:
+                        type: string
+                        description: Epoch date of the TLE
+                        example: "2024-01-30 02:26:07 UTC"
+                      date_collected:
+                        type: string
+                        format: date-time
+                        description: Date when the TLE was collected
+                        example: "2024-06-04 19:16:53 UTC"
+                      data_source:
+                        type: string
+                        description: Source of the TLE data
+                        example: "spacetrack"
+                source:
                   type: string
-                  example: "ISS (ZARYA)"
-                satellite_id:
-                  type: integer
-                  example: 25544
-                tle_line1:
-                  type: string
-                  example: "1 25544U 98067A   22273.60868672  .00009356  00000+0  17303-3 0  9993"
-                tle_line2:
-                  type: string
-                  example: "2 25544  51.6432 335.0388 0003454 276.8059 212.5635 15.50267821360921"
-                epoch:
-                  type: number
-                  format: float
-                  example: 2459851.10868672
-                date_collected:
-                  type: string
-                  format: date-time
-                  example: "2022-09-30T14:36:31Z"
-                data_source:
-                  type: string
-                  example: "celestrak"
-                api_source:
-                  type: string
+                  description: API source
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing or invalid parameters
       404:
@@ -662,7 +687,7 @@ def get_adjacent_tles():
         in: query
         type: string
         required: true
-        description: The type of ID provided
+        description: The type of ID provided, "catalog" for NORAD ID or "name" for satellite name
         enum: ["catalog", "name"]
         example: "catalog"
       - name: epoch
@@ -680,48 +705,45 @@ def get_adjacent_tles():
             schema:
               type: object
               properties:
-                before:
-                  type: object
-                  properties:
-                    satellite_name:
-                      type: string
-                    satellite_id:
-                      type: integer
-                    tle_line1:
-                      type: string
-                    tle_line2:
-                      type: string
-                    epoch:
-                      type: number
-                      format: float
-                    date_collected:
-                      type: string
-                      format: date-time
-                    data_source:
-                      type: string
-                after:
-                  type: object
-                  properties:
-                    satellite_name:
-                      type: string
-                    satellite_id:
-                      type: integer
-                    tle_line1:
-                      type: string
-                    tle_line2:
-                      type: string
-                    epoch:
-                      type: number
-                      format: float
-                    date_collected:
-                      type: string
-                      format: date-time
-                    data_source:
-                      type: string
-                api_source:
+                source:
                   type: string
+                  description: API source
+                  example: "IAU CPS SatChecker"
+                tle_data:
+                  type: array
+                  description: Array containing the TLEs before and after the specified epoch
+                  items:
+                    type: object
+                    properties:
+                      satellite_name:
+                        type: string
+                        example: "ISS (ZARYA)"
+                      satellite_id:
+                        type: integer
+                        example: 25544
+                      tle_line1:
+                        type: string
+                        example: "1 25544U 98067A   22273.60868672  .00009356  00000+0  17303-3 0  9993"
+                      tle_line2:
+                        type: string
+                        example: "2 25544  51.6432 335.0388 0003454 276.8059 212.5635 15.50267821360921"
+                      epoch:
+                        type: string
+                        description: Epoch date of the TLE
+                        example: "2019-06-30 20:27:51 UTC"
+                      date_collected:
+                        type: string
+                        format: date-time
+                        description: Date when the TLE was collected
+                        example: "2024-06-04 19:16:53 UTC"
+                      data_source:
+                        type: string
+                        description: Source of the TLE data
+                        example: "spacetrack"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing or invalid parameters
       404:
@@ -767,7 +789,7 @@ def get_tles_around_epoch():
         in: query
         type: string
         required: true
-        description: The type of ID provided
+        description: The type of ID provided, "catalog" for NORAD ID or "name" for satellite name
         enum: ["catalog", "name"]
         example: "catalog"
       - name: epoch
@@ -818,7 +840,7 @@ def get_tles_around_epoch():
                         format: date-time
                       data_source:
                         type: string
-                api_source:
+                source:
                   type: string
                 version:
                   type: string

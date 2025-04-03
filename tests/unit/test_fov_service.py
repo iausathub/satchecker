@@ -146,6 +146,7 @@ def test_satellite_outside_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=2.0,
         group_by="satellite",
+        include_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -168,6 +169,7 @@ def test_empty_tle_list(test_location, test_time):
         dec=75.774139,
         fov_radius=2.0,
         group_by="satellite",
+        include_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -295,6 +297,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         -20.0,
         10.0,
         "time",
+        False,
         "test",
         "v1",
     )
@@ -321,6 +324,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         -20.0,
         10.0,
         "time",
+        False,
         "test",
         "v1",
     )
@@ -359,6 +363,7 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
             -20.0,
             10.0,
             "time",
+            False,
             "test",
             "v1",
         )
@@ -399,6 +404,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         -20.0,
         10.0,
         "time",
+        False,
         "test",
         "v1",
     )
@@ -418,6 +424,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
             "dec": -20.0,
             "fov_radius": 10.0,
             "group_by": "time",
+            "include_tles": False,
             "api_source": "test",
             "api_version": "v1",
         }
