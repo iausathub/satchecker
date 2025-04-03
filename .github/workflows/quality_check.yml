@@ -177,19 +177,17 @@ jobs:
             cp -r artifacts/artillery-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load-testing/
           fi
 
-      - name: Create Radon Complexity Report
+      - name: Copy Complexity Analysis Results
         if: ${{ inputs.run_complexity == true }}
         run: |
           mkdir -p gh-pages/dashboard/latest/complexity
           mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity
 
-          # Extract data from GitHub Step Summary
-          STEP_SUMMARY_PATH="${{ needs.complexity-analysis.outputs.summary-path || env.GITHUB_STEP_SUMMARY }}"
-          if [ -f "$STEP_SUMMARY_PATH" ]; then
-            cp "$STEP_SUMMARY_PATH" gh-pages/dashboard/latest/complexity/summary.md
-            cp "$STEP_SUMMARY_PATH" gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity/summary.md
+          if [ -d "artifacts/complexity-report" ]; then
+            cp -r artifacts/complexity-report/* gh-pages/dashboard/latest/complexity/
+            cp -r artifacts/complexity-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity/
           else
-            echo "No complexity report summary found" > gh-pages/dashboard/latest/complexity/summary.md
+            echo "No complexity report found" > gh-pages/dashboard/latest/complexity/index.html
           fi
 
       - name: Copy Code Coverage Results
@@ -281,7 +279,7 @@ jobs:
                   <div class="card">
                     <div class="card-header">Performance Benchmarks</div>
                     <div class="card-body">
-                      <p>View the <a href="../bench/index.html">benchmark results</a></p>
+                      <p>View the <a href="../dev/bench/index.html">benchmark results</a></p>
                     </div>
                   </div>
                 </div>
@@ -328,8 +326,8 @@ jobs:
               'run_id': os.environ.get('GITHUB_RUN_ID', ''),
               'lint_status': "${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }}",
               'test_status': "${{ needs.tests.result == 'success' && '✅ Passed' || '❌ Failed' }}",
-              'coverage_percentage': "${{ needs.code-coverage.outputs.coverage-percentage || 'N/A' }}",
-              'coverage_color': "${{ needs.code-coverage.outputs.coverage-color || 'gray' }}",
+              'coverage_percentage': "${{ needs.code_coverage.outputs.coverage-percentage || 'N/A' }}",
+              'coverage_color': "${{ needs.code_coverage.outputs.coverage-color || 'gray' }}",
               'historical_runs': ''
           }
 

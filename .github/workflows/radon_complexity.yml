@@ -23,7 +23,6 @@ jobs:
 
       - name: Run Radon and generate report
         run: |
-          run: |
           echo "## 🧮 Radon Complexity Report" >> $GITHUB_STEP_SUMMARY
           echo "| File | Function | Complexity | Rating |" >> $GITHUB_STEP_SUMMARY
           echo "|------|----------|------------|--------|" >> $GITHUB_STEP_SUMMARY
