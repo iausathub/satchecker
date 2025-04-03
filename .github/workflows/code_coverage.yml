@@ -96,6 +96,17 @@ jobs:
         fi
 
         echo "Code coverage: $COVERAGE_PCT%" >> $GITHUB_STEP_SUMMARY
+
+    - name: Generate coverage badge
+      uses: schneegans/dynamic-badges-action@v1.6.0
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: 6cb250448637a389052d5192a09b62d0
+        filename: satchecker-coverage.json
+        label: Coverage
+        message: ${{ steps.extract-coverage.outputs.coverage-percentage }}%
+        color: ${{ steps.extract-coverage.outputs.coverage-color }}
+
     - name: Generate HTML coverage report
       run: |
         pytest --ignore=tests/benchmark --cov-report=html:coverage-html-report --cov=. --cov-config=pytest.ini tests/
