@@ -46,13 +46,13 @@ jobs:
     secrets: inherit
 
   # Code complexity analysis
-  complexity-analysis:
+  complexity_analysis:
     if: ${{ inputs.run_complexity == true }}
     uses: ./.github/workflows/radon_complexity.yml
     secrets: inherit
 
   # Code coverage
-  code-coverage:
+  code_coverage:
     if: ${{ inputs.run_coverage == true }}
     uses: ./.github/workflows/code_coverage.yml
     secrets: inherit
@@ -64,14 +64,14 @@ jobs:
     secrets: inherit
 
   # Load testing
-  load-testing:
+  load_testing:
     if: ${{ inputs.run_load_testing == true }}
     uses: ./.github/workflows/load_testing.yml
     secrets: inherit
 
   # Final summary job that runs after all others complete
   summary:
-    needs: [lint, tests, complexity-analysis, code-coverage, benchmark, load-testing]
+    needs: [lint, tests, complexity_analysis, code_coverage, benchmark, load_testing]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -99,14 +99,14 @@ jobs:
 
           # Complexity status
           if [[ "${{ inputs.run_complexity }}" == "true" ]]; then
-            echo "| Complexity Analysis | ${{ needs.complexity-analysis.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Complexity Analysis | ${{ needs.complexity_analysis.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Complexity Analysis | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
           fi
 
           # Coverage status
           if [[ "${{ inputs.run_coverage }}" == "true" ]]; then
-            echo "| Code Coverage | ${{ needs.code-coverage.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Code Coverage | ${{ needs.code_coverage.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Code Coverage | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -120,14 +120,14 @@ jobs:
 
           # Load testing status
           if [[ "${{ inputs.run_load_testing }}" == "true" ]]; then
-            echo "| Load Testing | ${{ needs.load-testing.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Load Testing | ${{ needs.load_testing.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Load Testing | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Publish combined dashboard to GitHub Pages
-  dashboard-publisher:
-    needs: [lint, tests, complexity-analysis, code-coverage, benchmark, load-testing, summary]
+  dashboard_publisher:
+    needs: [lint, tests, complexity_analysis, code_coverage, benchmark, load_testing, summary]
     if: always()
     runs-on: ubuntu-latest
 
@@ -169,36 +169,36 @@ jobs:
       - name: Copy Load Test Results
         if: ${{ inputs.run_load_testing == true }}
         run: |
-          mkdir -p gh-pages/dashboard/latest/load-testing
-          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load-testing
+          mkdir -p gh-pages/dashboard/latest/load_testing
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load_testing
 
           if [ -d "artifacts/artillery-report" ]; then
-            cp -r artifacts/artillery-report/* gh-pages/dashboard/latest/load-testing/
-            cp -r artifacts/artillery-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load-testing/
+            cp -r artifacts/artillery-report/* gh-pages/dashboard/latest/load_testing/
+            cp -r artifacts/artillery-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load_testing/
           fi
 
       - name: Copy Complexity Analysis Results
         if: ${{ inputs.run_complexity == true }}
         run: |
-          mkdir -p gh-pages/dashboard/latest/complexity
-          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity
+          mkdir -p gh-pages/dashboard/latest/complexity_report
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity_report
 
-          if [ -d "artifacts/complexity-report" ]; then
-            cp -r artifacts/complexity-report/* gh-pages/dashboard/latest/complexity/
-            cp -r artifacts/complexity-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity/
+          if [ -d "artifacts/complexity_report" ]; then
+            cp -r artifacts/complexity_report/* gh-pages/dashboard/latest/complexity_report/
+            cp -r artifacts/complexity_report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity_report/
           else
-            echo "No complexity report found" > gh-pages/dashboard/latest/complexity/index.html
+            echo "No complexity report found" > gh-pages/dashboard/latest/complexity_report/index.html
           fi
 
       - name: Copy Code Coverage Results
         if: ${{ inputs.run_coverage == true }}
         run: |
-          mkdir -p gh-pages/dashboard/latest/coverage
-          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/coverage
+          mkdir -p gh-pages/dashboard/latest/code_coverage
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/code_coverage
 
           if [ -d "artifacts/coverage-report" ]; then
-            cp -r artifacts/coverage-report/* gh-pages/dashboard/latest/coverage/
-            cp -r artifacts/coverage-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/coverage/
+            cp -r artifacts/coverage-report/* gh-pages/dashboard/latest/code_coverage/
+            cp -r artifacts/coverage-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/code_coverage/
           fi
 
       - name: Generate Dashboard HTML
@@ -256,7 +256,7 @@ jobs:
                   <div class="card">
                     <div class="card-header">Code Complexity</div>
                     <div class="card-body">
-                      <p>View the <a href="complexity/index.html">complexity report</a></p>
+                      <p>View the <a href="complexity_report/index.html">complexity report</a></p>
                     </div>
                   </div>
                 </div>
@@ -268,7 +268,7 @@ jobs:
                       <p class="metric-value">
                         <span style="color: {{ coverage_color }};">{{ coverage_percentage }}%</span>
                       </p>
-                      <p>View the <a href="coverage/index.html">coverage report</a></p>
+                      <p>View the <a href="code_coverage/index.html">coverage report</a></p>
                     </div>
                   </div>
                 </div>
@@ -288,7 +288,7 @@ jobs:
                   <div class="card">
                     <div class="card-header">Load Testing</div>
                     <div class="card-body">
-                      <p>View the <a href="load-testing/artillery-report.html">load test report</a></p>
+                      <p>View the <a href="load_testing/artillery-report.html">load test report</a></p>
                     </div>
                   </div>
                 </div>
