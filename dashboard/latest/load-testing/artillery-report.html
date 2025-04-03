@@ -1,0 +1,3856 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Artillery report</title>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.6.0/chart.min.js"
+    integrity="sha384-scMuAXtFmPAlw0+pXLvnpHCt6VHh7AknTPdNrwiph5BA6MJWysg5WgSDl7r63txN"
+    crossorigin="anonymous"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.10.6/moment.min.js"
+    integrity="sha384-v7eExOYhwaHa3+GhP+lHytJsMcidazNdjiaggRhdbvVTVTCjweLpa23t37ZKxaCf"
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"
+    integrity="sha384-H6KKS1H1WwuERMSm+54dYLzjg0fKqRK5ZRyASdbrI/lwrCc6bXEmtGYr5SwvP1pZ"
+    crossorigin="anonymous"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.5.3/ace.js" charset="utf=8"
+    integrity="sha512-NofUHaTd/uaO1GXfw0JvXptI9XdO5LLrfjl7jVqnFlbxdgqVlE3SmuXAUoqRTB5GQKd82yzhchaDlc6C6+SylA=="
+    crossorigin="anonymous"></script>
+
+  <link href="https://artilleryio.github.io/artillery-tailwind/src/build.css" rel="stylesheet" type="text/css"
+    crossorigin="anonymous" />
+
+  <style>
+    html {
+      --bg-dark: #161616;
+      --bg: #202020;
+      --text: #ffffff;
+      --text-faded: #9b9b9b;
+      --border: #383838;
+      height: 100%;
+    }
+
+
+    .tab {
+      color: #9B9B9B;
+      border-color: transparent;
+    }
+
+    .tab:hover {
+      color: #FFFFFF;
+    }
+
+    .tab.active {
+      color: #FFFFFF;
+      border-color: #FFFFFF;
+    }
+
+    .tab.active:hover {
+      color: #FFFFFF;
+    }
+
+    .tab:hover span:first-child,
+    .tab.active:hover span:first-child {
+      background: #000000;
+    }
+
+    #errorsContainer>p {
+      color: var(--green);
+    }
+
+    #editor {
+      font-size: 10pt;
+    }
+
+    #editor input,
+    button {
+      color: var(--bg-dark);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .border-gray {
+      border: 1px solid var(--border);
+    }
+
+    .border-bottom-gray {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .chevron-down span {
+      transform: rotate(180deg);
+    }
+
+    .cursor-pointer {
+      cursor: pointer;
+    }
+
+    .index-tree-wrapper {
+      display: none;
+    }
+
+    @media (min-width: 768px) {
+      .index-tree-wrapper {
+        display: inline-flex;
+      }
+    }
+
+  </style>
+  <script>
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('_uzX-_WJoVmE_tsLvu0OFD2tpd0HGz72D5sU1zM2hbs', {api_host: 'https://app.posthog.com', autocapture: false});
+    posthog.capture('report view', { });
+  </script>
+</head>
+
+<body>
+
+    <header class="header bg-black-default border-b border-gray-700 mb-9">
+      <div class="container m-auto relative flex items-center justify-between py-3 px-4 md:px-8">
+        <div class="flex items-center">
+          <div
+            class="group-hover:border-black-200 flex overflow-hidden rounded-md border-2 border-gray-800 transition mr-2">
+            <svg width="32" height="32" viewBox="0 0 300 306" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M177.235 169.156L138.632 132.074L107.952 144.704L93.2929 130.623L228.213 75.9894L180.953 214.829L166.06 200.523L177.235 169.156ZM183.738 150.815L199.254 106.778L156.348 124.505L183.738 150.815Z"
+                fill="white" />
+              <path
+                d="M136.138 135.974L175.036 173.339L208.275 137.452L221.883 150.524L136.914 242.26L123.306 229.189L162.984 186.35L124.087 148.986L84.4087 191.824L70.8005 178.752L155.769 87.0157L169.378 100.088L136.138 135.974Z"
+                fill="white" />
+            </svg>
+          </div>
+          <div class="flex flex-col">
+            <h1 class="font-medium text-sm" id="report-name">
+              Artillery Report
+            </h1>
+            <div class="text-gray-default my-0 block text-xs transition group-hover:text-gray-700" id="timestamp"></div>
+          </div>
+        </div>
+        <div class="text-xsm">
+          <a target="_blank" rel="nofollow noopener" class="focus:text-beige text-gray-default transition-colors hover:text-gray-300 flex items-center space-x-1" href="https://artillery.io/docs">
+            <span>Docs</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" aria-label="External link" aria-labelledby="icon_external_1" x="0px" y="0px" role="img"><title id="icon_external_1" lang="en">External link</title><g fill="currentColor"><path d="M19 19H5V5H12V3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V12H19V19ZM14 3V5H17.59L7.76 14.83L9.17 16.24L19 6.41V10H21V3H14Z"></path></g></svg>
+          </a>
+        </div>
+      </div>
+      <!-- tabs -->
+      <div class="bg-black-default relative pt-4 text-sm">
+        <div class="container m-auto flex items-center space-x-2 px-4 md:px-8">
+          <button id="charts-tab" class="tab active group border-b border-b-2 py-2 transition-all">
+            <span class="text-xsm flex items-center space-x-2 rounded py-1.5 px-2.5 transition-all">
+              
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2.33331 12.3267L6.33331 8.32001L8.99998 10.9867L14.6666 4.61334L13.7266 3.67334L8.99998 8.98667L6.33331 6.32001L1.33331 11.3267L2.33331 12.3267Z" fill="currentColor"/>
+                  </svg>
+              <span class="leading-4">Reports</span>
+            </span>
+          </button>
+          <button id="json-tab" class="tab group border-b border-b-2 py-2 transition-all">
+            <span class="text-xsm flex items-center space-x-2 rounded py-1.5 px-2.5 transition-all">
+              
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6.26665 11.0667L3.19998 8L6.26665 4.93333L5.33331 4L1.33331 8L5.33331 12L6.26665 11.0667ZM9.73331 11.0667L12.8 8L9.73331 4.93333L10.6666 4L14.6666 8L10.6666 12L9.73331 11.0667V11.0667Z" fill="currentColor"/>
+                </svg>  
+              <span class="leading-4">JSON Output</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </header>
+    <main style="margin-bottom: 2.5rem;">
+      <div class="container text-sm m-auto px-4 md:px-8">
+        <!-- summary blocks -->
+        <div class="app-test-stats w-full">
+          <ul class="flex flex-wrap space-x-3.5" id="summary-blocks">
+          </ul>
+        </div>
+        <div class="flex items-start w-full flex-row space-x-0 md:space-x-4 mt-1">
+          <!-- counters summary -->
+          <div class="w-full" id="charts-col">
+            <div class="overflow-x-auto overflow-y-hidden rounded border-gray mb-4">
+              <table class="w-full border-collapse text-left">
+                <thead class="text-gray-default bg-black-200 border-b border-gray-800" style="background-color: #2b2b2b;">
+                  <tr>
+                    <th class="whitespace-nowrap p-2" colspan="6">
+                      <span class="text-xsm" style="font-weight: 500 !important;">Metric</span>
+                    </th>
+                    <th class="whitespace-nowrap p-2" colspan="6">
+                      <span class="text-xsm" style="font-weight: 500 !important;">Value</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800" id="customCountersTable">
+                </tbody>
+              </table>
+            </div>
+            <div id="errorsChartsRow">
+              <h4><i class="fas fa-chart-area"></i> Errors at intervals</h4>
+              <canvas id="errorsAtIntervalsChart"></canvas>
+            </div>
+            <!-- charts -->
+            <div id="customCountersAtIntervalsChart" class="space-y-4"></div>
+          </div>
+          <div class="index-tree-wrapper w-56 text-xsm sticky top-3">
+            <div id="index-tree">
+            </div>
+          </div>
+        </div>
+
+        <!-- json text output -->
+        <div>
+          <div class="hidden border-gray rounded" style="overflow: hidden;" id="json-output">
+            <div class="p-2 text-gray-default text-xsm flex items-center justify-between text-gray-default" style="border-bottom: 1px solid #383838; background-color: #2b2b2b; font-weight: 500;">JSON Output
+              <button id="copy-json" class="flex justify-center items-center space-x-2 font-medium text-center rounded transition-all p-1.5 text-xsm hover:text-gray-300 focus:text-gray-300 bg-transparent focus:ring hover:bg-black-700 text-gray-default focus:ring-black-200">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="" aria-labelledby="icon_copy" x="0px" y="0px" role="img" class="inline false"><title id="icon_copy" lang="en"></title><g fill="#9b9b9b"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"></path></g></svg>
+              </button>
+            </div>
+            <div id="editor"></div>
+          </div>
+        </div>
+      </div> <!-- /.row -->
+
+
+      <div class="row">
+        <div class="codes-line text-center col-lg-12"></div>
+      </div>
+      <div class="row">
+        <div class="errors-line text-center col-lg-12"></div>
+      </div>
+  </div>
+  </main>
+  <footer id="footer" class="bg-black-default py-4 text-xsm text-gray-default" style="margin-top: 2rem;">
+    <div class="container m-auto px-4 md:px-8">
+      <a href="https://www.artillery.io">Artillery</a> &bull; move fast, stay fast, stay reliable &bull; <a href="https://www.artillery.io">www.artillery.io</a>
+    </div>
+  </footer>
+
+
+
+  <script charset="utf-8">
+    const Report = {
+  "aggregate": {
+    "counters": {
+      "vusers.created_by_name.Fetch Ephemeris for Starlink": 1806,
+      "vusers.created": 5500,
+      "http.requests": 7085,
+      "http.codes.200": 3796,
+      "http.responses": 6278,
+      "http.downloaded_bytes": 166,
+      "vusers.created_by_name.Fetch Ephemeris for ISS": 1844,
+      "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 2540,
+      "vusers.failed": 807,
+      "vusers.completed": 4693,
+      "http.codes.500": 1304,
+      "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 1304,
+      "vusers.created_by_name.0": 1850,
+      "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 1256,
+      "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 707,
+      "errors.ETIMEDOUT": 807,
+      "http.codes.429": 1178,
+      "plugins.metrics-by-endpoint./ephemeris/name/.codes.429": 949,
+      "plugins.metrics-by-endpoint./fov/satellite-passes/.errors.ETIMEDOUT": 100,
+      "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.429": 229
+    },
+    "rates": {
+      "http.request_rate": 53
+    },
+    "firstCounterAt": 1743657351006,
+    "firstHistogramAt": 1743657351492,
+    "lastCounterAt": 1743657483207,
+    "lastHistogramAt": 1743657481077,
+    "firstMetricAt": 1743657351006,
+    "lastMetricAt": 1743657483207,
+    "period": 1743657480000,
+    "summaries": {
+      "http.response_time": {
+        "min": 57,
+        "max": 9997,
+        "count": 6278,
+        "mean": 3817.5,
+        "p50": 3328.3,
+        "median": 3328.3,
+        "p75": 7117,
+        "p90": 8868.4,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9999.2
+      },
+      "http.response_time.2xx": {
+        "min": 59,
+        "max": 9997,
+        "count": 3796,
+        "mean": 3581.5,
+        "p50": 2893.5,
+        "median": 2893.5,
+        "p75": 6702.6,
+        "p90": 8868.4,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9999.2
+      },
+      "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+        "min": 57,
+        "max": 9876,
+        "count": 4793,
+        "mean": 4058.8,
+        "p50": 3828.5,
+        "median": 3828.5,
+        "p75": 7557.1,
+        "p90": 8868.4,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9801.2
+      },
+      "vusers.session_length": {
+        "min": 173.5,
+        "max": 19651.1,
+        "count": 4693,
+        "mean": 5036.1,
+        "p50": 4492.8,
+        "median": 4492.8,
+        "p75": 8186.6,
+        "p90": 9999.2,
+        "p95": 14048.5,
+        "p99": 18588.1,
+        "p999": 19737.6
+      },
+      "http.response_time.5xx": {
+        "min": 75,
+        "max": 9832,
+        "count": 1304,
+        "mean": 3806.7,
+        "p50": 3328.3,
+        "median": 3328.3,
+        "p75": 7709.8,
+        "p90": 8868.4,
+        "p95": 9230.4,
+        "p99": 9801.2,
+        "p999": 9801.2
+      },
+      "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+        "min": 59,
+        "max": 9997,
+        "count": 1485,
+        "mean": 3038.7,
+        "p50": 1326.4,
+        "median": 1326.4,
+        "p75": 5598.4,
+        "p90": 8692.8,
+        "p95": 9230.4,
+        "p99": 9801.2,
+        "p999": 9999.2
+      },
+      "http.response_time.4xx": {
+        "min": 57,
+        "max": 9870,
+        "count": 1178,
+        "mean": 4589.8,
+        "p50": 5168,
+        "median": 5168,
+        "p75": 7557.1,
+        "p90": 9047.6,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9801.2
+      }
+    },
+    "histograms": {
+      "http.response_time": {
+        "min": 57,
+        "max": 9997,
+        "count": 6278,
+        "mean": 3817.5,
+        "p50": 3328.3,
+        "median": 3328.3,
+        "p75": 7117,
+        "p90": 8868.4,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9999.2
+      },
+      "http.response_time.2xx": {
+        "min": 59,
+        "max": 9997,
+        "count": 3796,
+        "mean": 3581.5,
+        "p50": 2893.5,
+        "median": 2893.5,
+        "p75": 6702.6,
+        "p90": 8868.4,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9999.2
+      },
+      "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+        "min": 57,
+        "max": 9876,
+        "count": 4793,
+        "mean": 4058.8,
+        "p50": 3828.5,
+        "median": 3828.5,
+        "p75": 7557.1,
+        "p90": 8868.4,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9801.2
+      },
+      "vusers.session_length": {
+        "min": 173.5,
+        "max": 19651.1,
+        "count": 4693,
+        "mean": 5036.1,
+        "p50": 4492.8,
+        "median": 4492.8,
+        "p75": 8186.6,
+        "p90": 9999.2,
+        "p95": 14048.5,
+        "p99": 18588.1,
+        "p999": 19737.6
+      },
+      "http.response_time.5xx": {
+        "min": 75,
+        "max": 9832,
+        "count": 1304,
+        "mean": 3806.7,
+        "p50": 3328.3,
+        "median": 3328.3,
+        "p75": 7709.8,
+        "p90": 8868.4,
+        "p95": 9230.4,
+        "p99": 9801.2,
+        "p999": 9801.2
+      },
+      "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+        "min": 59,
+        "max": 9997,
+        "count": 1485,
+        "mean": 3038.7,
+        "p50": 1326.4,
+        "median": 1326.4,
+        "p75": 5598.4,
+        "p90": 8692.8,
+        "p95": 9230.4,
+        "p99": 9801.2,
+        "p999": 9999.2
+      },
+      "http.response_time.4xx": {
+        "min": 57,
+        "max": 9870,
+        "count": 1178,
+        "mean": 4589.8,
+        "p50": 5168,
+        "median": 5168,
+        "p75": 7557.1,
+        "p90": 9047.6,
+        "p95": 9416.8,
+        "p99": 9801.2,
+        "p999": 9801.2
+      }
+    }
+  },
+  "intermediate": [
+    {
+      "counters": {
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 60,
+        "vusers.created": 142,
+        "http.requests": 179,
+        "http.codes.200": 130,
+        "http.responses": 172,
+        "http.downloaded_bytes": 0,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 44,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 93,
+        "vusers.failed": 0,
+        "vusers.completed": 135,
+        "http.codes.500": 42,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 42,
+        "vusers.created_by_name.0": 38,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 37
+      },
+      "rates": {
+        "http.request_rate": 20
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657351006,
+      "firstHistogramAt": 1743657351492,
+      "lastCounterAt": 1743657359972,
+      "lastHistogramAt": 1743657359972,
+      "firstMetricAt": 1743657351006,
+      "lastMetricAt": 1743657359972,
+      "period": "1743657350000",
+      "summaries": {
+        "http.response_time": {
+          "min": 62,
+          "max": 237,
+          "count": 172,
+          "mean": 100.6,
+          "p50": 96.6,
+          "median": 96.6,
+          "p75": 111.1,
+          "p90": 141.2,
+          "p95": 162.4,
+          "p99": 214.9,
+          "p999": 219.2
+        },
+        "http.response_time.2xx": {
+          "min": 62,
+          "max": 237,
+          "count": 130,
+          "mean": 102.5,
+          "p50": 98.5,
+          "median": 98.5,
+          "p75": 111.1,
+          "p90": 144,
+          "p95": 162.4,
+          "p99": 183.1,
+          "p999": 219.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 78,
+          "max": 237,
+          "count": 135,
+          "mean": 109,
+          "p50": 100.5,
+          "median": 100.5,
+          "p75": 113.3,
+          "p90": 147,
+          "p95": 165.7,
+          "p99": 214.9,
+          "p999": 219.2
+        },
+        "vusers.session_length": {
+          "min": 197.9,
+          "max": 705.4,
+          "count": 135,
+          "mean": 284.8,
+          "p50": 232.8,
+          "median": 232.8,
+          "p75": 295.9,
+          "p90": 407.5,
+          "p95": 528.6,
+          "p99": 658.6,
+          "p999": 699.4
+        },
+        "http.response_time.5xx": {
+          "min": 78,
+          "max": 214,
+          "count": 42,
+          "mean": 94.9,
+          "p50": 83.9,
+          "median": 83.9,
+          "p75": 92.8,
+          "p90": 117.9,
+          "p95": 130.3,
+          "p99": 183.1,
+          "p999": 183.1
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 62,
+          "max": 142,
+          "count": 37,
+          "mean": 70.1,
+          "p50": 64.7,
+          "median": 64.7,
+          "p75": 67.4,
+          "p90": 71.5,
+          "p95": 94.6,
+          "p99": 111.1,
+          "p999": 111.1
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 62,
+          "max": 237,
+          "count": 172,
+          "mean": 100.6,
+          "p50": 96.6,
+          "median": 96.6,
+          "p75": 111.1,
+          "p90": 141.2,
+          "p95": 162.4,
+          "p99": 214.9,
+          "p999": 219.2
+        },
+        "http.response_time.2xx": {
+          "min": 62,
+          "max": 237,
+          "count": 130,
+          "mean": 102.5,
+          "p50": 98.5,
+          "median": 98.5,
+          "p75": 111.1,
+          "p90": 144,
+          "p95": 162.4,
+          "p99": 183.1,
+          "p999": 219.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 78,
+          "max": 237,
+          "count": 135,
+          "mean": 109,
+          "p50": 100.5,
+          "median": 100.5,
+          "p75": 113.3,
+          "p90": 147,
+          "p95": 165.7,
+          "p99": 214.9,
+          "p999": 219.2
+        },
+        "vusers.session_length": {
+          "min": 197.9,
+          "max": 705.4,
+          "count": 135,
+          "mean": 284.8,
+          "p50": 232.8,
+          "median": 232.8,
+          "p75": 295.9,
+          "p90": 407.5,
+          "p95": 528.6,
+          "p99": 658.6,
+          "p999": 699.4
+        },
+        "http.response_time.5xx": {
+          "min": 78,
+          "max": 214,
+          "count": 42,
+          "mean": 94.9,
+          "p50": 83.9,
+          "median": 83.9,
+          "p75": 92.8,
+          "p90": 117.9,
+          "p95": 130.3,
+          "p99": 183.1,
+          "p999": 183.1
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 62,
+          "max": 142,
+          "count": 37,
+          "mean": 70.1,
+          "p50": 64.7,
+          "median": 64.7,
+          "p75": 67.4,
+          "p90": 71.5,
+          "p95": 94.6,
+          "p99": 111.1,
+          "p999": 111.1
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.0": 111,
+        "vusers.created": 289,
+        "http.requests": 388,
+        "http.codes.200": 279,
+        "http.responses": 367,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 180,
+        "vusers.failed": 3,
+        "vusers.completed": 268,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 93,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 99,
+        "http.codes.500": 88,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 88,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 85,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 3,
+        "errors.ETIMEDOUT": 3
+      },
+      "rates": {
+        "http.request_rate": 39
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657360004,
+      "firstHistogramAt": 1743657360019,
+      "lastCounterAt": 1743657369978,
+      "lastHistogramAt": 1743657369939,
+      "firstMetricAt": 1743657360004,
+      "lastMetricAt": 1743657369978,
+      "period": "1743657360000",
+      "summaries": {
+        "http.response_time": {
+          "min": 60,
+          "max": 321,
+          "count": 367,
+          "mean": 104.9,
+          "p50": 102.5,
+          "median": 102.5,
+          "p75": 120.3,
+          "p90": 141.2,
+          "p95": 156,
+          "p99": 232.8,
+          "p999": 278.7
+        },
+        "http.response_time.2xx": {
+          "min": 60,
+          "max": 321,
+          "count": 279,
+          "mean": 108.3,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 122.7,
+          "p90": 147,
+          "p95": 159.2,
+          "p99": 262.5,
+          "p999": 278.7
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 76,
+          "max": 321,
+          "count": 268,
+          "mean": 115.2,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 125.2,
+          "p90": 147,
+          "p95": 162.4,
+          "p99": 262.5,
+          "p999": 278.7
+        },
+        "vusers.session_length": {
+          "min": 195.7,
+          "max": 532.7,
+          "count": 268,
+          "mean": 268.5,
+          "p50": 247.2,
+          "median": 247.2,
+          "p75": 314.2,
+          "p90": 340.4,
+          "p95": 354.3,
+          "p99": 497.8,
+          "p999": 528.6
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 60,
+          "max": 164,
+          "count": 99,
+          "mean": 76.9,
+          "p50": 70.1,
+          "median": 70.1,
+          "p75": 79.1,
+          "p90": 104.6,
+          "p95": 111.1,
+          "p99": 122.7,
+          "p999": 122.7
+        },
+        "http.response_time.5xx": {
+          "min": 76,
+          "max": 212,
+          "count": 88,
+          "mean": 94.1,
+          "p50": 87.4,
+          "median": 87.4,
+          "p75": 94.6,
+          "p90": 108.9,
+          "p95": 135.7,
+          "p99": 190.6,
+          "p999": 190.6
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 60,
+          "max": 321,
+          "count": 367,
+          "mean": 104.9,
+          "p50": 102.5,
+          "median": 102.5,
+          "p75": 120.3,
+          "p90": 141.2,
+          "p95": 156,
+          "p99": 232.8,
+          "p999": 278.7
+        },
+        "http.response_time.2xx": {
+          "min": 60,
+          "max": 321,
+          "count": 279,
+          "mean": 108.3,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 122.7,
+          "p90": 147,
+          "p95": 159.2,
+          "p99": 262.5,
+          "p999": 278.7
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 76,
+          "max": 321,
+          "count": 268,
+          "mean": 115.2,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 125.2,
+          "p90": 147,
+          "p95": 162.4,
+          "p99": 262.5,
+          "p999": 278.7
+        },
+        "vusers.session_length": {
+          "min": 195.7,
+          "max": 532.7,
+          "count": 268,
+          "mean": 268.5,
+          "p50": 247.2,
+          "median": 247.2,
+          "p75": 314.2,
+          "p90": 340.4,
+          "p95": 354.3,
+          "p99": 497.8,
+          "p999": 528.6
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 60,
+          "max": 164,
+          "count": 99,
+          "mean": 76.9,
+          "p50": 70.1,
+          "median": 70.1,
+          "p75": 79.1,
+          "p90": 104.6,
+          "p95": 111.1,
+          "p99": 122.7,
+          "p999": 122.7
+        },
+        "http.response_time.5xx": {
+          "min": 76,
+          "max": 212,
+          "count": 88,
+          "mean": 94.1,
+          "p50": 87.4,
+          "median": 87.4,
+          "p75": 94.6,
+          "p90": 108.9,
+          "p95": 135.7,
+          "p99": 190.6,
+          "p999": 190.6
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 143,
+        "vusers.created": 428,
+        "http.requests": 546,
+        "http.codes.200": 367,
+        "http.responses": 509,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 251,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 116,
+        "vusers.failed": 16,
+        "vusers.completed": 391,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 161,
+        "http.codes.500": 142,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 142,
+        "vusers.created_by_name.0": 124,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 16,
+        "errors.ETIMEDOUT": 16
+      },
+      "rates": {
+        "http.request_rate": 55
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657370004,
+      "firstHistogramAt": 1743657370006,
+      "lastCounterAt": 1743657379995,
+      "lastHistogramAt": 1743657379995,
+      "firstMetricAt": 1743657370004,
+      "lastMetricAt": 1743657379995,
+      "period": "1743657370000",
+      "summaries": {
+        "http.response_time": {
+          "min": 62,
+          "max": 549,
+          "count": 509,
+          "mean": 279.5,
+          "p50": 295.9,
+          "median": 295.9,
+          "p75": 361.5,
+          "p90": 450.4,
+          "p95": 478.3,
+          "p99": 518.1,
+          "p999": 539.2
+        },
+        "http.response_time.2xx": {
+          "min": 62,
+          "max": 549,
+          "count": 367,
+          "mean": 276.9,
+          "p50": 290.1,
+          "median": 290.1,
+          "p75": 361.5,
+          "p90": 441.5,
+          "p95": 468.8,
+          "p99": 518.1,
+          "p999": 539.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 87,
+          "max": 549,
+          "count": 393,
+          "mean": 287.4,
+          "p50": 301.9,
+          "median": 301.9,
+          "p75": 361.5,
+          "p90": 450.4,
+          "p95": 478.3,
+          "p99": 518.1,
+          "p999": 539.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 62,
+          "max": 507,
+          "count": 116,
+          "mean": 252.7,
+          "p50": 267.8,
+          "median": 267.8,
+          "p75": 333.7,
+          "p90": 424.2,
+          "p95": 450.4,
+          "p99": 497.8,
+          "p999": 507.8
+        },
+        "vusers.session_length": {
+          "min": 205,
+          "max": 1085.7,
+          "count": 391,
+          "mean": 484.8,
+          "p50": 450.4,
+          "median": 450.4,
+          "p75": 572.6,
+          "p90": 772.9,
+          "p95": 837.3,
+          "p99": 1043.3,
+          "p999": 1064.4
+        },
+        "http.response_time.5xx": {
+          "min": 87,
+          "max": 529,
+          "count": 142,
+          "mean": 286.3,
+          "p50": 301.9,
+          "median": 301.9,
+          "p75": 354.3,
+          "p90": 450.4,
+          "p95": 478.3,
+          "p99": 507.8,
+          "p999": 518.1
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 62,
+          "max": 549,
+          "count": 509,
+          "mean": 279.5,
+          "p50": 295.9,
+          "median": 295.9,
+          "p75": 361.5,
+          "p90": 450.4,
+          "p95": 478.3,
+          "p99": 518.1,
+          "p999": 539.2
+        },
+        "http.response_time.2xx": {
+          "min": 62,
+          "max": 549,
+          "count": 367,
+          "mean": 276.9,
+          "p50": 290.1,
+          "median": 290.1,
+          "p75": 361.5,
+          "p90": 441.5,
+          "p95": 468.8,
+          "p99": 518.1,
+          "p999": 539.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 87,
+          "max": 549,
+          "count": 393,
+          "mean": 287.4,
+          "p50": 301.9,
+          "median": 301.9,
+          "p75": 361.5,
+          "p90": 450.4,
+          "p95": 478.3,
+          "p99": 518.1,
+          "p999": 539.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 62,
+          "max": 507,
+          "count": 116,
+          "mean": 252.7,
+          "p50": 267.8,
+          "median": 267.8,
+          "p75": 333.7,
+          "p90": 424.2,
+          "p95": 450.4,
+          "p99": 497.8,
+          "p999": 507.8
+        },
+        "vusers.session_length": {
+          "min": 205,
+          "max": 1085.7,
+          "count": 391,
+          "mean": 484.8,
+          "p50": 450.4,
+          "median": 450.4,
+          "p75": 572.6,
+          "p90": 772.9,
+          "p95": 837.3,
+          "p99": 1043.3,
+          "p999": 1064.4
+        },
+        "http.response_time.5xx": {
+          "min": 87,
+          "max": 529,
+          "count": 142,
+          "mean": 286.3,
+          "p50": 301.9,
+          "median": 301.9,
+          "p75": 354.3,
+          "p90": 450.4,
+          "p95": 478.3,
+          "p99": 507.8,
+          "p999": 518.1
+        }
+      }
+    },
+    {
+      "counters": {
+        "http.codes.200": 418,
+        "http.responses": 563,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 292,
+        "http.requests": 642,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 126,
+        "vusers.failed": 17,
+        "vusers.completed": 421,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 152,
+        "vusers.created": 500,
+        "http.codes.500": 145,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 145,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 174,
+        "vusers.created_by_name.0": 174,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 17,
+        "errors.ETIMEDOUT": 17
+      },
+      "rates": {
+        "http.request_rate": 64
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657380020,
+      "firstHistogramAt": 1743657380020,
+      "lastCounterAt": 1743657389996,
+      "lastHistogramAt": 1743657389982,
+      "firstMetricAt": 1743657380020,
+      "lastMetricAt": 1743657389996,
+      "period": "1743657380000",
+      "summaries": {
+        "http.response_time": {
+          "min": 371,
+          "max": 1387,
+          "count": 563,
+          "mean": 825.7,
+          "p50": 742.6,
+          "median": 742.6,
+          "p75": 1130.2,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1353.1,
+          "p999": 1380.5
+        },
+        "http.response_time.2xx": {
+          "min": 371,
+          "max": 1387,
+          "count": 418,
+          "mean": 838.6,
+          "p50": 757.6,
+          "median": 757.6,
+          "p75": 1153.1,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1353.1,
+          "p999": 1380.5
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 392,
+          "max": 1387,
+          "count": 437,
+          "mean": 829.7,
+          "p50": 757.6,
+          "median": 757.6,
+          "p75": 1130.2,
+          "p90": 1300.1,
+          "p95": 1300.1,
+          "p99": 1353.1,
+          "p999": 1380.5
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 371,
+          "max": 1324,
+          "count": 126,
+          "mean": 811.7,
+          "p50": 727.9,
+          "median": 727.9,
+          "p75": 1107.9,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1300.1,
+          "p999": 1326.4
+        },
+        "vusers.session_length": {
+          "min": 516.4,
+          "max": 2753.4,
+          "count": 421,
+          "mean": 1175.7,
+          "p50": 1002.4,
+          "median": 1002.4,
+          "p75": 1408.4,
+          "p90": 1826.6,
+          "p95": 2515.5,
+          "p99": 2671,
+          "p999": 2725
+        },
+        "http.response_time.5xx": {
+          "min": 394,
+          "max": 1347,
+          "count": 145,
+          "mean": 788.3,
+          "p50": 727.9,
+          "median": 727.9,
+          "p75": 925.4,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1326.4,
+          "p999": 1353.1
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 371,
+          "max": 1387,
+          "count": 563,
+          "mean": 825.7,
+          "p50": 742.6,
+          "median": 742.6,
+          "p75": 1130.2,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1353.1,
+          "p999": 1380.5
+        },
+        "http.response_time.2xx": {
+          "min": 371,
+          "max": 1387,
+          "count": 418,
+          "mean": 838.6,
+          "p50": 757.6,
+          "median": 757.6,
+          "p75": 1153.1,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1353.1,
+          "p999": 1380.5
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 392,
+          "max": 1387,
+          "count": 437,
+          "mean": 829.7,
+          "p50": 757.6,
+          "median": 757.6,
+          "p75": 1130.2,
+          "p90": 1300.1,
+          "p95": 1300.1,
+          "p99": 1353.1,
+          "p999": 1380.5
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 371,
+          "max": 1324,
+          "count": 126,
+          "mean": 811.7,
+          "p50": 727.9,
+          "median": 727.9,
+          "p75": 1107.9,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1300.1,
+          "p999": 1326.4
+        },
+        "vusers.session_length": {
+          "min": 516.4,
+          "max": 2753.4,
+          "count": 421,
+          "mean": 1175.7,
+          "p50": 1002.4,
+          "median": 1002.4,
+          "p75": 1408.4,
+          "p90": 1826.6,
+          "p95": 2515.5,
+          "p99": 2671,
+          "p999": 2725
+        },
+        "http.response_time.5xx": {
+          "min": 394,
+          "max": 1347,
+          "count": 145,
+          "mean": 788.3,
+          "p50": 727.9,
+          "median": 727.9,
+          "p75": 925.4,
+          "p90": 1274.3,
+          "p95": 1300.1,
+          "p99": 1326.4,
+          "p999": 1353.1
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 162,
+        "vusers.created": 500,
+        "http.requests": 633,
+        "http.codes.200": 378,
+        "http.responses": 495,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 274,
+        "vusers.failed": 18,
+        "vusers.completed": 362,
+        "vusers.created_by_name.0": 166,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 172,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 104,
+        "http.codes.500": 117,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 117,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 18,
+        "errors.ETIMEDOUT": 18
+      },
+      "rates": {
+        "http.request_rate": 64
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657390000,
+      "firstHistogramAt": 1743657390000,
+      "lastCounterAt": 1743657399996,
+      "lastHistogramAt": 1743657399965,
+      "firstMetricAt": 1743657390000,
+      "lastMetricAt": 1743657399996,
+      "period": "1743657390000",
+      "summaries": {
+        "http.response_time": {
+          "min": 1307,
+          "max": 3392,
+          "count": 495,
+          "mean": 2446.6,
+          "p50": 2618.1,
+          "median": 2618.1,
+          "p75": 3072.4,
+          "p90": 3262.4,
+          "p95": 3328.3,
+          "p99": 3395.5,
+          "p999": 3395.5
+        },
+        "http.response_time.2xx": {
+          "min": 1307,
+          "max": 3392,
+          "count": 378,
+          "mean": 2433.7,
+          "p50": 2618.1,
+          "median": 2618.1,
+          "p75": 3072.4,
+          "p90": 3262.4,
+          "p95": 3328.3,
+          "p99": 3395.5,
+          "p999": 3395.5
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 1373,
+          "max": 3392,
+          "count": 391,
+          "mean": 2469.8,
+          "p50": 2671,
+          "median": 2671,
+          "p75": 3072.4,
+          "p90": 3328.3,
+          "p95": 3328.3,
+          "p99": 3395.5,
+          "p999": 3395.5
+        },
+        "vusers.session_length": {
+          "min": 1496.2,
+          "max": 6275.8,
+          "count": 362,
+          "mean": 3124.1,
+          "p50": 2951.9,
+          "median": 2951.9,
+          "p75": 3464.1,
+          "p90": 5065.6,
+          "p95": 5944.6,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 1307,
+          "max": 3307,
+          "count": 104,
+          "mean": 2359.4,
+          "p50": 2322.1,
+          "median": 2322.1,
+          "p75": 2951.9,
+          "p90": 3262.4,
+          "p95": 3262.4,
+          "p99": 3328.3,
+          "p999": 3328.3
+        },
+        "http.response_time.5xx": {
+          "min": 1470,
+          "max": 3358,
+          "count": 117,
+          "mean": 2488.4,
+          "p50": 2671,
+          "median": 2671,
+          "p75": 3011.6,
+          "p90": 3328.3,
+          "p95": 3328.3,
+          "p99": 3328.3,
+          "p999": 3328.3
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 1307,
+          "max": 3392,
+          "count": 495,
+          "mean": 2446.6,
+          "p50": 2618.1,
+          "median": 2618.1,
+          "p75": 3072.4,
+          "p90": 3262.4,
+          "p95": 3328.3,
+          "p99": 3395.5,
+          "p999": 3395.5
+        },
+        "http.response_time.2xx": {
+          "min": 1307,
+          "max": 3392,
+          "count": 378,
+          "mean": 2433.7,
+          "p50": 2618.1,
+          "median": 2618.1,
+          "p75": 3072.4,
+          "p90": 3262.4,
+          "p95": 3328.3,
+          "p99": 3395.5,
+          "p999": 3395.5
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 1373,
+          "max": 3392,
+          "count": 391,
+          "mean": 2469.8,
+          "p50": 2671,
+          "median": 2671,
+          "p75": 3072.4,
+          "p90": 3328.3,
+          "p95": 3328.3,
+          "p99": 3395.5,
+          "p999": 3395.5
+        },
+        "vusers.session_length": {
+          "min": 1496.2,
+          "max": 6275.8,
+          "count": 362,
+          "mean": 3124.1,
+          "p50": 2951.9,
+          "median": 2951.9,
+          "p75": 3464.1,
+          "p90": 5065.6,
+          "p95": 5944.6,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 1307,
+          "max": 3307,
+          "count": 104,
+          "mean": 2359.4,
+          "p50": 2322.1,
+          "median": 2322.1,
+          "p75": 2951.9,
+          "p90": 3262.4,
+          "p95": 3262.4,
+          "p99": 3328.3,
+          "p999": 3328.3
+        },
+        "http.response_time.5xx": {
+          "min": 1470,
+          "max": 3358,
+          "count": 117,
+          "mean": 2488.4,
+          "p50": 2671,
+          "median": 2671,
+          "p75": 3011.6,
+          "p90": 3328.3,
+          "p95": 3328.3,
+          "p99": 3328.3,
+          "p999": 3328.3
+        }
+      }
+    },
+    {
+      "counters": {
+        "http.codes.200": 397,
+        "http.responses": 538,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 277,
+        "http.requests": 638,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 178,
+        "vusers.created": 500,
+        "http.codes.500": 135,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 135,
+        "vusers.failed": 13,
+        "vusers.completed": 400,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 120,
+        "vusers.created_by_name.0": 165,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 157,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 13,
+        "errors.ETIMEDOUT": 13,
+        "http.codes.429": 6,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.429": 6
+      },
+      "rates": {
+        "http.request_rate": 64
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657400007,
+      "firstHistogramAt": 1743657400007,
+      "lastCounterAt": 1743657409996,
+      "lastHistogramAt": 1743657409995,
+      "firstMetricAt": 1743657400007,
+      "lastMetricAt": 1743657409996,
+      "period": "1743657400000",
+      "summaries": {
+        "http.response_time": {
+          "min": 3247,
+          "max": 4739,
+          "count": 538,
+          "mean": 3937.9,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4403.8,
+          "p90": 4583.6,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "http.response_time.2xx": {
+          "min": 3247,
+          "max": 4739,
+          "count": 397,
+          "mean": 3937.2,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4403.8,
+          "p90": 4583.6,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 3252,
+          "max": 4739,
+          "count": 418,
+          "mean": 3956,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4403.8,
+          "p90": 4583.6,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "http.response_time.5xx": {
+          "min": 3252,
+          "max": 4705,
+          "count": 135,
+          "mean": 3945.2,
+          "p50": 3905.8,
+          "median": 3905.8,
+          "p75": 4403.8,
+          "p90": 4492.8,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "vusers.session_length": {
+          "min": 3374.1,
+          "max": 8780.4,
+          "count": 400,
+          "mean": 5076.6,
+          "p50": 4492.8,
+          "median": 4492.8,
+          "p75": 6702.6,
+          "p90": 7709.8,
+          "p95": 8186.6,
+          "p99": 8520.7,
+          "p999": 8692.8
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 3247,
+          "max": 4694,
+          "count": 120,
+          "mean": 3874.9,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4316.6,
+          "p90": 4492.8,
+          "p95": 4583.6,
+          "p99": 4583.6,
+          "p999": 4676.2
+        },
+        "http.response_time.4xx": {
+          "min": 3788,
+          "max": 3844,
+          "count": 6,
+          "mean": 3822,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 3828.5,
+          "p90": 3828.5,
+          "p95": 3828.5,
+          "p99": 3828.5,
+          "p999": 3828.5
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 3247,
+          "max": 4739,
+          "count": 538,
+          "mean": 3937.9,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4403.8,
+          "p90": 4583.6,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "http.response_time.2xx": {
+          "min": 3247,
+          "max": 4739,
+          "count": 397,
+          "mean": 3937.2,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4403.8,
+          "p90": 4583.6,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 3252,
+          "max": 4739,
+          "count": 418,
+          "mean": 3956,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4403.8,
+          "p90": 4583.6,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "http.response_time.5xx": {
+          "min": 3252,
+          "max": 4705,
+          "count": 135,
+          "mean": 3945.2,
+          "p50": 3905.8,
+          "median": 3905.8,
+          "p75": 4403.8,
+          "p90": 4492.8,
+          "p95": 4583.6,
+          "p99": 4676.2,
+          "p999": 4676.2
+        },
+        "vusers.session_length": {
+          "min": 3374.1,
+          "max": 8780.4,
+          "count": 400,
+          "mean": 5076.6,
+          "p50": 4492.8,
+          "median": 4492.8,
+          "p75": 6702.6,
+          "p90": 7709.8,
+          "p95": 8186.6,
+          "p99": 8520.7,
+          "p999": 8692.8
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 3247,
+          "max": 4694,
+          "count": 120,
+          "mean": 3874.9,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 4316.6,
+          "p90": 4492.8,
+          "p95": 4583.6,
+          "p99": 4583.6,
+          "p999": 4676.2
+        },
+        "http.response_time.4xx": {
+          "min": 3788,
+          "max": 3844,
+          "count": 6,
+          "mean": 3822,
+          "p50": 3828.5,
+          "median": 3828.5,
+          "p75": 3828.5,
+          "p90": 3828.5,
+          "p95": 3828.5,
+          "p99": 3828.5,
+          "p999": 3828.5
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 174,
+        "vusers.created": 500,
+        "http.requests": 641,
+        "http.codes.500": 135,
+        "http.responses": 529,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 135,
+        "vusers.failed": 13,
+        "vusers.completed": 388,
+        "http.codes.200": 394,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 119,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 275,
+        "vusers.created_by_name.0": 151,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 175,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 13,
+        "errors.ETIMEDOUT": 13
+      },
+      "rates": {
+        "http.request_rate": 65
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657410025,
+      "firstHistogramAt": 1743657410025,
+      "lastCounterAt": 1743657419996,
+      "lastHistogramAt": 1743657419970,
+      "firstMetricAt": 1743657410025,
+      "lastMetricAt": 1743657419996,
+      "period": "1743657410000",
+      "summaries": {
+        "http.response_time": {
+          "min": 4683,
+          "max": 6313,
+          "count": 529,
+          "mean": 5571.1,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "http.response_time.5xx": {
+          "min": 4722,
+          "max": 6235,
+          "count": 135,
+          "mean": 5585.2,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6187.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 4722,
+          "max": 6313,
+          "count": 410,
+          "mean": 5573.3,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "vusers.session_length": {
+          "min": 4843.4,
+          "max": 11848,
+          "count": 388,
+          "mean": 7141.9,
+          "p50": 6064.7,
+          "median": 6064.7,
+          "p75": 9416.8,
+          "p90": 10832,
+          "p95": 11274.1,
+          "p99": 11734.2,
+          "p999": 11734.2
+        },
+        "http.response_time.2xx": {
+          "min": 4683,
+          "max": 6313,
+          "count": 394,
+          "mean": 5566.3,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 4683,
+          "max": 6253,
+          "count": 119,
+          "mean": 5563.7,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6187.2
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 4683,
+          "max": 6313,
+          "count": 529,
+          "mean": 5571.1,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "http.response_time.5xx": {
+          "min": 4722,
+          "max": 6235,
+          "count": 135,
+          "mean": 5585.2,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6187.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 4722,
+          "max": 6313,
+          "count": 410,
+          "mean": 5573.3,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "vusers.session_length": {
+          "min": 4843.4,
+          "max": 11848,
+          "count": 388,
+          "mean": 7141.9,
+          "p50": 6064.7,
+          "median": 6064.7,
+          "p75": 9416.8,
+          "p90": 10832,
+          "p95": 11274.1,
+          "p99": 11734.2,
+          "p999": 11734.2
+        },
+        "http.response_time.2xx": {
+          "min": 4683,
+          "max": 6313,
+          "count": 394,
+          "mean": 5566.3,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6312.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 4683,
+          "max": 6253,
+          "count": 119,
+          "mean": 5563.7,
+          "p50": 5598.4,
+          "median": 5598.4,
+          "p75": 5944.6,
+          "p90": 6064.7,
+          "p95": 6187.2,
+          "p99": 6187.2,
+          "p999": 6187.2
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.0": 155,
+        "vusers.created": 500,
+        "http.requests": 608,
+        "http.codes.200": 367,
+        "http.responses": 509,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 259,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 152,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 193,
+        "vusers.failed": 21,
+        "vusers.completed": 401,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 108,
+        "http.codes.500": 142,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 142,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 21,
+        "errors.ETIMEDOUT": 21
+      },
+      "rates": {
+        "http.request_rate": 61
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657420011,
+      "firstHistogramAt": 1743657420011,
+      "lastCounterAt": 1743657429999,
+      "lastHistogramAt": 1743657429999,
+      "firstMetricAt": 1743657420011,
+      "lastMetricAt": 1743657429999,
+      "period": "1743657420000",
+      "summaries": {
+        "http.response_time": {
+          "min": 6250,
+          "max": 8042,
+          "count": 509,
+          "mean": 7485.4,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "http.response_time.2xx": {
+          "min": 6250,
+          "max": 8042,
+          "count": 367,
+          "mean": 7493.8,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 6268,
+          "max": 8042,
+          "count": 401,
+          "mean": 7493.6,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "vusers.session_length": {
+          "min": 6391.4,
+          "max": 14846.8,
+          "count": 401,
+          "mean": 9224,
+          "p50": 7865.6,
+          "median": 7865.6,
+          "p75": 12213.1,
+          "p90": 14048.5,
+          "p95": 14332.3,
+          "p99": 14917.2,
+          "p999": 14917.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 6250,
+          "max": 7983,
+          "count": 108,
+          "mean": 7454.8,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7709.8,
+          "p90": 7865.6,
+          "p95": 7865.6,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "http.response_time.5xx": {
+          "min": 6268,
+          "max": 8008,
+          "count": 142,
+          "mean": 7463.6,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 6250,
+          "max": 8042,
+          "count": 509,
+          "mean": 7485.4,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "http.response_time.2xx": {
+          "min": 6250,
+          "max": 8042,
+          "count": 367,
+          "mean": 7493.8,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 6268,
+          "max": 8042,
+          "count": 401,
+          "mean": 7493.6,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "vusers.session_length": {
+          "min": 6391.4,
+          "max": 14846.8,
+          "count": 401,
+          "mean": 9224,
+          "p50": 7865.6,
+          "median": 7865.6,
+          "p75": 12213.1,
+          "p90": 14048.5,
+          "p95": 14332.3,
+          "p99": 14917.2,
+          "p999": 14917.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 6250,
+          "max": 7983,
+          "count": 108,
+          "mean": 7454.8,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7709.8,
+          "p90": 7865.6,
+          "p95": 7865.6,
+          "p99": 8024.5,
+          "p999": 8024.5
+        },
+        "http.response_time.5xx": {
+          "min": 6268,
+          "max": 8008,
+          "count": 142,
+          "mean": 7463.6,
+          "p50": 7709.8,
+          "median": 7709.8,
+          "p75": 7865.6,
+          "p90": 8024.5,
+          "p95": 8024.5,
+          "p99": 8024.5,
+          "p999": 8024.5
+        }
+      }
+    },
+    {
+      "counters": {
+        "http.codes.200": 362,
+        "http.responses": 525,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 257,
+        "http.requests": 633,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 163,
+        "vusers.created": 500,
+        "http.codes.500": 163,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 163,
+        "vusers.failed": 17,
+        "vusers.completed": 392,
+        "vusers.created_by_name.0": 173,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 105,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 164,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 17,
+        "errors.ETIMEDOUT": 17
+      },
+      "rates": {
+        "http.request_rate": 63
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657430016,
+      "firstHistogramAt": 1743657430016,
+      "lastCounterAt": 1743657439996,
+      "lastHistogramAt": 1743657439994,
+      "firstMetricAt": 1743657430016,
+      "lastMetricAt": 1743657439996,
+      "period": "1743657430000",
+      "summaries": {
+        "http.response_time": {
+          "min": 7858,
+          "max": 9307,
+          "count": 525,
+          "mean": 8584.6,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "http.response_time.2xx": {
+          "min": 7858,
+          "max": 9307,
+          "count": 362,
+          "mean": 8620.6,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 7859,
+          "max": 9307,
+          "count": 420,
+          "mean": 8566.2,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "http.response_time.5xx": {
+          "min": 7872,
+          "max": 9202,
+          "count": 163,
+          "mean": 8504.8,
+          "p50": 8520.7,
+          "median": 8520.7,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "vusers.session_length": {
+          "min": 7988.9,
+          "max": 17283.7,
+          "count": 392,
+          "mean": 10782.9,
+          "p50": 9047.6,
+          "median": 9047.6,
+          "p75": 15218.6,
+          "p90": 16819.2,
+          "p95": 17158.9,
+          "p99": 17158.9,
+          "p999": 17158.9
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 7858,
+          "max": 9209,
+          "count": 105,
+          "mean": 8658.3,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 9047.6,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 7858,
+          "max": 9307,
+          "count": 525,
+          "mean": 8584.6,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "http.response_time.2xx": {
+          "min": 7858,
+          "max": 9307,
+          "count": 362,
+          "mean": 8620.6,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 7859,
+          "max": 9307,
+          "count": 420,
+          "mean": 8566.2,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "http.response_time.5xx": {
+          "min": 7872,
+          "max": 9202,
+          "count": 163,
+          "mean": 8504.8,
+          "p50": 8520.7,
+          "median": 8520.7,
+          "p75": 8868.4,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        },
+        "vusers.session_length": {
+          "min": 7988.9,
+          "max": 17283.7,
+          "count": 392,
+          "mean": 10782.9,
+          "p50": 9047.6,
+          "median": 9047.6,
+          "p75": 15218.6,
+          "p90": 16819.2,
+          "p95": 17158.9,
+          "p99": 17158.9,
+          "p999": 17158.9
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 7858,
+          "max": 9209,
+          "count": 105,
+          "mean": 8658.3,
+          "p50": 8692.8,
+          "median": 8692.8,
+          "p75": 9047.6,
+          "p90": 9047.6,
+          "p95": 9230.4,
+          "p99": 9230.4,
+          "p999": 9230.4
+        }
+      }
+    },
+    {
+      "counters": {
+        "http.codes.200": 234,
+        "http.responses": 315,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 68,
+        "vusers.failed": 268,
+        "vusers.completed": 227,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 166,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 317,
+        "vusers.created": 959,
+        "http.requests": 1047,
+        "vusers.created_by_name.0": 355,
+        "http.codes.500": 81,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 81,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 287,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 221,
+        "errors.ETIMEDOUT": 268,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.errors.ETIMEDOUT": 47
+      },
+      "rates": {
+        "http.request_rate": 106
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657440015,
+      "firstHistogramAt": 1743657440015,
+      "lastCounterAt": 1743657449996,
+      "lastHistogramAt": 1743657447161,
+      "firstMetricAt": 1743657440015,
+      "lastMetricAt": 1743657449996,
+      "period": "1743657440000",
+      "summaries": {
+        "http.response_time": {
+          "min": 9098,
+          "max": 9997,
+          "count": 315,
+          "mean": 9480,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9801.2,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "http.response_time.2xx": {
+          "min": 9109,
+          "max": 9997,
+          "count": 234,
+          "mean": 9502.3,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9801.2,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 9116,
+          "max": 9997,
+          "count": 68,
+          "mean": 9550.5,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9801.2,
+          "p90": 9999.2,
+          "p95": 9999.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "vusers.session_length": {
+          "min": 9219.8,
+          "max": 18996.9,
+          "count": 227,
+          "mean": 12133.9,
+          "p50": 9801.2,
+          "median": 9801.2,
+          "p75": 17505.6,
+          "p90": 18588.1,
+          "p95": 18963.6,
+          "p99": 18963.6,
+          "p999": 18963.6
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 9098,
+          "max": 9876,
+          "count": 247,
+          "mean": 9460.6,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9607.1,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9801.2,
+          "p999": 9801.2
+        },
+        "http.response_time.5xx": {
+          "min": 9098,
+          "max": 9832,
+          "count": 81,
+          "mean": 9415.3,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9416.8,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9801.2,
+          "p999": 9801.2
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 9098,
+          "max": 9997,
+          "count": 315,
+          "mean": 9480,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9801.2,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "http.response_time.2xx": {
+          "min": 9109,
+          "max": 9997,
+          "count": 234,
+          "mean": 9502.3,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9801.2,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 9116,
+          "max": 9997,
+          "count": 68,
+          "mean": 9550.5,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9801.2,
+          "p90": 9999.2,
+          "p95": 9999.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "vusers.session_length": {
+          "min": 9219.8,
+          "max": 18996.9,
+          "count": 227,
+          "mean": 12133.9,
+          "p50": 9801.2,
+          "median": 9801.2,
+          "p75": 17505.6,
+          "p90": 18588.1,
+          "p95": 18963.6,
+          "p99": 18963.6,
+          "p999": 18963.6
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 9098,
+          "max": 9876,
+          "count": 247,
+          "mean": 9460.6,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9607.1,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9801.2,
+          "p999": 9801.2
+        },
+        "http.response_time.5xx": {
+          "min": 9098,
+          "max": 9832,
+          "count": 81,
+          "mean": 9415.3,
+          "p50": 9416.8,
+          "median": 9416.8,
+          "p75": 9416.8,
+          "p90": 9801.2,
+          "p95": 9801.2,
+          "p99": 9801.2,
+          "p999": 9801.2
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 90,
+        "vusers.created": 264,
+        "http.requests": 555,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 351,
+        "errors.ETIMEDOUT": 404,
+        "vusers.failed": 404,
+        "vusers.created_by_name.0": 80,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 94,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.errors.ETIMEDOUT": 53,
+        "http.codes.200": 95,
+        "http.responses": 1182,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 95,
+        "vusers.completed": 891,
+        "http.codes.429": 1087,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.429": 858,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.429": 229
+      },
+      "rates": {
+        "http.request_rate": 56
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657450020,
+      "firstHistogramAt": 1743657453748,
+      "lastCounterAt": 1743657459993,
+      "lastHistogramAt": 1743657459993,
+      "firstMetricAt": 1743657450020,
+      "lastMetricAt": 1743657459993,
+      "period": "1743657450000",
+      "summaries": {
+        "http.response_time": {
+          "min": 57,
+          "max": 9965,
+          "count": 1182,
+          "mean": 4799.4,
+          "p50": 5272.4,
+          "median": 5272.4,
+          "p75": 7709.8,
+          "p90": 9047.6,
+          "p95": 9416.8,
+          "p99": 9801.2,
+          "p999": 9999.2
+        },
+        "http.response_time.2xx": {
+          "min": 61,
+          "max": 9965,
+          "count": 95,
+          "mean": 3096.6,
+          "p50": 1465.9,
+          "median": 1465.9,
+          "p75": 1525.7,
+          "p90": 9607.1,
+          "p95": 9801.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 59,
+          "max": 9965,
+          "count": 324,
+          "mean": 1926.1,
+          "p50": 1200.1,
+          "median": 1200.1,
+          "p75": 1436.8,
+          "p90": 8520.7,
+          "p95": 9230.4,
+          "p99": 9801.2,
+          "p999": 9999.2
+        },
+        "vusers.session_length": {
+          "min": 173.5,
+          "max": 19651.1,
+          "count": 891,
+          "mean": 6873.3,
+          "p50": 6976.1,
+          "median": 6976.1,
+          "p75": 8868.4,
+          "p90": 10201.2,
+          "p95": 11274.1,
+          "p99": 19346.7,
+          "p999": 19737.6
+        },
+        "http.response_time.4xx": {
+          "min": 57,
+          "max": 9870,
+          "count": 1087,
+          "mean": 4948.2,
+          "p50": 5487.5,
+          "median": 5487.5,
+          "p75": 7865.6,
+          "p90": 9047.6,
+          "p95": 9416.8,
+          "p99": 9801.2,
+          "p999": 9801.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 57,
+          "max": 9870,
+          "count": 858,
+          "mean": 5884.4,
+          "p50": 6312.2,
+          "median": 6312.2,
+          "p75": 8186.6,
+          "p90": 9230.4,
+          "p95": 9607.1,
+          "p99": 9801.2,
+          "p999": 9801.2
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 57,
+          "max": 9965,
+          "count": 1182,
+          "mean": 4799.4,
+          "p50": 5272.4,
+          "median": 5272.4,
+          "p75": 7709.8,
+          "p90": 9047.6,
+          "p95": 9416.8,
+          "p99": 9801.2,
+          "p999": 9999.2
+        },
+        "http.response_time.2xx": {
+          "min": 61,
+          "max": 9965,
+          "count": 95,
+          "mean": 3096.6,
+          "p50": 1465.9,
+          "median": 1465.9,
+          "p75": 1525.7,
+          "p90": 9607.1,
+          "p95": 9801.2,
+          "p99": 9999.2,
+          "p999": 9999.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 59,
+          "max": 9965,
+          "count": 324,
+          "mean": 1926.1,
+          "p50": 1200.1,
+          "median": 1200.1,
+          "p75": 1436.8,
+          "p90": 8520.7,
+          "p95": 9230.4,
+          "p99": 9801.2,
+          "p999": 9999.2
+        },
+        "vusers.session_length": {
+          "min": 173.5,
+          "max": 19651.1,
+          "count": 891,
+          "mean": 6873.3,
+          "p50": 6976.1,
+          "median": 6976.1,
+          "p75": 8868.4,
+          "p90": 10201.2,
+          "p95": 11274.1,
+          "p99": 19346.7,
+          "p999": 19737.6
+        },
+        "http.response_time.4xx": {
+          "min": 57,
+          "max": 9870,
+          "count": 1087,
+          "mean": 4948.2,
+          "p50": 5487.5,
+          "median": 5487.5,
+          "p75": 7865.6,
+          "p90": 9047.6,
+          "p95": 9416.8,
+          "p99": 9801.2,
+          "p999": 9801.2
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 57,
+          "max": 9870,
+          "count": 858,
+          "mean": 5884.4,
+          "p50": 6312.2,
+          "median": 6312.2,
+          "p75": 8186.6,
+          "p90": 9230.4,
+          "p95": 9607.1,
+          "p99": 9801.2,
+          "p999": 9801.2
+        }
+      }
+    },
+    {
+      "counters": {
+        "http.codes.200": 141,
+        "http.responses": 266,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 72,
+        "vusers.failed": 11,
+        "vusers.completed": 195,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 11,
+        "errors.ETIMEDOUT": 11,
+        "vusers.created_by_name.0": 74,
+        "vusers.created": 200,
+        "http.requests": 271,
+        "http.codes.429": 85,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.429": 85,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 68,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 58,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 69,
+        "http.codes.500": 40,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 40
+      },
+      "rates": {
+        "http.request_rate": 27
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657460018,
+      "firstHistogramAt": 1743657460018,
+      "lastCounterAt": 1743657469975,
+      "lastHistogramAt": 1743657469974,
+      "firstMetricAt": 1743657460018,
+      "lastMetricAt": 1743657469975,
+      "period": "1743657460000",
+      "summaries": {
+        "http.response_time": {
+          "min": 57,
+          "max": 142,
+          "count": 266,
+          "mean": 77.7,
+          "p50": 66,
+          "median": 66,
+          "p75": 94.6,
+          "p90": 111.1,
+          "p95": 115.6,
+          "p99": 125.2,
+          "p999": 127.8
+        },
+        "http.response_time.2xx": {
+          "min": 59,
+          "max": 142,
+          "count": 141,
+          "mean": 85.6,
+          "p50": 74.4,
+          "median": 74.4,
+          "p75": 104.6,
+          "p90": 113.3,
+          "p95": 117.9,
+          "p99": 127.8,
+          "p999": 127.8
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 59,
+          "max": 84,
+          "count": 72,
+          "mean": 65.1,
+          "p50": 63.4,
+          "median": 63.4,
+          "p75": 66,
+          "p90": 70.1,
+          "p95": 71.5,
+          "p99": 74.4,
+          "p999": 74.4
+        },
+        "vusers.session_length": {
+          "min": 174.2,
+          "max": 332.2,
+          "count": 195,
+          "mean": 230.1,
+          "p50": 219.2,
+          "median": 219.2,
+          "p75": 252.2,
+          "p90": 301.9,
+          "p95": 308,
+          "p99": 327.1,
+          "p999": 327.1
+        },
+        "http.response_time.4xx": {
+          "min": 57,
+          "max": 66,
+          "count": 85,
+          "mean": 60.4,
+          "p50": 59.7,
+          "median": 59.7,
+          "p75": 61,
+          "p90": 62.2,
+          "p95": 63.4,
+          "p99": 66,
+          "p999": 66
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 57,
+          "max": 142,
+          "count": 194,
+          "mean": 82.3,
+          "p50": 80.6,
+          "median": 80.6,
+          "p75": 100.5,
+          "p90": 111.1,
+          "p95": 117.9,
+          "p99": 127.8,
+          "p999": 127.8
+        },
+        "http.response_time.5xx": {
+          "min": 75,
+          "max": 115,
+          "count": 40,
+          "mean": 86.2,
+          "p50": 85.6,
+          "median": 85.6,
+          "p75": 87.4,
+          "p90": 92.8,
+          "p95": 106.7,
+          "p99": 111.1,
+          "p999": 111.1
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 57,
+          "max": 142,
+          "count": 266,
+          "mean": 77.7,
+          "p50": 66,
+          "median": 66,
+          "p75": 94.6,
+          "p90": 111.1,
+          "p95": 115.6,
+          "p99": 125.2,
+          "p999": 127.8
+        },
+        "http.response_time.2xx": {
+          "min": 59,
+          "max": 142,
+          "count": 141,
+          "mean": 85.6,
+          "p50": 74.4,
+          "median": 74.4,
+          "p75": 104.6,
+          "p90": 113.3,
+          "p95": 117.9,
+          "p99": 127.8,
+          "p999": 127.8
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 59,
+          "max": 84,
+          "count": 72,
+          "mean": 65.1,
+          "p50": 63.4,
+          "median": 63.4,
+          "p75": 66,
+          "p90": 70.1,
+          "p95": 71.5,
+          "p99": 74.4,
+          "p999": 74.4
+        },
+        "vusers.session_length": {
+          "min": 174.2,
+          "max": 332.2,
+          "count": 195,
+          "mean": 230.1,
+          "p50": 219.2,
+          "median": 219.2,
+          "p75": 252.2,
+          "p90": 301.9,
+          "p95": 308,
+          "p99": 327.1,
+          "p999": 327.1
+        },
+        "http.response_time.4xx": {
+          "min": 57,
+          "max": 66,
+          "count": 85,
+          "mean": 60.4,
+          "p50": 59.7,
+          "median": 59.7,
+          "p75": 61,
+          "p90": 62.2,
+          "p95": 63.4,
+          "p99": 66,
+          "p999": 66
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 57,
+          "max": 142,
+          "count": 194,
+          "mean": 82.3,
+          "p50": 80.6,
+          "median": 80.6,
+          "p75": 100.5,
+          "p90": 111.1,
+          "p95": 117.9,
+          "p99": 127.8,
+          "p999": 127.8
+        },
+        "http.response_time.5xx": {
+          "min": 75,
+          "max": 115,
+          "count": 40,
+          "mean": 86.2,
+          "p50": 85.6,
+          "median": 85.6,
+          "p75": 87.4,
+          "p90": 92.8,
+          "p95": 106.7,
+          "p99": 111.1,
+          "p999": 111.1
+        }
+      }
+    },
+    {
+      "counters": {
+        "http.codes.200": 209,
+        "http.responses": 278,
+        "http.downloaded_bytes": 0,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 79,
+        "vusers.failed": 5,
+        "vusers.completed": 198,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 70,
+        "vusers.created": 200,
+        "http.requests": 280,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 130,
+        "vusers.created_by_name.0": 79,
+        "http.codes.500": 69,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 69,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 51,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 5,
+        "errors.ETIMEDOUT": 5
+      },
+      "rates": {
+        "http.request_rate": 28
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657470027,
+      "firstHistogramAt": 1743657470027,
+      "lastCounterAt": 1743657479984,
+      "lastHistogramAt": 1743657479984,
+      "firstMetricAt": 1743657470027,
+      "lastMetricAt": 1743657479984,
+      "period": "1743657470000",
+      "summaries": {
+        "http.response_time": {
+          "min": 61,
+          "max": 181,
+          "count": 278,
+          "mean": 89.8,
+          "p50": 92.8,
+          "median": 92.8,
+          "p75": 102.5,
+          "p90": 111.1,
+          "p95": 117.9,
+          "p99": 133,
+          "p999": 179.5
+        },
+        "http.response_time.2xx": {
+          "min": 61,
+          "max": 181,
+          "count": 209,
+          "mean": 91.3,
+          "p50": 98.5,
+          "median": 98.5,
+          "p75": 104.6,
+          "p90": 113.3,
+          "p95": 120.3,
+          "p99": 133,
+          "p999": 179.5
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 61,
+          "max": 85,
+          "count": 79,
+          "mean": 66.1,
+          "p50": 64.7,
+          "median": 64.7,
+          "p75": 67.4,
+          "p90": 71.5,
+          "p95": 74.4,
+          "p99": 80.6,
+          "p999": 80.6
+        },
+        "vusers.session_length": {
+          "min": 195.4,
+          "max": 373.1,
+          "count": 198,
+          "mean": 250.4,
+          "p50": 228.2,
+          "median": 228.2,
+          "p75": 290.1,
+          "p90": 308,
+          "p95": 314.2,
+          "p99": 333.7,
+          "p999": 368.8
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 78,
+          "max": 181,
+          "count": 199,
+          "mean": 99.3,
+          "p50": 98.5,
+          "median": 98.5,
+          "p75": 104.6,
+          "p90": 113.3,
+          "p95": 120.3,
+          "p99": 141.2,
+          "p999": 179.5
+        },
+        "http.response_time.5xx": {
+          "min": 78,
+          "max": 105,
+          "count": 69,
+          "mean": 85.2,
+          "p50": 82.3,
+          "median": 82.3,
+          "p75": 89.1,
+          "p90": 92.8,
+          "p95": 96.6,
+          "p99": 102.5,
+          "p999": 102.5
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 61,
+          "max": 181,
+          "count": 278,
+          "mean": 89.8,
+          "p50": 92.8,
+          "median": 92.8,
+          "p75": 102.5,
+          "p90": 111.1,
+          "p95": 117.9,
+          "p99": 133,
+          "p999": 179.5
+        },
+        "http.response_time.2xx": {
+          "min": 61,
+          "max": 181,
+          "count": 209,
+          "mean": 91.3,
+          "p50": 98.5,
+          "median": 98.5,
+          "p75": 104.6,
+          "p90": 113.3,
+          "p95": 120.3,
+          "p99": 133,
+          "p999": 179.5
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 61,
+          "max": 85,
+          "count": 79,
+          "mean": 66.1,
+          "p50": 64.7,
+          "median": 64.7,
+          "p75": 67.4,
+          "p90": 71.5,
+          "p95": 74.4,
+          "p99": 80.6,
+          "p999": 80.6
+        },
+        "vusers.session_length": {
+          "min": 195.4,
+          "max": 373.1,
+          "count": 198,
+          "mean": 250.4,
+          "p50": 228.2,
+          "median": 228.2,
+          "p75": 290.1,
+          "p90": 308,
+          "p95": 314.2,
+          "p99": 333.7,
+          "p999": 368.8
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 78,
+          "max": 181,
+          "count": 199,
+          "mean": 99.3,
+          "p50": 98.5,
+          "median": 98.5,
+          "p75": 104.6,
+          "p90": 113.3,
+          "p95": 120.3,
+          "p99": 141.2,
+          "p999": 179.5
+        },
+        "http.response_time.5xx": {
+          "min": 78,
+          "max": 105,
+          "count": 69,
+          "mean": 85.2,
+          "p50": 82.3,
+          "median": 82.3,
+          "p75": 89.1,
+          "p90": 92.8,
+          "p95": 96.6,
+          "p99": 102.5,
+          "p999": 102.5
+        }
+      }
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.0": 5,
+        "vusers.created": 18,
+        "http.requests": 24,
+        "vusers.created_by_name.Fetch Ephemeris for ISS": 4,
+        "http.codes.200": 25,
+        "http.responses": 30,
+        "http.downloaded_bytes": 166,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.200": 17,
+        "vusers.failed": 1,
+        "vusers.completed": 24,
+        "plugins.metrics-by-endpoint./fov/satellite-passes/.codes.200": 8,
+        "vusers.created_by_name.Fetch Ephemeris for Starlink": 9,
+        "http.codes.500": 5,
+        "plugins.metrics-by-endpoint./ephemeris/name/.codes.500": 5,
+        "plugins.metrics-by-endpoint./ephemeris/name/.errors.ETIMEDOUT": 1,
+        "errors.ETIMEDOUT": 1
+      },
+      "rates": {
+        "http.request_rate": 24
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1743657480004,
+      "firstHistogramAt": 1743657480004,
+      "lastCounterAt": 1743657483207,
+      "lastHistogramAt": 1743657481077,
+      "firstMetricAt": 1743657480004,
+      "lastMetricAt": 1743657483207,
+      "period": "1743657480000",
+      "summaries": {
+        "http.response_time": {
+          "min": 63,
+          "max": 357,
+          "count": 30,
+          "mean": 159.2,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 214.9,
+          "p90": 308,
+          "p95": 340.4,
+          "p99": 354.3,
+          "p999": 354.3
+        },
+        "http.response_time.2xx": {
+          "min": 63,
+          "max": 357,
+          "count": 25,
+          "mean": 155,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 228.2,
+          "p90": 308,
+          "p95": 340.4,
+          "p99": 354.3,
+          "p999": 354.3
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 79,
+          "max": 357,
+          "count": 22,
+          "mean": 187.2,
+          "p50": 144,
+          "median": 144,
+          "p75": 252.2,
+          "p90": 308,
+          "p95": 340.4,
+          "p99": 354.3,
+          "p999": 354.3
+        },
+        "vusers.session_length": {
+          "min": 204.4,
+          "max": 574.9,
+          "count": 24,
+          "mean": 334.1,
+          "p50": 295.9,
+          "median": 295.9,
+          "p75": 415.8,
+          "p90": 478.3,
+          "p95": 478.3,
+          "p99": 561.2,
+          "p999": 561.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 63,
+          "max": 129,
+          "count": 8,
+          "mean": 82.3,
+          "p50": 66,
+          "median": 66,
+          "p75": 90.9,
+          "p90": 108.9,
+          "p95": 108.9,
+          "p99": 108.9,
+          "p999": 108.9
+        },
+        "http.response_time.5xx": {
+          "min": 79,
+          "max": 298,
+          "count": 5,
+          "mean": 180.6,
+          "p50": 165.7,
+          "median": 165.7,
+          "p75": 214.9,
+          "p90": 214.9,
+          "p95": 214.9,
+          "p99": 214.9,
+          "p999": 214.9
+        }
+      },
+      "histograms": {
+        "http.response_time": {
+          "min": 63,
+          "max": 357,
+          "count": 30,
+          "mean": 159.2,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 214.9,
+          "p90": 308,
+          "p95": 340.4,
+          "p99": 354.3,
+          "p999": 354.3
+        },
+        "http.response_time.2xx": {
+          "min": 63,
+          "max": 357,
+          "count": 25,
+          "mean": 155,
+          "p50": 108.9,
+          "median": 108.9,
+          "p75": 228.2,
+          "p90": 308,
+          "p95": 340.4,
+          "p99": 354.3,
+          "p999": 354.3
+        },
+        "plugins.metrics-by-endpoint.response_time./ephemeris/name/": {
+          "min": 79,
+          "max": 357,
+          "count": 22,
+          "mean": 187.2,
+          "p50": 144,
+          "median": 144,
+          "p75": 252.2,
+          "p90": 308,
+          "p95": 340.4,
+          "p99": 354.3,
+          "p999": 354.3
+        },
+        "vusers.session_length": {
+          "min": 204.4,
+          "max": 574.9,
+          "count": 24,
+          "mean": 334.1,
+          "p50": 295.9,
+          "median": 295.9,
+          "p75": 415.8,
+          "p90": 478.3,
+          "p95": 478.3,
+          "p99": 561.2,
+          "p999": 561.2
+        },
+        "plugins.metrics-by-endpoint.response_time./fov/satellite-passes/": {
+          "min": 63,
+          "max": 129,
+          "count": 8,
+          "mean": 82.3,
+          "p50": 66,
+          "median": 66,
+          "p75": 90.9,
+          "p90": 108.9,
+          "p95": 108.9,
+          "p99": 108.9,
+          "p999": 108.9
+        },
+        "http.response_time.5xx": {
+          "min": 79,
+          "max": 298,
+          "count": 5,
+          "mean": 180.6,
+          "p50": 165.7,
+          "median": 165.7,
+          "p75": 214.9,
+          "p90": 214.9,
+          "p95": 214.9,
+          "p99": 214.9,
+          "p999": 214.9
+        }
+      }
+    }
+  ],
+  "name": "artillery-results.json"
+};
+    const editor = ace.edit("editor");
+    editor.getSession().setMode("ace/mode/javascript");
+    editor.setValue(JSON.stringify(Report, null, 2));
+    editor.gotoLine(1);
+    editor.setHighlightActiveLine(false);
+    editor.setOption("maxLines", 50);
+    editor.setTheme("ace/theme/clouds_midnight");
+
+    // let sanitizedName = Report.name.replace(/_/, " ").split(" ").map((w) => w[0].toUpperCase()+w.substring(1,w.length)).join(" ")
+    $('#report-name').html(Report.name.replace(".json", ""))
+
+    const l = _;
+
+    const chartBgColors = {
+      red: "rgba(255, 99, 132, 0.2)",
+      orange: "rgba(255, 159, 64, 0.2)",
+      yellow: "rgba(255, 205, 86, 0.2)",
+      green: "rgba(75, 192, 192, 0.2)",
+      blue: "rgba(54, 162, 235, 0.2)",
+    };
+
+    const chartBorderColors = {
+      green: "#24EB70",
+      red: "#ff0000",
+      orange: "#FF6D1B",
+      purple: "#6100FF",
+      blue: "#0047FF"
+    };
+
+    const getHttpColor = (httpCode) => {
+      const code = parseInt(httpCode, 10);
+
+      if (code >= 100 && code < 200) {
+        return chartBorderColors.blue;
+      } else if (code >= 200 && code < 300) {
+        return chartBorderColors.green;
+      } else if (code >= 300 && code < 400) {
+        return chartBorderColors.red;
+      } else if (code >= 400 && code < 500) {
+        return chartBorderColors.purple;
+      }
+
+      return chartBorderColors.orange;
+    }
+
+    const getLatencyColor = (latency) => {
+      switch (latency) {
+        case "min":
+          return chartBorderColors.red;
+        case "max":
+          return chartBorderColors.orange;
+        case "median":
+          return chartBorderColors.purple;
+        case "p95":
+          return chartBorderColors.green;
+        case "p99":
+          return chartBorderColors.green;
+        default:
+          return '';
+      }
+    };
+
+    const getCustomStats = (stats) =>
+      l.omitBy(
+        stats,
+        (_, key) =>
+          key.startsWith("errors.") ||
+          key.startsWith("core.") ||
+          key.startsWith("engine.")
+      );
+
+    const scenarioCounts = l.pickBy(Report.aggregate.counters, (_, key) =>
+      key.startsWith("vusers.created_by_name")
+    );
+
+    if (l.size(scenarioCounts) > 0) {
+      l.each(scenarioCounts, function (count, key) {
+        const [, , name] = key.split(".");
+
+        const $tdName = $("<td>" + name + "</td>");
+        const percentage =
+          Math.round(
+            (count / Report.aggregate.counters["vusers.created"]) *
+            100 *
+            1000
+          ) / 1000;
+        const $tdCount = $("<td>" + count + " (" + percentage + "%)" + "</td>");
+        $("<tr></tr>")
+          .append($tdName)
+          .append($tdCount)
+          .appendTo($("#scenarioCounts"));
+      });
+    } else {
+      $("#scenarioCountsContainer").hide();
+    }
+
+    const httpCodes = l.pickBy(Report.aggregate.counters, (_, key) =>
+      key.startsWith("http.codes")
+    );
+
+    const errors = l.pickBy(Report.aggregate.counters, (_, key) =>
+      key.startsWith("errors.")
+    );
+    if (l.size(errors) > 0) {
+      l.each(errors, function (count, error) {
+        const [, errorDetail] = error.split("errors.");
+
+        $("<tr></tr>")
+          .append($("<td>" + errorDetail + "</td>"))
+          .append($("<td>" + count + "</td>"))
+          .appendTo($("#errors"));
+      });
+    } else {
+      $("#errorsContainer > p").html(
+        "&#10004; Test completed without network or OS errors."
+      );
+    }
+
+    const getTimePeriodAggregates = (summaries) => {
+      const summary =
+        summaries["socketio.response_time"] ||
+        summaries["http.response_time"];
+      const metrics = ["min", "max", "median", "p95", "p99"];
+
+      return l.pickBy(summary, (_, key) => metrics.includes(key));
+    };
+
+    const getLatencyDistribution = (data) => {
+      return l.reduce(
+        data,
+        (acc, value, key) => {
+          acc.labels.push(key);
+          acc.values.push(value);
+
+          return acc;
+        },
+        { labels: [], values: [] }
+      );
+    };
+
+    const randomRgbColor = () => {
+      const r = Math.floor(Math.random() * 256);
+      const g = Math.floor(Math.random() * 256);
+      const b = Math.floor(Math.random() * 256);
+
+      return "rgb(" + r + ", " + g + ", " + b + ")";
+    };
+
+    const latencyDistributionData = getLatencyDistribution(
+      getTimePeriodAggregates(Report.aggregate.summaries)
+    );
+
+    const latencyAtIntervalsData = (intermediates = []) => {
+      const data = intermediates.reduce(
+        (acc, entry, idx) => {
+          const latencies = getTimePeriodAggregates(entry.summaries);
+
+          l.each(latencies, (latency, key) => {
+            acc.values[key] = acc.values[key] || [];
+
+            acc.values[key].push(latency);
+          });
+
+          acc.labels.push((idx + 1) * 10);
+
+          return acc;
+        },
+        { labels: [], values: {} }
+      );
+
+      return {
+        labels: data.labels,
+        datasets: l.map(data.values, (entry, key) => {
+          const color = getLatencyColor(key);
+
+          return {
+            label: key,
+            data: entry,
+            fill: false,
+            backgroundColor: color,
+            borderColor: color,
+            tension: 0.5,
+          };
+        })
+      };
+    };
+
+
+    const getMeanRpsData = (intermediates = []) => {
+      const data = intermediates.reduce(
+        (acc, entry, idx) => {
+          const count =
+            entry.rates["http.request_rate"] ||
+            entry.rates["socketio.emit_rate"] ||
+            entry.rates["websocket.send_rate"] ||
+            0;
+
+          acc.labels.push((idx + 1) * 10);
+          acc.values.push(count);
+
+          return acc;
+        },
+        { labels: [], values: [] }
+      );
+
+      return {
+        labels: data.labels,
+        datasets: [
+          {
+            data: data.values,
+            fill: false,
+            borderColor: "#0047FF",
+            tension: 0.5,
+          },
+        ],
+      };
+    };
+
+    const getHttpCodesData = (counters) => {
+      const httpCodes = l.pickBy(counters, (_, key) =>
+        key.startsWith("http.codes")
+      );
+      const labels = [];
+      const data = [];
+      const bgColors = [
+        "rgba(54, 232, 235, 0.5)",
+        "rgba(54, 235, 93, 0.5)",
+        "rgba(229, 235, 54, 0.5)",
+        "rgba(166, 54, 235, 0.5)",
+        "rgba(235, 54, 69, 0.5)",
+      ];
+
+      if (l.size(httpCodes) > 0) {
+        l.each(httpCodes, function (count, key) {
+          let [, , , code] = key.split(".");
+          code = parseInt(code, 10);
+
+          labels.push(code);
+          data.push(count);
+        });
+      }
+
+      return {
+        labels,
+        datasets: [
+          {
+            backgroundColor: labels.map(getHttpColor),
+            hoverOffset: 4,
+            data,
+          },
+        ],
+      };
+    };
+
+    const timeFormat = "DD[/]MM[/]YYYY, hh:mm:ss"
+    $("#timestamp").html(
+      moment(Report.aggregate.period).format(timeFormat)
+    );
+    $('#copy-json').on("click", (e) => {
+      navigator.clipboard.writeText(JSON.stringify(Report, null, 2));
+
+      $('#copy-json').html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="" aria-labelledby="icon_start" x="0px" y="0px" role="img" class="inline false"><title id="icon_start" lang="en"></title><g fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"></path></g></svg>`)
+      setTimeout(function () {
+        $('#copy-json').html(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="" aria-labelledby="icon_start" x="0px" y="0px" role="img" class="inline false"><title id="icon_start" lang="en"></title><g fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"></path></g></svg>`)
+      }, 1000)
+    })
+
+
+    // tabs logic
+    $("#charts-tab").on("click", (e) => {
+      $("#charts-tab").addClass("active")
+      $("#json-tab").removeClass("active")
+
+      $("#index-tree").removeClass("hidden")
+      $("#charts-col").removeClass("hidden")
+      $("#json-output").addClass("hidden")
+    })
+
+    $("#json-tab").on("click", (e) => {
+      $("#json-tab").addClass("active")
+      $("#charts-tab").removeClass("active")
+
+      $("#index-tree").addClass("hidden")
+      $("#charts-col").addClass("hidden")
+      $("#json-output").removeClass("hidden")
+    })
+
+    //counters toggle
+    $("#counters-title").on("click", (e) => {
+      $('#customCountersTable').hasClass("hidden") ? $('#customCountersTable').removeClass("hidden") : $('#customCountersTable').addClass("hidden")
+      $('#counters-title').hasClass("chevron-down") ? $('#counters-title').removeClass("chevron-down") : $('#counters-title').addClass("chevron-down")
+    })
+
+
+    const iconDuration = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="Duration" aria-labelledby="icon_duration" x="0px" y="0px" role="img"><title id="icon_duration" lang="en">Duration</title><g fill="#9B9B9B"><path d="M15 1H9V3H15V1ZM11 14H13V8H11V14ZM19.03 7.39L20.45 5.97C20.02 5.46 19.55 4.98 19.04 4.56L17.62 5.98C16.07 4.74 14.12 4 12 4C7.03 4 3 8.03 3 13C3 17.97 7.02 22 12 22C16.98 22 21 17.97 21 13C21 10.88 20.26 8.93 19.03 7.39ZM12 20C8.13 20 5 16.87 5 13C5 9.13 8.13 6 12 6C15.87 6 19 9.13 19 13C19 16.87 15.87 20 12 20Z"></path></g></svg>`
+    const checkCircle = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check-circle" viewBox="0 0 16 16">
+        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+        <path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/>
+      </svg>`
+
+    const xCircle = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="Regions" aria-labelledby="icon_regions" x="0px" y="0px" role="img"><title id="icon_regions" lang="en">Regions</title><g fill="#9B9B9B"><path d="M12 2C6.47 2 2 6.47 2 12C2 17.53 6.47 22 12 22C17.53 22 22 17.53 22 12C22 6.47 17.53 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM15.59 7L12 10.59L8.41 7L7 8.41L10.59 12L7 15.59L8.41 17L12 13.41L15.59 17L17 15.59L13.41 12L17 8.41L15.59 7Z"></path></g></svg>`
+    const iconStarted = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="Started" aria-labelledby="icon_started" x="0px" y="0px" role="img"><title id="icon_started" lang="en">Started</title><g fill="#9B9B9B"><path d="M11.99 2C6.47 2 2 6.48 2 12C2 17.52 6.47 22 11.99 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 11.99 2ZM12 20C7.58 20 4 16.42 4 12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12C20 16.42 16.42 20 12 20ZM12.5 7H11V13L16.25 16.15L17 14.92L12.5 12.25V7Z"></path></g></svg>`
+    const iconFinished = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="Finished" aria-labelledby="icon_finished" x="0px" y="0px" role="img"><title id="icon_finished" lang="en">Finished</title><g fill="#9B9B9B"><path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20ZM16.59 7.58L10 14.17L7.41 11.59L6 13L10 17L18 9L16.59 7.58Z"></path></g></svg>`
+    // summary blocks
+
+    const timeStarted = moment(Report.aggregate.firstMetricAt)
+    const timeFinished = moment(Report.aggregate.lastMetricAt)
+
+    function formatDuration(s) {
+      var min = Math.floor(s / 60)
+      var sec = s - min * 60
+      return min + "m " + sec + "s"
+    }
+
+    const summaryInfo = [
+      { icon: iconDuration, name: "Duration", value: formatDuration(timeFinished.diff(timeStarted, "seconds")) || "n/a" },
+      { icon: iconStarted, name: "Started", value: timeStarted.format(timeFormat) || "n/a" },
+      { icon: iconFinished, name: "Completed", value: timeFinished.format(timeFormat) || "n/a" },
+      { icon: xCircle, name: "Errors", value: !errors ? "n/a" : errors.length ? errors.length : "0" },
+    ]
+
+    function summaryBlock(block) {
+      return (
+        `<li class="summary-block flex flex-auto items-center justify-start rounded py-2 px-3 mb-3 border-gray" >
+              <div class="mr-3 text-gray-default">`+
+        block.icon +
+        `</div>
+              <div><div class="text-gray-default text-xsm">`+
+        block.name +
+        `</div>
+              <div class="text-xsm">
+                `+ block.value + `
+              </div>
+              </div>
+        </li>`
+      )
+    }
+
+    summaryInfo.forEach((block) => {
+      const appendage = summaryBlock(block)
+      $("#summary-blocks").append(appendage);
+    })
+
+
+    if (l.size(errors) > 0) {
+      const getErrorsAtIntervalsData = (intermediates = []) => {
+        const data = intermediates.reduce(
+          (acc, entry, idx) => {
+            const errorsCounters = l.pickBy(entry.counters, (_, key) =>
+              key.startsWith("errors.")
+            );
+
+            l.each(errorsCounters, (count, key) => {
+              const [, errorDetail] = key.split("errors.");
+
+              acc.values[errorDetail] = acc.values[errorDetail] || [];
+
+              acc.values[errorDetail].push(count);
+            });
+
+            acc.labels.push((idx + 1) * 10);
+
+            return acc;
+          },
+          { labels: [], values: {} }
+        );
+
+        return {
+          labels: data.labels,
+          datasets: l.map(data.values, (entry, key) => {
+            return {
+              label: key,
+              data: entry,
+              fill: false,
+              backgroundColor: Object.values(chartBorderColors),
+              borderColor: Object.values(chartBorderColors),
+              tension: 0.5,
+            };
+          })
+        };
+      };
+
+
+      new Chart(document.getElementById("errorsAtIntervalsChart"), {
+        type: "line",
+        data: getErrorsAtIntervalsData(Report.intermediate),
+        options: {
+          plugins: { legend: { position: "bottom" } },
+          aspectRatio: 3.5,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: "count",
+              },
+            },
+          },
+        },
+      });
+    }
+    !errors.length && $("#errorsChartsRow").hide();
+
+    const unorderedCustomCounters = Report.aggregate.counters;
+    const customCounters = Object.keys(unorderedCustomCounters).sort().reduce(
+      (obj, key) => {
+        obj[key] = unorderedCustomCounters[key];
+        return obj;
+      },
+      {}
+    );
+
+    if (l.size(customCounters) > 0) {
+      let rows = [];
+      l.each(customCounters, function (count, key) {
+        const row = $("<tr></tr>")
+          .append($('<td class="text-xsm whitespace-nowrap p-2 font-normal text-white" colspan="6">' + key + '</td>'))
+          .append($('<td class="text-xsm whitespace-nowrap p-2 font-normal text-white" colspan="6">' + count + '</td>'));
+        rows.push(row);
+      });
+
+
+
+      rows.forEach((row) => row.appendTo($("#customCountersTable")));
+      const getCustomStatsAtIntervalsData = (intermediates = []) => {
+        const data = intermediates.reduce(
+          (acc, entry, idx) => {
+            const customCounters = entry.counters;
+
+            l.each(customCounters, (count, key) => {
+              acc.values[key] = acc.values[key] || [];
+              acc.values[key].push(count);
+            });
+
+            acc.labels.push((idx + 1) * 10);
+            return acc;
+          },
+          { labels: [], values: {} }
+        );
+        return {
+          labels: data.labels,
+          datasets: l.map(data.values, (entry, key) => {
+            color = "#0047FF";
+            return {
+              label: key,
+              data: entry,
+              fill: false,
+              backgroundColor: color,
+              borderColor: color,
+              tension: 0.5,
+            };
+          }),
+        };
+      };
+
+      $("#expandCustomCountersRow").on("click", (e) => {
+        e.preventDefault();
+        $("#customCountersTable tr").removeClass("hidden");
+        $("#expandCustomCountersRow").addClass("hidden");
+      });
+
+      // create intermediate charts array with name and type
+      let intervalChartsArray = []
+      Report.intermediate.forEach((interval, i) => {
+        Object.keys(interval.counters).forEach((counter) => {
+          intervalChartsArray.find((chart) => chart.name == counter) || intervalChartsArray.push({ name: counter, data: [], type: "interval" })
+
+        })
+      })
+
+      let intervalChartsSet = []
+      intervalChartsArray.forEach((c) => {
+        if (!intervalChartsSet.includes(c)) {
+          intervalChartsSet.push(c);
+        }
+      });
+
+      // add data per interval for each chart 
+      intervalChartsSet.forEach((chart, i) => {
+        Report.intermediate.forEach((interval, j) => {
+          const value = interval.counters[chart.name] || 0
+          intervalChartsSet[i].data.push({ counters: { [chart.name]: value } })
+        })
+      })
+
+      // add summary data 
+      let aggregateChartsArray = []
+      Object.keys(Report.aggregate.summaries).forEach((summary) => {
+        const data = Report.aggregate.summaries[summary]
+        aggregateChartsArray.push({ name: summary, data: data, type: "aggregate" })
+
+      })
+
+      let chartsSet = [...intervalChartsSet, ...aggregateChartsArray].sort((a, b) => a.name < b.name ? -1 : 1)
+
+      const sanitizer = /[.| |'|"]/g
+      chartsSet.forEach((chart) => {
+        $('#customCountersAtIntervalsChart').append("<div id='" + chart.name.replaceAll(sanitizer, "-")
+          + "-wrapper' class='text-xsm rounded' style='border: 1px solid #383838;'><div class='p-2 text-gray-default' style='border-bottom: 1px solid #383838; background-color: #2b2b2b; font-weight: 500;''>"
+          + chart.name + "</div><div class='p-4'><canvas id='" + chart.name + "'>unable to create chart</canvas></div></div>")
+
+        if (chart.type === 'interval') {
+          new Chart(document.getElementById(chart.name), {
+            type: "bar",
+            data: getCustomStatsAtIntervalsData(chart.data),
+            options: {
+              barPercentage: 0.2,
+              plugins: { legend: { display: false } },
+              aspectRatio: 2.5,
+              responsive: true,
+              maintainAspectRatio: true,
+              scales: {
+                x: {
+                  title: {
+                    display: true,
+                    text: "time"
+                  },
+                  ticks: {
+                    color: '#9b9b9b',
+                  },
+                  grid: {
+                    color: 'transparent',
+                    borderColor: '#383838',
+                  },
+                },
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: "count",
+                  },
+                  ticks: {
+                    color: '#9b9b9b',
+                    precision: 0,
+                  },
+                  grid: {
+                    color: '#383838',
+                    borderColor: '#383838',
+                  },
+                },
+              },
+            },
+          });
+        } else if (chart.type === 'aggregate') {
+          const { labels, values } = getLatencyDistribution(
+            l.pickBy(chart.data, (_, key) =>
+              ["min", "max", "median", "p95", "p99"].includes(key)
+            )
+          );
+          new Chart(document.getElementById(chart.name), {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  data: values,
+                  backgroundColor: Object.values(chartBorderColors),
+                  borderColor: Object.values(chartBgColors),
+                  borderWidth: 1,
+                },
+              ],
+            },
+            options: {
+              plugins: { legend: { display: false } },
+              barPercentage: 0.4,
+              scales: {
+                x: {
+                  ticks: {
+                    color: '#9b9b9b',
+                    precision: 0,
+                  },
+                  grid: {
+                    color: 'transparent',
+                    borderColor: '#383838',
+                  },
+                },
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: "ms",
+                  },
+                  ticks: {
+                    color: '#9b9b9b',
+                    precision: 0,
+                  },
+                  grid: {
+                    color: '#383838',
+                    borderColor: '#383838',
+                  },
+                },
+              },
+            },
+          })
+        }
+      })
+
+      // parse out index tabs from custom counters for index nav
+      const parentRegex = /^([^.| ]+)/
+      const nodeRegex = /[ |\.](.*)/
+
+      let indexSet = new Set(chartsSet.map((c) => {
+        return c.name.match(parentRegex)[0]
+      }))
+
+      // create tree from index set
+      let indexTree = Array.from(indexSet).sort().reduce((key, value) => {
+        return { ...key, [value]: [] };
+      }, {});
+
+      // fill tree with custom counters according to parent tab
+      chartsSet.forEach((chart) => {
+        const node = chart.name
+        const parent = node ? chart.name.match(parentRegex)[0] : chart.name
+        indexTree[parent] && indexTree[parent].push({ name: node, type: chart.type })
+      })
+
+      // sort child nodes for each tab
+      for (let [key, value] of Object.entries(indexTree)) {
+        indexTree = {
+          ...indexTree, [key]: value.sort()
+        }
+      }
+
+      const chevron = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" aria-label="Toggle charts list for vusers metrics (5)" aria-labelledby="icon_toggle_vusers metrics (5)" x="0px" y="0px" role="img"><title id="icon_toggle_vusers metrics (5)" lang="en">Toggle charts list for vusers metrics (5)</title><g fill="currentColor"><path d="M12 8L6 14L7.41 15.41L12 10.83L16.59 15.41L18 14L12 8Z"></path></g></svg>`
+
+      // populate index with divs
+      let $htmlTree = $('<div class="mt-0 flex flex-col justify-start space-y-3 pb-3 text-gray-default"></div>')
+      Object.keys(indexTree).forEach((parent) => {
+        const nodeClass = parent.replaceAll(sanitizer, "-")
+        const nodes = indexTree[parent].map((n) =>
+          `<a class="text-xsm focus:text-beige hover:bg-black-default focus:ring-black-200 text-gray-default ml-2 block truncate rounded px-2 py-1.5 font-medium transition hover:text-white focus:ring-2 text-gray-default bg-transparent" 
+            href="#` + (n.name).replaceAll(sanitizer, "-") + '-wrapper" id="' + n.name + '-node" >'
+          + n.name
+          + '</a>').join("")
+
+        nodes.length > 1 ? $htmlTree.append(
+          '<div class="w-full overflow-hidden"><h4 id="' + nodeClass + '-parent" > <div onclick="nodeClick(`' + nodeClass + '`)" class="accordion-toggle cursor-pointer text-gray-default focus:text-beige flex items-center px-0 py-1.5 hover:text-white">'
+          + parent + ' metrics (' + indexTree[parent].length + ')'
+          + '<span class="ml-1 transition" style="transition-origin: center;">' + chevron + '</span>'
+          + ' </div> <div class="' + nodeClass + '-node accordion-details relative flex w-56 flex-col space-y-1 h-auto hidden">' + nodes + '</div></h4></div>'
+        ) :
+          $htmlTree.append("<div class='flex-col h-auto py-3'><a class='hover:text-beige' href='#" + parent + "--wrapper'>" + parent + "</a></div>")
+
+      })
+      const indexTreeContainer = $("#index-tree")
+      $htmlTree.appendTo(indexTreeContainer)
+
+    } else {
+      $("#charts-col").hide();
+      $("#customCountersContainer").hide();
+    }
+
+    function nodeClick(tab) {
+      const nodeClass = '.' + tab + '-node'
+      const nodes = document.querySelectorAll(nodeClass);
+      const parentTab = document.getElementById(tab + "-parent");
+      [...parentTab.classList].includes('chevron-down') ? parentTab.classList.remove('chevron-down') : parentTab.classList.add('chevron-down');
+      for (const node of nodes) {
+        [...node.classList].includes("hidden") ? node.classList.remove("hidden") : node.classList.add("hidden");
+      }
+    }
+
+  </script>
+</body>
+
+</html>
