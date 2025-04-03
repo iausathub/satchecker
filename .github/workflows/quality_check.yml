@@ -75,6 +75,12 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Debug Coverage Percentage
+        if: ${{ inputs.run_coverage == true }}
+        run: |
+          echo "Direct output of coverage-percentage: ${{ needs.code_coverage.outputs.coverage-percentage }}"
+          echo "Direct output of coverage-color: ${{ needs.code_coverage.outputs.coverage-color }}"
+
       - name: Create summary
         run: |
           echo "# 📊 Quality Check Summary" >> $GITHUB_STEP_SUMMARY
@@ -203,6 +209,12 @@ jobs:
 
       - name: Generate Dashboard HTML
         run: |
+          # Extract coverage data for the Python script to use
+          COVERAGE_PCT="${{ needs.code_coverage.outputs.coverage-percentage || 'N/A' }}"
+          COVERAGE_COLOR="${{ needs.code_coverage.outputs.coverage-color || 'gray' }}"
+          echo "Extracted coverage percentage: $COVERAGE_PCT"
+          echo "Extracted coverage color: $COVERAGE_COLOR"
+
           cat > dashboard_template.html << 'EOL'
           <!DOCTYPE html>
           <html lang="en">
@@ -309,7 +321,7 @@ jobs:
           </html>
           EOL
 
-          python - << 'EOL'
+          COVERAGE_PCT="$COVERAGE_PCT" COVERAGE_COLOR="$COVERAGE_COLOR" python - << 'EOL'
           import os
           import glob
           from datetime import datetime
@@ -326,10 +338,16 @@ jobs:
               'run_id': os.environ.get('GITHUB_RUN_ID', ''),
               'lint_status': "${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }}",
               'test_status': "${{ needs.tests.result == 'success' && '✅ Passed' || '❌ Failed' }}",
-              'coverage_percentage': "${{ needs.code_coverage.outputs.coverage-percentage || 'N/A' }}",
-              'coverage_color': "${{ needs.code_coverage.outputs.coverage-color || 'gray' }}",
+              'coverage_percentage': os.environ.get('COVERAGE_PCT', 'N/A'),
+              'coverage_color': os.environ.get('COVERAGE_COLOR', 'gray'),
               'historical_runs': ''
           }
+
+          # Debug: Print all environment variables to see if we can find the coverage data
+          print("Looking for coverage data in environment variables:")
+          for key, value in sorted(os.environ.items()):
+              if 'coverage' in key.lower():
+                  print(f"{key}: {value}")
 
           # Add historical runs
           historical_dirs = sorted(glob.glob('gh-pages/dashboard/20*'), reverse=True)

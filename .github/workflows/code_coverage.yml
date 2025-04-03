@@ -85,14 +85,18 @@ jobs:
       run: |
         COVERAGE_PCT=$(grep -oP 'TOTAL\s+\d+\s+\d+\s+\d+\s+\d+\s+\K\d+%' pytest-coverage.txt | sed 's/%//')
         echo "coverage-percentage=$COVERAGE_PCT" >> $GITHUB_OUTPUT
+        echo "Setting coverage-percentage to: $COVERAGE_PCT"
 
         # Set color based on coverage percentage
         if [ "$COVERAGE_PCT" -lt "60" ]; then
           echo "coverage-color=red" >> $GITHUB_OUTPUT
+          echo "Setting coverage-color to: red"
         elif [ "$COVERAGE_PCT" -lt "80" ]; then
           echo "coverage-color=yellow" >> $GITHUB_OUTPUT
+          echo "Setting coverage-color to: yellow"
         else
           echo "coverage-color=green" >> $GITHUB_OUTPUT
+          echo "Setting coverage-color to: green"
         fi
 
         echo "Code coverage: $COVERAGE_PCT%" >> $GITHUB_STEP_SUMMARY
