@@ -75,12 +75,6 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Debug Coverage Percentage
-        if: ${{ inputs.run_coverage == true }}
-        run: |
-          echo "Direct output of coverage-percentage: ${{ needs.code_coverage.outputs.coverage-percentage }}"
-          echo "Direct output of coverage-color: ${{ needs.code_coverage.outputs.coverage-color }}"
-
       - name: Create summary
         run: |
           echo "# 📊 Quality Check Summary" >> $GITHUB_STEP_SUMMARY
@@ -212,9 +206,8 @@ jobs:
           # Extract coverage data for the Python script to use
           COVERAGE_PCT="${{ needs.code_coverage.outputs.coverage-percentage || 'N/A' }}"
           COVERAGE_COLOR="${{ needs.code_coverage.outputs.coverage-color || 'gray' }}"
-          echo "Extracted coverage percentage: $COVERAGE_PCT"
-          echo "Extracted coverage color: $COVERAGE_COLOR"
 
+          # Create the dashboard HTML
           cat > dashboard_template.html << 'EOL'
           <!DOCTYPE html>
           <html lang="en">
@@ -342,12 +335,6 @@ jobs:
               'coverage_color': os.environ.get('COVERAGE_COLOR', 'gray'),
               'historical_runs': ''
           }
-
-          # Debug: Print all environment variables to see if we can find the coverage data
-          print("Looking for coverage data in environment variables:")
-          for key, value in sorted(os.environ.items()):
-              if 'coverage' in key.lower():
-                  print(f"{key}: {value}")
 
           # Add historical runs
           historical_dirs = sorted(glob.glob('gh-pages/dashboard/20*'), reverse=True)
