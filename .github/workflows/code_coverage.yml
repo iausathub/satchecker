@@ -4,6 +4,7 @@ name: Code coverage - pull request
 
 on:
   pull_request:
+  workflow_dispatch:
   workflow_call:
     outputs:
       coverage-percentage:
