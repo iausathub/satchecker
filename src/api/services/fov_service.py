@@ -146,7 +146,7 @@ def get_satellite_passes_in_fov(
             in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
 
             if np.any(in_fov_mask):  # Only get alt/az if satellite is ever in FOV
-                alt, az, _ = topocentric.altaz()
+                alt, az, distance = topocentric.altaz()
                 fov_indices = np.where(in_fov_mask)[0]
 
                 # Vectorized creation of results
@@ -161,6 +161,7 @@ def get_satellite_passes_in_fov(
                         "dec": ra_dec[1],
                         "altitude": float(alt._degrees[idx]),
                         "azimuth": float(az._degrees[idx]),
+                        "range_km": float(distance.km[idx]),
                         "name": tle.satellite.sat_name,
                         "norad_id": tle.satellite.sat_number,
                         "julian_date": jd_times[idx],

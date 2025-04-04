@@ -1,6 +1,7 @@
 # ruff: noqa: S101
 import logging
 
+import pytest
 from astropy.time import Time
 from tests.conftest import FakeTLERepository
 from tests.factories.satellite_factory import SatelliteFactory
@@ -70,6 +71,17 @@ def test_satellite_in_fov(test_location, test_time):
 
     assert result["count"] == 18
     assert result["data"][0]["norad_id"] == 31746
+    assert result["data"][0]["range_km"] > 0
+    assert result["data"][0]["altitude"] is not None
+    assert result["data"][0]["azimuth"] is not None
+    assert result["data"][0]["angle"] >= 0
+    assert result["data"][0]["julian_date"] is not None
+    assert result["data"][0]["name"] == "FENGYUN 1C DEB"
+    assert result["data"][0]["tle_epoch"] is not None
+    assert result["data"][0]["ra"] is not None
+    assert result["data"][0]["dec"] is not None
+    with pytest.raises(KeyError):
+        assert result["data"][0]["tle_data"]
 
     # Test with group_by=time and include_tles=True
     result = get_satellite_passes_in_fov(
