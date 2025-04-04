@@ -51,15 +51,15 @@ def get_satellite_passes():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: MPC:G68
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: duration
         in: query
         type: number
         format: float
         required: true
-        description: Duration of observation in minutes
-        example: 30.0
+        description: Duration of observation in seconds
+        example: 60.0
       - name: ra
         in: query
         type: number
@@ -86,22 +86,28 @@ def get_satellite_passes():
         type: number
         format: float
         required: false
-        description: Start time of observation in Julian date (if not provided, current time is used)
+        description: Start time of observation in Julian date (either this or mid_obs_time_jd must be provided)
         example: 2459000.5
       - name: mid_obs_time_jd
         in: query
         type: number
         format: float
         required: false
-        description: Mid-observation time in Julian date (if not provided, derived from start_time_jd + half duration)
+        description: Mid-observation time in Julian date (either this or start_time_jd must be provided)
         example: 2459000.5
       - name: group_by
         in: query
         type: string
         required: false
-        description: Group results by 'satellite' or 'time' (default is 'satellite')
+        description: Group results by 'satellite' or 'time' (default is 'time' for chronological order)
         enum: [satellite, time]
         example: satellite
+      - name: include_tles
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include TLE data used to calculate the passes in the response
+        example: true
     responses:
       200:
         description: Successful response with satellite passes
@@ -110,14 +116,82 @@ def get_satellite_passes():
             schema:
               type: object
               properties:
-                passes:
-                  type: array
-                  items:
-                    type: object
-                api_source:
+                data:
+                  type: object
+                  properties:
+                    satellites:
+                      type: object
+                      additionalProperties:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            description: Name of the satellite
+                          norad_id:
+                            type: integer
+                            description: NORAD catalog ID of the satellite
+                          positions:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                altitude:
+                                  type: number
+                                  format: float
+                                  description: Altitude above horizon in degrees
+                                angle:
+                                  type: number
+                                  format: float
+                                  description: Angular distance from FOV center in degrees
+                                azimuth:
+                                  type: number
+                                  format: float
+                                  description: Azimuth angle in degrees
+                                date_time:
+                                  type: string
+                                  description: UTC time in YYYY-MM-DD HH:MM:SS TZ format
+                                dec:
+                                  type: number
+                                  format: float
+                                  description: Declination in degrees
+                                julian_date:
+                                  type: number
+                                  format: float
+                                  description: Julian date for this position
+                                ra:
+                                  type: number
+                                  format: float
+                                  description: Right ascension in degrees
+                                tle_epoch:
+                                  type: string
+                                  description: Epoch date of the TLE used for calculation
+                                tle_data:
+                                  type: object
+                                  description: TLE data for this satellite (only included when include_tles=true)
+                                  properties:
+                                    tle_line1:
+                                      type: string
+                                      description: First line of the TLE
+                                    tle_line2:
+                                      type: string
+                                      description: Second line of the TLE
+                                    source:
+                                      type: string
+                                      description: Source of the TLE data (celestrak or spacetrack)
+                    total_position_results:
+                      type: integer
+                      description: Total number of position results
+                    total_satellites:
+                      type: integer
+                      description: Total number of satellites found
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to incorrect parameters
       500:
@@ -135,6 +209,7 @@ def get_satellite_passes():
         "start_time_jd",
         "mid_obs_time_jd",
         "group_by",
+        "include_tles",
     ]
 
     if "site" not in request.args:
@@ -169,6 +244,7 @@ def get_satellite_passes():
             parameters["dec"],
             parameters["fov_radius"],
             parameters["group_by"],
+            parameters["include_tles"],
             api_source,
             api_version,
         )
@@ -224,14 +300,14 @@ def get_all_satellites_above_horizon():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: MPC:G68
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: julian_date
         in: query
         type: number
         format: float
         required: true
-        description: Time at which to check for satellites above horizon in Julian date
+        description: Time at which to check for satellites above horizon in Julian date format
         example: 2459000.5
       - name: min_altitude
         in: query
@@ -252,14 +328,14 @@ def get_all_satellites_above_horizon():
         format: float
         required: false
         description: Minimum range of satellites in kilometers (default is 0.0)
-        example: 500.0
+        example: 300.0
       - name: max_range
         in: query
         type: number
         format: float
         required: false
         description: Maximum range of satellites in kilometers (default is infinity)
-        example: 40000.0
+        example: 500.0
     responses:
       200:
         description: Successful response with satellites above horizon
@@ -268,14 +344,56 @@ def get_all_satellites_above_horizon():
             schema:
               type: object
               properties:
-                satellites:
+                count:
+                  type: integer
+                  description: The number of satellites found above the horizon
+                data:
                   type: array
+                  description: List of satellites above the horizon
                   items:
                     type: object
-                api_source:
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the satellite
+                      norad_id:
+                        type: integer
+                        description: NORAD catalog ID of the satellite
+                      julian_date:
+                        type: number
+                        format: float
+                        description: Julian date for the position
+                      altitude:
+                        type: number
+                        format: float
+                        description: Altitude above horizon in degrees
+                      azimuth:
+                        type: number
+                        format: float
+                        description: Azimuth angle in degrees
+                      ra:
+                        type: number
+                        format: float
+                        description: Right ascension in degrees
+                      dec:
+                        type: number
+                        format: float
+                        description: Declination in degrees
+                      range:
+                        type: number
+                        format: float
+                        description: Distance to the satellite in kilometers
+                      tle_epoch:
+                        type: string
+                        description: Epoch date of the TLE used for calculation in YYYY-MM-DD HH:MM:SS TZ format
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to incorrect parameters
       500:
@@ -320,8 +438,8 @@ def get_all_satellites_above_horizon_range():
         in: query
         type: string
         required: false
-        description: Predefined site code (alternative to latitude/longitude/elevation)
-        example: MPC:G68
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: julian_date
         in: query
         type: number
@@ -334,7 +452,7 @@ def get_all_satellites_above_horizon_range():
         type: number
         format: float
         required: true
-        description: Duration of observation period in minutes
+        description: Duration of observation period in seconds
         example: 120.0
       - name: min_altitude
         in: query
@@ -355,14 +473,14 @@ def get_all_satellites_above_horizon_range():
         format: float
         required: false
         description: Minimum range of satellites in kilometers (default is 0.0)
-        example: 500.0
+        example: 300.0
       - name: max_range
         in: query
         type: number
         format: float
         required: false
         description: Maximum range of satellites in kilometers (default is infinity)
-        example: 40000.0
+        example: 500.0
     responses:
       200:
         description: Successful response with satellites above horizon during the specified period
@@ -371,14 +489,24 @@ def get_all_satellites_above_horizon_range():
             schema:
               type: object
               properties:
-                satellites:
+                count:
+                  type: integer
+                  description: The number of satellites found above the horizon
+                data:
                   type: array
+                  description: List of satellites above the horizon
                   items:
                     type: object
-                api_source:
+                    properties:
+                      tbd
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to incorrect parameters
       500:
@@ -458,7 +586,7 @@ def _handle_satellites_above_horizon(with_duration=False):
         if not satellite_passes:
             return {
                 "info": "No position information found with this criteria",
-                "api_source": api_source,
+                "source": api_source,
                 "version": api_version,
             }
 

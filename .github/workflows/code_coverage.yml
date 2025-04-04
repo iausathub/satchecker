@@ -96,6 +96,7 @@ jobs:
         fi
 
         echo "Code coverage: $COVERAGE_PCT%" >> $GITHUB_STEP_SUMMARY
+
     - name: Generate HTML coverage report
       run: |
         pytest --ignore=tests/benchmark --cov-report=html:coverage-html-report --cov=. --cov-config=pytest.ini tests/
@@ -116,3 +117,8 @@ jobs:
       with:
         pytest-coverage-path: ./pytest-coverage.txt
         junitxml-path: ./pytest.xml
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}

@@ -25,6 +25,7 @@ Satellite passes Through FOV
    :query dec: (*required*) -- Declination of FOV center in degrees
    :query fov_radius: (*required*) -- Radius of circular FOV in degrees
    :query group_by: (*optional*) -- How to group results ("satellite" or "time"). Default is "time" for chronological order
+   :query include_tles: (*optional*) -- If True, include TLE data used to calculate the passes in the response. Default is False.
 
 
 **Example Request**
