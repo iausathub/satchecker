@@ -1,0 +1,1 @@
+Cache most recent TLE set for use with FOV queries from the current time either into the future or up to 3 hours into the past. If cache is inaccessible for any reason, it defaults to a regular database query.

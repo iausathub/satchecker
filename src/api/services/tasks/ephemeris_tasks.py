@@ -4,7 +4,7 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from flask import current_app, has_app_context
 
-from api import celery
+from api.celery_app import celery
 from api.common.position_data_point import position_data_point
 
 # from core import celery, utils

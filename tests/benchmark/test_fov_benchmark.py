@@ -83,7 +83,7 @@ class MockTLERepository(AbstractTLERepository):
         return matching_tles[0]  # Just return the first one for simplicity in testing
 
     def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
-        return self.mock_tles, len(self.mock_tles)
+        return self.mock_tles, len(self.mock_tles), "database"
 
     def _get_adjacent_tles(self, id, id_type, epoch):
         matching_tles = [tle for tle in self.mock_tles if tle.satellite.sat_id == id]
@@ -307,7 +307,7 @@ def test_benchmark_get_satellites_above_horizon_setup(
     def setup_only():
         # This replicates what happens at the beginning of get_satellites_above_horizon
         time_jd = mid_obs_time
-        tles, count = mock_tle_repository._get_all_tles_at_epoch(
+        tles, count, _ = mock_tle_repository._get_all_tles_at_epoch(
             time_jd.to_datetime(), 1, 10000, "zip"
         )
         all_results = []

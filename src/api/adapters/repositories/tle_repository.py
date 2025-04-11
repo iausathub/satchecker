@@ -1,6 +1,7 @@
 import abc
+import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import DateTime, and_, func, or_, text
 from sqlalchemy.orm.exc import NoResultFound
@@ -9,6 +10,10 @@ from api.adapters.database_orm import SatelliteDb, TLEDb
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.domain.models.satellite import Satellite as Satellite
 from api.domain.models.tle import TLE
+from api.services.cache_service import RECENT_TLES_CACHE_KEY, get_cached_data
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 
 class AbstractTLERepository(abc.ABC):
@@ -61,7 +66,7 @@ class AbstractTLERepository(abc.ABC):
 
     def get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
-    ) -> tuple[list[TLE], int]:
+    ) -> tuple[list[TLE], int, str]:
         return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
 
     def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE:
@@ -146,6 +151,9 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     def __init__(self, session):
         super().__init__()
         self.session = session
+        # Default cache TTL in seconds - can be overridden in tests
+        self.cache_ttl = 10800  # 3 hours
+        self.cache_enabled = True
 
     @staticmethod
     def _to_domain(orm_tle):
@@ -170,6 +178,65 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             data_source=domain_tle.data_source,
             satellite=SqlAlchemySatelliteRepository._to_orm(domain_tle.satellite),
         )
+
+    @staticmethod
+    def deserialize_cached_tles(serialized_tles: list[dict[str, Any]]) -> list[TLE]:
+        """
+        Convert serialized TLE dictionaries from the cache back into domain TLE objects.
+
+        Args:
+            serialized_tles: List of serialized TLE dictionaries from the cache
+
+        Returns:
+            List of TLE domain objects
+        """
+        tles = []
+
+        for tle_dict in serialized_tles:
+            try:
+                # Extract satellite data and create Satellite domain object
+                sat_data = tle_dict.get("satellite", {})
+
+                # Parse decay_date if it exists
+                decay_date_str = sat_data.get("decay_date")
+                decay_date = None
+                if decay_date_str:
+                    try:
+                        decay_date = datetime.fromisoformat(decay_date_str)
+                    except ValueError:
+                        logger.warning(f"Could not parse decay_date: {decay_date_str}")
+
+                # Create the Satellite object
+                satellite = Satellite(
+                    sat_name=sat_data.get("sat_name", ""),
+                    sat_number=sat_data.get("sat_number", ""),
+                    decay_date=decay_date,
+                    has_current_sat_number=sat_data.get("has_current_sat_number", True),
+                )
+
+                # Parse datetime fields
+                epoch = datetime.fromisoformat(tle_dict.get("epoch", ""))
+                date_collected = datetime.fromisoformat(
+                    tle_dict.get("date_collected", "")
+                )
+
+                # Create the TLE domain object
+                tle = TLE(
+                    satellite=satellite,
+                    tle_line1=tle_dict.get("tle_line1", ""),
+                    tle_line2=tle_dict.get("tle_line2", ""),
+                    epoch=epoch,
+                    date_collected=date_collected,
+                    is_supplemental=tle_dict.get("is_supplemental", False),
+                    data_source=tle_dict.get("data_source", ""),
+                )
+
+                tles.append(tle)
+            except Exception as e:
+                logger.error(f"Error deserializing TLEs: {e}")
+                raise e
+
+        return tles
 
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)
@@ -280,8 +347,60 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
     def _get_all_tles_at_epoch(
         self, epoch_date: datetime, page: int, per_page: int, format: str
-    ) -> tuple[list[TLE], int]:
+    ) -> tuple[list[TLE], int, str]:
+        # Ensure epoch_date has a timezone if not already set
+        if epoch_date.tzinfo is None:
+            epoch_date = epoch_date.replace(tzinfo=timezone.utc)
+
         two_weeks_prior = epoch_date - timedelta(weeks=2)
+
+        # Ensure current_time has the same timezone awareness as epoch_date
+        current_time = datetime.now(timezone.utc)
+        total_count = 0
+
+        try:
+            # if the epoch date is in the future, or up to 3 hours ago, use the cache
+            if (epoch_date > current_time - timedelta(hours=3)) and self.cache_enabled:
+                cached_data = get_cached_data(RECENT_TLES_CACHE_KEY)
+
+                if cached_data:
+                    total_count = cached_data.get("total_count", 0)
+
+                if total_count > 0:
+                    cached_at_str = cached_data.get(
+                        "cached_at", "2000-01-01T00:00:00+00:00"
+                    )
+
+                    try:
+                        cached_at = datetime.fromisoformat(cached_at_str)
+                        # If cached_at has no timezone but should have one, add UTC
+                        if cached_at.tzinfo is None and current_time.tzinfo is not None:
+                            cached_at = cached_at.replace(tzinfo=timezone.utc)
+                    except ValueError as e:
+                        logger.error(
+                            f"Failed to parse cached_at timestamp: "
+                            f"{cached_at_str} - {e}"
+                        )
+                        cached_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
+
+                    # make sure that the cache is not older than 3 hours as
+                    # a double check that this is recent data
+                    cache_age = (current_time - cached_at).total_seconds()
+                    if (
+                        cache_age < self.cache_ttl
+                    ):  # Use instance property instead of hardcoded value
+                        # Get serialized TLEs from cache
+                        serialized_tles = cached_data.get("tles", [])
+
+                        # Deserialize the TLEs
+                        tles = self.deserialize_cached_tles(serialized_tles)
+
+                        logger.debug(f"Returning {len(tles)} TLEs from cache")
+                        return tles, total_count, "cache"
+        except Exception as e:
+            logger.error(f"Error getting TLEs from cache: {e}")
+            logger.error("TLE cache retrieval failed, loading from database")
+            # continue with the database query in case of error
 
         try:
             # First get valid satellites
@@ -319,7 +438,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             valid_satellites = {row.id: row for row in satellites_result}
 
             if not valid_satellites:
-                return [], 0
+                return [], 0, "database"
 
             # Then get TLEs for those satellites
             tles_result = self.session.execute(
@@ -360,7 +479,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 end_idx = start_idx + per_page
                 tles = tles[start_idx:end_idx]
 
-            return tles, total_count
+            return tles, total_count, "database"
 
         except Exception:
             self.session.rollback()

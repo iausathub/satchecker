@@ -376,7 +376,7 @@ def get_all_tles_at_epoch_formatted(
     actual_per_page = 1000000 if format == "txt" else per_page
     actual_page = 1 if format == "txt" else page
 
-    tles, total_count = tle_repo.get_all_tles_at_epoch(
+    tles, total_count, _ = tle_repo.get_all_tles_at_epoch(
         epoch_date, actual_page, actual_per_page, format
     )
 

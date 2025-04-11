@@ -197,12 +197,19 @@ def fov_data_to_json(
             sat_key = f"{sat_name} ({sat_norad_id})"
 
             if sat_key not in satellites:
-                satellites[sat_key] = {
+                # Create base satellite dictionary
+                satellite_dict = {
                     "name": sat_name,
                     "norad_id": sat_norad_id,
                     "positions": [],
-                    "tle_data": result.get("tle_data"),
                 }
+
+                # Only add tle_data if it's not null/empty
+                tle_data = result.get("tle_data")
+                if tle_data is not None and tle_data != {}:
+                    satellite_dict["tle_data"] = tle_data
+
+                satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info
             pass_data = {
                 "ra": result["ra"],
