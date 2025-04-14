@@ -1,4 +1,5 @@
 # ruff: noqa: E501
+import io
 from datetime import datetime, timezone
 
 from flask import abort, jsonify, request, send_file
@@ -541,7 +542,7 @@ def get_tles_at_epoch():
     page = int(parameters.get("page", 1) or 1)
     per_page = int(parameters.get("per_page") or 100)
 
-    tles = get_all_tles_at_epoch_formatted(
+    result = get_all_tles_at_epoch_formatted(
         tle_repo,
         epoch_date,
         format=format,
@@ -551,17 +552,17 @@ def get_tles_at_epoch():
         api_version=api_version,
     )
 
-    if format == "txt":
-        return send_file(tles, mimetype="text/plain", as_attachment=False)
-    elif format == "zip":
+    if format == "txt" and isinstance(result, io.BytesIO):
+        return send_file(result, mimetype="text/plain", as_attachment=False)
+    elif format == "zip" and isinstance(result, io.BytesIO):
         return send_file(
-            tles,
+            result,
             mimetype="application/zip",
             as_attachment=True,
             download_name="tle_data.zip",
         )
     else:
-        return jsonify(tles)
+        return jsonify(result)
 
 
 @api_v1.route("/tools/get-nearest-tle/")

@@ -1,6 +1,6 @@
-import json
 import time as python_time
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -8,35 +8,13 @@ from astropy.time import Time
 from skyfield.api import EarthSatellite, load, wgs84
 
 from api.adapters.repositories.tle_repository import AbstractTLERepository
-from api.entrypoints.extensions import redis_client
+from api.services.cache_service import (
+    create_fov_cache_key,
+    get_cached_data,
+    set_cached_data,
+)
 from api.utils import coordinate_systems, output_utils
-
-
-def _create_fov_cache_key(
-    location: EarthLocation,
-    mid_obs_time_jd: Time,
-    start_time_jd: Time,
-    duration: float,
-    ra: float,
-    dec: float,
-    fov_radius: float,
-    include_tles: bool = False,
-) -> str:
-    """Create a unique cache key for the FOV calculation."""
-    key_parts = [
-        "fov",
-        f"lat_{location.lat.value:.6f}",
-        f"lon_{location.lon.value:.6f}",
-        f"height_{location.height.value:.6f}",
-        f"mid_time_{mid_obs_time_jd.jd if mid_obs_time_jd else 'None'}",
-        f"start_time_{start_time_jd.jd if start_time_jd else 'None'}",
-        f"duration_{duration}",
-        f"ra_{ra}",
-        f"dec_{dec}",
-        f"radius_{fov_radius}",
-        f"include_tles_{include_tles}",
-    ]
-    return ":".join(key_parts)
+from api.utils.time_utils import astropy_time_to_datetime_utc
 
 
 def get_satellite_passes_in_fov(
@@ -52,7 +30,7 @@ def get_satellite_passes_in_fov(
     include_tles: bool,
     api_source: str,
     api_version: str,
-) -> dict:
+) -> dict[str, Any]:
     start_time = python_time.time()
     print(f"\nStarting FOV calculation at: {datetime.now().isoformat()}")
     print(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
@@ -60,7 +38,7 @@ def get_satellite_passes_in_fov(
 
     # Create cache key and check cache
 
-    cache_key = _create_fov_cache_key(
+    cache_key = create_fov_cache_key(
         location,
         mid_obs_time_jd,
         start_time_jd,
@@ -70,18 +48,18 @@ def get_satellite_passes_in_fov(
         fov_radius,
         False if include_tles is None else include_tles,
     )
-    cached_data = redis_client.get(cache_key)
+
+    cached_data = get_cached_data(cache_key)
     if cached_data:
         cache_time = python_time.time() - start_time
         print("Found cached result")
-        cached_results = json.loads(cached_data)
         # Return cached results using the same formatting function
         return output_utils.fov_data_to_json(
-            cached_results["results"],
-            cached_results["points_in_fov"],
+            cached_data["results"],
+            cached_data["points_in_fov"],
             {
                 "total_time": round(cache_time, 3),
-                "points_in_fov": cached_results["points_in_fov"],
+                "points_in_fov": cached_data["points_in_fov"],
                 "from_cache": True,
             },
             api_source,
@@ -92,8 +70,8 @@ def get_satellite_passes_in_fov(
     # Get all current TLEs
     tle_start = python_time.time()
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
-    tles, count = tle_repo.get_all_tles_at_epoch(
-        time_param.to_datetime(), 1, 10000, "zip"
+    tles, count, _ = tle_repo.get_all_tles_at_epoch(
+        astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
     )
 
     tle_time = python_time.time() - tle_start
@@ -129,7 +107,7 @@ def get_satellite_passes_in_fov(
     all_results = []
     satellites_processed = 0
     points_in_fov = 0
-    total_sat_time = 0
+    total_sat_time = 0.0
 
     for tle in tles:
         sat_start = python_time.time()
@@ -245,7 +223,7 @@ def get_satellite_passes_in_fov(
         "results": all_results,
         "points_in_fov": points_in_fov,
     }
-    redis_client.setex(cache_key, timedelta(hours=1), json.dumps(cache_data))
+    set_cached_data(cache_key, cache_data)
 
     return result
 
@@ -260,7 +238,7 @@ def get_satellites_above_horizon(
     illuminated_only: bool = False,
     api_source: str = "",
     api_version: str = "",
-) -> dict:
+) -> dict[str, Any]:
     """
     Get all satellites above the horizon at a specific time.
 
@@ -282,7 +260,9 @@ def get_satellites_above_horizon(
 
     # Get all current TLEs
     tle_start = python_time.time()
-    tles, count = tle_repo.get_all_tles_at_epoch(time_jd.to_datetime(), 1, 10000, "zip")
+    tles, count, _ = tle_repo.get_all_tles_at_epoch(
+        astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip"
+    )
     tle_time = python_time.time() - tle_start
 
     # Set up time and observer

@@ -1,4 +1,5 @@
 from datetime import timezone
+from typing import Any
 
 import numpy as np
 from astropy.time import Time
@@ -152,7 +153,7 @@ def fov_data_to_json(
     group_by: str,
     precision_angles=8,
     precision_date=8,
-) -> dict:
+) -> dict[str, Any]:
     """Convert FOV results to JSON format with optional grouping by satellite.
 
     Args:
@@ -197,12 +198,19 @@ def fov_data_to_json(
             sat_key = f"{sat_name} ({sat_norad_id})"
 
             if sat_key not in satellites:
-                satellites[sat_key] = {
+                # Create base satellite dictionary
+                satellite_dict = {
                     "name": sat_name,
                     "norad_id": sat_norad_id,
                     "positions": [],
-                    "tle_data": result.get("tle_data"),
                 }
+
+                # Only add tle_data if it's not null/empty
+                tle_data = result.get("tle_data")
+                if tle_data is not None and tle_data != {}:
+                    satellite_dict["tle_data"] = tle_data
+
+                satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info
             pass_data = {
                 "ra": result["ra"],
@@ -231,7 +239,7 @@ def fov_data_to_json(
         # Original chronological format
         formatted_results = {
             "data": results,
-            "count": len(results),
+            "count": len(results),  # type: ignore[dict-item]
             "performance": performance_metrics,
             "source": api_source,
             "version": api_version,

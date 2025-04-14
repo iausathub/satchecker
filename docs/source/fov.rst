@@ -131,7 +131,7 @@ Satellite passes Through FOV
                                 "altitude": 3.91713221,
                                 "angle": 2.21383004,
                                 "azimuth": 289.12315208,
-                                    "date_time": "2024-11-08 21:28:29 UTC",
+                                "date_time": "2024-11-08 21:28:29 UTC",
                                 "dec": 18.26370601,
                                 "julian_date": 2460623.39479157,
                                 "ra": 156.04618993,

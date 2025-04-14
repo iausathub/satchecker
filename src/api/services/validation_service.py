@@ -1,5 +1,5 @@
 import re
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import astropy.units as u
@@ -43,7 +43,7 @@ def extract_parameters(request, parameter_list):
 
 def validate_parameters(
     request: Any, parameter_list: list[str], required_parameters: list[str]
-) -> list[str]:
+) -> dict[str, Any]:
     """
     Validates and sanitizes parameters for satellite tracking.
 
@@ -358,7 +358,7 @@ def validate_parameters(
     except Exception as e:
         raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
 
-    return parameters
+    return dict(parameters)
 
 
 def jd_arange(a, b, dr, decimals=11):
@@ -446,7 +446,7 @@ def parse_tle(tle):
             tle_line_1 = tle_data[1].strip()
             tle_line_2 = tle_data[2].strip()
         else:
-            name = None
+            name = ""
             tle_line_1 = tle_data[0].strip()
             tle_line_2 = tle_data[1].strip()
 
@@ -460,13 +460,25 @@ def parse_tle(tle):
     except Exception as e:
         raise ValidationError(500, error_messages.INVALID_TLE, e) from e
 
-    catalog = tle_line_1[2:7]
+    # Parse the epoch from the TLE line 1
+    # TLE epoch is in the format YYDDD.FRACTION at positions 18-32
+    epoch_year = int(tle_line_1[18:20])
+    epoch_year = epoch_year + (
+        1900 if epoch_year >= 57 else 2000
+    )  # Convert 2-digit year
+    epoch_day = float(tle_line_1[20:32])
+
+    # Day of year to date
+    epoch_date = datetime(epoch_year, 1, 1, tzinfo=timezone.utc)
+    epoch_date = epoch_date + timedelta(days=epoch_day - 1)
+
+    catalog = int(tle_line_1[2:7])
     satellite = Satellite(sat_number=catalog, sat_name=name)
     tle = TLE(
         tle_line1=tle_line_1,
         tle_line2=tle_line_2,
-        date_collected=None,
-        epoch=None,
+        date_collected=datetime.now(timezone.utc),
+        epoch=epoch_date,
         is_supplemental=False,
         satellite=satellite,
         data_source="user",

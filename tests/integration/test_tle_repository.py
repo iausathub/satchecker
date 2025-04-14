@@ -1,5 +1,6 @@
 # ruff: noqa: S101
 
+import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -363,20 +364,28 @@ def test_get_all_tles_at_epoch(session):
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
 
-    tle_1 = TLEFactory(epoch=datetime.now(), satellite=satellite)
-    tle_2 = TLEFactory(epoch=datetime.now() - timedelta(days=30), satellite=satellite_2)
+    tle_1 = TLEFactory(epoch=datetime.now(timezone.utc), satellite=satellite)
+    tle_2 = TLEFactory(
+        epoch=datetime.now(timezone.utc) - timedelta(days=30), satellite=satellite_2
+    )
     tle_repository.add(tle_1)
     tle_repository.add(tle_2)
     session.commit()
 
-    results = tle_repository.get_all_tles_at_epoch(datetime.now(), 1, 10, "zip")
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc), 1, 10, "zip"
+    )
     assert len(results[0]) == 1
 
-    tle_3 = TLEFactory(epoch=datetime.now() - timedelta(days=12), satellite=satellite_3)
+    tle_3 = TLEFactory(
+        epoch=datetime.now(timezone.utc) - timedelta(days=12), satellite=satellite_3
+    )
     tle_repository.add(tle_3)
     session.commit()
 
-    results = tle_repository.get_all_tles_at_epoch(datetime.now(), 1, 10, "zip")
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc), 1, 10, "zip"
+    )
     assert len(results[0]) == 2
 
 
@@ -622,3 +631,115 @@ def test_get_nearest_tle(session):
 
     result = tle_repository.get_nearest_tle(-1, "catalog", epoch)
     assert result is None
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_all_tles_at_epoch_cache(session, app):
+    tle_repository = SqlAlchemyTLERepository(session)
+
+    # Empty cache, no TLEs added yet
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc), 1, 10, "zip"
+    )
+    assert len(results[0]) == 0
+
+    # Add TLEs to repository
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        decay_date=None,
+        launch_date=datetime.now(timezone.utc) - timedelta(days=1000),
+        has_current_sat_number=True,
+    )
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    session.commit()
+
+    tle = TLEFactory(epoch=datetime.now(timezone.utc), satellite=satellite)
+    tle_repository.add(tle)
+    tle2 = TLEFactory(
+        epoch=datetime.now(timezone.utc) - timedelta(days=1), satellite=satellite
+    )
+    tle_repository.add(tle2)
+    session.commit()
+
+    # Import and use cache functions directly
+    from api.services.cache_service import (
+        RECENT_TLES_CACHE_KEY,
+        batch_serialize_tles,
+        set_cached_data,
+    )
+
+    # Explicitly initialize the cache with our test data for consistent testing
+    with app.app_context():
+        print("DEBUG - Manually initializing Redis cache with test data")
+        cache_data = {
+            "tles": batch_serialize_tles([tle]),
+            "total_count": 1,
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }
+        set_cached_data(RECENT_TLES_CACHE_KEY, cache_data)
+
+    # Check that TLEs are returned from cache
+    try:
+        results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert len(results[0]) == 1
+        assert results[2] == "cache"
+    except Exception as e:
+        print(e)
+        raise e
+
+    # Check that TLEs are returned from database for an older date
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc) - timedelta(days=0.5), 1, 10, "zip"
+    )
+    assert len(results[0]) == 1
+    assert results[2] == "database"
+
+    # Check that TLEs are returned from cache for a future date
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc) + timedelta(days=1), 1, 10, "zip"
+    )
+    assert len(results[0]) == 1
+    assert results[2] == "cache"
+
+    # temporarily change cache storage time
+    with app.app_context():
+        tle_repository.cache_ttl = 5
+
+        cache_data = {
+            "tles": batch_serialize_tles([tle]),
+            "total_count": 1,
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }
+        success = set_cached_data(RECENT_TLES_CACHE_KEY, cache_data, ttl=5)
+        assert success
+
+        results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert results[2] == "cache"
+
+        # wait for cache to expire
+        time.sleep(6)
+        results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert results[2] == "database"
+
+    # test that the TLEs load from the database if there are issues with the cache
+    with app.app_context():
+        cache_results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        tle_repository.cache_enabled = False
+
+        db_results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert db_results[2] == "database"
+        assert cache_results[0] == db_results[0]

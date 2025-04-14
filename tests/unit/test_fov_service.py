@@ -292,7 +292,8 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         fake_cache[key] = value
         return True
 
-    mock_redis_client = mocker.patch("api.services.fov_service.redis_client")
+    # Mock redis_client in cache_service instead of fov_service
+    mock_redis_client = mocker.patch("api.services.cache_service.redis_client")
     mock_redis_client.get.side_effect = mock_get
     mock_redis_client.setex.side_effect = mock_setex
 
@@ -358,7 +359,7 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
     # Use a set to collect and compare cache keys
     cache_keys = set()
 
-    mock_redis_client = mocker.patch("api.services.fov_service.redis_client")
+    mock_redis_client = mocker.patch("api.services.cache_service.redis_client")
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])
@@ -388,7 +389,7 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
 
 def test_fov_different_cache_keys(mocker, test_location, test_time):
     """Test that different parameters generate different cache keys."""
-    mock_redis_client = mocker.patch("api.services.fov_service.redis_client")
+    mock_redis_client = mocker.patch("api.services.cache_service.redis_client")
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])

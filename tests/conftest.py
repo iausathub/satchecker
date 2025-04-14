@@ -114,7 +114,8 @@ def app():
     app.celery = celery
 
     with app.app_context():
-        database.init_app(app)
+        if "sqlalchemy" not in app.extensions:
+            database.init_app(app)
 
         Base.metadata.create_all(bind=database.engine)
 
@@ -158,6 +159,24 @@ def cleanup_database(session):
         raise e
     finally:
         session.close()
+
+
+@pytest.fixture(autouse=True)
+def cleanup_cache(app):
+    """Clean up Redis cache after each test"""
+    if cannot_connect_to_services():
+        pytest.skip("Redis not available - skipping cache cleanup")
+
+    yield
+    try:
+        redis_client = redis.Redis(
+            host=os.getenv("REDIS_HOST", "localhost"),
+            port=int(os.getenv("REDIS_PORT", "6379")),
+            db=0,
+        )
+        redis_client.flushdb()
+    except Exception as e:
+        print(f"Error flushing Redis cache: {e}")
 
 
 @pytest.fixture
@@ -325,7 +344,7 @@ class FakeTLERepository(AbstractTLERepository):
         )
 
     def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
-        return list(self._tles), len(self._tles)
+        return list(self._tles), len(self._tles), "database"
 
     def _get_adjacent_tles(self, id, id_type, epoch):
         # limit to one before and one after for the given id (satellite number)

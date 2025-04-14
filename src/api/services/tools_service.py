@@ -2,7 +2,7 @@ import csv
 import io
 import zipfile
 from datetime import datetime
-from typing import Union
+from typing import Any, Optional, Union
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
@@ -94,7 +94,16 @@ def get_tles_around_epoch_results(
     Returns:
         List[dict]: A list of dictionaries containing the TLE data.
     """
-    tles = tle_repo.get_tles_around_epoch(id, id_type, epoch, count_before, count_after)
+    tles_result = tle_repo.get_tles_around_epoch(
+        id, id_type, epoch, count_before, count_after
+    )
+
+    # Ensure tles is a list to avoid iteration errors
+    tles = (
+        []
+        if tles_result is None
+        else tles_result if isinstance(tles_result, list) else [tles_result]
+    )
 
     # Extract the TLE data from the result set
     tle_data = [
@@ -126,7 +135,7 @@ def get_nearest_tle_result(
     epoch: datetime,
     api_source: str,
     api_version: str,
-) -> list[dict[str, str | int | None]]:
+) -> list[dict[str, Union[list[dict[str, Any]], str]]]:
     """
     Fetches the nearest TLE to a specific epoch date.
 
@@ -142,15 +151,18 @@ def get_nearest_tle_result(
         api_version (str): The version of the API request.
 
     Returns:
-        list[dict[str, str | int | None]]: A single-item list containing a
-        dictionary with:
-        - satellite_name (str): Name of the satellite
-        - satellite_id (int): NORAD catalog number
-        - tle_line1 (str): First line of the TLE
-        - tle_line2 (str): Second line of the TLE
-        - epoch (str): Epoch of the TLE in 'YYYY-MM-DD HH:MM:SS TZ' format
-        - date_collected (str): Date TLE was collected
-        - data_source (str): Source of the TLE data
+        list[dict[str, Union[list[dict[str, Any]], str]]]: A single-item list
+        containing a dictionary with:
+        - tle_data: List of dictionaries, each containing:
+            - satellite_name (str): Name of the satellite
+            - satellite_id (int): NORAD catalog number
+            - tle_line1 (str): First line of the TLE
+            - tle_line2 (str): Second line of the TLE
+            - epoch (str): Epoch of the TLE in 'YYYY-MM-DD HH:MM:SS TZ' format
+            - date_collected (str): Date TLE was collected
+            - data_source (str): Source of the TLE data
+        - source (str): API source identifier
+        - version (str): API version identifier
     """
     tle = tle_repo.get_nearest_tle(id, id_type, epoch)
 
@@ -186,7 +198,8 @@ def get_adjacent_tle_results(
     epoch: datetime,
     api_source: str,
     api_version: str,
-):
+    format: str = "json",
+) -> Union[list[dict[str, Union[list[dict[str, Any]], str]]], io.BytesIO]:
     """
     Fetches the adjacent TLEs to a specific epoch date - one TLE before and one after.
 
@@ -195,14 +208,18 @@ def get_adjacent_tle_results(
         id (str): The ID of the satellite.
         id_type (str): The type of the ID, either "catalog" or "name".
         epoch (datetime): The epoch date to fetch the adjacent TLEs to.
-        format (str): The format of the TLE data, either "json" or "txt".
+        api_source (str): The source of the API request.
+        api_version (str): The version of the API request.
+        format (str): The format of the response, either "json" or "txt".
     Returns:
-        List[dict]: A list of dictionaries containing the TLE data.
+        Union[list[dict[str, Union[list[dict[str, Any]], str]]], io.BytesIO]:
+            - For JSON format: A list containing a dictionary with TLE data
+            - For TXT format: A BytesIO object containing the formatted TLE text
     """
     tles = tle_repo.get_adjacent_tles(id, id_type, epoch)
 
     if format == "txt":
-        tle_data = [
+        tle_data: list[str] = [
             f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
             for tle in tles
         ]
@@ -211,7 +228,7 @@ def get_adjacent_tle_results(
 
     else:
         # Extract the TLE data from the result set
-        tle_data = [
+        tle_json_data = [
             {
                 "satellite_name": tle.satellite.sat_name,
                 "satellite_id": tle.satellite.sat_number,
@@ -226,7 +243,7 @@ def get_adjacent_tle_results(
 
         return [
             {
-                "tle_data": tle_data,
+                "tle_data": tle_json_data,
                 "source": api_source,
                 "version": api_version,
             }
@@ -293,7 +310,7 @@ def get_satellite_data(
 
 def get_active_satellites(
     sat_repo: AbstractSatelliteRepository,
-    object_type: str,
+    object_type: Optional[str],
     api_source: str,
     api_version: str,
 ):
@@ -354,7 +371,7 @@ def get_all_tles_at_epoch_formatted(
     per_page: int = 100,
     api_source: str = "",
     api_version: str = "",
-) -> Union[list, io.BytesIO]:
+) -> Union[list[dict[str, Any]], io.BytesIO]:
     """
     Fetches all TLEs at a specific epoch date with support for different output formats.
 
@@ -368,20 +385,20 @@ def get_all_tles_at_epoch_formatted(
         api_version (str): The version of the API request.
 
     Returns:
-        Union[list, io.BytesIO]: Either a list containing TLE data and pagination info
-                                (JSON) or a BytesIO object containing formatted TLE data
-                                (TXT/ZIP).
+        Union[list[dict[str, Any]], io.BytesIO]: Either a list containing TLE data
+        and pagination info (JSON) or a BytesIO object containing formatted TLE data
+        (TXT/ZIP).
     """
     # For text format, get all records
     actual_per_page = 1000000 if format == "txt" else per_page
     actual_page = 1 if format == "txt" else page
 
-    tles, total_count = tle_repo.get_all_tles_at_epoch(
+    tles, total_count, _ = tle_repo.get_all_tles_at_epoch(
         epoch_date, actual_page, actual_per_page, format
     )
 
     if format == "txt":
-        tle_data = [
+        tle_data: list[str] = [
             f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
             for tle in tles
         ]
@@ -426,7 +443,7 @@ def get_all_tles_at_epoch_formatted(
 
     else:
         # Format as JSON
-        tle_data = [
+        tle_json_data = [
             {
                 "satellite_name": tle.satellite.sat_name,
                 "satellite_id": tle.satellite.sat_number,
@@ -444,7 +461,7 @@ def get_all_tles_at_epoch_formatted(
                 "per_page": per_page,
                 "page": page,
                 "total_results": total_count,
-                "data": tle_data,
+                "data": tle_json_data,
                 "source": api_source,
                 "version": api_version,
             }

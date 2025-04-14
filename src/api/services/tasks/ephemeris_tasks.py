@@ -1,11 +1,11 @@
 import logging
+from typing import Any, Union
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from flask import current_app, has_app_context
 
-from api import celery
-from api.common.position_data_point import position_data_point
+from api.celery_app import celery
 
 # from core import celery, utils
 from api.utils.output_utils import position_data_to_json
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @celery.task
 def process_results(
-    data_points: list[tuple[float, float]],
+    data_points: list[tuple[float, ...]],
     min_altitude: float,
     max_altitude: float,
     date_collected: str,
@@ -32,7 +32,7 @@ def process_results(
     data_source: str,
     api_source: str,
     api_version: str,
-) -> list[position_data_point]:
+) -> dict[str, Any]:
     """
     Process the results of the satellite propagation.
 
@@ -50,7 +50,8 @@ def process_results(
         data_source (str): The data source.
 
     Returns:
-        list[position_data_point]: The processed results.
+        dict[str, Any]: Either the processed results dictionary or an
+        info message dictionary.
     """
     if has_app_context():
         current_app.logger.info("process results started")
@@ -67,7 +68,7 @@ def process_results(
         }
 
     # Add remaining metadata to results
-    data_set = position_data_to_json(
+    data_set: dict[str, Any] = position_data_to_json(
         name,
         intl_designator,
         catalog_id,
@@ -100,7 +101,7 @@ def generate_position_data(
     catalog_id: str = "",
     data_source: str = "",
     propagation_strategy: str = "skyfield",
-) -> list[dict]:
+) -> Union[dict[str, Any], list[dict[str, Any]]]:
     """
     Create a list of results for a given satellite and date range.
 
@@ -121,7 +122,8 @@ def generate_position_data(
         data_source (str, optional): The data source of the TLE data. Defaults to "".
 
     Returns:
-        list[dict]: A list of results for the given satellite and date range.
+        Union[dict[str, Any], list[dict[str, Any]]]: Either a dictionary with results
+        or a list of results for the given satellite and date range.
     """
     # Create a chord that will propagate the satellite for
     # each date and then process the results
@@ -161,10 +163,11 @@ def generate_position_data(
             api_version,
         ]
     )
-    results = processed_results.get()
-    if not results:
-        return {"info": "No position information found with this criteria"}
-    return results
+    result_dict: dict[str, Any] = processed_results.get()
+    if not result_dict:
+        return [{"info": "No position information found with this criteria"}]
+
+    return result_dict
 
 
 @celery.task
