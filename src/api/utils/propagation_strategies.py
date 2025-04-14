@@ -402,6 +402,8 @@ class TestPropagationStrategy:
             ddistance,
             phase_angle,
             illuminated,
+            None,  # satellite_gcrs
+            None,  # observer_gcrs
             jd.jd,
         )
 

@@ -1,4 +1,5 @@
 import abc
+from typing import Optional
 
 from sqlalchemy import func
 
@@ -14,7 +15,7 @@ class AbstractSatelliteRepository(abc.ABC):
         self._add(satellite)
         self.seen.add(satellite)
 
-    def get(self, satellite_id: str) -> Satellite:
+    def get(self, satellite_id: str) -> Optional[Satellite]:
         satellite = self._get(satellite_id)
         if satellite:
             self.seen.add(satellite)
@@ -32,11 +33,11 @@ class AbstractSatelliteRepository(abc.ABC):
     def get_satellite_data_by_name(self, name):
         return self._get_satellite_data_by_name(name)
 
-    def get_active_satellites(self, object_type: str = None):
+    def get_active_satellites(self, object_type: Optional[str] = None):
         return self._get_active_satellites(object_type)
 
     @abc.abstractmethod
-    def _get(self, satellite_id: str) -> Satellite:
+    def _get(self, satellite_id: str) -> Optional[Satellite]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -60,7 +61,7 @@ class AbstractSatelliteRepository(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_active_satellites(self, object_type: str = None):
+    def _get_active_satellites(self, object_type: Optional[str] = None):
         raise NotImplementedError
 
 
@@ -69,7 +70,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         super().__init__()
         self.session = session
 
-    def _get(self, satellite_id: str) -> Satellite:
+    def _get(self, satellite_id: str) -> Optional[Satellite]:
         orm_satellite = (
             self.session.query(SatelliteDb)
             .filter(SatelliteDb.sat_number == satellite_id)
@@ -177,7 +178,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
         return satellite
 
-    def _get_active_satellites(self, object_type: str = None):
+    def _get_active_satellites(self, object_type: Optional[str] = None):
         """
         Retrieves active satellites based on the provided object type (optional).
         Only returns satellites that are active (no decay date) and have current
@@ -208,7 +209,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
     # SQLAlchemyRepository-specific methods
     @staticmethod
-    def _to_domain(orm_satellite):
+    def _to_domain(orm_satellite) -> Optional[Satellite]:
         if orm_satellite is None:
             return None
         return Satellite(

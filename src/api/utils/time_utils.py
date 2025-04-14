@@ -1,4 +1,4 @@
-from datetime import timezone
+from datetime import datetime, timezone
 
 import numpy as np
 from astropy.time import Time
@@ -48,7 +48,8 @@ def jd_to_gst(jd: float, nutation: float) -> float:
     # Convert to radians
     theta_gast = np.deg2rad(theta_gast)
 
-    return theta_gast
+    # Ensure we return a Python float, not a NumPy type
+    return float(theta_gast)
 
 
 def calculate_lst(longitude: float, jd: float) -> float:
@@ -92,10 +93,11 @@ def calculate_lst(longitude: float, jd: float) -> float:
     # Convert LST from degrees to radians
     lst = np.radians(lst_deg)
 
-    return lst
+    # Ensure we return a Python float, not a NumPy type
+    return float(lst)
 
 
-def astropy_time_to_datetime_utc(time_obj: Time):
+def astropy_time_to_datetime_utc(time_obj: Time) -> datetime:
     """
     Convert an astropy Time object to a timezone-aware Python datetime (UTC).
 
@@ -110,4 +112,6 @@ def astropy_time_to_datetime_utc(time_obj: Time):
     if time_obj.scale != "utc":
         time_obj = time_obj.utc
 
-    return time_obj.to_datetime(timezone=timezone.utc)
+    # Explicitly cast to datetime to satisfy the type checker
+    dt: datetime = time_obj.to_datetime(timezone=timezone.utc)
+    return dt

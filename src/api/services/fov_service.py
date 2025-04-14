@@ -1,5 +1,6 @@
 import time as python_time
 from datetime import datetime
+from typing import Any
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -29,7 +30,7 @@ def get_satellite_passes_in_fov(
     include_tles: bool,
     api_source: str,
     api_version: str,
-) -> dict:
+) -> dict[str, Any]:
     start_time = python_time.time()
     print(f"\nStarting FOV calculation at: {datetime.now().isoformat()}")
     print(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
@@ -106,7 +107,7 @@ def get_satellite_passes_in_fov(
     all_results = []
     satellites_processed = 0
     points_in_fov = 0
-    total_sat_time = 0
+    total_sat_time = 0.0
 
     for tle in tles:
         sat_start = python_time.time()
@@ -237,7 +238,7 @@ def get_satellites_above_horizon(
     illuminated_only: bool = False,
     api_source: str = "",
     api_version: str = "",
-) -> dict:
+) -> dict[str, Any]:
     """
     Get all satellites above the horizon at a specific time.
 

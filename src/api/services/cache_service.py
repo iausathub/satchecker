@@ -6,6 +6,7 @@ from typing import Any
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
+from api.domain.models.tle import TLE
 from api.entrypoints.extensions import db, redis_client, scheduler
 
 # Use the application's centralized logging configuration
@@ -58,7 +59,7 @@ def get_cached_data(key: str, default: Any = None) -> Any:
         data = redis_client.get(key)
         if not data:
             return default
-        return json.loads(data)
+        return json.loads(data)  # type: ignore
     except Exception as e:
         logger.warning(f"Cache retrieval error for key {key}: {e}")
         return default
@@ -85,7 +86,7 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
         return False
 
 
-def batch_serialize_tles(tles):
+def batch_serialize_tles(tles: list[TLE]) -> list[dict[str, Any]]:
     """
     Efficiently serialize a batch of TLEs for caching.
     Much faster than serializing one by one, especially for large datasets.
@@ -96,9 +97,8 @@ def batch_serialize_tles(tles):
     Returns:
         List of serialized TLE dictionaries
     """
-    # Pre-allocate result array for better performance
-    result = []
-    result_append = result.append  # Local reference to improve loops
+    result: list[dict[str, Any]] = []
+    result_append = result.append
 
     for tle in tles:
         # Get satellite information once to avoid repeated attribute access
@@ -274,28 +274,21 @@ def initialize_cache_refresh_scheduler(hours=3):
             return True
 
         try:
-            from flask import Flask, current_app
+            from flask import current_app
 
+            # Check if we're in an application context
             if not current_app:
                 logger.warning(
                     "No Flask app context available for initial cache refresh"
                 )
                 return False
 
-            # Get the app from the current_app proxy
-            app = current_app._get_current_object()
-
-            if not isinstance(app, Flask):
-                logger.warning("Current app is not a Flask instance")
-                return False
-
-            with app.app_context():
-                # Create a new session within the app context
-                session = db.session
-                logger.info("Performing initial TLE cache refresh")
-                result = refresh_tle_cache(session=session)
-                _initial_cache_refresh_done = True
-                return result
+            # Since we're already in an app context, we can use it directly
+            logger.info("Performing initial TLE cache refresh")
+            session = db.session
+            result = refresh_tle_cache(session=session)
+            _initial_cache_refresh_done = True
+            return result
 
         except Exception as e:
             logger.error(f"Error during initial TLE cache refresh: {e}", exc_info=True)

@@ -226,7 +226,9 @@ def get_satellite_passes():
         required_parameters = ["site", "duration", "ra", "dec", "fov_radius"]
 
     try:
-        parameters = validate_parameters(request, parameters, required_parameters)
+        validated_parameters = validate_parameters(
+            request, parameters, required_parameters
+        )
     except ValidationError as e:
         abort(e.status_code, e.message)
 
@@ -236,15 +238,15 @@ def get_satellite_passes():
     try:
         satellite_passes = get_satellite_passes_in_fov(
             tle_repo,
-            parameters["location"],
-            parameters["mid_obs_time_jd"],
-            parameters["start_time_jd"],
-            parameters["duration"],
-            parameters["ra"],
-            parameters["dec"],
-            parameters["fov_radius"],
-            parameters["group_by"],
-            parameters["include_tles"],
+            validated_parameters["location"],
+            validated_parameters["mid_obs_time_jd"],
+            validated_parameters["start_time_jd"],
+            validated_parameters["duration"],
+            validated_parameters["ra"],
+            validated_parameters["dec"],
+            validated_parameters["fov_radius"],
+            validated_parameters["group_by"],
+            validated_parameters["include_tles"],
             api_source,
             api_version,
         )
@@ -545,7 +547,9 @@ def _handle_satellites_above_horizon(with_duration=False):
         required_parameters.append("duration")
 
     try:
-        parameters = validate_parameters(request, parameters, required_parameters)
+        validated_parameters = validate_parameters(
+            request, parameters, required_parameters
+        )
     except ValidationError as e:
         abort(e.status_code, e.message)
 
@@ -558,13 +562,13 @@ def _handle_satellites_above_horizon(with_duration=False):
             """
             satellite_passes = get_satellites_above_horizon_range(
                 tle_repo,
-                parameters["location"],
-                parameters["julian_dates"],
-                parameters["min_altitude"],
-                parameters["min_range"],
-                parameters["max_range"],
-                parameters["illuminated_only"],
-                parameters["duration"],
+                validated_parameters["location"],
+                validated_parameters["julian_dates"],
+                validated_parameters["min_altitude"],
+                validated_parameters["min_range"],
+                validated_parameters["max_range"],
+                validated_parameters["illuminated_only"],
+                validated_parameters["duration"],
                 api_source,
                 api_version,
             )
@@ -573,12 +577,12 @@ def _handle_satellites_above_horizon(with_duration=False):
         else:
             satellite_passes = get_satellites_above_horizon(
                 tle_repo,
-                parameters["location"],
-                parameters["julian_dates"],
-                parameters["min_altitude"],
-                parameters["min_range"],
-                parameters["max_range"],
-                parameters["illuminated_only"],
+                validated_parameters["location"],
+                validated_parameters["julian_dates"],
+                validated_parameters["min_altitude"],
+                validated_parameters["min_range"],
+                validated_parameters["max_range"],
+                validated_parameters["illuminated_only"],
                 api_source,
                 api_version,
             )
