@@ -14,6 +14,7 @@ from api.services.tools_service import (
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_nearest_tle_result,
+    get_satellite_data,
     get_tle_data,
     get_tles_around_epoch_results,
 )
@@ -348,3 +349,41 @@ def test_get_tles_around_epoch():
         tle_repo, 25544, "catalog", epoch, 0, 2, "test", "1.0"
     )
     assert len(results[0]["tle_data"]) == 2
+
+
+def test_get_satellite_data():
+    # Satellite with all fields populated
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        sat_number=25544,
+        object_id="1998-067A",
+        rcs_size="LARGE",
+        launch_date=datetime(1998, 11, 20),
+        decay_date=None,
+        object_type="PAYLOAD",
+        generation="v1.0",
+        constellation="ISS",
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+
+    # Retrieval by name
+    results = get_satellite_data(sat_repo, "ISS", "name", "test", "1.0")
+    assert len(results) == 1
+    assert results[0]["satellite_name"] == "ISS"
+    assert results[0]["satellite_id"] == 25544
+    assert results[0]["international_designator"] == "1998-067A"
+    assert results[0]["rcs_size"] == "LARGE"
+    assert results[0]["launch_date"] == "1998-11-20"
+    assert results[0]["decay_date"] is None
+    assert results[0]["object_type"] == "PAYLOAD"
+    assert results[0]["generation"] == "v1.0"
+    assert results[0]["constellation"] == "ISS"
+
+    # Retrieval by catalog number
+    results = get_satellite_data(sat_repo, "25544", "catalog", "test", "1.0")
+    assert len(results) == 1
+    assert results[0]["satellite_name"] == "ISS"
+
+    # Sat not found
+    results = get_satellite_data(sat_repo, "NONEXISTENT", "name", "test", "1.0")
+    assert len(results) == 0
