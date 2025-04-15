@@ -22,6 +22,7 @@ class SatelliteDb(Base):
     sat_number = Column(Integer, nullable=False)
     sat_name = Column(Text, nullable=False)
     constellation = Column(Text)
+    generation = Column(Text)
     rcs_size = Column(Text)
     launch_date = Column(DateTime(timezone=True))
     decay_date = Column(DateTime(timezone=True))

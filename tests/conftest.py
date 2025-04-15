@@ -227,6 +227,7 @@ def cannot_connect_to_services():
 
 class FakeSatelliteRepository(AbstractSatelliteRepository):
     def __init__(self, satellites):
+        super().__init__()
         self._satellites = satellites
 
     def _add(self, satellite):
@@ -251,22 +252,22 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         ]
 
     def _get_satellite_data_by_id(self, id):
-        return [
-            [satellite.sat_name, datetime(2024, 1, 1), satellite.has_current_sat_number]
-            for satellite in self._satellites
-            if satellite.sat_number == id
-        ]
+        try:
+            id_int = int(id) if isinstance(id, str) and id.isdigit() else id
+            matching_satellites = [
+                satellite
+                for satellite in self._satellites
+                if satellite.sat_number == id_int
+            ]
+            return matching_satellites[0] if matching_satellites else None
+        except (ValueError, TypeError):
+            return None
 
     def _get_satellite_data_by_name(self, name):
-        return [
-            [
-                satellite.sat_number,
-                datetime(2024, 1, 1),
-                satellite.has_current_sat_number,
-            ]
-            for satellite in self._satellites
-            if satellite.sat_name == name
+        matching_satellites = [
+            satellite for satellite in self._satellites if satellite.sat_name == name
         ]
+        return matching_satellites[0] if matching_satellites else None
 
     def _get_active_satellites(self, object_type: str = None):
         """

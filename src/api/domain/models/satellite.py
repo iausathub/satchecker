@@ -8,6 +8,7 @@ class Satellite:
         sat_number: int,
         sat_name: str,
         constellation: Optional[str] = None,
+        generation: Optional[str] = None,
         rcs_size: Optional[str] = None,
         launch_date: Optional[datetime] = None,
         decay_date: Optional[datetime] = None,
@@ -18,6 +19,7 @@ class Satellite:
         self.sat_number = sat_number
         self.sat_name = sat_name
         self.constellation = constellation
+        self.generation = generation
         self.rcs_size = rcs_size
         self.launch_date = launch_date
         self.decay_date = decay_date

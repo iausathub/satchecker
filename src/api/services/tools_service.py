@@ -302,6 +302,8 @@ def get_satellite_data(
                 else None
             ),
             "object_type": satellite.object_type,
+            "generation": satellite.generation,
+            "constellation": satellite.constellation,
         }
     ]
 
