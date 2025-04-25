@@ -60,7 +60,9 @@ def get_satellite_passes_in_fov(
     cache_key = _create_fov_cache_key(
         location, mid_obs_time_jd, start_time_jd, duration, ra, dec, fov_radius
     )
-    cached_data = redis_client.get(cache_key)
+
+    # Temporarily disable using the FOV cache
+    cached_data = False # redis_client.get(cache_key)
     if cached_data:
         cache_time = python_time.time() - start_time
         print("Found cached result")
