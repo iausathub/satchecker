@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1745601202673,
+  "lastUpdate": 1745601949973,
   "repoUrl": "https://github.com/iausathub/satchecker",
   "entries": {
     "Benchmark": [
@@ -3382,6 +3382,126 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.031010238906551777",
             "extra": "mean: 62.22498252380893 msec\nrounds: 21"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Michelle Dadighat",
+            "username": "mdadighat",
+            "email": "michelle.dadighat@noirlab.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "9f1fe13d0e6b029409a0a71b7697e797b664405b",
+          "message": "Temporarily disable using the FOV result cache",
+          "timestamp": "2025-04-25T17:11:54Z",
+          "url": "https://github.com/iausathub/satchecker/commit/9f1fe13d0e6b029409a0a71b7697e797b664405b"
+        },
+        "date": 1745601949600,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_icrf2radec",
+            "value": 136207.7039585468,
+            "unit": "iter/sec",
+            "range": "stddev: 9.489049956042219e-7",
+            "extra": "mean: 7.3417286316223205 usec\nrounds: 10167"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_icrf2radec_unit_vector",
+            "value": 185858.9929754713,
+            "unit": "iter/sec",
+            "range": "stddev: 8.320818388431677e-7",
+            "extra": "mean: 5.380422996975857 usec\nrounds: 63452"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_jd_to_gst",
+            "value": 697045.1593200369,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010259961915316284",
+            "extra": "mean: 1.434627278633559 usec\nrounds: 44819"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_calculate_lst",
+            "value": 706402.2596380977,
+            "unit": "iter/sec",
+            "range": "stddev: 5.053870370425223e-7",
+            "extra": "mean: 1.4156240107616835 usec\nrounds: 62422"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_tle_to_icrf_state",
+            "value": 360.04224056730214,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00017902405636355484",
+            "extra": "mean: 2.777451885713036 msec\nrounds: 315"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_skyfield_propagation",
+            "value": 216.22805382614115,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0007196864361596387",
+            "extra": "mean: 4.6247467999876335 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_is_illuminated",
+            "value": 104592.15987952589,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000002899943857043625",
+            "extra": "mean: 9.5609460704497 usec\nrounds: 25626"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_get_phase_angle",
+            "value": 142103.98987485882,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000020830241050315654",
+            "extra": "mean: 7.037100090438214 usec\nrounds: 35408"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_get_earth_sun_positions",
+            "value": 11132004.735729925,
+            "unit": "iter/sec",
+            "range": "stddev: 2.1662186739446524e-8",
+            "extra": "mean: 89.83107928350212 nsec\nrounds: 117717"
+          },
+          {
+            "name": "tests/benchmark/test_benchmark.py::test_benchmark_full_satellite_position_calculation",
+            "value": 3584.0306588547405,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000049117523595080166",
+            "extra": "mean: 279.0154703418595 usec\nrounds: 1197"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_get_satellites_above_horizon_complete",
+            "value": 146.330035670269,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00029590365293811756",
+            "extra": "mean: 6.833866987180524 msec\nrounds: 156"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_get_satellite_passes_in_fov_setup",
+            "value": 152815.01137062718,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000001683790784822135",
+            "extra": "mean: 6.54385973623146 usec\nrounds: 9860"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_get_satellites_above_horizon_setup",
+            "value": 16493.62066789579,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000007659929702294014",
+            "extra": "mean: 60.62950155913688 usec\nrounds: 7056"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_simple_random_sleep",
+            "value": 18.144645247099323,
+            "unit": "iter/sec",
+            "range": "stddev: 0.02041495533937427",
+            "extra": "mean: 55.11267850000342 msec\nrounds: 24"
           }
         ]
       }
