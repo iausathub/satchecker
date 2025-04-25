@@ -10,7 +10,7 @@ from skyfield.api import EarthSatellite, load, wgs84
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.services.cache_service import (
     create_fov_cache_key,
-    get_cached_data,
+    get_cached_data,  # noqa: F401
     set_cached_data,
 )
 from api.utils import coordinate_systems, output_utils
@@ -49,7 +49,8 @@ def get_satellite_passes_in_fov(
         False if include_tles is None else include_tles,
     )
 
-    cached_data = get_cached_data(cache_key)
+    # Tempoaraily disable using the FOV result cache
+    cached_data = False  # get_cached_data(cache_key)
     if cached_data:
         cache_time = python_time.time() - start_time
         print("Found cached result")
