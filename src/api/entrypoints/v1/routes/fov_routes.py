@@ -108,6 +108,12 @@ def get_satellite_passes():
         required: false
         description: Whether to include TLE data used to calculate the passes in the response
         example: true
+      - name: skip_cache
+        in: query
+        type: boolean
+        required: false
+        description: Whether to skip the cache and calculate the passes from scratch
+        example: false
     responses:
       200:
         description: Successful response with satellite passes
@@ -210,6 +216,7 @@ def get_satellite_passes():
         "mid_obs_time_jd",
         "group_by",
         "include_tles",
+        "skip_cache",
     ]
 
     if "site" not in request.args:
@@ -247,6 +254,7 @@ def get_satellite_passes():
             validated_parameters["fov_radius"],
             validated_parameters["group_by"],
             validated_parameters["include_tles"],
+            validated_parameters["skip_cache"],
             api_source,
             api_version,
         )
