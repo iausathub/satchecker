@@ -59,6 +59,13 @@ def get_satellite_passes_in_fov(
             f"Cache hit: Found {len(cached_data['results'])} results with "
             f"{cached_data['points_in_fov']} points in FOV"
         )
+        # Log any None values in the cached results
+        for idx, result in enumerate(cached_data.get("results", [])):
+            for key, value in result.items():
+                if value is None:
+                    logger.warning(
+                        f"Found None value in cached result {idx}, field {key}"
+                    )
         # Return cached results using the same formatting function
         return output_utils.fov_data_to_json(
             cached_data["results"],
@@ -221,6 +228,14 @@ def get_satellite_passes_in_fov(
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),
     }
+
+    # Before returning results, log any None values
+    for idx, result in enumerate(all_results):
+        for key, value in result.items():
+            if value is None:
+                logger.warning(
+                    f"Found None value in result {idx}, field {key} before returning"
+                )
 
     result = output_utils.fov_data_to_json(
         all_results,

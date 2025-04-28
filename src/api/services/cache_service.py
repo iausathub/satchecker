@@ -308,9 +308,11 @@ def initialize_cache_refresh_scheduler(hours=3):
     return perform_initial_refresh
 
 
-def check_redis_memory():
+def check_redis_memory() -> None:
+    """Check Redis memory usage."""
     try:
-        info = redis_client.info(section="memory")
+        # Type annotation to help the type checker
+        info: dict[str, Any] = redis_client.info(section="memory")  # type: ignore
         used_memory = info.get("used_memory", 0)
         used_memory_peak = info.get("used_memory_peak", 0)
         logger.info(
