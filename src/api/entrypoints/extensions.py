@@ -7,7 +7,9 @@ from flask_apscheduler import APScheduler
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
-from redis import Redis
+from redis import ConnectionPool, Redis
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
 
 
 def get_forwarded_address() -> str:
@@ -55,11 +57,23 @@ else:
     redis_port = int(os.getenv("REDIS_PORT", 6379))
 
 # Use parsed values
-redis_client = Redis(
+# Add connection pooling to avoid performance issues
+redis_pool = ConnectionPool(
     host=redis_host,
     port=redis_port,
     db=int(os.getenv("REDIS_DB", 0)),
+    max_connections=20,
     decode_responses=True,
+)
+
+# Configure retry logic with exponential backoff
+retry = Retry(ExponentialBackoff(cap=10, base=1.5), 3)  # Maximum number of retries
+
+redis_client = Redis(
+    connection_pool=redis_pool,
+    retry=retry,
+    retry_on_timeout=True,
+    socket_timeout=5,  # 5 second timeout
 )
 
 limiter = Limiter(

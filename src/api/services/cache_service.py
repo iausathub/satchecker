@@ -79,10 +79,18 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
 
     try:
         serialized = json.dumps(data)
+        if len(serialized) > 500 * 1024 * 1024:
+            logger.warning(
+                f"Data for key {key} is too large to cache "
+                f"({len(serialized)} bytes), skipping"
+            )
+            return False
+        logger.info(f"Attempting to cache data for key {key}: {len(serialized)} bytes")
         redis_client.setex(key, ttl, serialized)
+        logger.info(f"Successfully cached data for key {key}")
         return True
     except Exception as e:
-        logger.warning(f"Cache set error for key {key}: {e}")
+        logger.warning(f"Cache set error for key {key}: {e}", exc_info=True)
         return False
 
 
@@ -138,9 +146,6 @@ def refresh_tle_cache(session=None):
     """
     from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 
-    # Track if we created a new session that needs to be closed
-    created_new_session = False
-
     try:
         logger.info(f"Refreshing TLE cache at {datetime.now(timezone.utc)}")
 
@@ -153,7 +158,6 @@ def refresh_tle_cache(session=None):
                 return False
 
             session = db.session
-            created_new_session = False  # db.session is managed by Flask
 
         tle_repo = SqlAlchemyTLERepository(session)
 
@@ -201,11 +205,6 @@ def refresh_tle_cache(session=None):
             session.rollback()
         return False
 
-    finally:
-        # Close session if we created it
-        if created_new_session and session:
-            session.close()
-
 
 # Define a global function for the scheduler to use
 def scheduled_cache_refresh_job():
@@ -247,7 +246,6 @@ def initialize_cache_refresh_scheduler(hours=3):
         )
     else:
         try:
-            # Add the job using the global function instead of a closure
             scheduler.add_job(
                 func=scheduled_cache_refresh_job,
                 trigger="interval",
@@ -260,6 +258,16 @@ def initialize_cache_refresh_scheduler(hours=3):
                 f"Added cache refresh scheduler job '{job_id}' "
                 f"with interval {hours} hours"
             )
+
+            scheduler.add_job(
+                func=check_redis_memory,
+                trigger="interval",
+                id="redis_memory_check",
+                hours=1,  # Check every hour
+                misfire_grace_time=300,  # 5 min grace time
+                replace_existing=True,
+            )
+            logger.info("Added Redis memory check scheduler job")
         except Exception as e:
             logger.error(f"Failed to schedule cache refresh job: {e}")
 
@@ -288,6 +296,9 @@ def initialize_cache_refresh_scheduler(hours=3):
             session = db.session
             result = refresh_tle_cache(session=session)
             _initial_cache_refresh_done = True
+
+            check_redis_memory()
+
             return result
 
         except Exception as e:
@@ -295,3 +306,17 @@ def initialize_cache_refresh_scheduler(hours=3):
             return False
 
     return perform_initial_refresh
+
+
+def check_redis_memory() -> None:
+    """Check Redis memory usage."""
+    try:
+        # Type annotation to help the type checker
+        info: dict[str, Any] = redis_client.info(section="memory")  # type: ignore
+        used_memory = info.get("used_memory", 0)
+        used_memory_peak = info.get("used_memory_peak", 0)
+        logger.info(
+            f"Redis memory usage: {used_memory/1024/1024:.2f}MB (peak: {used_memory_peak/1024/1024:.2f}MB)"  # noqa: E501
+        )
+    except Exception as e:
+        logger.error(f"Failed to get Redis memory info: {e}")

@@ -46,6 +46,7 @@ def test_satellite_in_fov(test_location, test_time):
         fov_radius=2.0,
         group_by="satellite",
         include_tles=False,
+        skip_cache=False,
         api_source="test",
         api_version="1.0",
     )
@@ -65,6 +66,7 @@ def test_satellite_in_fov(test_location, test_time):
         fov_radius=2.0,
         group_by="time",
         include_tles=False,
+        skip_cache=False,
         api_source="test",
         api_version="1.0",
     )
@@ -95,6 +97,7 @@ def test_satellite_in_fov(test_location, test_time):
         fov_radius=2.0,
         group_by="time",
         include_tles=True,
+        skip_cache=False,
         api_source="test",
         api_version="1.0",
     )
@@ -114,6 +117,7 @@ def test_satellite_in_fov(test_location, test_time):
         fov_radius=2.5,
         group_by="satellite",
         include_tles=True,
+        skip_cache=False,
         api_source="test",
         api_version="1.0",
     )
@@ -159,6 +163,7 @@ def test_satellite_outside_fov(test_location, test_time):
         fov_radius=2.0,
         group_by="satellite",
         include_tles=False,
+        skip_cache=False,
         api_source="test",
         api_version="1.0",
     )
@@ -182,6 +187,7 @@ def test_empty_tle_list(test_location, test_time):
         fov_radius=2.0,
         group_by="satellite",
         include_tles=False,
+        skip_cache=False,
         api_source="test",
         api_version="1.0",
     )
@@ -311,6 +317,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         10.0,
         "time",
         False,
+        False,
         "test",
         "v1",
     )
@@ -338,6 +345,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         10.0,
         "time",
         False,
+        False,
         "test",
         "v1",
     )
@@ -352,6 +360,30 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
 
     # Same cache key should be used
     assert mock_redis_client.get.call_args[0][0] == cache_key
+
+    # Third call with skip_cache=True - should compute and cache (cache miss)
+    mock_redis_client.reset_mock()  # Reset call counts
+
+    third_result = get_satellite_passes_in_fov(
+        tle_repo,
+        test_location,
+        None,
+        test_time,
+        3600,
+        100.0,
+        -20.0,
+        10.0,
+        "time",
+        False,
+        True,  # skip_cache=True
+        "test",
+        "v1",
+    )
+
+    assert "from_cache" not in third_result["performance"]
+
+    # Results should match
+    assert third_result["data"] == first_result["data"]
 
 
 def test_fov_cache_key_consistency(mocker, test_location, test_time):
@@ -376,6 +408,7 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
             -20.0,
             10.0,
             "time",
+            False,
             False,
             "test",
             "v1",
@@ -418,6 +451,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         10.0,
         "time",
         False,
+        False,
         "test",
         "v1",
     )
@@ -438,6 +472,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
             "fov_radius": 10.0,
             "group_by": "time",
             "include_tles": False,
+            "skip_cache": False,
             "api_source": "test",
             "api_version": "v1",
         }
