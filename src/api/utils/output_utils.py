@@ -239,7 +239,7 @@ def fov_data_to_json(
         # Original chronological format
         formatted_results = {
             "data": results,
-            "count": len(results),  # type: ignore[dict-item]
+            "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,
             "version": api_version,
