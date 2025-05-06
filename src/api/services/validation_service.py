@@ -319,6 +319,12 @@ def validate_parameters(
 
         parameters["include_tles"] = parameters["include_tles"].lower() == "true"
 
+    if "skip_cache" in parameters.keys() and parameters["skip_cache"] is not None:
+        if parameters["skip_cache"] not in ["true", "false"]:
+            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+
+        parameters["skip_cache"] = parameters["skip_cache"].lower() == "true"
+
     if (
         "illuminated_only" in parameters.keys()
         and parameters["illuminated_only"] is not None

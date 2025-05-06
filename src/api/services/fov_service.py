@@ -1,3 +1,4 @@
+import logging
 import time as python_time
 from datetime import datetime
 from typing import Any
@@ -16,6 +17,8 @@ from api.services.cache_service import (
 from api.utils import coordinate_systems, output_utils
 from api.utils.time_utils import astropy_time_to_datetime_utc
 
+logger = logging.getLogger(__name__)
+
 
 def get_satellite_passes_in_fov(
     tle_repo: AbstractTLERepository,
@@ -28,16 +31,16 @@ def get_satellite_passes_in_fov(
     fov_radius: float,
     group_by: str,
     include_tles: bool,
+    skip_cache: bool,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
     start_time = python_time.time()
-    print(f"\nStarting FOV calculation at: {datetime.now().isoformat()}")
-    print(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
-    print(f"Duration: {duration} seconds")
+    logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
+    logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
+    logger.info(f"Duration: {duration} seconds")
 
     # Create cache key and check cache
-
     cache_key = create_fov_cache_key(
         location,
         mid_obs_time_jd,
@@ -50,9 +53,19 @@ def get_satellite_passes_in_fov(
     )
 
     cached_data = get_cached_data(cache_key)
-    if cached_data:
+    if cached_data and not skip_cache:
         cache_time = python_time.time() - start_time
-        print("Found cached result")
+        logger.info(
+            f"Cache hit: Found {len(cached_data['results'])} results with "
+            f"{cached_data['points_in_fov']} points in FOV"
+        )
+        # Log any None values in the cached results
+        for idx, result in enumerate(cached_data.get("results", [])):
+            for key, value in result.items():
+                if value is None:
+                    logger.warning(
+                        f"Found None value in cached result {idx}, field {key}"
+                    )
         # Return cached results using the same formatting function
         return output_utils.fov_data_to_json(
             cached_data["results"],
@@ -67,6 +80,7 @@ def get_satellite_passes_in_fov(
             group_by,
         )
 
+    logger.info("Cache miss - calculating FOV results")
     # Get all current TLEs
     tle_start = python_time.time()
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
@@ -75,7 +89,7 @@ def get_satellite_passes_in_fov(
     )
 
     tle_time = python_time.time() - tle_start
-    print(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
+    logger.info(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
 
     # Pre-compute time arrays and constants
     ts = load.timescale()
@@ -96,7 +110,7 @@ def get_satellite_passes_in_fov(
             time_step,
         )
     t = ts.ut1_jd(jd_times)
-    print(f"Checking {len(jd_times)} time points")
+    logger.info(f"Checking {len(jd_times)} time points")
 
     # Set up observer and FOV vectors once
     curr_pos = wgs84.latlon(
@@ -162,6 +176,10 @@ def get_satellite_passes_in_fov(
 
                 all_results.extend(results)
                 points_in_fov += len(results)
+                logger.debug(
+                    f"Found {len(results)} points in FOV for satellite "
+                    f"{tle.satellite.sat_name} (NORAD ID: {tle.satellite.sat_number})"
+                )
 
             sat_time = python_time.time() - sat_start
             total_sat_time += sat_time
@@ -170,15 +188,15 @@ def get_satellite_passes_in_fov(
             if satellites_processed % 100 == 0:
                 elapsed = python_time.time() - start_time
                 avg_sat_time = total_sat_time / satellites_processed
-                print(
-                    f"Processed {satellites_processed}/{count} "
-                    f"satellites in {elapsed:.2f} seconds"
+                logger.info(
+                    f"Processed {satellites_processed}/{count} satellites in "
+                    f"{elapsed:.2f} seconds"
                 )
-                print(f"Average time per satellite: {avg_sat_time:.3f} seconds")
-                print(f"Found {points_in_fov} points in FOV so far")
+                logger.info(f"Average time per satellite: {avg_sat_time:.3f} seconds")
+                logger.info(f"Found {points_in_fov} points in FOV so far")
 
         except Exception as e:
-            print(f"Error processing TLE {tle.satellite.sat_name}: {e}")
+            logger.error(f"Error processing TLE {tle.satellite.sat_name}: {e}")
             satellites_processed += 1
             continue
 
@@ -186,19 +204,21 @@ def get_satellite_passes_in_fov(
     total_time = end_time - start_time
     prop_time = end_time - prop_start
 
-    # Print performance metrics
-    print("\nPerformance Metrics:")
-    print(f"Total execution time: {total_time:.2f} seconds")
-    print(
-        f"TLE retrieval time: {tle_time:.2f} seconds ({(tle_time/total_time)*100:.1f}%)"
+    # Log performance metrics
+    logger.info("\nPerformance Metrics:")
+    logger.info(f"Total execution time: {total_time:.2f} seconds")
+    logger.info(
+        f"TLE retrieval time: {tle_time:.2f} seconds "
+        f"({(tle_time/total_time)*100:.1f}%)"
     )
-    print(
-        f"Propagation time: {prop_time:.2f} seconds ({(prop_time/total_time)*100:.1f}%)"
+    logger.info(
+        f"Propagation time: {prop_time:.2f} seconds "
+        f"({(prop_time/total_time)*100:.1f}%)"
     )
-    print("\nResults Summary:")
-    print(f"Satellites processed: {satellites_processed}/{count}")
-    print(f"Points in FOV: {points_in_fov}")
-    print(f"End time: {datetime.now().isoformat()}")
+    logger.info("\nResults Summary:")
+    logger.info(f"Satellites processed: {satellites_processed}/{count}")
+    logger.info(f"Points in FOV: {points_in_fov}")
+    logger.info(f"End time: {datetime.now().isoformat()}")
 
     performance_metrics = {
         "total_time": round(total_time, 3),
@@ -208,6 +228,14 @@ def get_satellite_passes_in_fov(
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),
     }
+
+    # Before returning results, log any None values
+    for idx, result in enumerate(all_results):
+        for key, value in result.items():
+            if value is None:
+                logger.warning(
+                    f"Found None value in result {idx}, field {key} before returning"
+                )
 
     result = output_utils.fov_data_to_json(
         all_results,
@@ -223,6 +251,9 @@ def get_satellite_passes_in_fov(
         "results": all_results,
         "points_in_fov": points_in_fov,
     }
+    logger.info(
+        f"Caching {len(all_results)} results with {points_in_fov} points in FOV"
+    )
     set_cached_data(cache_key, cache_data)
 
     return result
