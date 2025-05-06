@@ -185,6 +185,15 @@ def client(app):
         yield client
 
 
+@pytest.fixture(scope="session")
+def services_available():
+    """Check if external services are available."""
+    available = not cannot_connect_to_services()
+    if not available:
+        pytest.skip("External services not available")
+    return available
+
+
 def cannot_connect_to_services():
     """Check if required services (Redis and Postgres) are available."""
     # Check Redis
