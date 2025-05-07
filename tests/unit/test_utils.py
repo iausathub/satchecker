@@ -10,10 +10,7 @@ from skyfield.api import wgs84
 from api.common.exceptions import ValidationError
 from api.utils import coordinate_systems, time_utils
 from api.utils.output_utils import position_data_to_json
-from api.utils.propagation_strategies import (
-    PropagationInfo,
-    SkyfieldPropagationStrategy,
-)
+from api.utils.propagation_strategies import SkyfieldPropagationStrategy
 
 
 def test_icrf2radec_degrees_unit():
@@ -174,16 +171,15 @@ def test_skyfield_propagation_strategy():
     longitude = -118.2437
     elevation = 100
 
-    propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(),
-        tle_line_1,
-        tle_line_2,
-        [julian_date],
-        latitude,
-        longitude,
-        elevation,
+    strategy = SkyfieldPropagationStrategy()
+    result = strategy.propagate(
+        julian_dates=[julian_date],
+        tle_line_1=tle_line_1,
+        tle_line_2=tle_line_2,
+        latitude=latitude,
+        longitude=longitude,
+        elevation=elevation,
     )
-    result = propagation_info.propagate()
 
     assert result[0].ra == pytest.approx(234.01865005681205, rel=1e-9)
     assert result[0].dec == pytest.approx(-51.424189307650366, rel=1e-9)
@@ -197,16 +193,15 @@ def test_skyfield_propagation_strategy_error():
     longitude = 0
     elevation = 0
 
-    propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(),
-        tle_line_1,
-        tle_line_2,
-        [julian_date],
-        latitude,
-        longitude,
-        elevation,
+    strategy = SkyfieldPropagationStrategy()
+    result = strategy.propagate(
+        julian_dates=[julian_date],
+        tle_line_1=tle_line_1,
+        tle_line_2=tle_line_2,
+        latitude=latitude,
+        longitude=longitude,
+        elevation=elevation,
     )
-    result = propagation_info.propagate()
     # Weird lat/long./elevation values will not cause errors -
     # they will be normalized to a valid range; invalid TLE data
     # will cause a NaN result, but not throw an exception
