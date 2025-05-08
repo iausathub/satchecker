@@ -1,36 +1,101 @@
 config:
-  target: 'https://satchecker.cps.iau.org'  # Base URL
+  target: 'https://dev.satchecker.cps.iau.noirlab.edu'  # Base URL, temporarily using dev because of the full data set
   phases:
     - duration: 30
       arrivalRate: 10
-      rampTo: 50   # Increase gradually
-      name: "Initial"
+      rampTo: 50
+      name: "Initial Ramp-Up"
     - duration: 60
       arrivalRate: 50
-      name: "Sustained"
+      name: "Sustained Load"
     - duration: 10
       arrivalRate: 100
-      name: "Spike"
+      name: "Traffic Spike"
     - duration: 30
       arrivalRate: 20
-      name: "Recovery"
-      
-# These run sequentially
+      name: "Recovery Phase"
+  defaults:
+    headers:
+      Accept: "application/json"
+    timeout: 10000
+    maxRedirects: 0
+    ensureSuccess: false
+  plugins:
+    metrics-by-endpoint: {}
+  thresholds:
+    http.response_time.p95: 2000
+    http.errors: 1
+
+
 scenarios:
-  - flow:
-      - get:
-          url: "/ephemeris/name/?name=STARLINK-1477&elevation=100&latitude=33&longitude=-110&julian_date=2460546.599502"
-      - get:
-          url: "/fov/satellite-passes/?latitude=43.1929&longitude=-81.325655&elevation=327&mid_obs_time_jd=2460584.519211&duration=60&ra=224.048903&dec=78.778084&fov_radius=1"
-
-# These distribute requests evenly
-  - name: Fetch Ephemeris for Starlink
+  - name: Typical User Flow
     flow:
       - get:
           url: "/ephemeris/name/?name=STARLINK-1477&elevation=100&latitude=33&longitude=-110&julian_date=2460546.599502"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+      - get:
+          url: "/fov/satellite-passes/?latitude=33&longitude=-110&elevation=100&mid_obs_time_jd=2460546.6&duration=60&ra=210&dec=45&fov_radius=1&skip_cache=true"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
 
-  - name: Fetch Ephemeris for ISS
+  - name: FOV Repeat (Cache Check)
+    flow:
+      - loop:
+          count: 5
+          do:
+            - get:
+                url: "/fov/satellite-passes/?latitude=43.1929&longitude=-81.325655&elevation=327&mid_obs_time_jd=2460584.519211&duration=60&ra=224.048903&dec=78.778084&fov_radius=1&skip_cache=false"
+                expect:
+                  - statusCode: [200, 429]  # Accept both success and rate limit
+
+  - name: Satellite Variety
     flow:
       - get:
-          url: "/ephemeris/name/?name=ISS&elevation=100&latitude=40&longitude=-75&julian_date=2460546.599502"
+          url: "/ephemeris/name/?name=TERRA&elevation=50&latitude=35&longitude=-100&julian_date=2460546.5"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+      - get:
+          url: "/ephemeris/name/?name=LANDSAT-8&elevation=80&latitude=20&longitude=45&julian_date=2460546.55"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+      - get:
+          url: "/ephemeris/name/?name=NOAA-20&elevation=90&latitude=55&longitude=10&julian_date=2460546.6"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
 
+  - name: Edge Case Latitudes
+    flow:
+      - get:
+          url: "/ephemeris/name/?name=ISS&elevation=100&latitude=89.9&longitude=0&julian_date=2460546.599502"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+      - get:
+          url: "/ephemeris/name/?name=ISS&elevation=100&latitude=-89.9&longitude=0&julian_date=2460546.599502"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+
+  - name: High Volume Starlink
+    flow:
+      - get:
+          url: "/ephemeris/name/?name=STARLINK-1000&elevation=120&latitude=10&longitude=-70&julian_date=2460546.599502"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+      - get:
+          url: "/ephemeris/name/?name=STARLINK-1050&elevation=110&latitude=12&longitude=-75&julian_date=2460546.599502"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+  - name: FOV View Grid
+    flow:
+      - get:
+          url: "/fov/satellite-passes/?latitude=40&longitude=-105&elevation=150&mid_obs_time_jd=2460584.5&duration=60&ra=150&dec=60&fov_radius=2&skip_cache=true"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+      - get:
+          url: "/fov/satellite-passes/?latitude=41&longitude=-106&elevation=160&mid_obs_time_jd=2460584.5&duration=60&ra=151&dec=61&fov_radius=2&skip_cache=true"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
+      - get:
+          url: "/fov/satellite-passes/?latitude=42&longitude=-107&elevation=170&mid_obs_time_jd=2460584.5&duration=60&ra=152&dec=62&fov_radius=2&skip_cache=true"
+          expect:
+            - statusCode: [200, 429]  # Accept both success and rate limit
