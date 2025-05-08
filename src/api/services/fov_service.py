@@ -36,6 +36,27 @@ def get_satellite_passes_in_fov(
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
+    """
+    Get all satellite passes in the field of view.
+
+    Args:
+        tle_repo: Repository for TLE data
+        location: Observer's location
+        mid_obs_time_jd: Middle observation time (as Time object)
+        start_time_jd: Start time (as Time object)
+        duration: Duration in seconds
+        ra: Right ascension of FOV center in degrees
+        dec: Declination of FOV center in degrees
+        fov_radius: Radius of FOV in degrees
+        group_by: Grouping strategy ('satellite' or 'time')
+        include_tles: Whether to include TLE data in results
+        skip_cache: Whether to skip cache and force recalculation
+        api_source: Source of the API call
+        api_version: Version of the API
+
+    Returns:
+        dict: Formatted results either grouped by satellite or chronologically
+    """
     start_time = python_time.time()
     logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
     logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
@@ -219,7 +240,7 @@ def get_satellite_passes_in_fov(
                     f"Found None value in result {idx}, field {key} before returning"
                 )
 
-    result = output_utils.fov_data_to_json(
+    json_result: dict[str, Any] = output_utils.fov_data_to_json(
         all_results,
         points_in_fov,
         performance_metrics,
@@ -238,7 +259,7 @@ def get_satellite_passes_in_fov(
     )
     set_cached_data(cache_key, cache_data)
 
-    return result
+    return json_result
 
 
 def get_satellites_above_horizon(
@@ -260,8 +281,14 @@ def get_satellites_above_horizon(
         location: Observer's location
         time_jd: Time to check (as Time object)
         min_altitude: Minimum altitude in degrees (default: 0.0 = horizon)
+        min_range: Minimum range in kilometers
+        max_range: Maximum range in kilometers
+        illuminated_only: Whether to only return illuminated satellites
         api_source: Source of the API call
         api_version: Version of the API
+
+    Returns:
+        dict: Formatted results containing satellite positions and metadata
     """
     start_time = python_time.time()
     print(f"\nStarting horizon check at: {datetime.now().isoformat()}")
@@ -315,7 +342,7 @@ def get_satellites_above_horizon(
                     )
                     if not illuminated:
                         continue
-                result = {
+                position = {
                     "ra": ra_sat,
                     "dec": dec_sat,
                     "altitude": float(alt._degrees[0]),
@@ -326,7 +353,7 @@ def get_satellites_above_horizon(
                     "range_km": float(distance.km[0]),
                     "tle_epoch": output_utils.format_date(tle.epoch),
                 }
-                all_results.append(result)
+                all_results.append(position)
                 visible_satellites += 1
 
             satellites_processed += 1
@@ -353,6 +380,12 @@ def get_satellites_above_horizon(
         "visible_satellites": visible_satellites,
     }
 
-    return output_utils.fov_data_to_json(
-        all_results, count, performance_metrics, api_source, api_version, "time"
+    result: dict[str, Any] = output_utils.fov_data_to_json(
+        all_results,
+        visible_satellites,
+        performance_metrics,
+        api_source,
+        api_version,
+        "time",
     )
+    return result

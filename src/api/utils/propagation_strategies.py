@@ -472,8 +472,8 @@ class FOVPropagationStrategy(BasePropagationStrategy):
         latitude: float,
         longitude: float,
         elevation: float,
-        fov_center: tuple[float, float],
-        fov_radius: float,
+        fov_center: tuple[float, float] = (0.0, 0.0),  # Default to (0,0)
+        fov_radius: float = 0.0,  # Default to 0 degrees
         **kwargs,
     ) -> list[dict[str, Any]]:
         """
@@ -486,8 +486,8 @@ class FOVPropagationStrategy(BasePropagationStrategy):
             latitude: Observer latitude in degrees
             longitude: Observer longitude in degrees
             elevation: Observer elevation in meters
-            fov_center: Tuple of (RA, Dec) in degrees
-            fov_radius: FOV radius in degrees
+            fov_center: Tuple of (RA, Dec) in degrees. Defaults to (0,0)
+            fov_radius: FOV radius in degrees. Defaults to 0
             **kwargs: Additional parameters (not used in this strategy)
 
         Returns:
@@ -849,7 +849,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):
 
         except Exception as e:
             print(f"Error in generate_and_propagate_sigma_points: {str(e)}")
-            return None
+            raise
 
     def _create_chunked_krogh_interpolator(
         self, x: np.ndarray, y: np.ndarray, chunk_size: int = 14, overlap: int = 8
@@ -981,8 +981,10 @@ class KroghPropagationStrategy(BasePropagationStrategy):
         julian_dates = np.array(sorted(sigma_points_dict.keys()), dtype=np.float64)
         n_sigma_points = 13
 
-        positions_by_point = [[] for _ in range(n_sigma_points)]
-        velocities_by_point = [[] for _ in range(n_sigma_points)]
+        positions_by_point: list[list[np.ndarray]] = [[] for _ in range(n_sigma_points)]
+        velocities_by_point: list[list[np.ndarray]] = [
+            [] for _ in range(n_sigma_points)
+        ]
 
         for jd in julian_dates:
             sigma_points = sigma_points_dict[jd]["sigma_points"].astype(np.float64)
@@ -990,10 +992,11 @@ class KroghPropagationStrategy(BasePropagationStrategy):
                 positions_by_point[i].append(sigma_points[i][:3])
                 velocities_by_point[i].append(sigma_points[i][3:])
 
-        positions_by_point = [
+        # Convert lists to numpy arrays
+        positions_array: list[np.ndarray] = [
             np.array(pos, dtype=np.float64) for pos in positions_by_point
         ]
-        velocities_by_point = [
+        velocities_array: list[np.ndarray] = [
             np.array(vel, dtype=np.float64) for vel in velocities_by_point
         ]
 
@@ -1002,9 +1005,9 @@ class KroghPropagationStrategy(BasePropagationStrategy):
 
         for i in range(n_sigma_points):
             # Position splines
-            pos_splines_i = []
+            pos_splines_i: list[list[dict[str, Any]] | None] = []
             for j in range(3):
-                pos_data = positions_by_point[i][:, j]
+                pos_data = positions_array[i][:, j]
                 valid_mask = np.isfinite(pos_data)
                 if np.any(valid_mask):
                     # Use not-a-knot cubic splines for better accuracy
@@ -1019,9 +1022,9 @@ class KroghPropagationStrategy(BasePropagationStrategy):
                     pos_splines_i.append(None)
             position_splines.append(pos_splines_i)
 
-            vel_splines_i = []
+            vel_splines_i: list[list[dict[str, Any]] | None] = []
             for j in range(3):
-                vel_data = velocities_by_point[i][:, j]
+                vel_data = velocities_array[i][:, j]
                 valid_mask = np.isfinite(vel_data)
                 if np.any(valid_mask):
                     spline = self._create_chunked_krogh_interpolator(

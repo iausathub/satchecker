@@ -48,7 +48,7 @@ exclude = [
 
 
 [[tool.mypy.overrides]]
-module = ["flask.*", "sqlalchemy.*", "celery.*", "redis.*", "astropy.*", "flasgger.*", "flask_apscheduler.*", 'flask_migrate.*', 'requests.*', 'skyfield.*', 'sgp4.*']
+module = ["flask.*", "sqlalchemy.*", "celery.*", "redis.*", "astropy.*", "flasgger.*", "flask_apscheduler.*", 'flask_migrate.*', 'requests.*', 'skyfield.*', 'sgp4.*', 'julian.*', 'scipy.*']
 ignore_missing_imports = true
 
 [tool.towncrier]
