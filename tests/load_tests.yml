@@ -42,12 +42,11 @@ scenarios:
   - name: FOV Repeat (Cache Check)
     flow:
       - loop:
-          count: 5
-          do:
-            - get:
-                url: "/fov/satellite-passes/?latitude=43.1929&longitude=-81.325655&elevation=327&mid_obs_time_jd=2460584.519211&duration=60&ra=224.048903&dec=78.778084&fov_radius=1&skip_cache=false"
-                expect:
-                  - statusCode: [200, 429]  # Accept both success and rate limit
+          - get:
+              url: "/fov/satellite-passes/?latitude=43.1929&longitude=-81.325655&elevation=327&mid_obs_time_jd=2460584.519211&duration=60&ra=224.048903&dec=78.778084&fov_radius=1&skip_cache=false"
+              expect:
+                - statusCode: [200, 429]  # Accept both success and rate limit
+        count: 5
 
   - name: Satellite Variety
     flow:
