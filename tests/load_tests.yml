@@ -1,4 +1,6 @@
 config:
+  http:
+    extendedMetrics: true
   target: 'https://dev.satchecker.cps.iau.noirlab.edu'  # Base URL, temporarily using dev because of the full data set
   phases:
     - duration: 30
@@ -17,7 +19,7 @@ config:
   defaults:
     headers:
       Accept: "application/json"
-    timeout: 60000
+    timeout: 600000
     maxRedirects: 0
     ensureSuccess: false
   plugins:
