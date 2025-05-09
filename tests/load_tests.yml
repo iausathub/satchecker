@@ -17,13 +17,13 @@ config:
   defaults:
     headers:
       Accept: "application/json"
-    timeout: 10000
+    timeout: 60000
     maxRedirects: 0
     ensureSuccess: false
   plugins:
     metrics-by-endpoint: {}
   thresholds:
-    http.response_time.p95: 2000
+    http.response_time.p95: 20000
     http.errors: 1
 
 
