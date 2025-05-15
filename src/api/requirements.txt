@@ -105,7 +105,7 @@ nest-asyncio==1.5.7
 nodeenv==1.8.0
 numpy==2.2.5
 ordered-set==4.1.0
-packaging==25.0
+packaging==23.1
 pandas==2.2.3
 pandocfilters==1.5.0
 parso==0.8.3
