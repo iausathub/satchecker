@@ -11,4 +11,4 @@ alembic -c migrations/alembic.ini upgrade head
 celery -A api.satchecker.celery worker --loglevel INFO &
 
 # Start the Flask server in the foreground
-exec gunicorn --workers=3 --timeout 300 -b 0.0.0.0:5000 --access-logfile - api.satchecker:app
+exec gunicorn --workers=4 --threads=4 --timeout 300 -b 0.0.0.0:5000 --access-logfile - --keep-alive 120 api.satchecker:app
