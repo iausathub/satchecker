@@ -1,5 +1,9 @@
+import concurrent.futures
+import multiprocessing
+import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any, Union
 
@@ -14,7 +18,7 @@ from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.nutationlib import iau2000b
 
-from api.utils import coordinate_systems
+from api.utils import coordinate_systems, output_utils
 from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
     calculate_current_position,
@@ -28,6 +32,13 @@ from api.utils.coordinate_systems import (
     teme_to_ecef,
 )
 from api.utils.time_utils import jd_to_gst
+
+_ts = load.timescale()
+
+
+def get_timescale():
+    return _ts
+
 
 """
 A named tuple containing the following fields:
@@ -150,7 +161,7 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
 
-        ts = load.timescale()
+        ts = get_timescale()
         satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
         curr_pos = wgs84.latlon(latitude, longitude, elevation)
 
@@ -380,7 +391,7 @@ class TestPropagationStrategy(BasePropagationStrategy):
 
         results = []
         for julian_date in julian_dates:
-            ts = load.timescale()
+            ts = get_timescale()
             eph = load("de430t.bsp")
             earth = eph["Earth"]
             sun = eph["Sun"]
@@ -497,7 +508,7 @@ class FOVPropagationStrategy(BasePropagationStrategy):
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
 
-        ts = load.timescale()
+        ts = get_timescale()
         t = ts.ut1_jd(julian_dates)
 
         # Set up observer and FOV vectors
@@ -539,6 +550,178 @@ class FOVPropagationStrategy(BasePropagationStrategy):
             }
             for idx, ra_dec in zip(fov_indices, ra_decs)
         ]
+
+
+def process_satellite_batch(args):
+    """Process a batch of satellites for FOV calculations."""
+    tle_batch, julian_dates, lat, lon, elev, fov_center, fov_radius, include_tles = args
+
+    # Convert single date to list for consistent handling
+    if isinstance(julian_dates, (float, int)):
+        julian_dates = [julian_dates]
+
+    ts = get_timescale()
+    t = ts.ut1_jd(julian_dates)
+
+    # Set up observer and FOV vectors
+    curr_pos = wgs84.latlon(lat, lon, elev)  # do here because of serialization
+    icrf = coordinate_systems.radec2icrf(fov_center[0], fov_center[1]).reshape(3, 1)
+
+    batch_results = []
+    satellites_processed = 0
+
+    for tle in tle_batch:
+        try:
+            # Create satellite
+            satellite = EarthSatellite(tle.tle_line1, tle.tle_line2, ts=ts)
+
+            difference = satellite - curr_pos
+            topocentric = difference.at(t)
+            topocentricn = topocentric.position.km / np.linalg.norm(
+                topocentric.position.km, axis=0, keepdims=True
+            )
+
+            # Vectorized angle calculation
+            sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
+            in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
+
+            if not np.any(in_fov_mask):
+                satellites_processed += 1
+                continue
+
+            # Get alt/az for points in FOV
+            alt, az, distance = topocentric.altaz()
+            fov_indices = np.where(in_fov_mask)[0]
+
+            # Vectorized creation of results
+            positions = topocentricn[:, fov_indices]
+            ra_decs = np.array(
+                [coordinate_systems.icrf2radec(pos) for pos in positions.T]
+            )
+
+            # Prepare results with conditional TLE data
+            result_entries = []
+            for idx, ra_dec in zip(fov_indices, ra_decs):
+                result = {
+                    "ra": ra_dec[0],
+                    "dec": ra_dec[1],
+                    "altitude": float(alt._degrees[idx]),
+                    "azimuth": float(az._degrees[idx]),
+                    "range_km": float(distance.km[idx]),
+                    "julian_date": julian_dates[idx],
+                    "angle": np.degrees(sat_fov_angles[idx]),
+                    "name": tle.satellite.sat_name,
+                    "norad_id": tle.satellite.sat_number,
+                    "tle_epoch": output_utils.format_date(tle.epoch),
+                }
+
+                # Only include TLE data if requested
+                if include_tles:
+                    result["tle_data"] = {
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "source": tle.data_source,
+                    }
+
+                result_entries.append(result)
+
+            batch_results.extend(result_entries)
+            satellites_processed += 1
+
+        except Exception as e:
+            print(f"Error processing satellite {tle.satellite.sat_name}: {e}")
+            satellites_processed += 1
+
+    return batch_results, satellites_processed
+
+
+class FOVParallelPropagationStrategy:
+    def propagate(
+        self,
+        all_tles,
+        jd_times,
+        location,
+        fov_center,
+        fov_radius,
+        batch_size=1000,
+        max_workers=None,
+        include_tles=True,
+    ) -> tuple[list[dict[str, Any]], float, int]:
+        """
+        Propagate satellite positions and check if they fall within FOV.
+
+        Args:
+            all_tles: List of TLE objects
+            jd_times: Array of Julian dates
+            location: Observer's location
+            fov_center: Tuple of (RA, Dec) in degrees. Defaults to (0,0)
+            fov_radius: FOV radius in degrees. Defaults to 0
+            batch_size: Number of satellites to process in each batch
+            max_workers: Maximum number of worker processes to use
+            include_tles: Whether to include TLE data in results
+            **kwargs: Additional parameters (not used in this strategy)
+
+        Returns:
+            tuple: (
+                results: List of dictionaries containing position data for points
+                in FOV,
+                execution_time: Total execution time in seconds,
+                satellites_processed: Number of satellites processed
+            )
+        """
+        """Process FOV calculations in parallel."""
+        all_results = []
+        start_time = time.time()
+        satellites_processed = 0
+
+        # Default to number of CPU cores
+        if max_workers is None:
+            max_workers = min(multiprocessing.cpu_count(), 16)  # Cap at 16 workers
+
+        lat = location.lat.value
+        lon = location.lon.value
+        elev = location.height.value
+
+        # Create batches of satellites
+        satellite_batches = []
+        for i in range(0, len(all_tles), batch_size):
+            batch = all_tles[i : i + batch_size]
+            satellite_batches.append(batch)
+
+        args_list = [
+            (batch, jd_times, lat, lon, elev, fov_center, fov_radius, include_tles)
+            for batch in satellite_batches
+        ]
+
+        print(
+            f"Processing {len(all_tles)} satellites in {len(satellite_batches)} batches"
+            f" ({max_workers} workers)"
+        )
+
+        # Process batches in parallel
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            completed = 0
+            futures = []
+
+            for args in args_list:
+                futures.append(executor.submit(process_satellite_batch, args))
+
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    batch_results, batch_satellites = future.result()
+                    all_results.extend(batch_results)
+                    satellites_processed += batch_satellites
+                    completed += 1
+                    print(f"Batch {completed}/{len(satellite_batches)} complete")
+                except Exception as e:
+                    print(f"Error processing batch: {e}")
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Total execution time: {execution_time:.2f} seconds")
+
+        return all_results, execution_time, satellites_processed
 
 
 class KroghPropagationStrategy(BasePropagationStrategy):

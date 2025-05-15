@@ -15,7 +15,10 @@ from api.services.cache_service import (
     set_cached_data,
 )
 from api.utils import coordinate_systems, output_utils
-from api.utils.propagation_strategies import FOVPropagationStrategy
+from api.utils.propagation_strategies import (
+    FOVParallelPropagationStrategy,
+    FOVPropagationStrategy,
+)
 from api.utils.time_utils import astropy_time_to_datetime_utc
 
 logger = logging.getLogger(__name__)
@@ -227,6 +230,203 @@ def get_satellite_passes_in_fov(
         "total_time": round(total_time, 3),
         "tle_time": round(tle_time, 3),
         "propagation_time": round(prop_time, 3),
+        "satellites_processed": satellites_processed,
+        "points_in_fov": points_in_fov,
+        "jd_times": jd_times.tolist(),
+    }
+
+    # Before returning results, log any None values
+    for idx, result in enumerate(all_results):
+        for key, value in result.items():
+            if value is None:
+                logger.warning(
+                    f"Found None value in result {idx}, field {key} before returning"
+                )
+
+    json_result: dict[str, Any] = output_utils.fov_data_to_json(
+        all_results,
+        points_in_fov,
+        performance_metrics,
+        api_source,
+        api_version,
+        group_by,
+    )
+
+    # Cache only the raw results and points_in_fov
+    cache_data = {
+        "results": all_results,
+        "points_in_fov": points_in_fov,
+    }
+    logger.info(
+        f"Caching {len(all_results)} results with {points_in_fov} points in FOV"
+    )
+    set_cached_data(cache_key, cache_data)
+
+    return json_result
+
+
+def get_satellite_passes_in_fov_parallel(
+    tle_repo: AbstractTLERepository,
+    location: EarthLocation,
+    mid_obs_time_jd: Time,
+    start_time_jd: Time,
+    duration: float,
+    ra: float,
+    dec: float,
+    fov_radius: float,
+    group_by: str,
+    include_tles: bool,
+    skip_cache: bool,
+    api_source: str,
+    api_version: str,
+) -> dict[str, Any]:
+    """
+    Get all satellite passes in the field of view.
+
+    Args:
+        tle_repo: Repository for TLE data
+        location: Observer's location
+        mid_obs_time_jd: Middle observation time (as Time object)
+        start_time_jd: Start time (as Time object)
+        duration: Duration in seconds
+        ra: Right ascension of FOV center in degrees
+        dec: Declination of FOV center in degrees
+        fov_radius: Radius of FOV in degrees
+        group_by: Grouping strategy ('satellite' or 'time')
+        include_tles: Whether to include TLE data in results
+        skip_cache: Whether to skip cache and force recalculation
+        api_source: Source of the API call
+        api_version: Version of the API
+
+    Returns:
+        dict: Formatted results either grouped by satellite or chronologically
+    """
+    start_time = python_time.time()
+    logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
+    logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
+    logger.info(f"Duration: {duration} seconds")
+
+    # Create cache key and check cache
+    cache_key = create_fov_cache_key(
+        location,
+        mid_obs_time_jd,
+        start_time_jd,
+        duration,
+        ra,
+        dec,
+        fov_radius,
+        False if include_tles is None else include_tles,
+    )
+
+    cached_data = get_cached_data(cache_key)
+    if cached_data and not skip_cache:
+        cache_time = python_time.time() - start_time
+        logger.info(
+            f"Cache hit: Found {len(cached_data['results'])} results with "
+            f"{cached_data['points_in_fov']} points in FOV"
+        )
+        # Log any None values in the cached results
+        for idx, result in enumerate(cached_data.get("results", [])):
+            for key, value in result.items():
+                if value is None:
+                    logger.warning(
+                        f"Found None value in cached result {idx}, field {key}"
+                    )
+        # Return cached results using the same formatting function
+        return output_utils.fov_data_to_json(
+            cached_data["results"],
+            cached_data["points_in_fov"],
+            {
+                "total_time": round(cache_time, 3),
+                "points_in_fov": cached_data["points_in_fov"],
+                "from_cache": True,
+            },
+            api_source,
+            api_version,
+            group_by,
+        )
+
+    logger.info("Cache miss - calculating FOV results")
+    # Get all current TLEs
+    tle_start = python_time.time()
+    time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
+    tles, count, _ = tle_repo.get_all_tles_at_epoch(
+        astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
+    )
+
+    tle_time = python_time.time() - tle_start
+    logger.info(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
+
+    # Pre-compute time arrays and constants
+    time_step = 1 / 86400  # 1 second
+    duration_jd = duration / 86400
+
+    prop_start = python_time.time()
+    if mid_obs_time_jd is not None:
+        jd_times = np.arange(
+            mid_obs_time_jd.jd - duration_jd / 2,
+            mid_obs_time_jd.jd + duration_jd / 2,
+            time_step,
+        )
+    elif start_time_jd is not None:
+        jd_times = np.arange(
+            start_time_jd.jd,
+            start_time_jd.jd + duration_jd,
+            time_step,
+        )
+    logger.info(f"Checking {len(jd_times)} time points")
+
+    all_results = []
+    points_in_fov = 0
+    satellites_processed = 0
+
+    # Create propagation strategy
+    prop_strategy = FOVParallelPropagationStrategy()
+
+    try:
+        results, execution_time, satellites_processed = prop_strategy.propagate(
+            all_tles=tles,
+            jd_times=jd_times,
+            location=location,
+            fov_center=(ra, dec),
+            fov_radius=fov_radius,
+            batch_size=250,
+            include_tles=include_tles,
+        )
+
+        # Add all valid results to the final output
+        if results:
+            all_results.extend(results)
+            points_in_fov = len(results)
+
+    except Exception as e:
+        logger.error(f"Error in parallel FOV processing: {e}")
+        satellites_processed = 0  # Set a default value in case of error
+
+    end_time = python_time.time()
+    total_time = end_time - start_time
+    prop_time = end_time - prop_start
+
+    # Log performance metrics
+    logger.info("\nPerformance Metrics:")
+    logger.info(f"Total execution time: {total_time:.2f} seconds")
+    logger.info(
+        f"TLE retrieval time: {tle_time:.2f} seconds "
+        f"({(tle_time/total_time)*100:.1f}%)"
+    )
+    logger.info(
+        f"Propagation time: {prop_time:.2f} seconds "
+        f"({(prop_time/total_time)*100:.1f}%)"
+    )
+    logger.info("\nResults Summary:")
+    logger.info(f"Satellites processed: {satellites_processed}/{count}")
+    logger.info(f"Points in FOV: {points_in_fov}")
+    logger.info(f"End time: {datetime.now().isoformat()}")
+
+    performance_metrics = {
+        "total_time": round(total_time, 3),
+        "tle_time": round(tle_time, 3),
+        "propagation_time": round(execution_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),
