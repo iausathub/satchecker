@@ -7,6 +7,7 @@ APScheduler==3.11.0
 asgiref==3.8.1
 astroid==3.0.1
 astropy==7.0.2
+astropy-iers-data==0.2025.5.12.0.38.29
 asttokens==2.4.0
 attrs==23.1.0
 Babel==2.12.1
@@ -104,7 +105,7 @@ nest-asyncio==1.5.7
 nodeenv==1.8.0
 numpy==2.2.5
 ordered-set==4.1.0
-packaging==23.1
+packaging==25.0
 pandas==2.2.3
 pandocfilters==1.5.0
 parso==0.8.3
@@ -122,7 +123,7 @@ psycopg2-binary==2.9.7
 ptyprocess==0.7.0
 pure-eval==0.2.2
 py-cpuinfo==9.0.0
-pyerfa==2.0.0.3
+pyerfa==2.0.1.5
 Pygments==2.16.1
 pylint==3.0.1
 pyparsing==3.2.0
