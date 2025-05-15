@@ -1214,12 +1214,9 @@ class KroghPropagationStrategy(BasePropagationStrategy):
         w0_c = w0_m + (1 - alpha * alpha + beta)
         wn_c = wn_m
 
-        mean_state = np.zeros(6, dtype=np.float64)  # is this needed?
-        mean_state = interpolated_points[0]
+        mean_state = interpolated_points[0].copy()  # Copy to ensure it's a new array
 
         # Calculate covariance with improved numerical stability
-        covariance = np.zeros((6, 6), dtype=np.float64)  # is this needed?
-
         diff_0 = interpolated_points[0] - mean_state
         covariance = w0_c * np.outer(diff_0, diff_0)
 
