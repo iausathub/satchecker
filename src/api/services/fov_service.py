@@ -237,15 +237,6 @@ def get_satellite_passes_in_fov(
                     f"Found None value in result {idx}, field {key} before returning"
                 )
 
-    result = output_utils.fov_data_to_json(
-        all_results,
-        points_in_fov,
-        performance_metrics,
-        api_source,
-        api_version,
-        group_by,
-    )
-
     # Cache only the raw results and points_in_fov
     cache_data = {
         "results": all_results,
@@ -256,7 +247,14 @@ def get_satellite_passes_in_fov(
     )
     set_cached_data(cache_key, cache_data)
 
-    return result
+    return output_utils.fov_data_to_json(
+        all_results,
+        points_in_fov,
+        performance_metrics,
+        api_source,
+        api_version,
+        group_by,
+    )
 
 
 def get_satellites_above_horizon(

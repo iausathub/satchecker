@@ -71,7 +71,7 @@ def test_satellite_in_fov(test_location, test_time):
         api_version="1.0",
     )
 
-    assert result["count"] == 18
+    assert result["total_position_results"] == 18
     assert result["data"][0]["norad_id"] == 31746
     assert result["data"][0]["range_km"] > 0
     assert result["data"][0]["altitude"] is not None
