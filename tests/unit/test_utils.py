@@ -1,6 +1,6 @@
 # ruff: noqa: S101
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
@@ -559,3 +559,32 @@ def test_is_illuminated():
     sat_gcrs = np.array([1.0, 0.0])
     with pytest.raises(ValueError):
         is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+
+
+def test_ensure_datetime():
+    # Test date string in YYYY-MM-DD format
+    date_str = "2025-01-01"
+    result = time_utils.ensure_datetime(date_str)
+    assert result == datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    # Test date string in YYYY-MM-DD HH:MM:SS format
+    date_str = "2025-01-01 12:00:00"
+    result = time_utils.ensure_datetime(date_str)
+    assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Test timezone-aware datetime
+    dt = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    result = time_utils.ensure_datetime(dt)
+    assert result == dt
+
+    # Test naive datetime
+    dt = datetime(2025, 1, 1, 12, 0, 0)
+    result = time_utils.ensure_datetime(dt)
+    assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Test invalid input types
+    with pytest.raises(TypeError):
+        time_utils.ensure_datetime(123)
+
+    with pytest.raises(ValueError):
+        time_utils.ensure_datetime("invalid-date")
