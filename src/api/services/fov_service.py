@@ -281,7 +281,7 @@ def get_satellite_passes_in_fov_parallel(
     api_version: str,
 ) -> dict[str, Any]:
     """
-    Get all satellite passes in the field of view.
+    Get all satellite passes in the field of view using parallel processing.
 
     Args:
         tle_repo: Repository for TLE data
@@ -302,9 +302,14 @@ def get_satellite_passes_in_fov_parallel(
         dict: Formatted results either grouped by satellite or chronologically
     """
     start_time = python_time.time()
-    logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
-    logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
-    logger.info(f"Duration: {duration} seconds")
+    logger.info(f"Starting parallel FOV calculation at: {datetime.now().isoformat()}")
+    logger.info("Request Parameters:")
+    logger.info(f"  Location: {location}")
+    logger.info(f"  FOV Center: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
+    logger.info(f"  Duration: {duration} seconds")
+    logger.info(f"  Group By: {group_by}")
+    logger.info(f"  Include TLEs: {include_tles}")
+    logger.info(f"  Skip Cache: {skip_cache}")
 
     # Create cache key and check cache
     cache_key = create_fov_cache_key(
@@ -317,6 +322,7 @@ def get_satellite_passes_in_fov_parallel(
         fov_radius,
         False if include_tles is None else include_tles,
     )
+    logger.info(f"Cache key: {cache_key}")
 
     cached_data = get_cached_data(cache_key)
     if cached_data and not skip_cache:
@@ -350,6 +356,8 @@ def get_satellite_passes_in_fov_parallel(
     # Get all current TLEs
     tle_start = python_time.time()
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
+    logger.info(f"Fetching TLEs for time: {time_param}")
+
     tles, count, _ = tle_repo.get_all_tles_at_epoch(
         astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
     )
@@ -384,6 +392,7 @@ def get_satellite_passes_in_fov_parallel(
     prop_strategy = FOVParallelPropagationStrategy()
 
     try:
+        logger.info("Starting parallel propagation")
         results, execution_time, satellites_processed = prop_strategy.propagate(
             all_tles=tles,
             jd_times=jd_times,
@@ -398,9 +407,10 @@ def get_satellite_passes_in_fov_parallel(
         if results:
             all_results.extend(results)
             points_in_fov = len(results)
+            logger.info(f"Found {points_in_fov} points in FOV")
 
     except Exception as e:
-        logger.error(f"Error in parallel FOV processing: {e}")
+        logger.error(f"Error in parallel FOV processing: {str(e)}", exc_info=True)
         satellites_processed = 0  # Set a default value in case of error
 
     end_time = python_time.time()
