@@ -651,49 +651,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             self.session.rollback()
             raise
 
-    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
-        try:
-            if id_type == "catalog":
-                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
-                    id, id_type, epoch
-                )
-                if nearest_sat_id is None:
-                    return None
-            else:
-                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
-                    id, id_type, epoch
-                )
-                if nearest_sat_id is None:
-                    return None
-
-            # Create a bind parameter for the epoch
-            epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
-
-            # Then get the nearest TLE for this satellite
-            nearest_tle = (
-                self.session.query(TLEDb)
-                .filter(TLEDb.sat_id == nearest_sat_id)
-                .order_by(
-                    func.abs(
-                        func.extract("epoch", TLEDb.epoch)
-                        - func.extract("epoch", epoch_param)
-                    )
-                )
-                .first()
-            )
-
-            if nearest_tle is None:
-                return None
-
-            return self._to_domain(nearest_tle)
-
-        except NoResultFound:
-            return None
-
-        except Exception:
-            self.session.rollback()
-            raise
-
     def _get_adjacent_tles(self, id: str, id_type: str, epoch: datetime) -> list[TLE]:
         if epoch.tzinfo is None:
             epoch = epoch.replace(tzinfo=timezone.utc)
