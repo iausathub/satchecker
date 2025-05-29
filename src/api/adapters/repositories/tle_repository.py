@@ -441,6 +441,101 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             # continue with the database query in case of error
 
         try:
+            # First get valid satellites
+            satellites_sql = text(
+                """
+                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number
+                FROM satellites s
+                WHERE s.launch_date <= :epoch_date
+                AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                AND s.sat_name != 'TBA - TO BE ASSIGNED'
+            """
+            )
+
+            # Then get their latest TLEs
+            tles_sql = text(
+                """
+                WITH latest_tles AS (
+                    SELECT DISTINCT ON (sat_id)
+                        id, sat_id, date_collected, tle_line1, tle_line2,
+                        epoch, is_supplemental, data_source
+                    FROM tle
+                    WHERE epoch BETWEEN :start_date AND :end_date
+                    AND sat_id = ANY(:satellite_ids)
+                    ORDER BY sat_id, epoch DESC
+                )
+                SELECT * FROM latest_tles
+                ORDER BY epoch DESC
+            """
+            )
+
+            # Get valid satellites first
+            satellites_result = self.session.execute(
+                satellites_sql, {"epoch_date": epoch_date}
+            )
+            valid_satellites = {row.id: row for row in satellites_result}
+
+            if not valid_satellites:
+                return [], 0, "database"
+
+            # Then get TLEs for those satellites
+            tles_result = self.session.execute(
+                tles_sql,
+                {
+                    "start_date": two_weeks_prior,
+                    "end_date": epoch_date,
+                    "satellite_ids": list(valid_satellites.keys()),
+                },
+            )
+
+            # Map results to domain objects
+            tles = []
+            for row in tles_result:
+                sat_data = valid_satellites[row.sat_id]
+                satellite = Satellite(
+                    sat_name=sat_data.sat_name,
+                    sat_number=sat_data.sat_number,
+                    decay_date=sat_data.decay_date,
+                    has_current_sat_number=sat_data.has_current_sat_number,
+                )
+
+                tle = TLE(
+                    satellite=satellite,
+                    date_collected=row.date_collected,
+                    tle_line1=row.tle_line1,
+                    tle_line2=row.tle_line2,
+                    epoch=row.epoch,
+                    is_supplemental=row.is_supplemental,
+                    data_source=row.data_source,
+                )
+                tles.append(tle)
+
+            # Handle pagination
+            total_count = len(tles)
+            if format != "zip":
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+                tles = tles[start_idx:end_idx]
+
+            return tles, total_count, "database"
+
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _get_all_tles_at_epoch_experimental(
+        self, epoch_date: datetime, page: int, per_page: int, format: str
+    ) -> tuple[list[TLE], int, str]:
+        # Ensure epoch_date has a timezone if not already set
+        if epoch_date.tzinfo is None:
+            epoch_date = epoch_date.replace(tzinfo=timezone.utc)
+
+        two_weeks_prior = epoch_date - timedelta(weeks=2)
+
+        # Ensure current_time has the same timezone awareness as epoch_date
+        total_count = 0
+
+        try:
             tles_sql = text(
                 """
                 SELECT
@@ -508,6 +603,49 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 tles = tles[start_idx:end_idx]
 
             return tles, total_count, "database"
+
+        except Exception:
+            self.session.rollback()
+            raise
+
+    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
+        try:
+            if id_type == "catalog":
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
+                    id, id_type, epoch
+                )
+                if nearest_sat_id is None:
+                    return None
+            else:
+                nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
+                    id, id_type, epoch
+                )
+                if nearest_sat_id is None:
+                    return None
+
+            # Create a bind parameter for the epoch
+            epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
+
+            # Then get the nearest TLE for this satellite
+            nearest_tle = (
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == nearest_sat_id)
+                .order_by(
+                    func.abs(
+                        func.extract("epoch", TLEDb.epoch)
+                        - func.extract("epoch", epoch_param)
+                    )
+                )
+                .first()
+            )
+
+            if nearest_tle is None:
+                return None
+
+            return self._to_domain(nearest_tle)
+
+        except NoResultFound:
+            return None
 
         except Exception:
             self.session.rollback()
