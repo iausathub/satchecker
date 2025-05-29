@@ -152,7 +152,7 @@ def clean_generation_name(generation: str) -> str:
 
 
 def scrape_starlink_data(
-    sat_number_and_launch: list[tuple[int, int, str, str]]
+    sat_number_and_launch: list[tuple[int, int, str, str]],
 ) -> dict:
     """
     Scrape Starlink generation data from Wikipedia and match with satellite information.
