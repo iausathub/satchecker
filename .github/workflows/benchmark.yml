@@ -6,6 +6,10 @@ on:
   workflow_call:
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  pages: write
+
 jobs:
   benchmark:
     name: Performance regression check
