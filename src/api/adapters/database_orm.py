@@ -1,3 +1,5 @@
+from typing import Any
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -100,9 +102,9 @@ class EphemerisPointDb(Base):
         Integer, ForeignKey("interpolable_ephemeris.id"), nullable=False
     )
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False)
-    position = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
-    velocity = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
-    covariance = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
+    position: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
+    velocity: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
+    covariance: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("ephemeris_id", "timestamp"),
@@ -150,8 +152,12 @@ class InterpolatedSplineDb(Base):
     time_range_end = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
 
-    position_splines = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
-    velocity_splines = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
+    position_splines: Column[Any] = Column(
+        PG_ARRAY(Float, dimensions=3), nullable=False
+    )
+    velocity_splines: Column[Any] = Column(
+        PG_ARRAY(Float, dimensions=3), nullable=False
+    )
 
     chunk_size = Column(Integer, nullable=False)
     overlap = Column(Integer, nullable=False)

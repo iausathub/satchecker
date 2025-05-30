@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
@@ -42,7 +42,7 @@ class InterpolableEphemeris:
         date_collected: Optional[datetime] = None,
     ):
         self.sat_id = sat_id
-        self.date_collected = date_collected or datetime.now(datetime.timezone.utc)
+        self.date_collected = date_collected or datetime.now(timezone.utc)
         self.generated_at = generated_at
         self.data_source = data_source
         self.file_reference = file_reference
