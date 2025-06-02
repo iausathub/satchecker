@@ -104,7 +104,7 @@ class EphemerisPointDb(Base):
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False)
     position: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
     velocity: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
-    covariance: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
+    covariance: Column[Any] = Column(PG_ARRAY(Float), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("ephemeris_id", "timestamp"),
