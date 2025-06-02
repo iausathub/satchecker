@@ -4,3 +4,5 @@ numpy==1.26.4
 requests==2.32.0
 psycopg2-binary==2.9.7
 skyfield==1.46
+pandas==2.2.3
+beautifulsoup4==4.12.2

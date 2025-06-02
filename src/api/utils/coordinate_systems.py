@@ -1,6 +1,9 @@
 import functools
+import os
+from pathlib import Path
 
 import numpy as np
+from astropy.config import set_temp_cache
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.nutationlib import iau2000b
 from skyfield.timelib import Time
@@ -8,6 +11,15 @@ from skyfield.timelib import Time
 from api.common import error_messages
 from api.common.exceptions import ValidationError
 from api.utils.time_utils import calculate_lst, jd_to_gst
+
+# Configure Astropy to use a secure cache directory within the application
+cache_dir = (
+    Path(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    / "data"
+    / "astropy_cache"
+)
+cache_dir.mkdir(parents=True, exist_ok=True)
+set_temp_cache(cache_dir)
 
 
 # TODO: Verify if teme_to_ecef is correct
