@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any
 
 import numpy as np
 from astropy.time import Time
@@ -115,3 +116,34 @@ def astropy_time_to_datetime_utc(time_obj: Time) -> datetime:
     # Explicitly cast to datetime to satisfy the type checker
     dt: datetime = time_obj.to_datetime(timezone=timezone.utc)
     return dt
+
+
+def ensure_datetime(date_value: Any) -> datetime:
+    """
+    Ensure that the input is a datetime object with timezone info.
+
+    Args:
+        date_value: A datetime object or a string representing a date/time
+
+    Returns:
+        A datetime object with timezone info
+
+    Raises:
+        TypeError: If the input cannot be converted to a datetime object
+    """
+    if isinstance(date_value, str):
+        try:
+            # Try to parse the string as a datetime in ISO format
+            date_value = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+        except ValueError:
+            date_value = datetime.strptime(date_value, "%Y-%m-%d")
+
+    # Ensure the result is actually a datetime
+    if not isinstance(date_value, datetime):
+        raise TypeError(f"Cannot convert {type(date_value)} to datetime")
+
+    # Ensure the datetime has timezone info
+    if date_value.tzinfo is None:
+        date_value = date_value.replace(tzinfo=timezone.utc)
+
+    return date_value

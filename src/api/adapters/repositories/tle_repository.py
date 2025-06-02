@@ -11,6 +11,7 @@ from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRe
 from api.domain.models.satellite import Satellite as Satellite
 from api.domain.models.tle import TLE
 from api.services.cache_service import RECENT_TLES_CACHE_KEY, get_cached_data
+from api.utils.time_utils import ensure_datetime
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -27,22 +28,20 @@ class AbstractTLERepository(abc.ABC):
     def get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
     ) -> Optional[TLE]:
-        satellite = self._get_closest_by_satellite_number(
+        tle = self._get_closest_by_satellite_number(
             satellite_number, epoch, data_source
         )
-        if satellite:
-            self.seen.add(satellite)
-        return satellite
+        if tle:
+            self.seen.add(tle)
+        return tle
 
     def get_closest_by_satellite_name(
         self, satellite_name: str, epoch: datetime, data_source: str
     ) -> Optional[TLE]:
-        satellite = self._get_closest_by_satellite_name(
-            satellite_name, epoch, data_source
-        )
-        if satellite:
-            self.seen.add(satellite)
-        return satellite
+        tle = self._get_closest_by_satellite_name(satellite_name, epoch, data_source)
+        if tle:
+            self.seen.add(tle)
+        return tle
 
     def get_all_for_date_range_by_satellite_number(
         self,
@@ -253,37 +252,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
         return tles
 
-    @staticmethod
-    def _ensure_datetime(date_value: Any) -> datetime:
-        """
-        Ensure that the input is a datetime object with timezone info.
-
-        Args:
-            date_value: A datetime object or a string representing a date/time
-
-        Returns:
-            A datetime object with timezone info
-
-        Raises:
-            TypeError: If the input cannot be converted to a datetime object
-        """
-        if isinstance(date_value, str):
-            try:
-                # Try to parse the string as a datetime in ISO format
-                date_value = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
-            except ValueError:
-                date_value = datetime.strptime(date_value, "%Y-%m-%d")
-
-        # Ensure the result is actually a datetime
-        if not isinstance(date_value, datetime):
-            raise TypeError(f"Cannot convert {type(date_value)} to datetime")
-
-        # Ensure the datetime has timezone info
-        if date_value.tzinfo is None:
-            date_value = date_value.replace(tzinfo=timezone.utc)
-
-        return date_value
-
     def _add(self, tle: TLE):
         orm_tle = self._to_orm(tle)
 
@@ -311,7 +279,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             filter_conditions.append(TLEDb.data_source == data_source)
 
         # Ensure epoch is a datetime object with timezone info
-        epoch = self._ensure_datetime(epoch)
+        epoch = ensure_datetime(epoch)
         epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
 
         result = (
@@ -343,7 +311,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             filter_conditions.append(TLEDb.data_source == data_source)
 
         # Ensure epoch is a datetime object with timezone info
-        epoch = self._ensure_datetime(epoch)
+        epoch = ensure_datetime(epoch)
         epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
 
         result = (
@@ -555,6 +523,92 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             self.session.rollback()
             raise
 
+    # pragma: no cover
+    def _get_all_tles_at_epoch_experimental(
+        self, epoch_date: datetime, page: int, per_page: int, format: str
+    ) -> tuple[list[TLE], int, str]:
+        # Ensure epoch_date has a timezone if not already set
+        if epoch_date.tzinfo is None:
+            epoch_date = epoch_date.replace(tzinfo=timezone.utc)
+
+        two_weeks_prior = epoch_date - timedelta(weeks=2)
+
+        # Ensure current_time has the same timezone awareness as epoch_date
+        total_count = 0
+
+        try:
+            tles_sql = text(
+                """
+                SELECT
+                    s.id AS sat_id, s.sat_name, s.sat_number, s.decay_date,
+                    s.has_current_sat_number,
+                    t.id, t.date_collected, t.tle_line1, t.tle_line2, t.epoch,
+                    t.is_supplemental, t.data_source
+                FROM satellites s
+                JOIN LATERAL (
+                    SELECT id, sat_id, date_collected, tle_line1, tle_line2,
+                        epoch, is_supplemental, data_source
+                    FROM tle
+                    WHERE sat_id = s.id
+                    AND epoch BETWEEN :start_date AND :end_date
+                    ORDER BY epoch DESC
+                    LIMIT 1
+                ) t ON TRUE
+                WHERE s.launch_date <= :epoch_date
+                AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                ORDER BY t.epoch DESC
+                """
+            ).bindparams(
+                start_date=bindparam("start_date", type_=DateTime(timezone=True)),
+                end_date=bindparam("end_date", type_=DateTime(timezone=True)),
+                epoch_date=bindparam("epoch_date", type_=DateTime(timezone=True)),
+            )
+
+            # Then get TLEs for those satellites
+            tles_result = self.session.execute(
+                tles_sql,
+                {
+                    "start_date": two_weeks_prior,
+                    "end_date": epoch_date,
+                    "epoch_date": epoch_date,
+                },
+            )
+
+            # Map results to domain objects
+            tles = []
+            for row in tles_result:
+                satellite = Satellite(
+                    sat_name=row.sat_name,
+                    sat_number=row.sat_number,
+                    decay_date=row.decay_date,
+                    has_current_sat_number=row.has_current_sat_number,
+                )
+
+                tle = TLE(
+                    satellite=satellite,
+                    date_collected=row.date_collected,
+                    tle_line1=row.tle_line1,
+                    tle_line2=row.tle_line2,
+                    epoch=row.epoch,
+                    is_supplemental=row.is_supplemental,
+                    data_source=row.data_source,
+                )
+                tles.append(tle)
+
+            # Handle pagination
+            total_count = len(tles)
+            if format != "zip":
+                start_idx = (page - 1) * per_page
+                end_idx = start_idx + per_page
+                tles = tles[start_idx:end_idx]
+
+            return tles, total_count, "database"
+
+        except Exception:
+            self.session.rollback()
+            raise
+
     def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
         try:
             if id_type == "catalog":
@@ -724,7 +778,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         if len(satellites_with_this_identifier) == 0:
             return None
 
-        epoch = self._ensure_datetime(epoch)
+        epoch = ensure_datetime(epoch)
         # Create a bind parameter for the epoch
         epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
 
