@@ -523,6 +523,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             self.session.rollback()
             raise
 
+    # pragma: no cover
     def _get_all_tles_at_epoch_experimental(
         self, epoch_date: datetime, page: int, per_page: int, format: str
     ) -> tuple[list[TLE], int, str]:
