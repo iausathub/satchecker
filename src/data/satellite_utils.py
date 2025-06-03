@@ -33,12 +33,12 @@ def get_decayed_satellites(cursor, connection):
         )
 
         try:
-            log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
+            log_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             logging.info(f"{log_time}\tUpdating decayed satellites...")
             update_decayed_satellites(decayed_satellites, cursor)
             connection.commit()
         except Exception as err:
-            log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
+            log_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             logging.error(log_time + "\t" + "database ERROR:", err)
             connection.rollback()
 
@@ -47,7 +47,7 @@ def update_decayed_satellites(decayed_satellites, cursor):
     decayed_satellites = decayed_satellites.json()
     for sat in decayed_satellites:
         try:
-            current_date_time = datetime.datetime.now(datetime.timezone.utc)
+            current_date_time = datetime.now(timezone.utc)
 
             decay_date = sat.get("CURRENT_DECAY", None)
             sat_name = sat.get("CURRENT_NAME", None)
@@ -64,7 +64,7 @@ def update_decayed_satellites(decayed_satellites, cursor):
             #        f"Unable to update decay date for {sat_name} ({sat_number})"
             #    )  # noqa: E501
         except Exception as err:
-            log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
+            log_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             logging.error(log_time + "\t" + "database ERROR:", err)
             raise
 
