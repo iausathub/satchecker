@@ -120,7 +120,7 @@ rich==13.5.2
 rpds-py==0.10.2
 ruff==0.9.1
 s3transfer==0.6.2
-setuptools==70.0.0
+setuptools==78.1.1
 sgp4==2.22
 six==1.16.0
 skyfield==1.46
