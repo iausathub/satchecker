@@ -29,7 +29,7 @@ class AbstractEphemerisRepository(abc.ABC):
         self.seen.add(ephemeris)
 
     def get_closest_by_satellite_number(
-        self, satellite_number: str, epoch: datetime, data_source: str = None
+        self, satellite_number: str, epoch: datetime, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         ephemeris = self._get_closest_by_satellite_number(
             satellite_number, epoch, data_source
@@ -39,7 +39,7 @@ class AbstractEphemerisRepository(abc.ABC):
         return ephemeris
 
     def get_closest_by_satellite_name(
-        self, satellite_name: str, epoch: datetime, data_source: str = None
+        self, satellite_name: str, epoch: datetime, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         ephemeris = self._get_closest_by_satellite_name(
             satellite_name, epoch, data_source
@@ -49,7 +49,7 @@ class AbstractEphemerisRepository(abc.ABC):
         return ephemeris
 
     def get_latest_by_satellite_number(
-        self, satellite_number: str, data_source: str = None
+        self, satellite_number: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         ephemeris = self._get_latest_by_satellite_number(satellite_number, data_source)
         if ephemeris:
@@ -57,7 +57,7 @@ class AbstractEphemerisRepository(abc.ABC):
         return ephemeris
 
     def get_latest_by_satellite_name(
-        self, satellite_name: str, data_source: str = None
+        self, satellite_name: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         ephemeris = self._get_latest_by_satellite_name(satellite_name, data_source)
         if ephemeris:
@@ -70,25 +70,31 @@ class AbstractEphemerisRepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
-        self, satellite_number: str, data_timestamp: datetime, data_source: str = None
+        self,
+        satellite_number: str,
+        data_timestamp: datetime,
+        data_source: Optional[str] = None,
     ) -> Optional[InterpolableEphemeris]:
         raise NotImplementedError
 
     @abc.abstractmethod
     def _get_closest_by_satellite_name(
-        self, satellite_name: str, data_timestamp: datetime, data_source: str = None
+        self,
+        satellite_name: str,
+        data_timestamp: datetime,
+        data_source: Optional[str] = None,
     ) -> Optional[InterpolableEphemeris]:
         raise NotImplementedError
 
     @abc.abstractmethod
     def _get_latest_by_satellite_number(
-        self, satellite_number: str, data_source: str = None
+        self, satellite_number: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         raise NotImplementedError
 
     @abc.abstractmethod
     def _get_latest_by_satellite_name(
-        self, satellite_name: str, data_source: str = None
+        self, satellite_name: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         raise NotImplementedError
 
@@ -134,7 +140,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         for point in orm_ephemeris.points:
             points.append(
                 EphemerisPoint(
-                    timestamp=point.timestamp,
+                    timestamp=ensure_datetime(point.timestamp),
                     position=np.array(point.position),
                     velocity=np.array(point.velocity),
                     covariance=np.array(point.covariance).reshape(6, 6),
@@ -142,19 +148,23 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             )
 
         return InterpolableEphemeris(
-            satellite=orm_ephemeris.satellite,
-            date_collected=orm_ephemeris.date_collected,
-            generated_at=orm_ephemeris.generated_at,
-            data_source=orm_ephemeris.data_source,
-            file_reference=orm_ephemeris.file_reference,
-            frame=orm_ephemeris.frame,
+            satellite=int(orm_ephemeris.satellite),
+            date_collected=ensure_datetime(orm_ephemeris.date_collected),
+            generated_at=ensure_datetime(orm_ephemeris.generated_at),
+            data_source=str(orm_ephemeris.data_source),
+            file_reference=(
+                str(orm_ephemeris.file_reference)
+                if orm_ephemeris.file_reference is not None
+                else None
+            ),
+            frame=str(orm_ephemeris.frame),
             points=points,
-            ephemeris_start=orm_ephemeris.ephemeris_start,
-            ephemeris_stop=orm_ephemeris.ephemeris_stop,
+            ephemeris_start=ensure_datetime(orm_ephemeris.ephemeris_start),
+            ephemeris_stop=ensure_datetime(orm_ephemeris.ephemeris_stop),
         )
 
     def _get_closest_by_satellite_number(
-        self, satellite_number: str, epoch: datetime, data_source: str = None
+        self, satellite_number: str, epoch: datetime, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         # Ensure epoch is a datetime object with timezone info
         epoch = ensure_datetime(epoch)
@@ -182,7 +192,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         return None
 
     def _get_closest_by_satellite_name(
-        self, satellite_name: str, epoch: datetime, data_source: str = None
+        self, satellite_name: str, epoch: datetime, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         epoch = ensure_datetime(epoch)
 
@@ -209,7 +219,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         return None
 
     def _get_latest_by_satellite_number(
-        self, satellite_number: str, data_source: str = None
+        self, satellite_number: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         query = (
             self.session.query(InterpolableEphemerisDb)
@@ -229,7 +239,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         return None
 
     def _get_latest_by_satellite_name(
-        self, satellite_name: str, data_source: str = None
+        self, satellite_name: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         query = (
             self.session.query(InterpolableEphemerisDb)
