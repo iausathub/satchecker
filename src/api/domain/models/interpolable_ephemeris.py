@@ -18,12 +18,15 @@ class EphemerisPoint:
         self.covariance = covariance
 
     def __eq__(self, other):
-        return (
-            self.timestamp == other.timestamp
-            and np.array_equal(self.position, other.position)
-            and np.array_equal(self.velocity, other.velocity)
-            and np.array_equal(self.covariance, other.covariance)
-        )
+        try:
+            return (
+                self.timestamp == other.timestamp
+                and np.array_equal(self.position, other.position)
+                and np.array_equal(self.velocity, other.velocity)
+                and np.array_equal(self.covariance, other.covariance)
+            )
+        except AttributeError:
+            return False
 
     def __repr__(self):
         return (
@@ -57,23 +60,26 @@ class InterpolableEphemeris:
 
     def __repr__(self):
         return (
-            f"<InterpolableEphemeris sat_id={self.satellite} "
+            f"<InterpolableEphemeris satellite={self.satellite} "
             f"generated_at={self.generated_at}>"
         )
 
     def __eq__(self, other):
-        return (
-            self.satellite == other.satellite
-            and self.generated_at == other.generated_at
-            and self.data_source == other.data_source
-            and self.file_reference == other.file_reference
-            and self.frame == other.frame
-            and self.date_collected == other.date_collected
-            and self.ephemeris_start == other.ephemeris_start
-            and self.ephemeris_stop == other.ephemeris_stop
-            and len(self.points) == len(other.points)
-            and all(p1 == p2 for p1, p2 in zip(self.points, other.points))
-        )
+        try:
+            return (
+                self.satellite == other.satellite
+                and self.generated_at == other.generated_at
+                and self.data_source == other.data_source
+                and self.file_reference == other.file_reference
+                and self.frame == other.frame
+                and self.date_collected == other.date_collected
+                and self.ephemeris_start == other.ephemeris_start
+                and self.ephemeris_stop == other.ephemeris_stop
+                and len(self.points) == len(other.points)
+                and all(p1 == p2 for p1, p2 in zip(self.points, other.points))
+            )
+        except AttributeError:
+            return False
 
     def __hash__(self):
         point_tuples = []
