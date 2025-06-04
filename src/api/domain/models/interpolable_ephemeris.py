@@ -18,8 +18,6 @@ class EphemerisPoint:
         self.covariance = covariance
 
     def __eq__(self, other):
-        if not isinstance(other, EphemerisPoint):
-            return False
         return (
             self.timestamp == other.timestamp
             and np.array_equal(self.position, other.position)
@@ -27,11 +25,17 @@ class EphemerisPoint:
             and np.array_equal(self.covariance, other.covariance)
         )
 
+    def __repr__(self):
+        return (
+            f"<EphemerisPoint timestamp={self.timestamp} "
+            f"position={self.position} velocity={self.velocity}>"
+        )
+
 
 class InterpolableEphemeris:
     def __init__(
         self,
-        sat_id: int,
+        satellite: int,
         generated_at: datetime,
         data_source: str,
         frame: str,
@@ -41,7 +45,7 @@ class InterpolableEphemeris:
         file_reference: Optional[str] = None,
         date_collected: Optional[datetime] = None,
     ):
-        self.sat_id = sat_id
+        self.satellite = satellite
         self.date_collected = date_collected or datetime.now(timezone.utc)
         self.generated_at = generated_at
         self.data_source = data_source
@@ -53,16 +57,13 @@ class InterpolableEphemeris:
 
     def __repr__(self):
         return (
-            f"<InterpolableEphemeris sat_id={self.sat_id} "
+            f"<InterpolableEphemeris sat_id={self.satellite} "
             f"generated_at={self.generated_at}>"
         )
 
     def __eq__(self, other):
-        if not isinstance(other, InterpolableEphemeris):
-            return False
-
         return (
-            self.sat_id == other.sat_id
+            self.satellite == other.satellite
             and self.generated_at == other.generated_at
             and self.data_source == other.data_source
             and self.file_reference == other.file_reference
@@ -73,3 +74,37 @@ class InterpolableEphemeris:
             and len(self.points) == len(other.points)
             and all(p1 == p2 for p1, p2 in zip(self.points, other.points))
         )
+
+    def __hash__(self):
+        point_tuples = []
+        for point in self.points:
+            # Convert numpy arrays to tuples of native Python types
+            position_tuple = tuple(float(x) for x in point.position)
+            velocity_tuple = tuple(float(x) for x in point.velocity)
+            covariance_tuple = tuple(
+                tuple(float(x) for x in row) for row in point.covariance
+            )
+
+            point_tuple = (
+                point.timestamp,
+                position_tuple,
+                velocity_tuple,
+                covariance_tuple,
+            )
+            point_tuples.append(point_tuple)
+
+        point_tuples_tuple = tuple(point_tuples)
+
+        hash_tuple = (
+            self.satellite,
+            self.generated_at,
+            self.data_source,
+            self.file_reference,
+            self.frame,
+            self.date_collected,
+            self.ephemeris_start,
+            self.ephemeris_stop,
+            point_tuples_tuple,
+        )
+
+        return hash(hash_tuple)

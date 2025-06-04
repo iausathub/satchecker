@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 
 from api import create_app
 from api.adapters.database_orm import Base
+from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.adapters.repositories.satellite_repository import (
     AbstractSatelliteRepository,
 )
@@ -150,7 +151,9 @@ def cleanup_database(session):
 
     yield
     try:
-        # Delete from tle first since it references satellites
+        # Delete from tables in order of dependencies
+        session.execute(text("DELETE FROM ephemeris_points"))
+        session.execute(text("DELETE FROM interpolable_ephemeris"))
         session.execute(text("DELETE FROM tle"))
         session.execute(text("DELETE FROM satellites"))
         session.commit()
@@ -361,6 +364,58 @@ class FakeTLERepository(AbstractTLERepository):
         return min(
             (tle for tle in self._tles if tle.satellite.sat_number == id),
             key=lambda tle: abs(tle.epoch - epoch),
+            default=None,
+        )
+
+
+class FakeEphemerisRepository(AbstractEphemerisRepository):
+    def __init__(self, ephemeris):
+        self._ephemeris = ephemeris
+
+    def _add(self, ephemeris):
+        self._ephemeris.add(ephemeris)
+
+    def _get_closest_by_satellite_number(self, satellite_number, epoch):
+        return min(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_number == satellite_number
+            ),
+            key=lambda ephemeris: abs(ephemeris.generated_at - epoch),
+            default=None,
+        )
+
+    def _get_closest_by_satellite_name(self, satellite_name, epoch):
+        return min(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_name == satellite_name
+            ),
+            key=lambda ephemeris: abs(ephemeris.generated_at - epoch),
+            default=None,
+        )
+
+    def _get_latest_by_satellite_number(self, satellite_number):
+        return max(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_number == satellite_number
+            ),
+            key=lambda ephemeris: ephemeris.generated_at,
+            default=None,
+        )
+
+    def _get_latest_by_satellite_name(self, satellite_name):
+        return max(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_name == satellite_name
+            ),
+            key=lambda ephemeris: ephemeris.generated_at,
             default=None,
         )
 
