@@ -535,6 +535,17 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     if generated_at is None:
         generated_at = ephemeris_start
 
+    # log parsed data
+    logging.info(f"Parsed {len(timestamps)} timestamps")
+    logging.info(f"Parsed {len(positions)} positions")
+    logging.info(f"Parsed {len(velocities)} velocities")
+    logging.info(f"Parsed {len(covariances)} covariances")
+    logging.info(f"Ephemeris start: {ephemeris_start}")
+    logging.info(f"Ephemeris stop: {ephemeris_stop}")
+    logging.info(f"Generated at: {generated_at}")
+    logging.info(f"Satellite name: {satellite_name}")
+    logging.info(f"Filename: {filename}")
+
     return {
         "timestamps": np.array(timestamps),
         "positions": np.array(positions, dtype=np.float64),
