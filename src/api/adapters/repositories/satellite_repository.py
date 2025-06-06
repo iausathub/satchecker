@@ -33,6 +33,9 @@ class AbstractSatelliteRepository(abc.ABC):
     def get_satellite_data_by_name(self, name):
         return self._get_satellite_data_by_name(name)
 
+    def get_starlink_generations(self):
+        return self._get_starlink_generations()
+
     def get_active_satellites(self, object_type: Optional[str] = None):
         return self._get_active_satellites(object_type)
 
@@ -58,6 +61,10 @@ class AbstractSatelliteRepository(abc.ABC):
 
     @abc.abstractmethod
     def _add(self, satellite: Satellite):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_starlink_generations(self):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -177,6 +184,34 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         )
 
         return satellite
+
+    def _get_starlink_generations(self):
+        """
+        Retrieves unique Starlink generations with their earliest and most recent
+        launch dates.
+
+        Args:
+            None
+
+        Returns:
+            List[tuple]: A list of tuples containing (generation, earliest_launch_date,
+            latest_launch_date)
+        """
+        query = (
+            self.session.query(
+                SatelliteDb.generation,
+                func.min(SatelliteDb.launch_date).label("earliest_launch"),
+                func.max(SatelliteDb.launch_date).label("latest_launch"),
+            )
+            .filter(
+                func.lower(SatelliteDb.sat_name).like("%starlink%"),
+                SatelliteDb.generation.isnot(None),
+            )
+            .group_by(SatelliteDb.generation)
+            .order_by(SatelliteDb.generation)
+        )
+
+        return query.all()
 
     def _get_active_satellites(self, object_type: Optional[str] = None):
         """

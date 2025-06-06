@@ -590,6 +590,34 @@ def test_get_active_satellites(client):
     cannot_connect_to_services(),
     reason="Services not available",
 )
+def test_get_starlink_generations(client):
+    satellite = SatelliteFactory(
+        sat_name="starlink1",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 10),
+        generation="gen1",
+    )
+    satellite2 = SatelliteFactory(
+        sat_name="starlink2",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 20),
+        generation="gen1",
+    )
+    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
+    sat_repo.add(satellite)
+    sat_repo.add(satellite2)
+    db.session.commit()
+
+    response = client.get("/tools/get-starlink-generations/")
+    assert response.status_code == 200
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["generation"] == "gen1"
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
 def test_rate_limiting(client, session):
     """Test rate limiting on a TLE endpoint."""
     epoch = datetime.now()
