@@ -156,92 +156,125 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
 
         Returns:
             List of propagated positions
+
+        Raises:
+            RuntimeError: If propagation fails due to invalid TLE
+            or numerical instability
         """
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
 
-        ts = get_timescale()
-        satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
-        curr_pos = wgs84.latlon(latitude, longitude, elevation)
+        try:
+            ts = get_timescale()
+            satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
+            curr_pos = wgs84.latlon(latitude, longitude, elevation)
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize propagation: {str(e)}") from e
 
         results = []
         for julian_date in julian_dates:
-            jd = Time(julian_date, format="jd", scale="ut1")
+            try:
+                jd = Time(julian_date, format="jd", scale="ut1")
 
-            if jd.jd == 0:
-                # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
-                # astropy.Time.TT.jd instead of UT1
-                t = ts.ut1_jd(satellite.model.jdsatepoch)
-            else:
-                t = ts.ut1_jd(jd.jd)
+                if jd.jd == 0:
+                    # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
+                    # astropy.Time.TT.jd instead of UT1
+                    t = ts.ut1_jd(satellite.model.jdsatepoch)
+                else:
+                    t = ts.ut1_jd(jd.jd)
 
-            difference = satellite - curr_pos
-            topocentric = difference.at(t)
-            topocentricn = topocentric.position.km / np.linalg.norm(
-                topocentric.position.km
-            )
+                difference = satellite - curr_pos
+                topocentric = difference.at(t)
+                position_norm = np.linalg.norm(topocentric.position.km)
+                if position_norm == 0:
+                    raise RuntimeError(
+                        f"Zero magnitude position vector " f"at JD {julian_date}"
+                    )
 
-            ra, dec, distance = topocentric.radec()
-            alt, az, distance = topocentric.altaz()
+                topocentricn = topocentric.position.km / position_norm
 
-            dtday = TimeDelta(1, format="sec")
-            tplusdt = ts.ut1_jd((jd + dtday).jd)
-            tminusdt = ts.ut1_jd((jd - dtday).jd)
+                ra, dec, distance = topocentric.radec()
+                alt, az, distance = topocentric.altaz()
 
-            dtsec = 1
-            dtx2 = 2 * dtsec
+                dtday = TimeDelta(1, format="sec")
+                tplusdt = ts.ut1_jd((jd + dtday).jd)
+                tminusdt = ts.ut1_jd((jd - dtday).jd)
 
-            sat_gcrs = satellite.at(t).position.km
+                dtsec = 1
+                dtx2 = 2 * dtsec
 
-            # satn = sat / np.linalg.norm(sat)
-            # satpdt = satellite.at(tplusdt).position.km
-            # satmdt = satellite.at(tminusdt).position.km
-            # vsat = (satpdt - satmdt) / dtx2
-            sattop = difference.at(t).position.km
-            sattopr = np.linalg.norm(sattop)
-            sattopn = sattop / sattopr
-            sattoppdt = difference.at(tplusdt).position.km
-            sattopmdt = difference.at(tminusdt).position.km
+                sat_gcrs = satellite.at(t).position.km
 
-            ratoppdt, dectoppdt = icrf2radec(sattoppdt)
-            ratopmdt, dectopmdt = icrf2radec(sattopmdt)
+                # satn = sat / np.linalg.norm(sat)
+                # satpdt = satellite.at(tplusdt).position.km
+                # satmdt = satellite.at(tminusdt).position.km
+                # vsat = (satpdt - satmdt) / dtx2
+                sattop = difference.at(t).position.km
+                sattopr = np.linalg.norm(sattop)
+                if sattopr == 0:
+                    raise RuntimeError(
+                        f"Zero magnitude topocentric vector " f"at JD {julian_date}"
+                    )
 
-            vsattop = (sattoppdt - sattopmdt) / dtx2
+                sattopn = sattop / sattopr
+                sattoppdt = difference.at(tplusdt).position.km
+                sattopmdt = difference.at(tminusdt).position.km
 
-            ddistance = np.dot(vsattop, sattopn)
-            rxy = np.dot(sattop[0:2], sattop[0:2])
-            dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
-            ddec = vsattop[2] / np.sqrt(1 - sattopn[2] * sattopn[2])
-            dracosdec = dra * np.cos(dec.radians)
+                ratoppdt, dectoppdt = icrf2radec(sattoppdt)
+                ratopmdt, dectopmdt = icrf2radec(sattopmdt)
 
-            dra = (ratoppdt - ratopmdt) / dtx2
-            ddec = (dectoppdt - dectopmdt) / dtx2
-            dracosdec = dra * np.cos(dec.radians)
+                vsattop = (sattoppdt - sattopmdt) / dtx2
 
-            # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
-            # dracosdecv = drav * np.cos(dec.radians)
-            phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
-            illuminated = is_illuminated(sat_gcrs, julian_date)
-            obs_gcrs = curr_pos.at(t).position.km
+                ddistance = np.dot(vsattop, sattopn)
+                rxy = np.dot(sattop[0:2], sattop[0:2])
+                if rxy == 0:
+                    raise RuntimeError(
+                        f"Zero magnitude XY projection at JD {julian_date}"
+                    )
 
-            results.append(
-                satellite_position(
-                    ra._degrees,
-                    dec.degrees,
-                    dracosdec,
-                    ddec,
-                    alt._degrees,
-                    az._degrees,
-                    distance.km,
-                    ddistance,
-                    phase_angle,
-                    illuminated,
-                    sat_gcrs.tolist(),
-                    obs_gcrs.tolist(),
-                    julian_date,
+                dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
+                denominator = np.sqrt(1 - sattopn[2] * sattopn[2])
+                if denominator == 0:
+                    raise RuntimeError(
+                        f"Invalid position vector for declination rate "
+                        f"at JD {julian_date}"
+                    )
+
+                ddec = vsattop[2] / denominator
+                dracosdec = dra * np.cos(dec.radians)
+
+                dra = (ratoppdt - ratopmdt) / dtx2
+                ddec = (dectoppdt - dectopmdt) / dtx2
+                dracosdec = dra * np.cos(dec.radians)
+
+                # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
+                # dracosdecv = drav * np.cos(dec.radians)
+                phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
+                illuminated = is_illuminated(sat_gcrs, julian_date)
+                obs_gcrs = curr_pos.at(t).position.km
+
+                results.append(
+                    satellite_position(
+                        ra._degrees,
+                        dec.degrees,
+                        dracosdec,
+                        ddec,
+                        alt._degrees,
+                        az._degrees,
+                        distance.km,
+                        ddistance,
+                        phase_angle,
+                        illuminated,
+                        sat_gcrs.tolist(),
+                        obs_gcrs.tolist(),
+                        julian_date,
+                    )
                 )
-            )
+            except Exception as e:
+                raise RuntimeError(
+                    f"Propagation failed at JD {julian_date}: {str(e)}"
+                ) from e
 
         return results
 
@@ -503,53 +536,69 @@ class FOVPropagationStrategy(BasePropagationStrategy):
 
         Returns:
             List of dictionaries containing position data for points in FOV
+
+        Raises:
+            RuntimeError: If propagation fails due to invalid TLE
+            or numerical instability
         """
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
 
-        ts = get_timescale()
-        t = ts.ut1_jd(julian_dates)
+        try:
+            ts = get_timescale()
+            t = ts.ut1_jd(julian_dates)
 
-        # Set up observer and FOV vectors
-        curr_pos = wgs84.latlon(latitude, longitude, elevation)
-        icrf = coordinate_systems.radec2icrf(fov_center[0], fov_center[1]).reshape(3, 1)
+            # Set up observer and FOV vectors
+            curr_pos = wgs84.latlon(latitude, longitude, elevation)
+            icrf = coordinate_systems.radec2icrf(fov_center[0], fov_center[1]).reshape(
+                3, 1
+            )
 
-        # Create satellite and get positions
-        satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
-        difference = satellite - curr_pos
-        topocentric = difference.at(t)
-        topocentricn = topocentric.position.km / np.linalg.norm(
-            topocentric.position.km, axis=0, keepdims=True
-        )
+            # Create satellite and get positions
+            satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
+            difference = satellite - curr_pos
+            topocentric = difference.at(t)
+            position_norm = np.linalg.norm(
+                topocentric.position.km, axis=0, keepdims=True
+            )
+            if np.any(position_norm == 0):
+                raise RuntimeError("Zero magnitude position vector detected")
 
-        # Vectorized angle calculation
-        sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
-        in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
+            topocentricn = topocentric.position.km / position_norm
 
-        if not np.any(in_fov_mask):
-            return []
+            # Vectorized angle calculation
+            sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
+            in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
 
-        # Get alt/az for points in FOV
-        alt, az, distance = topocentric.altaz()
-        fov_indices = np.where(in_fov_mask)[0]
+            if not np.any(in_fov_mask):
+                return []
 
-        # Vectorized creation of results
-        positions = topocentricn[:, fov_indices]
-        ra_decs = np.array([coordinate_systems.icrf2radec(pos) for pos in positions.T])
+            # Get alt/az for points in FOV
+            alt, az, distance = topocentric.altaz()
+            fov_indices = np.where(in_fov_mask)[0]
 
-        return [
-            {
-                "ra": ra_dec[0],
-                "dec": ra_dec[1],
-                "altitude": float(alt._degrees[idx]),
-                "azimuth": float(az._degrees[idx]),
-                "range_km": float(distance.km[idx]),
-                "julian_date": julian_dates[idx],
-                "angle": np.degrees(sat_fov_angles[idx]),
-            }
-            for idx, ra_dec in zip(fov_indices, ra_decs)
-        ]
+            # Vectorized creation of results
+            positions = topocentricn[:, fov_indices]
+            ra_decs = np.array(
+                [coordinate_systems.icrf2radec(pos) for pos in positions.T]
+            )
+
+            return [
+                {
+                    "ra": ra_dec[0],
+                    "dec": ra_dec[1],
+                    "altitude": float(alt._degrees[idx]),
+                    "azimuth": float(az._degrees[idx]),
+                    "range_km": float(distance.km[idx]),
+                    "julian_date": julian_dates[idx],
+                    "angle": np.degrees(sat_fov_angles[idx]),
+                }
+                for idx, ra_dec in zip(fov_indices, ra_decs)
+            ]
+
+        except Exception as e:
+            raise RuntimeError(f"FOV propagation failed: {str(e)}") from e
 
 
 def process_satellite_batch(args):

@@ -1,5 +1,6 @@
 import abc
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -396,6 +397,11 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         current_time = datetime.now(timezone.utc)
         total_count = 0
 
+        logger.info(
+            f"Fetching TLEs for epoch {epoch_date} (page {page}, per_page {per_page})"
+        )
+        start_time = time.time()
+
         try:
             # if the epoch date is in the future, or up to 3 hours ago, use the cache
             if (epoch_date > current_time - timedelta(hours=3)) and self.cache_enabled:
@@ -424,9 +430,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     # make sure that the cache is not older than 3 hours as
                     # a double check that this is recent data
                     cache_age = (current_time - cached_at).total_seconds()
-                    if (
-                        cache_age < self.cache_ttl
-                    ):  # Use instance property instead of hardcoded value
+                    if cache_age < self.cache_ttl:
                         # Get serialized TLEs from cache
                         serialized_tles = cached_data.get("tles", [])
 
@@ -434,12 +438,21 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                         tles = self.deserialize_cached_tles(serialized_tles)
 
                         logger.debug(f"Returning {len(tles)} TLEs from cache")
+                        execution_time = time.time() - start_time
+                        logger.info(
+                            f"Cache retrieval completed in {execution_time:.2f} seconds"
+                        )
                         return tles, total_count, "cache"
+            else:
+                logger.info(f"Cache miss for epoch {epoch_date}")
+
         except Exception as e:
             logger.error(f"Error getting TLEs from cache: {e}")
             logger.error("TLE cache retrieval failed, loading from database")
             # continue with the database query in case of error
 
+        # If we get here, we need to query the database
+        logger.info("Querying database for TLEs")
         try:
             # First get valid satellites
             satellites_sql = text(
@@ -516,11 +529,17 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 start_idx = (page - 1) * per_page
                 end_idx = start_idx + per_page
                 tles = tles[start_idx:end_idx]
+                logger.info(
+                    f"Pagination: returning {len(tles)} TLEs out of {total_count} total"
+                )
 
+            execution_time = time.time() - start_time
+            logger.info(f"Database query completed in {execution_time:.2f} seconds")
             return tles, total_count, "database"
 
         except Exception:
             self.session.rollback()
+            logger.error("Database query failed, rolling back transaction")
             raise
 
     # pragma: no cover

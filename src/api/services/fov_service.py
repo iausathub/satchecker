@@ -64,6 +64,17 @@ def get_satellite_passes_in_fov(
     logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
     logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
     logger.info(f"Duration: {duration} seconds")
+    logger.info(
+        f"Location: lat={location.lat.value}°, "
+        f"lon={location.lon.value}°, "
+        f"height={location.height.value}m"
+    )
+    logger.info(
+        f"Time parameters: mid_obs_time={mid_obs_time_jd}, start_time={start_time_jd}"
+    )
+    logger.info(
+        f"Group by: {group_by}, Include TLEs: {include_tles}, Skip cache: {skip_cache}"
+    )
 
     # Create cache key and check cache
     cache_key = create_fov_cache_key(
@@ -109,9 +120,16 @@ def get_satellite_passes_in_fov(
     # Get all current TLEs
     tle_start = python_time.time()
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
-    tles, count, _ = tle_repo.get_all_tles_at_epoch(
-        astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
-    )
+    logger.info(f"Fetching TLEs for epoch: {astropy_time_to_datetime_utc(time_param)}")
+
+    try:
+        tles, count, _ = tle_repo.get_all_tles_at_epoch(
+            astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
+        )
+        logger.info(f"Successfully retrieved {count} TLEs")
+    except Exception as e:
+        logger.error(f"Failed to retrieve TLEs: {str(e)}", exc_info=True)
+        raise
 
     tle_time = python_time.time() - tle_start
     logger.info(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
@@ -143,6 +161,7 @@ def get_satellite_passes_in_fov(
     prop_strategy = FOVParallelPropagationStrategy()
 
     try:
+        logger.info("Starting parallel propagation with batch size 250")
         results, execution_time, satellites_processed = prop_strategy.propagate(
             all_tles=tles,
             jd_times=jd_times,
@@ -157,10 +176,17 @@ def get_satellite_passes_in_fov(
         if results:
             all_results.extend(results)
             points_in_fov = len(results)
+            logger.info(
+                f"Propagation completed successfully with {points_in_fov} points in FOV"
+            )
+        else:
+            logger.warning("Propagation completed but returned no results")
 
     except Exception as e:
-        logger.error(f"Error in parallel FOV processing: {e}")
+        logger.error(f"Error in parallel FOV processing: {str(e)}", exc_info=True)
+        logger.error(f"Failed after processing {satellites_processed} satellites")
         satellites_processed = 0  # Set a default value in case of error
+        raise
 
     end_time = python_time.time()
     total_time = end_time - start_time
@@ -199,14 +225,19 @@ def get_satellite_passes_in_fov(
                     f"Found None value in result {idx}, field {key} before returning"
                 )
 
-    json_result: dict[str, Any] = output_utils.fov_data_to_json(
-        all_results,
-        points_in_fov,
-        performance_metrics,
-        api_source,
-        api_version,
-        group_by,
-    )
+    try:
+        json_result: dict[str, Any] = output_utils.fov_data_to_json(
+            all_results,
+            points_in_fov,
+            performance_metrics,
+            api_source,
+            api_version,
+            group_by,
+        )
+        logger.info("Successfully formatted results to JSON")
+    except Exception as e:
+        logger.error(f"Failed to format results to JSON: {str(e)}", exc_info=True)
+        raise
 
     # Cache only the raw results and points_in_fov
     cache_data = {
@@ -216,7 +247,12 @@ def get_satellite_passes_in_fov(
     logger.info(
         f"Caching {len(all_results)} results with {points_in_fov} points in FOV"
     )
-    set_cached_data(cache_key, cache_data)
+    try:
+        set_cached_data(cache_key, cache_data)
+        logger.info("Successfully cached results")
+    except Exception as e:
+        logger.error(f"Failed to cache results: {str(e)}", exc_info=True)
+        # Don't raise here as caching is not critical
 
     return json_result
 
