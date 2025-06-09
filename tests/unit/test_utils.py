@@ -582,9 +582,17 @@ def test_ensure_datetime():
     result = time_utils.ensure_datetime(dt)
     assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
+    # Test Julian date
+    jd = 2460677.0
+    result = time_utils.ensure_datetime(jd)
+    assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
     # Test invalid input types
     with pytest.raises(TypeError):
         time_utils.ensure_datetime(123)
 
     with pytest.raises(ValueError):
         time_utils.ensure_datetime("invalid-date")
+
+    with pytest.raises(ValueError):
+        time_utils.ensure_datetime(1.0)
