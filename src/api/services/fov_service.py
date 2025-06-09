@@ -8,6 +8,7 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from skyfield.api import EarthSatellite, load, wgs84
 
+from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.services.cache_service import (
     create_fov_cache_key,
@@ -17,6 +18,7 @@ from api.services.cache_service import (
 from api.utils import coordinate_systems, output_utils
 from api.utils.propagation_strategies import (
     FOVParallelPropagationStrategy,
+    KroghPropagationStrategy,
     # FOVPropagationStrategy,
 )
 from api.utils.time_utils import astropy_time_to_datetime_utc
@@ -26,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 def get_satellite_passes_in_fov(
     tle_repo: AbstractTLERepository,
+    ephem_repo: AbstractEphemerisRepository,
     location: EarthLocation,
     mid_obs_time_jd: Time,
     start_time_jd: Time,
@@ -44,6 +47,7 @@ def get_satellite_passes_in_fov(
 
     Args:
         tle_repo: Repository for TLE data
+        ephem_repo: Repository for ephemeris data
         location: Observer's location
         mid_obs_time_jd: Middle observation time (as Time object)
         start_time_jd: Start time (as Time object)
@@ -139,30 +143,120 @@ def get_satellite_passes_in_fov(
     points_in_fov = 0
     satellites_processed = 0
 
-    # Create propagation strategy
-    prop_strategy = FOVParallelPropagationStrategy()
+    # Split TLEs into Starlink and non-Starlink
+    starlink_tles = []
+    non_starlink_tles = []
+    for tle in tles:
+        if "STARLINK" in tle.satellite.sat_name:
+            starlink_tles.append(tle)
+        else:
+            non_starlink_tles.append(tle)
 
-    try:
-        logger.info("Starting parallel propagation")
-        results, execution_time, satellites_processed = prop_strategy.propagate(
-            all_tles=tles,
-            jd_times=jd_times,
-            location=location,
-            fov_center=(ra, dec),
-            fov_radius=fov_radius,
-            batch_size=250,
-            include_tles=include_tles,
+    # Process Starlink satellites with Krogh propagation
+    if starlink_tles:
+        logger.info(
+            f"Processing {len(starlink_tles)} Starlink satellites "
+            f"with Krogh propagation"
         )
+        krogh_strategy = KroghPropagationStrategy()
+        for tle in starlink_tles:
+            try:
+                # Load ephemeris data for this Starlink satellite
+                ephemeris = ephem_repo.get_closest_by_satellite_number(
+                    str(tle.satellite.sat_number),
+                    float(jd_times[0]),  # Ensure float conversion
+                )
 
-        # Add all valid results to the final output
-        if results:
-            all_results.extend(results)
-            points_in_fov = len(results)
-            logger.info(f"Found {points_in_fov} points in FOV")
+                # Skip if no ephemeris data found
+                if ephemeris is None:
+                    logger.warning(
+                        f"No ephemeris data found for Starlink satellite "
+                        f"{tle.satellite.sat_name}"
+                    )
+                    satellites_processed += 1
+                    continue
 
-    except Exception as e:
-        logger.error(f"Error in parallel FOV processing: {str(e)}", exc_info=True)
-        satellites_processed = 0  # Set a default value in case of error
+                krogh_strategy.load_ephemeris(ephemeris)
+
+                # Propagate positions
+                positions = krogh_strategy.propagate(
+                    jd_times,
+                    tle.tle_line1,
+                    tle.tle_line2,
+                    location.lat.value,
+                    location.lon.value,
+                    location.height.value,
+                )
+
+                # Check if positions are in FOV
+                for pos in positions:
+                    if pos.ra is not None and pos.dec is not None:
+                        # Calculate angular distance from FOV center
+                        angular_distance = np.sqrt(
+                            (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
+                        )
+                        if angular_distance <= fov_radius:
+                            result = {
+                                "ra": pos.ra,
+                                "dec": pos.dec,
+                                "altitude": pos.alt if pos.alt is not None else None,
+                                "azimuth": pos.az if pos.az is not None else None,
+                                "range_km": (
+                                    pos.distance if pos.distance is not None else None
+                                ),
+                                "julian_date": float(
+                                    pos.julian_date
+                                ),  # Ensure float conversion
+                                "name": tle.satellite.sat_name,
+                                "norad_id": tle.satellite.sat_number,
+                                "tle_epoch": output_utils.format_date(tle.epoch),
+                            }
+                            if include_tles:
+                                result["tle_data"] = {
+                                    "tle_line1": tle.tle_line1,
+                                    "tle_line2": tle.tle_line2,
+                                    "source": tle.data_source,
+                                }
+                            all_results.append(result)
+                            points_in_fov += 1
+
+                satellites_processed += 1
+            except Exception as e:
+                logger.error(
+                    f"Error processing Starlink satellite {tle.satellite.sat_name}: {e}"
+                )
+                satellites_processed += 1
+                continue
+
+    # Process non-Starlink satellites with parallel propagation
+    if non_starlink_tles:
+        logger.info(
+            f"Processing {len(non_starlink_tles)} non-Starlink satellites "
+            f"with parallel propagation"
+        )
+        prop_strategy = FOVParallelPropagationStrategy()
+        try:
+            results, execution_time, non_starlink_processed = prop_strategy.propagate(
+                all_tles=non_starlink_tles,
+                jd_times=jd_times,
+                location=location,
+                fov_center=(ra, dec),
+                fov_radius=fov_radius,
+                batch_size=250,
+                include_tles=include_tles,
+            )
+
+            # Add all valid results to the final output
+            if results:
+                all_results.extend(results)
+                points_in_fov += len(results)
+                satellites_processed += non_starlink_processed
+                logger.info(
+                    f"Found {len(results)} points in FOV for non-Starlink satellites"
+                )
+
+        except Exception as e:
+            logger.error(f"Error in parallel FOV processing: {str(e)}", exc_info=True)
 
     end_time = python_time.time()
     total_time = end_time - start_time
@@ -187,7 +281,7 @@ def get_satellite_passes_in_fov(
     performance_metrics = {
         "total_time": round(total_time, 3),
         "tle_time": round(tle_time, 3),
-        "propagation_time": round(execution_time, 3),
+        "propagation_time": round(prop_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),

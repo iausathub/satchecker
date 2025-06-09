@@ -3,6 +3,7 @@ from typing import Any, Union
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
 
+from api.adapters.repositories.ephemeris_repository import SqlAlchemyEphemerisRepository
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.common import error_messages
@@ -14,6 +15,7 @@ from api.services.tasks.ephemeris_tasks import generate_position_data
 def generate_ephemeris_data(
     sat_repo: AbstractSatelliteRepository,
     tle_repo: AbstractTLERepository,
+    ephemeris_repo: SqlAlchemyEphemerisRepository,
     identifier: str,
     identifier_type: str,
     location: EarthLocation,
@@ -63,6 +65,7 @@ def generate_ephemeris_data(
             tle.satellite.sat_number,
             tle.data_source,
             propagation_method,
+            ephemeris_repo,
         ]
     )
     result_list: Union[dict[str, Any], list[dict[str, Any]]] = result_list_task.get()
@@ -77,6 +80,7 @@ def generate_ephemeris_data_user(
     max_altitude: float,
     api_source: str,
     api_version: str,
+    ephemeris_repo: SqlAlchemyEphemerisRepository,
 ) -> Union[dict[str, Any], list[dict[str, Any]]]:
 
     result_list_task = generate_position_data.apply(
@@ -95,6 +99,7 @@ def generate_ephemeris_data_user(
             api_version,
             tle.satellite.sat_number,
             tle.data_source,
+            ephemeris_repo,
         ]
     )
     result_list: Union[dict[str, Any], list[dict[str, Any]]] = result_list_task.get()

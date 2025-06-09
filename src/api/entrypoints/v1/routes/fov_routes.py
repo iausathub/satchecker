@@ -2,6 +2,7 @@
 from flask import abort, jsonify, request
 from flask import current_app as app
 
+from api.adapters.repositories.ephemeris_repository import SqlAlchemyEphemerisRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
@@ -241,10 +242,12 @@ def get_satellite_passes():
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    ephem_repo = SqlAlchemyEphemerisRepository(session)
 
     try:
         satellite_passes = get_satellite_passes_in_fov(
             tle_repo,
+            ephem_repo,
             validated_parameters["location"],
             validated_parameters["mid_obs_time_jd"],
             validated_parameters["start_time_jd"],
