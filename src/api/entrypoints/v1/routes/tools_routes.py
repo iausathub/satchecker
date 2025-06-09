@@ -88,8 +88,17 @@ def get_norad_ids_from_name():
 
         return jsonify(norad_ids_and_dates)
     except Exception as e:
-        app.logger.error(e)
-        return None
+        app.logger.error(f"Error getting NORAD IDs from name: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "error": "Internal server error",
+                    "message": "An error occurred while retrieving NORAD IDs",
+                    "status_code": 500,
+                }
+            ),
+            500,
+        )
 
 
 @api_v1.route("/tools/names-from-norad-id/")
@@ -154,8 +163,17 @@ def get_names_from_norad_id():
 
         return jsonify(satellite_names_and_dates)
     except Exception as e:
-        app.logger.error(e)
-        return None
+        app.logger.error(f"Error getting names from NORAD ID: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "error": "Internal server error",
+                    "message": "An error occurred while retrieving satellite names",
+                    "status_code": 500,
+                }
+            ),
+            500,
+        )
 
 
 @api_v1.route("/tools/get-starlink-generations/")
@@ -219,8 +237,17 @@ def get_starlink_generations_list():
 
         return jsonify(starlink_generations)
     except Exception as e:
-        app.logger.error(e)
-        return None
+        app.logger.error(f"Error getting Starlink generations: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "error": "Internal server error",
+                    "message": "An error occurred while retrieving Starlink generations",
+                    "status_code": 500,
+                }
+            ),
+            500,
+        )
 
 
 @api_v1.route("/tools/get-tle-data/")

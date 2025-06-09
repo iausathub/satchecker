@@ -274,6 +274,8 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         generations = {}
         for satellite in self._satellites:
             if satellite.generation and "starlink" in satellite.sat_name.lower():
+                if not isinstance(satellite.launch_date, (datetime, type(None))):
+                    raise TypeError("Launch date must be a datetime object or None")
                 if satellite.generation not in generations:
                     generations[satellite.generation] = {
                         "earliest": satellite.launch_date,

@@ -246,6 +246,22 @@ def test_get_starlink_generations():
     assert results["data"][1]["latest_launch_date"] == "2020-06-10 00:00:00 UTC"
 
 
+def test_get_starlink_generations_errors():
+    # Create a satellite with an invalid launch date type
+    satellite = SatelliteFactory(
+        sat_name="starlink1",
+        has_current_sat_number=True,
+        launch_date="invalid_date",  # This will cause TypeError in the repository
+        generation="gen1",
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    with pytest.raises(TypeError):
+        results = get_starlink_generations(sat_repo, "test", "1.0")
+
+    with pytest.raises(AttributeError):
+        results = get_starlink_generations(None, "test", "1.0")  # noqa: F841
+
+
 def test_get_active_satellites_with_object_type():
     satellite = SatelliteFactory(
         sat_name="ISS",
