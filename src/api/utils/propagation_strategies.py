@@ -4,7 +4,6 @@ import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime, timedelta
 from typing import Any, Union
 
 import julian
@@ -18,6 +17,7 @@ from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.nutationlib import iau2000b
 
+from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
 from api.utils import coordinate_systems, output_utils
 from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
@@ -156,92 +156,125 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
 
         Returns:
             List of propagated positions
+
+        Raises:
+            RuntimeError: If propagation fails due to invalid TLE
+            or numerical instability
         """
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
 
-        ts = get_timescale()
-        satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
-        curr_pos = wgs84.latlon(latitude, longitude, elevation)
+        try:
+            ts = get_timescale()
+            satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
+            curr_pos = wgs84.latlon(latitude, longitude, elevation)
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize propagation: {str(e)}") from e
 
         results = []
         for julian_date in julian_dates:
-            jd = Time(julian_date, format="jd", scale="ut1")
+            try:
+                jd = Time(julian_date, format="jd", scale="ut1")
 
-            if jd.jd == 0:
-                # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
-                # astropy.Time.TT.jd instead of UT1
-                t = ts.ut1_jd(satellite.model.jdsatepoch)
-            else:
-                t = ts.ut1_jd(jd.jd)
+                if jd.jd == 0:
+                    # Use ts.ut1_jd instead of ts.from_astropy because from_astropy uses
+                    # astropy.Time.TT.jd instead of UT1
+                    t = ts.ut1_jd(satellite.model.jdsatepoch)
+                else:
+                    t = ts.ut1_jd(jd.jd)
 
-            difference = satellite - curr_pos
-            topocentric = difference.at(t)
-            topocentricn = topocentric.position.km / np.linalg.norm(
-                topocentric.position.km
-            )
+                difference = satellite - curr_pos
+                topocentric = difference.at(t)
+                position_norm = np.linalg.norm(topocentric.position.km)
+                if position_norm == 0:
+                    raise RuntimeError(
+                        f"Zero magnitude position vector " f"at JD {julian_date}"
+                    )
 
-            ra, dec, distance = topocentric.radec()
-            alt, az, distance = topocentric.altaz()
+                topocentricn = topocentric.position.km / position_norm
 
-            dtday = TimeDelta(1, format="sec")
-            tplusdt = ts.ut1_jd((jd + dtday).jd)
-            tminusdt = ts.ut1_jd((jd - dtday).jd)
+                ra, dec, distance = topocentric.radec()
+                alt, az, distance = topocentric.altaz()
 
-            dtsec = 1
-            dtx2 = 2 * dtsec
+                dtday = TimeDelta(1, format="sec")
+                tplusdt = ts.ut1_jd((jd + dtday).jd)
+                tminusdt = ts.ut1_jd((jd - dtday).jd)
 
-            sat_gcrs = satellite.at(t).position.km
+                dtsec = 1
+                dtx2 = 2 * dtsec
 
-            # satn = sat / np.linalg.norm(sat)
-            # satpdt = satellite.at(tplusdt).position.km
-            # satmdt = satellite.at(tminusdt).position.km
-            # vsat = (satpdt - satmdt) / dtx2
-            sattop = difference.at(t).position.km
-            sattopr = np.linalg.norm(sattop)
-            sattopn = sattop / sattopr
-            sattoppdt = difference.at(tplusdt).position.km
-            sattopmdt = difference.at(tminusdt).position.km
+                sat_gcrs = satellite.at(t).position.km
 
-            ratoppdt, dectoppdt = icrf2radec(sattoppdt)
-            ratopmdt, dectopmdt = icrf2radec(sattopmdt)
+                # satn = sat / np.linalg.norm(sat)
+                # satpdt = satellite.at(tplusdt).position.km
+                # satmdt = satellite.at(tminusdt).position.km
+                # vsat = (satpdt - satmdt) / dtx2
+                sattop = difference.at(t).position.km
+                sattopr = np.linalg.norm(sattop)
+                if sattopr == 0:
+                    raise RuntimeError(
+                        f"Zero magnitude topocentric vector " f"at JD {julian_date}"
+                    )
 
-            vsattop = (sattoppdt - sattopmdt) / dtx2
+                sattopn = sattop / sattopr
+                sattoppdt = difference.at(tplusdt).position.km
+                sattopmdt = difference.at(tminusdt).position.km
 
-            ddistance = np.dot(vsattop, sattopn)
-            rxy = np.dot(sattop[0:2], sattop[0:2])
-            dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
-            ddec = vsattop[2] / np.sqrt(1 - sattopn[2] * sattopn[2])
-            dracosdec = dra * np.cos(dec.radians)
+                ratoppdt, dectoppdt = icrf2radec(sattoppdt)
+                ratopmdt, dectopmdt = icrf2radec(sattopmdt)
 
-            dra = (ratoppdt - ratopmdt) / dtx2
-            ddec = (dectoppdt - dectopmdt) / dtx2
-            dracosdec = dra * np.cos(dec.radians)
+                vsattop = (sattoppdt - sattopmdt) / dtx2
 
-            # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
-            # dracosdecv = drav * np.cos(dec.radians)
-            phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
-            illuminated = is_illuminated(sat_gcrs, julian_date)
-            obs_gcrs = curr_pos.at(t).position.km
+                ddistance = np.dot(vsattop, sattopn)
+                rxy = np.dot(sattop[0:2], sattop[0:2])
+                if rxy == 0:
+                    raise RuntimeError(
+                        f"Zero magnitude XY projection at JD {julian_date}"
+                    )
 
-            results.append(
-                satellite_position(
-                    ra._degrees,
-                    dec.degrees,
-                    dracosdec,
-                    ddec,
-                    alt._degrees,
-                    az._degrees,
-                    distance.km,
-                    ddistance,
-                    phase_angle,
-                    illuminated,
-                    sat_gcrs.tolist(),
-                    obs_gcrs.tolist(),
-                    julian_date,
+                dra = (sattop[1] * vsattop[0] - sattop[0] * vsattop[1]) / rxy
+                denominator = np.sqrt(1 - sattopn[2] * sattopn[2])
+                if denominator == 0:
+                    raise RuntimeError(
+                        f"Invalid position vector for declination rate "
+                        f"at JD {julian_date}"
+                    )
+
+                ddec = vsattop[2] / denominator
+                dracosdec = dra * np.cos(dec.radians)
+
+                dra = (ratoppdt - ratopmdt) / dtx2
+                ddec = (dectoppdt - dectopmdt) / dtx2
+                dracosdec = dra * np.cos(dec.radians)
+
+                # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
+                # dracosdecv = drav * np.cos(dec.radians)
+                phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
+                illuminated = is_illuminated(sat_gcrs, julian_date)
+                obs_gcrs = curr_pos.at(t).position.km
+
+                results.append(
+                    satellite_position(
+                        ra._degrees,
+                        dec.degrees,
+                        dracosdec,
+                        ddec,
+                        alt._degrees,
+                        az._degrees,
+                        distance.km,
+                        ddistance,
+                        phase_angle,
+                        illuminated,
+                        sat_gcrs.tolist(),
+                        obs_gcrs.tolist(),
+                        julian_date,
+                    )
                 )
-            )
+            except Exception as e:
+                raise RuntimeError(
+                    f"Propagation failed at JD {julian_date}: {str(e)}"
+                ) from e
 
         return results
 
@@ -503,53 +536,69 @@ class FOVPropagationStrategy(BasePropagationStrategy):
 
         Returns:
             List of dictionaries containing position data for points in FOV
+
+        Raises:
+            RuntimeError: If propagation fails due to invalid TLE
+            or numerical instability
         """
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
 
-        ts = get_timescale()
-        t = ts.ut1_jd(julian_dates)
+        try:
+            ts = get_timescale()
+            t = ts.ut1_jd(julian_dates)
 
-        # Set up observer and FOV vectors
-        curr_pos = wgs84.latlon(latitude, longitude, elevation)
-        icrf = coordinate_systems.radec2icrf(fov_center[0], fov_center[1]).reshape(3, 1)
+            # Set up observer and FOV vectors
+            curr_pos = wgs84.latlon(latitude, longitude, elevation)
+            icrf = coordinate_systems.radec2icrf(fov_center[0], fov_center[1]).reshape(
+                3, 1
+            )
 
-        # Create satellite and get positions
-        satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
-        difference = satellite - curr_pos
-        topocentric = difference.at(t)
-        topocentricn = topocentric.position.km / np.linalg.norm(
-            topocentric.position.km, axis=0, keepdims=True
-        )
+            # Create satellite and get positions
+            satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
+            difference = satellite - curr_pos
+            topocentric = difference.at(t)
+            position_norm = np.linalg.norm(
+                topocentric.position.km, axis=0, keepdims=True
+            )
+            if np.any(position_norm == 0):
+                raise RuntimeError("Zero magnitude position vector detected")
 
-        # Vectorized angle calculation
-        sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
-        in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
+            topocentricn = topocentric.position.km / position_norm
 
-        if not np.any(in_fov_mask):
-            return []
+            # Vectorized angle calculation
+            sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
+            in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
 
-        # Get alt/az for points in FOV
-        alt, az, distance = topocentric.altaz()
-        fov_indices = np.where(in_fov_mask)[0]
+            if not np.any(in_fov_mask):
+                return []
 
-        # Vectorized creation of results
-        positions = topocentricn[:, fov_indices]
-        ra_decs = np.array([coordinate_systems.icrf2radec(pos) for pos in positions.T])
+            # Get alt/az for points in FOV
+            alt, az, distance = topocentric.altaz()
+            fov_indices = np.where(in_fov_mask)[0]
 
-        return [
-            {
-                "ra": ra_dec[0],
-                "dec": ra_dec[1],
-                "altitude": float(alt._degrees[idx]),
-                "azimuth": float(az._degrees[idx]),
-                "range_km": float(distance.km[idx]),
-                "julian_date": julian_dates[idx],
-                "angle": np.degrees(sat_fov_angles[idx]),
-            }
-            for idx, ra_dec in zip(fov_indices, ra_decs)
-        ]
+            # Vectorized creation of results
+            positions = topocentricn[:, fov_indices]
+            ra_decs = np.array(
+                [coordinate_systems.icrf2radec(pos) for pos in positions.T]
+            )
+
+            return [
+                {
+                    "ra": ra_dec[0],
+                    "dec": ra_dec[1],
+                    "altitude": float(alt._degrees[idx]),
+                    "azimuth": float(az._degrees[idx]),
+                    "range_km": float(distance.km[idx]),
+                    "julian_date": julian_dates[idx],
+                    "angle": np.degrees(sat_fov_angles[idx]),
+                }
+                for idx, ra_dec in zip(fov_indices, ra_decs)
+            ]
+
+        except Exception as e:
+            raise RuntimeError(f"FOV propagation failed: {str(e)}") from e
 
 
 def process_satellite_batch(args):
@@ -731,14 +780,15 @@ class KroghPropagationStrategy(BasePropagationStrategy):
         self.sigma_points_dict = None
         self.interpolated_splines = None
 
-    def load_ephemeris(self, ephemeris_file: str) -> None:
+    def load_ephemeris(self, ephemeris: InterpolableEphemeris) -> None:
         """
         Load and parse ephemeris data from a file.
 
         Args:
-            ephemeris_file: Path to the ephemeris file
+            sat_number: Satellite NORAD number
+            epoch: Epoch time for the ephemeris
         """
-        self.ephemeris_data = self._parse_ephemeris_file(ephemeris_file)
+        self.ephemeris_data = ephemeris
         self.sigma_points_dict = self._generate_and_propagate_sigma_points(
             self.ephemeris_data
         )
@@ -791,14 +841,12 @@ class KroghPropagationStrategy(BasePropagationStrategy):
             )
 
             # Convert to satellite position format
-            # Note: Some fields may be None as they're not available from
-            # Krogh interpolation
             results.append(
                 satellite_position(
                     ra=mean_state[0],  # Assuming first component is RA
                     dec=mean_state[1],  # Assuming second component is Dec
-                    dracosdec=None,  # Not available from Krogh interpolation
-                    ddec=None,  # Not available from Krogh interpolation
+                    dracosdec=None,  # Now calculated from velocity
+                    ddec=None,  # Now calculated from velocity
                     alt=None,  # Not available from Krogh interpolation
                     az=None,  # Not available from Krogh interpolation
                     distance=None,  # Not available from Krogh interpolation
@@ -807,116 +855,15 @@ class KroghPropagationStrategy(BasePropagationStrategy):
                     illuminated=None,  # Not available from Krogh interpolation
                     satellite_gcrs=mean_state[:3].tolist(),  # Position components
                     observer_gcrs=None,  # Not available from Krogh interpolation
-                    julian_date=jd,
+                    julian_date=float(jd),  # Ensure jd is a float
                 )
             )
 
         return results
 
-    def _parse_ephemeris_file(self, filename: str) -> dict:
-        """
-        Parse a satellite ephemeris file in UVW frame format.
-
-        The file format is expected to be:
-        - First 3 lines: Header information in key:value format
-        - Line 4: Must contain 'UVW' to specify the coordinate frame
-        - Remaining lines: State vectors and covariance matrices in blocks of 4 lines:
-          * Line 1: Timestamp (YYYYDDDHHMMSSmmm) and state vector
-          (position and velocity)
-          * Lines 2-4: Lower triangular portion of 6x6 covariance matrix
-
-        Args:
-            filename (str): Path to the ephemeris file
-
-        Returns:
-            dict: A dictionary containing:
-                - headers (dict): Key-value pairs from the file header
-                - timestamps (np.ndarray): Array of datetime objects
-                - positions (np.ndarray): Array of position vectors in UVW frame
-                - velocities (np.ndarray): Array of velocity vectors in UVW frame
-                - covariances (np.ndarray): Array of 6x6 covariance matrices
-
-        Raises:
-            ValueError: If the file doesn't specify UVW frame or has invalid format
-            FileNotFoundError: If the file doesn't exist
-            IndexError: If the file has an invalid format or is truncated
-        """
-        with open(filename) as f:
-            lines = f.readlines()
-
-        headers = {}
-        for i in range(3):
-            line = lines[i].strip()
-            if ":" in line:
-                key, value = line.split(":", 1)
-                headers[key] = value.strip()
-            if " " in line:
-                parts = line.split()
-                for part in parts:
-                    if ":" in part:
-                        key, value = part.split(":", 1)
-                        headers[key] = value.strip()
-
-        if lines[3].strip() != "UVW":
-            raise ValueError("Expected UVW frame specification")
-
-        timestamps = []
-        positions = []
-        velocities = []
-        covariances_uwv = []
-
-        i = 4
-        while i < len(lines):
-            state_parts = lines[i].strip().split()
-
-            # Parse timestamp
-            timestamp_str = state_parts[0]
-            year = int(timestamp_str[:4])
-            day_of_year = int(timestamp_str[4:7])
-            hour = int(timestamp_str[7:9])
-            minute = int(timestamp_str[9:11])
-            second = int(timestamp_str[11:13])
-            millisec = int(timestamp_str[14:17])
-
-            timestamp = datetime(year, 1, 1).replace(
-                hour=hour, minute=minute, second=second, microsecond=millisec * 1000
-            ) + timedelta(days=day_of_year - 1)
-
-            # Parse position and velocity
-            pos = np.array([np.float64(x) for x in state_parts[1:4]])
-            vel = np.array([np.float64(x) for x in state_parts[4:7]])
-
-            # Parse covariance
-            cov_values = []
-            for j in range(3):
-                cov_values.extend(
-                    [np.float64(x) for x in lines[i + 1 + j].strip().split()]
-                )
-
-            cov_matrix_uwv = np.zeros((6, 6), dtype=np.float64)
-            idx = 0
-            for row in range(6):
-                for col in range(row + 1):
-                    cov_matrix_uwv[row, col] = cov_values[idx]
-                    cov_matrix_uwv[col, row] = cov_values[idx]
-                    idx += 1
-
-            timestamps.append(timestamp)
-            positions.append(pos)
-            velocities.append(vel)
-            covariances_uwv.append(cov_matrix_uwv)
-
-            i += 4
-
-        return {
-            "headers": headers,
-            "timestamps": np.array(timestamps),
-            "positions": np.array(positions, dtype=np.float64),
-            "velocities": np.array(velocities, dtype=np.float64),
-            "covariances": np.array(covariances_uwv, dtype=np.float64),
-        }
-
-    def _generate_and_propagate_sigma_points(self, data: dict) -> dict:
+    def _generate_and_propagate_sigma_points(
+        self, ephemeris: InterpolableEphemeris
+    ) -> dict:
         """
         Generate and propagate sigma points using the Unscented Transform for improved
         numerical stability.
@@ -932,16 +879,12 @@ class KroghPropagationStrategy(BasePropagationStrategy):
         - kappa = 3-n (modified for better stability)
 
         Args:
-            data (dict): Dictionary containing ephemeris data with keys:
-                - timestamps (np.ndarray): Array of datetime objects
-                - positions (np.ndarray): Array of position vectors
-                - velocities (np.ndarray): Array of velocity vectors
-                - covariances (np.ndarray): Array of 6x6 covariance matrices
+            ephemeris (InterpolableEphemeris): The ephemeris data containing state
+            vectors and covariance matrices.
 
         Returns:
             dict: A dictionary mapping Julian dates to sigma point information:
-                - sigma_points (np.ndarray): Array of 13 sigma points
-                (6D state vectors)
+                - sigma_points (np.ndarray): Array of 13 sigma points (6D state vectors)
                 - weights (dict): Dictionary containing mean and covariance weights
                 - epoch (datetime): Timestamp for these sigma points
                 - state_vector (np.ndarray): Original state vector
@@ -962,11 +905,24 @@ class KroghPropagationStrategy(BasePropagationStrategy):
         try:
             # Use high precision for Julian date conversion
             julian_dates = np.array(
-                [julian.to_jd(ts) for ts in data["timestamps"]], dtype=np.float64
+                [float(julian.to_jd(point.timestamp)) for point in ephemeris.points],
+                dtype=np.float64,
             )
 
-            state_vectors = np.hstack((data["positions"], data["velocities"]))
-            covariances = data["covariances"]
+            # Stack positions and velocities into state vectors
+            state_vectors = np.hstack(
+                (
+                    np.array(
+                        [point.position for point in ephemeris.points], dtype=np.float64
+                    ),
+                    np.array(
+                        [point.velocity for point in ephemeris.points], dtype=np.float64
+                    ),
+                )
+            )
+            covariances = np.array(
+                [point.covariance for point in ephemeris.points], dtype=np.float64
+            )
 
             sigma_points_dict = {}
 
@@ -988,9 +944,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):
                 "covariance": {"w0": w0_c, "wn": wn_c},
             }
 
-            for idx, (jd, timestamp) in enumerate(
-                zip(julian_dates, data["timestamps"])
-            ):
+            for idx, (jd, point) in enumerate(zip(julian_dates, ephemeris.points)):
                 try:
                     state_vector = state_vectors[idx]
                     covariance = covariances[idx]
@@ -1013,26 +967,28 @@ class KroghPropagationStrategy(BasePropagationStrategy):
 
                     all_sigma_points = np.vstack([sigma_0, sigma_n.T, sigma_2n.T])
 
-                    sigma_points_dict[jd] = {
+                    sigma_points_dict[float(jd)] = {  # Ensure jd is a float
                         "sigma_points": all_sigma_points,
                         "weights": weights,
-                        "epoch": timestamp,
+                        "epoch": point.timestamp,
                         "state_vector": state_vector,
                         "covariance": covariance,
                     }
 
                 except Exception as e:
-                    print(f"Warning: Failed to process timestamp {timestamp}: {str(e)}")
+                    print(
+                        f"Warning: Failed to process timestamp "
+                        f"{point.timestamp}: {str(e)}"
+                    )
                     continue
 
             if not sigma_points_dict:
-                raise ValueError("No sigma points were successfully generated")
+                raise ValueError("No sigma points could be generated successfully")
 
             return sigma_points_dict
 
         except Exception as e:
-            print(f"Error in generate_and_propagate_sigma_points: {str(e)}")
-            raise
+            raise ValueError(f"Failed to generate sigma points: {str(e)}") from e
 
     def _create_chunked_krogh_interpolator(
         self, x: np.ndarray, y: np.ndarray, chunk_size: int = 14, overlap: int = 8
