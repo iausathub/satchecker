@@ -15,6 +15,10 @@ from api.services.cache_service import (
     set_cached_data,
 )
 from api.utils import coordinate_systems, output_utils
+from api.utils.propagation_strategies import (
+    FOVParallelPropagationStrategy,
+    # FOVPropagationStrategy,
+)
 from api.utils.time_utils import astropy_time_to_datetime_utc
 
 logger = logging.getLogger(__name__)
@@ -35,10 +39,42 @@ def get_satellite_passes_in_fov(
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
+    """
+    Get all satellite passes in the field of view.
+
+    Args:
+        tle_repo: Repository for TLE data
+        location: Observer's location
+        mid_obs_time_jd: Middle observation time (as Time object)
+        start_time_jd: Start time (as Time object)
+        duration: Duration in seconds
+        ra: Right ascension of FOV center in degrees
+        dec: Declination of FOV center in degrees
+        fov_radius: Radius of FOV in degrees
+        group_by: Grouping strategy ('satellite' or 'time')
+        include_tles: Whether to include TLE data in results
+        skip_cache: Whether to skip cache and force recalculation
+        api_source: Source of the API call
+        api_version: Version of the API
+
+    Returns:
+        dict: Formatted results either grouped by satellite or chronologically
+    """
     start_time = python_time.time()
     logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
     logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
     logger.info(f"Duration: {duration} seconds")
+    logger.info(
+        f"Location: lat={location.lat.value}°, "
+        f"lon={location.lon.value}°, "
+        f"height={location.height.value}m"
+    )
+    logger.info(
+        f"Time parameters: mid_obs_time={mid_obs_time_jd}, start_time={start_time_jd}"
+    )
+    logger.info(
+        f"Group by: {group_by}, Include TLEs: {include_tles}, Skip cache: {skip_cache}"
+    )
 
     # Create cache key and check cache
     cache_key = create_fov_cache_key(
@@ -84,15 +120,21 @@ def get_satellite_passes_in_fov(
     # Get all current TLEs
     tle_start = python_time.time()
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
-    tles, count, _ = tle_repo.get_all_tles_at_epoch(
-        astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
-    )
+    logger.info(f"Fetching TLEs for epoch: {astropy_time_to_datetime_utc(time_param)}")
+
+    try:
+        tles, count, _ = tle_repo.get_all_tles_at_epoch(
+            astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
+        )
+        logger.info(f"Successfully retrieved {count} TLEs")
+    except Exception as e:
+        logger.error(f"Failed to retrieve TLEs: {str(e)}", exc_info=True)
+        raise
 
     tle_time = python_time.time() - tle_start
     logger.info(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
 
     # Pre-compute time arrays and constants
-    ts = load.timescale()
     time_step = 1 / 86400  # 1 second
     duration_jd = duration / 86400
 
@@ -109,96 +151,42 @@ def get_satellite_passes_in_fov(
             start_time_jd.jd + duration_jd,
             time_step,
         )
-    t = ts.ut1_jd(jd_times)
     logger.info(f"Checking {len(jd_times)} time points")
 
-    # Set up observer and FOV vectors once
-    curr_pos = wgs84.latlon(
-        location.lat.value, location.lon.value, location.height.value
-    )
-    icrf = coordinate_systems.radec2icrf(ra, dec).reshape(3, 1)
-
     all_results = []
-    satellites_processed = 0
     points_in_fov = 0
-    total_sat_time = 0.0
+    satellites_processed = 0
 
-    for tle in tles:
-        sat_start = python_time.time()
-        try:
-            satellite = EarthSatellite(tle.tle_line1, tle.tle_line2, ts=ts)
-            difference = satellite - curr_pos
-            topocentric = difference.at(t)
-            topocentricn = topocentric.position.km / np.linalg.norm(
-                topocentric.position.km, axis=0, keepdims=True
+    # Create propagation strategy
+    prop_strategy = FOVParallelPropagationStrategy()
+
+    try:
+        logger.info("Starting parallel propagation with batch size 250")
+        results, execution_time, satellites_processed = prop_strategy.propagate(
+            all_tles=tles,
+            jd_times=jd_times,
+            location=location,
+            fov_center=(ra, dec),
+            fov_radius=fov_radius,
+            batch_size=250,
+            include_tles=include_tles,
+        )
+
+        # Add all valid results to the final output
+        if results:
+            all_results.extend(results)
+            points_in_fov = len(results)
+            logger.info(
+                f"Propagation completed successfully with {points_in_fov} points in FOV"
             )
+        else:
+            logger.warning("Propagation completed but returned no results")
 
-            # Vectorized angle calculation
-            sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
-            in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
-
-            if np.any(in_fov_mask):  # Only get alt/az if satellite is ever in FOV
-                alt, az, distance = topocentric.altaz()
-                fov_indices = np.where(in_fov_mask)[0]
-
-                # Vectorized creation of results
-                positions = topocentricn[:, fov_indices]
-                ra_decs = np.array(
-                    [coordinate_systems.icrf2radec(pos) for pos in positions.T]
-                )
-
-                results = [
-                    {
-                        "ra": ra_dec[0],
-                        "dec": ra_dec[1],
-                        "altitude": float(alt._degrees[idx]),
-                        "azimuth": float(az._degrees[idx]),
-                        "range_km": float(distance.km[idx]),
-                        "name": tle.satellite.sat_name,
-                        "norad_id": tle.satellite.sat_number,
-                        "julian_date": jd_times[idx],
-                        "angle": np.degrees(sat_fov_angles[idx]),
-                        "tle_epoch": output_utils.format_date(tle.epoch),
-                        **(
-                            {
-                                "tle_data": {
-                                    "tle_line1": tle.tle_line1,
-                                    "tle_line2": tle.tle_line2,
-                                    "source": tle.data_source,
-                                }
-                            }
-                            if include_tles
-                            else {}
-                        ),
-                    }
-                    for idx, ra_dec in zip(fov_indices, ra_decs)
-                ]
-
-                all_results.extend(results)
-                points_in_fov += len(results)
-                logger.debug(
-                    f"Found {len(results)} points in FOV for satellite "
-                    f"{tle.satellite.sat_name} (NORAD ID: {tle.satellite.sat_number})"
-                )
-
-            sat_time = python_time.time() - sat_start
-            total_sat_time += sat_time
-            satellites_processed += 1
-
-            if satellites_processed % 100 == 0:
-                elapsed = python_time.time() - start_time
-                avg_sat_time = total_sat_time / satellites_processed
-                logger.info(
-                    f"Processed {satellites_processed}/{count} satellites in "
-                    f"{elapsed:.2f} seconds"
-                )
-                logger.info(f"Average time per satellite: {avg_sat_time:.3f} seconds")
-                logger.info(f"Found {points_in_fov} points in FOV so far")
-
-        except Exception as e:
-            logger.error(f"Error processing TLE {tle.satellite.sat_name}: {e}")
-            satellites_processed += 1
-            continue
+    except Exception as e:
+        logger.error(f"Error in parallel FOV processing: {str(e)}", exc_info=True)
+        logger.error(f"Failed after processing {satellites_processed} satellites")
+        satellites_processed = 0  # Set a default value in case of error
+        raise
 
     end_time = python_time.time()
     total_time = end_time - start_time
@@ -223,7 +211,7 @@ def get_satellite_passes_in_fov(
     performance_metrics = {
         "total_time": round(total_time, 3),
         "tle_time": round(tle_time, 3),
-        "propagation_time": round(prop_time, 3),
+        "propagation_time": round(execution_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),
@@ -237,6 +225,20 @@ def get_satellite_passes_in_fov(
                     f"Found None value in result {idx}, field {key} before returning"
                 )
 
+    try:
+        json_result: dict[str, Any] = output_utils.fov_data_to_json(
+            all_results,
+            points_in_fov,
+            performance_metrics,
+            api_source,
+            api_version,
+            group_by,
+        )
+        logger.info("Successfully formatted results to JSON")
+    except Exception as e:
+        logger.error(f"Failed to format results to JSON: {str(e)}", exc_info=True)
+        raise
+
     # Cache only the raw results and points_in_fov
     cache_data = {
         "results": all_results,
@@ -245,16 +247,14 @@ def get_satellite_passes_in_fov(
     logger.info(
         f"Caching {len(all_results)} results with {points_in_fov} points in FOV"
     )
-    set_cached_data(cache_key, cache_data)
+    try:
+        set_cached_data(cache_key, cache_data)
+        logger.info("Successfully cached results")
+    except Exception as e:
+        logger.error(f"Failed to cache results: {str(e)}", exc_info=True)
+        # Don't raise here as caching is not critical
 
-    return output_utils.fov_data_to_json(
-        all_results,
-        points_in_fov,
-        performance_metrics,
-        api_source,
-        api_version,
-        group_by,
-    )
+    return json_result
 
 
 def get_satellites_above_horizon(
@@ -276,8 +276,14 @@ def get_satellites_above_horizon(
         location: Observer's location
         time_jd: Time to check (as Time object)
         min_altitude: Minimum altitude in degrees (default: 0.0 = horizon)
+        min_range: Minimum range in kilometers
+        max_range: Maximum range in kilometers
+        illuminated_only: Whether to only return illuminated satellites
         api_source: Source of the API call
         api_version: Version of the API
+
+    Returns:
+        dict: Formatted results containing satellite positions and metadata
     """
     start_time = python_time.time()
     print(f"\nStarting horizon check at: {datetime.now().isoformat()}")
@@ -331,7 +337,7 @@ def get_satellites_above_horizon(
                     )
                     if not illuminated:
                         continue
-                result = {
+                position = {
                     "ra": ra_sat,
                     "dec": dec_sat,
                     "altitude": float(alt._degrees[0]),
@@ -342,7 +348,7 @@ def get_satellites_above_horizon(
                     "range_km": float(distance.km[0]),
                     "tle_epoch": output_utils.format_date(tle.epoch),
                 }
-                all_results.append(result)
+                all_results.append(position)
                 visible_satellites += 1
 
             satellites_processed += 1
@@ -369,6 +375,12 @@ def get_satellites_above_horizon(
         "visible_satellites": visible_satellites,
     }
 
-    return output_utils.fov_data_to_json(
-        all_results, count, performance_metrics, api_source, api_version, "time"
+    result: dict[str, Any] = output_utils.fov_data_to_json(
+        all_results,
+        visible_satellites,
+        performance_metrics,
+        api_source,
+        api_version,
+        "time",
     )
+    return result

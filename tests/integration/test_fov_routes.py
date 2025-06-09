@@ -40,19 +40,42 @@ def test_get_satellite_passes_in_fov_missing_parameters(client, services_availab
     ],
 )
 def test_get_satellites_above_horizon(
-    client, services_available, min_altitude, expected_code
+    client, session, services_available, min_altitude, expected_code
 ):
-    # Base URL
+    """Test get_satellites_above_horizon with different minimum altitudes."""
+    # Create a satellite and TLE for testing
+    satellite = SatelliteFactory(
+        sat_name="TEST-SAT",
+        sat_number="12345",
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    tle = TLEFactory(satellite=satellite)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    # Base URL with required parameters
     url = "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
 
+    # Add min_altitude if provided
     if min_altitude is not None:
         url += f"&min_altitude={min_altitude}"
 
     response = client.get(url)
     assert response.status_code == expected_code
 
+    if response.status_code == 200:
+        assert "data" in response.json
+        assert "total_position_results" in response.json
+        assert "source" in response.json
+        assert "version" in response.json
+        assert "performance" in response.json
+
 
 def test_get_satellites_above_horizon_missing_parameters(client, services_available):
+    """Test get_satellites_above_horizon with missing required parameters."""
+    # Test missing elevation parameter
     response = client.get(
         "/fov/satellites-above-horizon/?latitude=0&longitude=0&julian_date=2459000.5"
     )

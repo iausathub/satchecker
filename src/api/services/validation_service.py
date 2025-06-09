@@ -133,7 +133,9 @@ def validate_parameters(
             ]
 
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'julian_date'"
+            ) from e
 
     if "startjd" in parameters.keys() and "stopjd" in parameters.keys():
         try:
@@ -159,7 +161,9 @@ def validate_parameters(
             if isinstance(e, ValidationError):
                 raise e
             else:
-                raise ValidationError(500, error_messages.INVALID_JD, e) from e
+                raise ValidationError(
+                    500, error_messages.INVALID_JD + " - 'startjd' or 'stopjd'", e
+                ) from e
 
     if "data_source" in parameters.keys():
         parameters["data_source"] = (
@@ -168,7 +172,11 @@ def validate_parameters(
             else "any"
         )
         if parameters["data_source"] not in ["celestrak", "spacetrack", "any"]:
-            raise ValidationError(500, error_messages.INVALID_SOURCE)
+            raise ValidationError(
+                500,
+                error_messages.INVALID_SOURCE
+                + " - data_source must be 'celestrak', 'spacetrack', or 'any'",
+            )
 
     if "tle" in parameters.keys():
         parameters["tle"] = parse_tle(parameters["tle"])
@@ -179,7 +187,11 @@ def validate_parameters(
 
     if "id_type" in parameters.keys():
         if parameters["id_type"] not in ["catalog", "name"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " id_type must be 'catalog' or 'name'",
+            )
 
         # Special case for get-adjacent-tles endpoint
         if (
@@ -208,7 +220,9 @@ def validate_parameters(
                 .replace(tzinfo=timezone.utc)
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'end_date_jd'", e
+            ) from e
 
     if "start_date_jd" in parameters.keys() and parameters["start_date_jd"] is not None:
         try:
@@ -218,7 +232,9 @@ def validate_parameters(
                 .replace(tzinfo=timezone.utc)
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'start_date_jd'", e
+            ) from e
 
     # If either mid_obs_time_jd or start_time_jd is provided, use the appropriate one
 
@@ -251,7 +267,11 @@ def validate_parameters(
                 parameters[time_param], format="jd", scale="ut1"
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500,
+                error_messages.INVALID_JD + " - 'mid_obs_time_jd' or 'start_time_jd'",
+                e,
+            ) from e
 
     if "epoch" in parameters.keys() and parameters["epoch"] is not None:
         try:
@@ -261,7 +281,9 @@ def validate_parameters(
                 .replace(tzinfo=timezone.utc)
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'epoch'", e
+            ) from e
 
     if "ra" in parameters.keys() and parameters["ra"] is not None:
         parameters["ra"] = float(parameters["ra"])
@@ -279,7 +301,11 @@ def validate_parameters(
         if parameters["count_before"] is not None:
             try:
                 if int(parameters["count_before"]) < 0:
-                    raise ValidationError(500, error_messages.INVALID_PARAMETER)
+                    raise ValidationError(
+                        500,
+                        error_messages.INVALID_PARAMETER
+                        + " count_before must be greater than 0",
+                    )
                 parameters["count_before"] = int(parameters["count_before"])
             except Exception as e:
                 raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
@@ -290,7 +316,11 @@ def validate_parameters(
         if parameters["count_after"] is not None:
             try:
                 if int(parameters["count_after"]) < 0:
-                    raise ValidationError(500, error_messages.INVALID_PARAMETER)
+                    raise ValidationError(
+                        500,
+                        error_messages.INVALID_PARAMETER
+                        + " count_after must be greater than 0",
+                    )
                 parameters["count_after"] = int(parameters["count_after"])
             except Exception as e:
                 raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
@@ -311,17 +341,29 @@ def validate_parameters(
         )
 
         if parameters["group_by"] not in ["satellite", "time"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " group_by must be 'satellite' or 'time'",
+            )
 
     if "include_tles" in parameters.keys() and parameters["include_tles"] is not None:
         if parameters["include_tles"] not in ["true", "false"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " include_tles must be 'true' or 'false'",
+            )
 
         parameters["include_tles"] = parameters["include_tles"].lower() == "true"
 
     if "skip_cache" in parameters.keys() and parameters["skip_cache"] is not None:
         if parameters["skip_cache"] not in ["true", "false"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " skip_cache must be 'true' or 'false'",
+            )
 
         parameters["skip_cache"] = parameters["skip_cache"].lower() == "true"
 
@@ -330,7 +372,11 @@ def validate_parameters(
         and parameters["illuminated_only"] is not None
     ):
         if parameters["illuminated_only"] not in ["true", "false"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " illuminated_only must be 'true' or 'false'",
+            )
 
         parameters["illuminated_only"] = (
             parameters["illuminated_only"].lower() == "true"
@@ -345,7 +391,12 @@ def validate_parameters(
             "tba",
             "unknown",
         ]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " object_type must be 'payload', 'debris', 'rocket body', "
+                "'tba', or 'unknown'",
+            )
 
     try:
         if "min_range" in parameters:

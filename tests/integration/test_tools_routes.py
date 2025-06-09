@@ -522,6 +522,90 @@ def test_get_active_satellites(client, services_available):
     assert response.status_code == 400
 
 
+def test_get_starlink_generations(client, services_available):
+    satellite = SatelliteFactory(
+        sat_name="starlink1",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 10),
+        generation="gen1",
+    )
+    satellite2 = SatelliteFactory(
+        sat_name="starlink2",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 20),
+        generation="gen1",
+    )
+    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
+    sat_repo.add(satellite)
+    sat_repo.add(satellite2)
+    db.session.commit()
+
+    response = client.get("/tools/get-starlink-generations/")
+    assert response.status_code == 200
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["generation"] == "gen1"
+
+
+def test_get_starlink_generations_empty(client, session, services_available):
+    """Test get_starlink_generations with no Starlink satellites in database."""
+    # Ensure no Starlink satellites exist
+    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(session)
+    response = client.get("/tools/get-starlink-generations/")
+    assert response.status_code == 200
+    assert response.json["count"] == 0
+    assert response.json["data"] == []
+
+
+def test_get_starlink_generations_invalid_data(client, session, services_available):
+    """Test get_starlink_generations with invalid satellite data."""
+    # Create a satellite with invalid generation data
+    satellite = SatelliteFactory(
+        sat_name="invalid_starlink",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 10),
+        generation=None,  # Invalid generation
+    )
+    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(session)
+    sat_repo.add(satellite)
+    session.commit()
+
+    response = client.get("/tools/get-starlink-generations/")
+    assert response.status_code == 200
+    # Should still return valid response, just without the invalid satellite
+    assert isinstance(response.json["count"], int)
+    assert isinstance(response.json["data"], list)
+
+
+def test_get_starlink_generations_multiple_generations(
+    client, session, services_available
+):
+    """Test get_starlink_generations with multiple generations."""
+    # Create satellites from different generations
+    gen1_sat = SatelliteFactory(
+        sat_name="starlink_gen1",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 10),
+        generation="gen1",
+    )
+    gen2_sat = SatelliteFactory(
+        sat_name="starlink_gen2",
+        has_current_sat_number=True,
+        launch_date=datetime(2020, 5, 10),
+        generation="gen2",
+    )
+    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(session)
+    sat_repo.add(gen1_sat)
+    sat_repo.add(gen2_sat)
+    session.commit()
+
+    response = client.get("/tools/get-starlink-generations/")
+    assert response.status_code == 200
+    assert response.json["count"] == 2
+    generations = [gen["generation"] for gen in response.json["data"]]
+    assert "gen1" in generations
+    assert "gen2" in generations
+
+
 def test_rate_limiting(client, session, services_available):
     """Test rate limiting on a TLE endpoint."""
     epoch = datetime.now()
@@ -548,3 +632,18 @@ def test_rate_limiting(client, session, services_available):
     time.sleep(5)
     response = client.get(url)
     assert response.status_code == 200
+
+
+def test_get_starlink_generations_db_error(client, session, mocker, services_available):
+    """Test get_starlink_generations with repository connection error."""
+    # Mock the repository's get_starlink_generations method to raise an exception
+    mocker.patch.object(
+        satellite_repository.SqlAlchemySatelliteRepository,
+        "get_starlink_generations",
+        side_effect=Exception("Simulated database connection failure"),
+    )
+
+    response = client.get("/tools/get-starlink-generations/")
+    assert response.status_code == 500
+    assert response.json["error"] == "Internal server error"
+    assert "message" in response.json

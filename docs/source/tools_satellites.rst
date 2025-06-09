@@ -236,3 +236,70 @@ by object type - "PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", or "UNKNOWN".
             "source": "IAU CPS SatChecker",
             "version": "1.X.x"
         }
+
+Retrieve Starlink generations
+---------------------------------------------------------------
+
+This endpoint retrieves all Starlink generations from the database, including their earliest and latest launch dates.
+
+**Endpoint**
+
+.. http:get:: /tools/get-starlink-generations/
+
+    **Example Request**
+
+    .. tabs::
+
+        .. tab:: Browser
+
+            https://satchecker.cps.iau.org/tools/get-starlink-generations/
+
+        .. code-tab:: Python
+
+            import requests
+            import json
+
+            url = 'https://satchecker.cps.iau.org/tools/get-starlink-generations/'
+
+            r = requests.get(url, params=params)
+            print(json.dumps(r.json(), indent=4))
+
+        .. tab:: Bash
+
+            curl -X GET "https://satchecker.cps.iau.org/tools/get-starlink-generations/" -H "accept: application/json"
+
+        .. tab:: Powershell
+
+            curl.exe -X GET "https://satchecker.cps.iau.org/tools/get-starlink-generations/" -H "accept: application/json"
+
+    **Example Response**
+
+    .. sourcecode:: json
+
+        {
+            "count": 4,
+            "data": [
+                {
+                    "earliest_launch_date": "2019-05-24 00:00:00 UTC",
+                    "generation": "v0.9",
+                    "latest_launch_date": "2019-05-24 00:00:00 UTC"
+                },
+                {
+                    "earliest_launch_date": "2019-11-11 00:00:00 UTC",
+                    "generation": "v1",
+                    "latest_launch_date": "2021-05-26 00:00:00 UTC"
+                },
+                {
+                    "earliest_launch_date": "2021-06-30 00:00:00 UTC",
+                    "generation": "v1.5",
+                    "latest_launch_date": "2023-07-16 00:00:00 UTC"
+                },
+                {
+                    "earliest_launch_date": "2023-02-27 00:00:00 UTC",
+                    "generation": "v2 mini",
+                    "latest_launch_date": "2025-05-28 00:00:00 UTC"
+                }
+            ],
+            "source": "IAU CPS SatChecker",
+            "version": "1.X.x"
+        }
