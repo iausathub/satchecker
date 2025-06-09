@@ -145,9 +145,9 @@ def position_data_to_json(
 
 
 def fov_data_to_json(
-    results: list,
+    results: list[dict[str, Any]],
     points_in_fov: int,
-    performance_metrics: dict,
+    performance_metrics: dict[str, Any],
     api_source: str,
     api_version: str,
     group_by: str,
@@ -186,6 +186,7 @@ def fov_data_to_json(
                 result["date_time"] = format_date(
                     Time(value, format="jd").to_datetime()
                 )
+    formatted_results: dict[str, Any]
 
     if group_by == "satellite":
         # Group passes by satellite
@@ -239,7 +240,7 @@ def fov_data_to_json(
         # Original chronological format
         formatted_results = {
             "data": results,
-            "count": len(results),  # type: ignore[dict-item]
+            "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,
             "version": api_version,

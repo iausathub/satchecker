@@ -2,19 +2,13 @@
 
 from datetime import datetime, timezone
 
-import pytest
 from src.api.adapters.database_orm import SatelliteDb
 from src.api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from tests.conftest import cannot_connect_to_services
 from tests.factories import SatelliteFactory
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
 def test_get_satellite_by_id(session):
     repository = SqlAlchemySatelliteRepository(session)
     satellite = SatelliteFactory(sat_name="ISS")
@@ -26,11 +20,7 @@ def test_get_satellite_by_id(session):
     assert repo_sat.sat_name == "ISS"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_by_id_no_match(session):
+def test_get_satellite_by_id_no_match(session, services_available):
     repository = SqlAlchemySatelliteRepository(session)
     session.commit()
 
@@ -38,11 +28,7 @@ def test_get_satellite_by_id_no_match(session):
     assert repo_sat is None
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_add_satellite(session):
+def test_add_satellite(session, services_available):
     repository = SqlAlchemySatelliteRepository(session)
     satellite = SatelliteFactory(sat_name="ISS")
     satellite_number = satellite.sat_number
@@ -53,11 +39,7 @@ def test_add_satellite(session):
     assert repo_sat.sat_name == "ISS"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_by_id_multiple(session):
+def test_get_satellite_by_id_multiple(session, services_available):
     repository = SqlAlchemySatelliteRepository(session)
     satellite1 = SatelliteFactory(
         sat_name="TBA", sat_number=1, has_current_sat_number=False
@@ -78,11 +60,7 @@ def test_get_satellite_by_id_multiple(session):
     assert repo_sat.sat_name == "ISS"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_starlink_generations(session):
+def test_get_starlink_generations(session, services_available):
     repository = SqlAlchemySatelliteRepository(session)
 
     generations = repository.get_starlink_generations()

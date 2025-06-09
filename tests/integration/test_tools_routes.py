@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 import pytest
 from astropy.time import Time
-from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
@@ -12,11 +11,7 @@ from api.adapters.repositories import satellite_repository, tle_repository
 from api.entrypoints.extensions import db
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tle_data(client, session):
+def test_get_tle_data(client, session, services_available):
     satellite = SatelliteFactory(sat_name="ISS")
 
     tle = TLEFactory(satellite=satellite)
@@ -28,22 +23,14 @@ def test_get_tle_data(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tle_data_no_match(client):
+def test_get_tle_data_no_match(client, services_available):
     response = client.get("/tools/get-tle-data/?id=ISS&id_type=name")
 
     assert response.status_code == 200
     assert response.json == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_names_from_norad_id(client):
+def test_get_names_from_norad_id(client, services_available):
     satellite = SatelliteFactory(sat_number="25544")
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
     sat_repo.add(satellite)
@@ -54,21 +41,13 @@ def test_get_names_from_norad_id(client):
     assert response.json[0]["norad_id"] == "25544"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_names_from_norad_id_no_match(client):
+def test_get_names_from_norad_id_no_match(client, services_available):
     response = client.get("/tools/names-from-norad-id/?id=25544")
     assert response.status_code == 200
     assert response.json == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_norad_ids_from_name(client):
+def test_get_norad_ids_from_name(client, services_available):
     satellite = SatelliteFactory(sat_name="ISS")
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
     sat_repo.add(satellite)
@@ -79,21 +58,13 @@ def test_get_norad_ids_from_name(client):
     assert response.json[0]["name"] == "ISS"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_norad_ids_from_name_no_match(client):
+def test_get_norad_ids_from_name_no_match(client, services_available):
     response = client.get("/tools/norad-ids-from-name/?name=ISS")
     assert response.status_code == 200
     assert response.json == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_data(client):
+def test_get_satellite_data(client, services_available):
     satellite = SatelliteFactory(sat_name="ISS")
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
     sat_repo.add(satellite)
@@ -104,21 +75,13 @@ def test_get_satellite_data(client):
     assert response.json[0]["satellite_name"] == "ISS"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_data_no_match(client):
+def test_get_satellite_data_no_match(client, services_available):
     response = client.get("/tools/get-satellite-data/?id=ISS&id_type=name")
     assert response.status_code == 200
     assert response.json == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_at_epoch(client, session):
+def test_get_tles_at_epoch(client, session, services_available):
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
@@ -145,11 +108,7 @@ def test_get_tles_at_epoch(client, session):
     assert len(response.json[0]["data"]) == 0
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_at_epoch_pagination(client, session):
+def test_get_tles_at_epoch_pagination(client, session, services_available):
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
@@ -167,11 +126,7 @@ def test_get_tles_at_epoch_pagination(client, session):
     assert tles[0]["satellite_name"] == "ISS"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_at_epoch_optional_epoch_date(client, session):
+def test_get_tles_at_epoch_optional_epoch_date(client, session, services_available):
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
@@ -191,11 +146,7 @@ def test_get_tles_at_epoch_optional_epoch_date(client, session):
     assert tles[0]["satellite_name"] == "ISS"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_at_epoch_zipped(client, session):
+def test_get_tles_at_epoch_zipped(client, session, services_available):
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
@@ -216,11 +167,7 @@ def test_get_tles_at_epoch_zipped(client, session):
     )
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_adjacent_tles(client, session):
+def test_get_adjacent_tles(client, session, services_available):
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
     )
@@ -240,11 +187,7 @@ def test_get_adjacent_tles(client, session):
     assert len(response.json[0]["tle_data"]) == 2
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_adjacent_tles_nonexistent_satellite(client, session):
+def test_get_adjacent_tles_nonexistent_satellite(client, session, services_available):
     """Test get_adjacent_tles with a satellite that doesn't exist."""
     epoch = datetime.now()
     epoch_jd = Time(epoch).jd
@@ -259,11 +202,7 @@ def test_get_adjacent_tles_nonexistent_satellite(client, session):
     assert len(response.json[0]["tle_data"]) == 0
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_adjacent_tles_errors(client, session):
+def test_get_adjacent_tles_errors(client, session, services_available):
     """Test get_adjacent_tles with various error conditions."""
     epoch = datetime.now()
     epoch_jd = Time(epoch).jd
@@ -300,11 +239,7 @@ def test_get_adjacent_tles_errors(client, session):
     assert "ValidationError" in response.json["error_type"]
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_nearest_tle(client, session):
+def test_get_nearest_tle(client, session, services_available):
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
     )
@@ -333,11 +268,7 @@ def test_get_nearest_tle(client, session):
     assert len(response.json[0]["tle_data"]) == 0
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_nearest_tle_nonexistent_satellite(client, session):
+def test_get_nearest_tle_nonexistent_satellite(client, session, services_available):
     """Test get_nearest_tle with a satellite that doesn't exist."""
     epoch = datetime.now()
     epoch_jd = Time(epoch).jd
@@ -352,52 +283,57 @@ def test_get_nearest_tle_nonexistent_satellite(client, session):
     assert len(response.json[0]["tle_data"]) == 0
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
+@pytest.mark.parametrize(
+    "params,status_code,expected_message,expected_error_type",
+    [
+        # Invalid id_type
+        (
+            {"id": "25544", "id_type": "invalid", "epoch": "2460000.5"},
+            400,
+            "Error",
+            None,
+        ),
+        # Missing id parameter
+        ({"id_type": "catalog", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        # Missing id_type parameter
+        ({"id": "25544", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        # Missing epoch parameter
+        ({"id": "25544", "id_type": "catalog"}, 400, "Missing parameter", None),
+        # Non-numeric epoch
+        (
+            {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
+            500,
+            None,
+            "ValidationError",
+        ),
+    ],
 )
-def test_get_nearest_tle_errors(client, session):
-    """Test get_nearest_tle with an invalid ID type."""
-    epoch = datetime.now()
-    epoch_jd = Time(epoch).jd
+def test_get_nearest_tle_errors(
+    client,
+    session,
+    params,
+    status_code,
+    expected_message,
+    expected_error_type,
+    services_available,
+):
+    """Test get_nearest_tle with various error conditions."""
 
-    # Use an invalid id_type
-    response = client.get(
-        f"/tools/get-nearest-tle/?id=25544&id_type=invalid&epoch={epoch_jd}"
-    )
+    query_string = "&".join([f"{key}={value}" for key, value in params.items()])
+    url = f"/tools/get-nearest-tle/?{query_string}"
 
-    # Should return a bad request status
-    assert response.status_code == 400
-    assert "Error" in response.json["message"]
+    response = client.get(url)
 
-    # Missing id parameter
-    response = client.get("/tools/get-nearest-tle/?id_type=catalog&epoch=2460000.5")
-    assert response.status_code == 400
-    assert "Missing parameter" in response.json["message"]
+    assert response.status_code == status_code
 
-    # Missing id_type parameter
-    response = client.get("/tools/get-nearest-tle/?id=25544&epoch=2460000.5")
-    assert response.status_code == 400
-    assert "Missing parameter" in response.json["message"]
+    if expected_message:
+        assert expected_message in response.json["message"]
 
-    # Missing epoch parameter
-    response = client.get("/tools/get-nearest-tle/?id=25544&id_type=catalog")
-    assert response.status_code == 400
-    assert "Missing parameter" in response.json["message"]
-
-    # Using a non-numeric value for epoch
-    response = client.get(
-        "/tools/get-nearest-tle/?id=25544&id_type=catalog&epoch=10-01-2024"
-    )
-    assert response.status_code == 500
-    assert "ValidationError" in response.json["error_type"]
+    if expected_error_type:
+        assert expected_error_type in response.json["error_type"]
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_nearest_tle_name_id_type(client, session):
+def test_get_nearest_tle_name_id_type(client, session, services_available):
     """Test get_nearest_tle with id_type=name."""
     # Create a satellite with a specific name
     satellite = SatelliteFactory(
@@ -419,11 +355,7 @@ def test_get_nearest_tle_name_id_type(client, session):
     assert response.json[0]["tle_data"][0]["satellite_name"] == "TEST_SAT"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_around_epoch(client, session):
+def test_get_tles_around_epoch(client, session, services_available):
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
     )
@@ -443,11 +375,9 @@ def test_get_tles_around_epoch(client, session):
     assert len(response.json[0]["tle_data"]) == 2
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_around_epoch_nonexistent_satellite(client, session):
+def test_get_tles_around_epoch_nonexistent_satellite(
+    client, session, services_available
+):
     """Test get_tles_around_epoch with a satellite that doesn't exist."""
     epoch = datetime.now()
     epoch_jd = Time(epoch).jd
@@ -462,54 +392,64 @@ def test_get_tles_around_epoch_nonexistent_satellite(client, session):
     assert len(response.json[0]["tle_data"]) == 0
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
+@pytest.mark.parametrize(
+    "query_params,expected_status,expected_message,expected_error_type",
+    [
+        # Invalid id_type
+        (
+            {"id": "25544", "id_type": "invalid", "epoch": "2460000.5"},
+            400,
+            "Error",
+            None,
+        ),
+        # Missing id parameter
+        ({"id_type": "catalog", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        # Missing id_type parameter
+        ({"id": "25544", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        # Missing epoch parameter
+        ({"id": "25544", "id_type": "catalog"}, 400, "Missing parameter", None),
+        # Non-numeric epoch
+        (
+            {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
+            500,
+            None,
+            "ValidationError",
+        ),
+    ],
+    ids=[
+        "invalid id_type",
+        "missing id",
+        "missing id_type",
+        "missing epoch",
+        "non-numeric epoch",
+    ],
 )
-def test_get_tles_around_epoch_errors(client, session):
+def test_get_tles_around_epoch_errors(
+    client,
+    session,
+    query_params,
+    expected_status,
+    expected_message,
+    expected_error_type,
+    services_available,
+):
     """Test get_tles_around_epoch with various error conditions."""
-    epoch = datetime.now()
-    epoch_jd = Time(epoch).jd
 
-    # Use an invalid id_type
-    response = client.get(
-        f"/tools/get-tles-around-epoch/?id=25544&id_type=invalid&epoch={epoch_jd}"
-    )
+    query_string = "&".join([f"{k}={v}" for k, v in query_params.items()])
+    url = f"/tools/get-tles-around-epoch/?{query_string}"
 
-    # Should return a bad request status
-    assert response.status_code == 400
-    assert "Error" in response.json["message"]
+    response = client.get(url)
 
-    # Missing id parameter
-    response = client.get(
-        "/tools/get-tles-around-epoch/?id_type=catalog&epoch=2460000.5"
-    )
-    assert response.status_code == 400
-    assert "Missing parameter" in response.json["message"]
+    assert response.status_code == expected_status
 
-    # Missing id_type parameter
-    response = client.get("/tools/get-tles-around-epoch/?id=25544&epoch=2460000.5")
-    assert response.status_code == 400
-    assert "Missing parameter" in response.json["message"]
+    if expected_message:
+        assert expected_message in response.json["message"]
 
-    # Missing epoch parameter
-    response = client.get("/tools/get-tles-around-epoch/?id=25544&id_type=catalog")
-    assert response.status_code == 400
-    assert "Missing parameter" in response.json["message"]
-
-    # Using a non-numeric value for epoch
-    response = client.get(
-        "/tools/get-tles-around-epoch/?id=25544&id_type=catalog&epoch=10-01-2024"
-    )
-    assert response.status_code == 500
-    assert "ValidationError" in response.json["error_type"]
+    if expected_error_type:
+        assert expected_error_type in response.json["error_type"]
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_around_epoch_custom_counts(client, session):
+def test_get_tles_around_epoch_custom_counts(client, session, services_available):
     """Test get_tles_around_epoch with custom count_before and count_after parameters."""
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
@@ -562,11 +502,7 @@ def test_get_tles_around_epoch_custom_counts(client, session):
     assert "Error" in response.json["message"]
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_active_satellites(client):
+def test_get_active_satellites(client, services_available):
     satellite = SatelliteFactory(
         sat_name="ISS",
         has_current_sat_number=True,
@@ -586,11 +522,7 @@ def test_get_active_satellites(client):
     assert response.status_code == 400
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_starlink_generations(client):
+def test_get_starlink_generations(client, services_available):
     satellite = SatelliteFactory(
         sat_name="starlink1",
         has_current_sat_number=True,
@@ -614,11 +546,7 @@ def test_get_starlink_generations(client):
     assert response.json["data"][0]["generation"] == "gen1"
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_starlink_generations_empty(client, session):
+def test_get_starlink_generations_empty(client, session, services_available):
     """Test get_starlink_generations with no Starlink satellites in database."""
     # Ensure no Starlink satellites exist
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(session)
@@ -628,11 +556,7 @@ def test_get_starlink_generations_empty(client, session):
     assert response.json["data"] == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_starlink_generations_invalid_data(client, session):
+def test_get_starlink_generations_invalid_data(client, session, services_available):
     """Test get_starlink_generations with invalid satellite data."""
     # Create a satellite with invalid generation data
     satellite = SatelliteFactory(
@@ -652,11 +576,9 @@ def test_get_starlink_generations_invalid_data(client, session):
     assert isinstance(response.json["data"], list)
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_starlink_generations_multiple_generations(client, session):
+def test_get_starlink_generations_multiple_generations(
+    client, session, services_available
+):
     """Test get_starlink_generations with multiple generations."""
     # Create satellites from different generations
     gen1_sat = SatelliteFactory(
@@ -684,11 +606,7 @@ def test_get_starlink_generations_multiple_generations(client, session):
     assert "gen2" in generations
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_rate_limiting(client, session):
+def test_rate_limiting(client, session, services_available):
     """Test rate limiting on a TLE endpoint."""
     epoch = datetime.now()
     epoch_jd = Time(epoch).jd
@@ -716,11 +634,7 @@ def test_rate_limiting(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_starlink_generations_db_error(client, session, mocker):
+def test_get_starlink_generations_db_error(client, session, mocker, services_available):
     """Test get_starlink_generations with repository connection error."""
     # Mock the repository's get_starlink_generations method to raise an exception
     mocker.patch.object(

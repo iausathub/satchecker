@@ -1,17 +1,12 @@
 # ruff: noqa: E501, S101, F841
 import pytest
-from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_passes_in_fov(client, session):
+def test_get_satellite_passes_in_fov(client, session, services_available):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
     tle_repo = SqlAlchemyTLERepository(session)
@@ -26,11 +21,7 @@ def test_get_satellite_passes_in_fov(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_passes_in_fov_missing_parameters(client):
+def test_get_satellite_passes_in_fov_missing_parameters(client, services_available):
     # Missing 'latitude' parameter
     response = client.get(
         "/fov/satellite-passes/?longitude=0&elevation=0&mid_obs_time_jd=2459000.5&duration=30&ra=224.048903&dec=78.778084&fov_radius=2&group_by=satellite"
@@ -40,32 +31,51 @@ def test_get_satellite_passes_in_fov_missing_parameters(client):
     assert "Missing parameter" in response.text
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
+@pytest.mark.parametrize(
+    "min_altitude,expected_code",
+    [
+        (0, 200),
+        (30, 200),
+        (None, 200),  # Test case without min_altitude
+    ],
 )
-def test_get_satellites_above_horizon(client):
-    response = client.get(
-        "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5&min_altitude=0"
+def test_get_satellites_above_horizon(
+    client, session, services_available, min_altitude, expected_code
+):
+    """Test get_satellites_above_horizon with different minimum altitudes."""
+    # Create a satellite and TLE for testing
+    satellite = SatelliteFactory(
+        sat_name="TEST-SAT",
+        sat_number="12345",
+        decay_date=None,
+        has_current_sat_number=True,
     )
-    assert response.status_code == 200
+    tle = TLEFactory(satellite=satellite)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
 
-    response = client.get(
-        "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5&min_altitude=30"
-    )
-    assert response.status_code == 200
+    # Base URL with required parameters
+    url = "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
 
-    response = client.get(
-        "/fov/satellites-above-horizon/?latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
-    )
-    assert response.status_code == 200
+    # Add min_altitude if provided
+    if min_altitude is not None:
+        url += f"&min_altitude={min_altitude}"
+
+    response = client.get(url)
+    assert response.status_code == expected_code
+
+    if response.status_code == 200:
+        assert "data" in response.json
+        assert "total_position_results" in response.json
+        assert "source" in response.json
+        assert "version" in response.json
+        assert "performance" in response.json
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellites_above_horizon_missing_parameters(client):
+def test_get_satellites_above_horizon_missing_parameters(client, services_available):
+    """Test get_satellites_above_horizon with missing required parameters."""
+    # Test missing elevation parameter
     response = client.get(
         "/fov/satellites-above-horizon/?latitude=0&longitude=0&julian_date=2459000.5"
     )
