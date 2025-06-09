@@ -387,6 +387,73 @@ def get_satellite_data(
     return satellite_data
 
 
+def get_starlink_generations(
+    sat_repo: AbstractSatelliteRepository,
+    api_source: str,
+    api_version: str,
+):
+    """
+    Fetches and formats information about Starlink satellite generations.
+
+    This function retrieves data about different Starlink satellite generations,
+    including their earliest and latest launch dates. The data is formatted into
+    a standardized response structure.
+
+    Parameters:
+        sat_repo (AbstractSatelliteRepository):
+            The repository instance used to fetch Starlink generation data.
+        api_source (str):
+            The source identifier for the API request.
+        api_version (str):
+            The version identifier for the API request.
+
+    Returns:
+        dict: A dictionary containing:
+            - count (int): Number of Starlink generations found
+            - data (list): List of dictionaries, each containing:
+                - generation (str): The generation identifier
+                - earliest_launch_date (str): The earliest launch date for this
+                generation
+                - latest_launch_date (str): The latest launch date for this generation
+            - source (str): The API source identifier
+            - version (str): The API version identifier
+
+    Raises:
+        Exception: If there is an error retrieving or formatting the generation data
+    """
+    logger.info("Fetching list of Starlink generations")
+
+    try:
+        generation_info = sat_repo.get_starlink_generations()
+        logger.info(f"Retrieved {len(generation_info)} Starlink generations")
+    except Exception as e:
+        logger.error(
+            f"Failed to retrieve Starlink generations: {str(e)}", exc_info=True
+        )
+        raise
+
+    try:
+        generation_list = [
+            {
+                "generation": gen,
+                "earliest_launch_date": format_date(earliest),
+                "latest_launch_date": format_date(latest),
+            }
+            for gen, earliest, latest in generation_info
+        ]
+        logger.info("Successfully formatted generation list")
+    except Exception as e:
+        logger.error(f"Failed to format generation list: {str(e)}", exc_info=True)
+        raise
+
+    return {
+        "count": len(generation_list),
+        "data": generation_list,
+        "source": api_source,
+        "version": api_version,
+    }
+
+
 def get_active_satellites(
     sat_repo: AbstractSatelliteRepository,
     object_type: Optional[str],

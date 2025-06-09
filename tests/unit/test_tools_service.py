@@ -15,6 +15,7 @@ from api.services.tools_service import (
     get_names_for_satellite_id,
     get_nearest_tle_result,
     get_satellite_data,
+    get_starlink_generations,
     get_tle_data,
     get_tles_around_epoch_results,
 )
@@ -194,6 +195,71 @@ def test_get_active_satellites():
     )
     assert results["data"][0]["decay_date"] == satellite.decay_date
     assert results["data"][0]["object_type"] == satellite.object_type
+
+
+def test_get_starlink_generations():
+    sat_repo = FakeSatelliteRepository([])
+    results = get_starlink_generations(sat_repo, "test", "1.0")
+    assert results["count"] == 0
+
+    satellite = SatelliteFactory(
+        sat_name="starlink1",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 10),
+        generation="gen1",
+    )
+
+    sat_repo = FakeSatelliteRepository([satellite])
+    results = get_starlink_generations(sat_repo, "test", "1.0")
+    assert results["count"] == 1
+    assert results["data"][0]["generation"] == "gen1"
+    assert results["data"][0]["earliest_launch_date"] == "2019-05-10 00:00:00 UTC"
+    assert results["data"][0]["latest_launch_date"] == "2019-05-10 00:00:00 UTC"
+
+    satellite2 = SatelliteFactory(
+        sat_name="starlink2",
+        has_current_sat_number=True,
+        launch_date=datetime(2019, 5, 20),
+        generation="gen1",
+    )
+    sat_repo = FakeSatelliteRepository([satellite, satellite2])
+    results = get_starlink_generations(sat_repo, "test", "1.0")
+    assert results["count"] == 1  # Only one generation
+    assert results["data"][0]["generation"] == "gen1"
+    assert results["data"][0]["earliest_launch_date"] == "2019-05-10 00:00:00 UTC"
+    assert results["data"][0]["latest_launch_date"] == "2019-05-20 00:00:00 UTC"
+
+    satellite3 = SatelliteFactory(
+        sat_name="starlink3",
+        has_current_sat_number=True,
+        launch_date=datetime(2020, 6, 10),
+        generation="gen2",
+    )
+    sat_repo = FakeSatelliteRepository([satellite, satellite2, satellite3])
+    results = get_starlink_generations(sat_repo, "test", "1.0")
+    assert results["count"] == 2  # Two generations
+    assert results["data"][0]["generation"] == "gen1"
+    assert results["data"][0]["earliest_launch_date"] == "2019-05-10 00:00:00 UTC"
+    assert results["data"][0]["latest_launch_date"] == "2019-05-20 00:00:00 UTC"
+    assert results["data"][1]["generation"] == "gen2"
+    assert results["data"][1]["earliest_launch_date"] == "2020-06-10 00:00:00 UTC"
+    assert results["data"][1]["latest_launch_date"] == "2020-06-10 00:00:00 UTC"
+
+
+def test_get_starlink_generations_errors():
+    # Create a satellite with an invalid launch date type
+    satellite = SatelliteFactory(
+        sat_name="starlink1",
+        has_current_sat_number=True,
+        launch_date="invalid_date",  # This will cause TypeError in the repository
+        generation="gen1",
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
+    with pytest.raises(TypeError):
+        results = get_starlink_generations(sat_repo, "test", "1.0")
+
+    with pytest.raises(AttributeError):
+        results = get_starlink_generations(None, "test", "1.0")  # noqa: F841
 
 
 def test_get_active_satellites_with_object_type():

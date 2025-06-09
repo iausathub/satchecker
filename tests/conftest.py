@@ -269,17 +269,50 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         ]
         return matching_satellites[0] if matching_satellites else None
 
-    def _get_active_satellites(self, object_type: str = None):
-        """
-        Mock implementation that matches the repository interface used by tools_service.
-        Returns filtered satellites that tools_service will then format.
-        """
+    def _get_starlink_generations(self):
+        # Group satellites by generation
+        generations = {}
+        for satellite in self._satellites:
+            if satellite.generation and "starlink" in satellite.sat_name.lower():
+                if not isinstance(satellite.launch_date, (datetime, type(None))):
+                    raise TypeError("Launch date must be a datetime object or None")
+                if satellite.generation not in generations:
+                    generations[satellite.generation] = {
+                        "earliest": satellite.launch_date,
+                        "latest": satellite.launch_date,
+                    }
+                else:
+                    if (
+                        satellite.launch_date
+                        < generations[satellite.generation]["earliest"]
+                    ):
+                        generations[satellite.generation][
+                            "earliest"
+                        ] = satellite.launch_date
+                    if (
+                        satellite.launch_date
+                        > generations[satellite.generation]["latest"]
+                    ):
+                        generations[satellite.generation][
+                            "latest"
+                        ] = satellite.launch_date
+
+        # Convert to list of tuples matching the real repository's format
+        return [
+            (gen, data["earliest"], data["latest"])
+            for gen, data in sorted(generations.items())
+        ]
+
+    def _get_active_satellites(self, object_type=None):
         return [
             satellite
             for satellite in self._satellites
-            if (object_type is None or satellite.object_type == object_type)
-            and satellite.decay_date is None
+            if satellite.decay_date is None
             and satellite.has_current_sat_number
+            and (
+                object_type is None
+                or satellite.object_type.lower() == object_type.lower()
+            )
         ]
 
     def _get(self, satellite_id):
