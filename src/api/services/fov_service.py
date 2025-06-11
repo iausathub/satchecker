@@ -90,6 +90,24 @@ def get_satellite_passes_in_fov(
     skip_cache = True
 
     cached_data = get_cached_data(cache_key)
+
+    if cached_data:
+        logger.info(
+            f"Cached data found with {len(cached_data.get('results', []))} results and "
+            f"{cached_data.get('points_in_fov', 0)} points in FOV"
+        )
+        # Log structure details for debugging
+        for key in cached_data:
+            if isinstance(cached_data[key], (list, dict)):
+                logger.debug(
+                    f"Cached {key}: {type(cached_data[key])} with length {len(cached_data[key])}"  # noqa: E501
+                )  # noqa: E501
+            else:
+                logger.debug(
+                    f"Cached {key}: {type(cached_data[key])} = {cached_data[key]}"
+                )  # noqa: E501
+    else:
+        logger.info("No cached data found")
     logger.info(f"Cached data: {cached_data}")
     check_redis_memory()
 
