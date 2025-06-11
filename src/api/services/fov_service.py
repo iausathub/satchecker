@@ -88,6 +88,9 @@ def get_satellite_passes_in_fov(
         False if include_tles is None else include_tles,
     )
 
+    # TODO: resolve caching issue
+    skip_cache = True
+
     cached_data = get_cached_data(cache_key)
     if cached_data and not skip_cache:
         cache_time = python_time.time() - start_time
