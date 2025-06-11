@@ -10,15 +10,13 @@ from skyfield.api import EarthSatellite, load, wgs84
 
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.services.cache_service import (
+    check_redis_memory,
     create_fov_cache_key,
     get_cached_data,
     set_cached_data,
 )
 from api.utils import coordinate_systems, output_utils
-from api.utils.propagation_strategies import (
-    FOVParallelPropagationStrategy,
-    # FOVPropagationStrategy,
-)
+from api.utils.propagation_strategies import FOVParallelPropagationStrategy
 from api.utils.time_utils import astropy_time_to_datetime_utc
 
 logger = logging.getLogger(__name__)
@@ -92,6 +90,9 @@ def get_satellite_passes_in_fov(
     skip_cache = True
 
     cached_data = get_cached_data(cache_key)
+    logger.info(f"Cached data: {cached_data}")
+    check_redis_memory()
+
     if cached_data and not skip_cache:
         cache_time = python_time.time() - start_time
         logger.info(
