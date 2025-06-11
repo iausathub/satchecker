@@ -21,14 +21,14 @@ from api.utils.propagation_strategies import (
     KroghPropagationStrategy,
     # FOVPropagationStrategy,
 )
-from api.utils.time_utils import astropy_time_to_datetime_utc
+from api.utils.time_utils import astropy_time_to_datetime_utc, ensure_datetime
 
 logger = logging.getLogger(__name__)
 
 
 def get_satellite_passes_in_fov(
     tle_repo: AbstractTLERepository,
-    ephem_repo: AbstractEphemerisRepository,
+    ephemeris_repo: AbstractEphemerisRepository,
     location: EarthLocation,
     mid_obs_time_jd: Time,
     start_time_jd: Time,
@@ -47,7 +47,7 @@ def get_satellite_passes_in_fov(
 
     Args:
         tle_repo: Repository for TLE data
-        ephem_repo: Repository for ephemeris data
+        ephemeris_repo: Repository for ephemeris data
         location: Observer's location
         mid_obs_time_jd: Middle observation time (as Time object)
         start_time_jd: Start time (as Time object)
@@ -143,35 +143,39 @@ def get_satellite_passes_in_fov(
     points_in_fov = 0
     satellites_processed = 0
 
-    # Split TLEs into Starlink and non-Starlink
-    starlink_tles = []
-    non_starlink_tles = []
+    # Get ephemeris for all satellites in the time range
+    tles_to_propagate = []
+    satellites_with_ephemeris = ephemeris_repo.get_satellites_with_ephemeris(
+        ensure_datetime(jd_times[0]),
+        ensure_datetime(jd_times[-1]),
+    )
+    logger.info(f"Satellites with ephemeris: {len(satellites_with_ephemeris)}")
     for tle in tles:
-        if "STARLINK" in tle.satellite.sat_name:
-            starlink_tles.append(tle)
-        else:
-            non_starlink_tles.append(tle)
+        if tle.satellite not in satellites_with_ephemeris:
+            tles_to_propagate.append(tle)
 
     # Process Starlink satellites with Krogh propagation
-    if starlink_tles:
+    if satellites_with_ephemeris:
         logger.info(
-            f"Processing {len(starlink_tles)} Starlink satellites "
+            f"Processing {len(satellites_with_ephemeris)} Starlink satellites "
             f"with Krogh propagation"
         )
         krogh_strategy = KroghPropagationStrategy()
-        for tle in starlink_tles:
+        for satellite_number in satellites_with_ephemeris:
             try:
                 # Load ephemeris data for this Starlink satellite
-                ephemeris = ephem_repo.get_closest_by_satellite_number(
-                    str(tle.satellite.sat_number),
-                    float(jd_times[0]),  # Ensure float conversion
+                logger.error(f"Satellite number: {satellite_number}")
+                ephemeris = ephemeris_repo.get_closest_by_satellite_number(
+                    str(satellite_number),
+                    ensure_datetime(jd_times[0]),
                 )
+                logger.info(f"Ephemeris: {ephemeris}")
 
                 # Skip if no ephemeris data found
                 if ephemeris is None:
                     logger.warning(
                         f"No ephemeris data found for Starlink satellite "
-                        f"{tle.satellite.sat_name}"
+                        f"{satellite_number}"
                     )
                     satellites_processed += 1
                     continue
@@ -181,8 +185,8 @@ def get_satellite_passes_in_fov(
                 # Propagate positions
                 positions = krogh_strategy.propagate(
                     jd_times,
-                    tle.tle_line1,
-                    tle.tle_line2,
+                    None,
+                    None,
                     location.lat.value,
                     location.lon.value,
                     location.height.value,
@@ -229,15 +233,15 @@ def get_satellite_passes_in_fov(
                 continue
 
     # Process non-Starlink satellites with parallel propagation
-    if non_starlink_tles:
+    if tles_to_propagate:
         logger.info(
-            f"Processing {len(non_starlink_tles)} non-Starlink satellites "
+            f"Processing {len(tles_to_propagate)} non-Starlink satellites "
             f"with parallel propagation"
         )
         prop_strategy = FOVParallelPropagationStrategy()
         try:
             results, execution_time, non_starlink_processed = prop_strategy.propagate(
-                all_tles=non_starlink_tles,
+                all_tles=tles_to_propagate,
                 jd_times=jd_times,
                 location=location,
                 fov_center=(ra, dec),

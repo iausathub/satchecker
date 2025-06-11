@@ -20,6 +20,7 @@ from api.adapters.repositories.satellite_repository import (
 )
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
+from api.domain.models.satellite import Satellite
 from api.entrypoints.extensions import db as database
 
 if "SQLALCHEMY_DATABASE_URI" not in os.environ:
@@ -418,6 +419,11 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
             key=lambda ephemeris: ephemeris.generated_at,
             default=None,
         )
+
+    def _get_satellites_with_ephemeris(
+        self, start_time: datetime, end_time: datetime
+    ) -> list[Satellite]:
+        return [ephemeris.satellite for ephemeris in self._ephemeris]
 
 
 class FakeSession:

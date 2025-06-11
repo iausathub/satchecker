@@ -57,14 +57,20 @@ def test_get_closest_by_satellite_number(session):
     ephemeris1 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),
     )
     ephemeris2 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=2),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=2),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=2),
     )
     ephemeris3 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=3),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=3),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=3),
     )
     ephemeris_repository.add(ephemeris1)
     ephemeris_repository.add(ephemeris2)
@@ -107,14 +113,20 @@ def test_get_closest_by_satellite_name(session):
     ephemeris1 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),
     )
     ephemeris2 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=2),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=2),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=2),
     )
     ephemeris3 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=3),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=3),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=3),
     )
     ephemeris_repository.add(ephemeris1)
     ephemeris_repository.add(ephemeris2)
@@ -254,11 +266,15 @@ def test_get_closest_by_satellite_number_with_data_source(session):
     ephemeris1 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),
         data_source="source1",
     )
     ephemeris2 = InterpolableEphemerisFactory(
         satellite=db_satellite.id,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
+        ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),
         data_source="source2",
     )
     ephemeris_repository.add(ephemeris1)

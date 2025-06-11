@@ -15,6 +15,7 @@ from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
+from api.domain.models.satellite import Satellite
 from api.utils.time_utils import ensure_datetime
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,11 @@ class AbstractEphemerisRepository(abc.ABC):
             self.seen.add(ephemeris)
         return ephemeris
 
+    def get_satellites_with_ephemeris(
+        self, start_time: datetime, end_time: datetime
+    ) -> list[Satellite]:
+        return self._get_satellites_with_ephemeris(start_time, end_time)
+
     @abc.abstractmethod
     def _add(self, ephemeris: InterpolableEphemeris):
         raise NotImplementedError
@@ -96,6 +102,12 @@ class AbstractEphemerisRepository(abc.ABC):
     def _get_latest_by_satellite_name(
         self, satellite_name: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_satellites_with_ephemeris(
+        self, start_time: datetime, end_time: datetime
+    ) -> list[Satellite]:
         raise NotImplementedError
 
 
@@ -177,6 +189,8 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             .filter(
                 SatelliteDb.sat_number == satellite_number,
                 InterpolableEphemerisDb.generated_at <= epoch,
+                InterpolableEphemerisDb.ephemeris_start <= epoch,
+                InterpolableEphemerisDb.ephemeris_stop >= epoch,
             )
             .order_by(desc(InterpolableEphemerisDb.generated_at))
         )
@@ -204,6 +218,8 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             .filter(
                 SatelliteDb.sat_name == satellite_name,
                 InterpolableEphemerisDb.generated_at <= epoch,
+                InterpolableEphemerisDb.ephemeris_start <= epoch,
+                InterpolableEphemerisDb.ephemeris_stop >= epoch,
             )
             .order_by(desc(InterpolableEphemerisDb.generated_at))
         )
@@ -221,11 +237,15 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
     def _get_latest_by_satellite_number(
         self, satellite_number: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
+        logger.error(f"Satellite number: {satellite_number}")
+        logger.error(f"Data source: {data_source}")
         query = (
             self.session.query(InterpolableEphemerisDb)
             .join(InterpolableEphemerisDb.satellite_ref)
             .filter(SatelliteDb.sat_number == satellite_number)
         )
+        logger.error(f"Query: {query}")
+        logger.error(f"Data source: {data_source}")
 
         if data_source:
             query = query.filter(InterpolableEphemerisDb.data_source == data_source)
@@ -234,6 +254,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             desc(InterpolableEphemerisDb.generated_at)
         ).first()
 
+        logger.info(f"ORM ephemeris: {orm_ephemeris}")
         if orm_ephemeris:
             return self._to_domain(orm_ephemeris)
         return None
@@ -257,3 +278,27 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         if orm_ephemeris:
             return self._to_domain(orm_ephemeris)
         return None
+
+    def _get_satellites_with_ephemeris(
+        self, start_time: datetime, end_time: datetime
+    ) -> list[Satellite]:
+        # Ensure epoch is a datetime object with timezone info
+        start_time = ensure_datetime(start_time)
+        end_time = ensure_datetime(end_time)
+
+        # Get satellites that have ephemeris data valid for the epoch
+        # (epoch must be within the ephemeris time range and generated
+        # at or before epoch)
+        query = (
+            self.session.query(InterpolableEphemerisDb.satellite)
+            .filter(
+                InterpolableEphemerisDb.generated_at <= start_time,
+                InterpolableEphemerisDb.ephemeris_start <= start_time,
+                InterpolableEphemerisDb.ephemeris_stop >= end_time,
+            )
+            .distinct()
+        )
+
+        # Extract satellite numbers and return as list of integers
+        satellites = [self._to_domain(result) for result in query.all()]
+        return satellites
