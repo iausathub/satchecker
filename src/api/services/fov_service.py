@@ -62,7 +62,7 @@ def get_satellite_passes_in_fov(
     )
 
     # Temporarily disable using the FOV cache
-    cached_data = False # redis_client.get(cache_key)
+    cached_data = False  # redis_client.get(cache_key)
     if cached_data:
         cache_time = python_time.time() - start_time
         print("Found cached result")
