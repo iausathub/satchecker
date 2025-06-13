@@ -238,7 +238,7 @@ def get_celestrak_general_tles(cursor, connection):
 
 
 def get_celestrak_supplemental_tles(cursor, connection):
-    constellations = ["starlink", "oneweb", "ast"]
+    constellations = ["starlink", "oneweb", "ast", "kuiper", "planet"]
     for constellation in constellations:
         tle = requests.get(
             "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"  # noqa: UP031
