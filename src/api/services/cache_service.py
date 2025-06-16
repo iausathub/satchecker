@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
@@ -25,7 +25,7 @@ def create_fov_cache_key(
     dec: float,
     fov_radius: float,
     include_tles: bool = False,
-    constellation: str = None,
+    constellation: Optional[str] = None,
 ) -> str:
     """Create a unique cache key for the FOV calculation."""
     key_parts = [

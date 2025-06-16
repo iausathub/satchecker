@@ -70,7 +70,7 @@ class AbstractTLERepository(abc.ABC):
         page: int,
         per_page: int,
         format: str,
-        constellation: str = None,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         return self._get_all_tles_at_epoch(
             epoch_date, page, per_page, format, constellation
@@ -131,7 +131,7 @@ class AbstractTLERepository(abc.ABC):
         page: int,
         per_page: int,
         format: str,
-        constellation: str = None,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         raise NotImplementedError
 
@@ -403,7 +403,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         page: int,
         per_page: int,
         format: str,
-        constellation: str = None,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -576,7 +576,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         page: int,
         per_page: int,
         format: str,
-        constellation: str = None,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
