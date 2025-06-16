@@ -93,17 +93,13 @@ def test_get_tles_at_epoch(client, session, services_available):
 
     epoch_date = 2460605
     response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}")
-    tles = response.json[0]["data"]
-
     assert response.status_code == 200
     assert len(response.json) > 0
-    assert tles[0]["satellite_name"] == "ISS"
+    assert response.json[0]["data"][0]["satellite_name"] == "ISS"
 
     # test that older TLEs ( > 1 week ) are not returned
     epoch_date = 2460505
     response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}")
-    tles = response.json[0]["data"]
-
     assert response.status_code == 200
     assert len(response.json[0]["data"]) == 0
 

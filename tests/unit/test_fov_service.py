@@ -47,6 +47,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -67,6 +68,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="time",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -98,6 +100,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="time",
         include_tles=True,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -118,6 +121,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="satellite",
         include_tles=True,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -164,6 +168,7 @@ def test_satellite_outside_fov(test_location, test_time):
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -188,6 +193,7 @@ def test_empty_tle_list(test_location, test_time):
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -318,6 +324,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         "time",
         False,
         False,
+        None,
         "test",
         "v1",
     )
@@ -347,6 +354,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         "time",
         False,
         False,
+        None,
         "test",
         "v1",
     )
@@ -380,6 +388,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         "time",
         False,
         True,  # skip_cache=True
+        None,
         "test",
         "v1",
     )
@@ -414,6 +423,7 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
             "time",
             False,
             False,
+            None,
             "test",
             "v1",
         )
@@ -456,6 +466,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         "time",
         False,
         False,
+        None,
         "test",
         "v1",
     )
@@ -477,6 +488,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
             "group_by": "time",
             "include_tles": False,
             "skip_cache": False,
+            "constellation": None,
             "api_source": "test",
             "api_version": "v1",
         }

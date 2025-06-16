@@ -386,7 +386,9 @@ class FakeTLERepository(AbstractTLERepository):
             default=None,
         )
 
-    def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
+    def _get_all_tles_at_epoch(
+        self, epoch_date, page, per_page, format, constellation=None
+    ):
         return list(self._tles), len(self._tles), "database"
 
     def _get_adjacent_tles(self, id, id_type, epoch):

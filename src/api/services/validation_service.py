@@ -398,6 +398,22 @@ def validate_parameters(
                 "'tba', or 'unknown'",
             )
 
+    if "constellation" in parameters.keys() and parameters["constellation"] is not None:
+        parameters["constellation"] = parameters["constellation"].lower()
+        if parameters["constellation"] not in [
+            "starlink",
+            "oneweb",
+            "kuiper",
+            "planet",
+            "ast",
+        ]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " constellation must be 'starlink', 'oneweb', "
+                + "'kuiper', 'planet', or 'ast'",
+            )
+
     try:
         if "min_range" in parameters:
             parameters["min_range"] = (

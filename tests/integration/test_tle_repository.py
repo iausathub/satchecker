@@ -637,3 +637,105 @@ def test_get_all_tles_at_epoch_cache(session, app, services_available):
         )
         assert db_results[2] == "database"
         assert cache_results[0] == db_results[0]
+
+
+def test_get_all_tles_at_epoch_with_constellation(session, services_available):
+    """Test getting TLEs filtered by constellation."""
+    # Create satellites with different constellations
+    starlink_sat = SatelliteFactory(
+        constellation="starlink",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    oneweb_sat = SatelliteFactory(
+        constellation="oneweb",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(starlink_sat)
+    sat_repository.add(oneweb_sat)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    starlink_tle = TLEFactory(satellite=starlink_sat, epoch=epoch)
+    oneweb_tle = TLEFactory(satellite=oneweb_sat, epoch=epoch)
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(starlink_tle)
+    tle_repository.add(oneweb_tle)
+    session.commit()
+
+    # Test filtering by starlink constellation
+    starlink_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", "starlink"
+    )
+    assert len(starlink_tles) == 1
+    assert starlink_tles[0].satellite.constellation == "starlink"
+
+    # Test filtering by oneweb constellation
+    oneweb_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", "oneweb"
+    )
+    assert len(oneweb_tles) == 1
+    assert oneweb_tles[0].satellite.constellation == "oneweb"
+
+    # Test with no constellation filter
+    all_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", None
+    )
+    assert len(all_tles) == 2
+
+
+def test_get_all_tles_at_epoch_experimental_with_constellation(
+    session, services_available
+):
+    """Test getting TLEs filtered by constellation using experimental method."""
+    # Create satellites with different constellations
+    starlink_sat = SatelliteFactory(
+        constellation="starlink",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    oneweb_sat = SatelliteFactory(
+        constellation="oneweb",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(starlink_sat)
+    sat_repository.add(oneweb_sat)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)  # Fixed epoch date
+    starlink_tle = TLEFactory(satellite=starlink_sat, epoch=epoch)
+    oneweb_tle = TLEFactory(satellite=oneweb_sat, epoch=epoch)
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(starlink_tle)
+    tle_repository.add(oneweb_tle)
+    session.commit()
+
+    # Test filtering by starlink constellation
+    starlink_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+        epoch, 1, 10000, "zip", "starlink"
+    )
+    assert len(starlink_tles) == 1
+    assert starlink_tles[0].satellite.constellation == "starlink"
+
+    # Test filtering by oneweb constellation
+    oneweb_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+        epoch, 1, 10000, "zip", "oneweb"
+    )
+    assert len(oneweb_tles) == 1
+    assert oneweb_tles[0].satellite.constellation == "oneweb"
+
+    # Test with no constellation filter
+    all_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+        epoch, 1, 10000, "zip", None
+    )
+    assert len(all_tles) == 2

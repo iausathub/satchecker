@@ -34,6 +34,7 @@ def get_satellite_passes_in_fov(
     group_by: str,
     include_tles: bool,
     skip_cache: bool,
+    constellation: str,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -52,6 +53,7 @@ def get_satellite_passes_in_fov(
         group_by: Grouping strategy ('satellite' or 'time')
         include_tles: Whether to include TLE data in results
         skip_cache: Whether to skip cache and force recalculation
+        constellation: Constellation of the satellites to include in the response
         api_source: Source of the API call
         api_version: Version of the API
 
@@ -84,6 +86,7 @@ def get_satellite_passes_in_fov(
         dec,
         fov_radius,
         False if include_tles is None else include_tles,
+        constellation,
     )
 
     # TODO: resolve caching issue
@@ -146,7 +149,7 @@ def get_satellite_passes_in_fov(
 
     try:
         tles, count, _ = tle_repo.get_all_tles_at_epoch(
-            astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
+            astropy_time_to_datetime_utc(time_param), 1, 10000, "zip", constellation
         )
         logger.info(f"Successfully retrieved {count} TLEs")
     except Exception as e:
@@ -287,6 +290,7 @@ def get_satellites_above_horizon(
     min_range: float,
     max_range: float,
     illuminated_only: bool = False,
+    constellation: str = "",
     api_source: str = "",
     api_version: str = "",
 ) -> dict[str, Any]:
@@ -301,6 +305,7 @@ def get_satellites_above_horizon(
         min_range: Minimum range in kilometers
         max_range: Maximum range in kilometers
         illuminated_only: Whether to only return illuminated satellites
+        constellation: Constellation of the satellites to include in the response
         api_source: Source of the API call
         api_version: Version of the API
 
@@ -318,7 +323,7 @@ def get_satellites_above_horizon(
     # Get all current TLEs
     tle_start = python_time.time()
     tles, count, _ = tle_repo.get_all_tles_at_epoch(
-        astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip"
+        astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
     )
     tle_time = python_time.time() - tle_start
 
