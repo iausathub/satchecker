@@ -114,6 +114,12 @@ def get_satellite_passes():
         required: false
         description: Whether to skip the cache and calculate the passes from scratch
         example: false
+      - name: constellation
+        in: query
+        type: string
+        required: false
+        description: Constellation of the satellites to include in the response
+        example: "starlink"
     responses:
       200:
         description: Successful response with satellite passes
@@ -217,6 +223,7 @@ def get_satellite_passes():
         "group_by",
         "include_tles",
         "skip_cache",
+        "constellation",
     ]
 
     if "site" not in request.args:
@@ -255,6 +262,7 @@ def get_satellite_passes():
             validated_parameters["group_by"],
             validated_parameters["include_tles"],
             validated_parameters["skip_cache"],
+            validated_parameters["constellation"],
             api_source,
             api_version,
         )
@@ -346,6 +354,12 @@ def get_all_satellites_above_horizon():
         required: false
         description: Maximum range of satellites in kilometers (default is infinity)
         example: 500.0
+      - name: constellation
+        in: query
+        type: string
+        required: false
+        description: Constellation of the satellites to include in the response
+        example: "starlink"
     responses:
       200:
         description: Successful response with satellites above horizon
@@ -538,6 +552,7 @@ def _handle_satellites_above_horizon(with_duration=False):
         "illuminated_only",
         "min_range",
         "max_range",
+        "constellation",
     ]
 
     # Add duration parameter if needed
@@ -591,6 +606,7 @@ def _handle_satellites_above_horizon(with_duration=False):
                 validated_parameters["min_range"],
                 validated_parameters["max_range"],
                 validated_parameters["illuminated_only"],
+                validated_parameters["constellation"],
                 api_source,
                 api_version,
             )

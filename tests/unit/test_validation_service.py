@@ -282,6 +282,25 @@ def test_validate_parameters_invalid_object_type(app):
             )
 
 
+def test_validate_parameters_constellation(app):
+    with app.test_request_context("/?constellation=invalid"):
+        parameter_list = ["constellation"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("/?constellation=starlink"):
+        parameter_list = ["constellation"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["constellation"] == "starlink"
+
+
 def test_validate_parameters_tle(app):
     # valid TLE
     with app.test_request_context(

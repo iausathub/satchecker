@@ -1,5 +1,6 @@
 # ruff: noqa: S101
 import logging
+from datetime import timezone
 
 import pytest
 from astropy.time import Time
@@ -47,6 +48,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -67,6 +69,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="time",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -98,6 +101,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="time",
         include_tles=True,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -118,6 +122,7 @@ def test_satellite_in_fov(test_location, test_time):
         group_by="satellite",
         include_tles=True,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -164,6 +169,7 @@ def test_satellite_outside_fov(test_location, test_time):
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -188,6 +194,7 @@ def test_empty_tle_list(test_location, test_time):
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
+        constellation=None,
         api_source="test",
         api_version="1.0",
     )
@@ -203,12 +210,14 @@ def test_satellites_above_horizon(test_location, test_time):
         sat_number=31746,
         decay_date=None,
         has_current_sat_number=True,
+        constellation="starlink",
     )
 
     tle = TLEFactory(
         satellite=satellite,
         tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
         tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+        epoch=test_time.to_datetime(timezone.utc),
     )
 
     tle_repo = FakeTLERepository([tle])
@@ -285,6 +294,30 @@ def test_satellites_above_horizon(test_location, test_time):
 
     assert len(result["data"]) == 0
 
+    result = get_satellites_above_horizon(
+        tle_repo,
+        location=test_location,
+        julian_dates=[test_time],
+        min_altitude=0,
+        min_range=1000,
+        max_range=1500000,
+        constellation="starlink",
+    )
+
+    assert len(result["data"]) == 1
+
+    result = get_satellites_above_horizon(
+        tle_repo,
+        location=test_location,
+        julian_dates=[test_time],
+        min_altitude=0,
+        min_range=1000,
+        max_range=1500000,
+        constellation="oneweb",
+    )
+
+    assert len(result["data"]) == 0
+
 
 def test_fov_caching_cycle(mocker, test_location, test_time):
     """Test the complete caching cycle: miss, compute, store, then hit."""
@@ -318,6 +351,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         "time",
         False,
         False,
+        None,
         "test",
         "v1",
     )
@@ -347,6 +381,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         "time",
         False,
         False,
+        None,
         "test",
         "v1",
     )
@@ -380,6 +415,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         "time",
         False,
         True,  # skip_cache=True
+        None,
         "test",
         "v1",
     )
@@ -414,6 +450,7 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
             "time",
             False,
             False,
+            None,
             "test",
             "v1",
         )
@@ -456,6 +493,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         "time",
         False,
         False,
+        None,
         "test",
         "v1",
     )
@@ -477,6 +515,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
             "group_by": "time",
             "include_tles": False,
             "skip_cache": False,
+            "constellation": None,
             "api_source": "test",
             "api_version": "v1",
         }

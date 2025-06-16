@@ -32,23 +32,26 @@ def test_get_satellite_passes_in_fov_missing_parameters(client, services_availab
 
 
 @pytest.mark.parametrize(
-    "min_altitude,expected_code",
+    "min_altitude,constellation,expected_code",
     [
-        (0, 200),
-        (30, 200),
-        (None, 200),  # Test case without min_altitude
+        (0, None, 200),
+        (30, None, 200),
+        (None, None, 200),
+        (0, "starlink", 200),
+        (30, "oneweb", 200),
     ],
 )
 def test_get_satellites_above_horizon(
-    client, session, services_available, min_altitude, expected_code
+    client, session, services_available, min_altitude, constellation, expected_code
 ):
-    """Test get_satellites_above_horizon with different minimum altitudes."""
+    """Test get_satellites_above_horizon with different minimum altitudes and constellations."""
     # Create a satellite and TLE for testing
     satellite = SatelliteFactory(
         sat_name="TEST-SAT",
         sat_number="12345",
         decay_date=None,
         has_current_sat_number=True,
+        constellation=constellation if constellation else "test",
     )
     tle = TLEFactory(satellite=satellite)
     tle_repo = SqlAlchemyTLERepository(session)
@@ -61,6 +64,10 @@ def test_get_satellites_above_horizon(
     # Add min_altitude if provided
     if min_altitude is not None:
         url += f"&min_altitude={min_altitude}"
+
+    # Add constellation if provided
+    if constellation is not None:
+        url += f"&constellation={constellation}"
 
     response = client.get(url)
     assert response.status_code == expected_code

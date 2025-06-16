@@ -65,9 +65,16 @@ class AbstractTLERepository(abc.ABC):
         )
 
     def get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
-        return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
+        return self._get_all_tles_at_epoch(
+            epoch_date, page, per_page, format, constellation
+        )
 
     def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
         return self._get_nearest_tle(id, id_type, epoch)
@@ -119,7 +126,12 @@ class AbstractTLERepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         raise NotImplementedError
 
@@ -227,6 +239,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     sat_number=sat_data.get("sat_number", ""),
                     decay_date=decay_date,
                     has_current_sat_number=sat_data.get("has_current_sat_number", True),
+                    constellation=sat_data.get("constellation", ""),
                 )
 
                 # Parse datetime fields
@@ -385,7 +398,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         ]
 
     def _get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -457,11 +475,17 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             # First get valid satellites
             satellites_sql = text(
                 """
-                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number
+                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number,
+                constellation, launch_date
                 FROM satellites s
                 WHERE s.launch_date <= :epoch_date
                 AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
                 AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                AND (
+                    :constellation IS NULL
+                    OR (s.constellation IS NOT NULL AND s.constellation
+                    ILIKE :constellation || '%')
+                )
             """
             )
 
@@ -484,7 +508,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
             # Get valid satellites first
             satellites_result = self.session.execute(
-                satellites_sql, {"epoch_date": epoch_date}
+                satellites_sql,
+                {"epoch_date": epoch_date, "constellation": constellation},
             )
             valid_satellites = {row.id: row for row in satellites_result}
 
@@ -510,6 +535,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     sat_number=sat_data.sat_number,
                     decay_date=sat_data.decay_date,
                     has_current_sat_number=sat_data.has_current_sat_number,
+                    constellation=sat_data.constellation,
                 )
 
                 tle = TLE(
@@ -537,14 +563,20 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             logger.info(f"Database query completed in {execution_time:.2f} seconds")
             return tles, total_count, "database"
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error getting TLEs: {e}")
             self.session.rollback()
             logger.error("Database query failed, rolling back transaction")
             raise
 
     # pragma: no cover
     def _get_all_tles_at_epoch_experimental(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -560,7 +592,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 """
                 SELECT
                     s.id AS sat_id, s.sat_name, s.sat_number, s.decay_date,
-                    s.has_current_sat_number,
+                    s.has_current_sat_number, s.constellation,
                     t.id, t.date_collected, t.tle_line1, t.tle_line2, t.epoch,
                     t.is_supplemental, t.data_source
                 FROM satellites s
@@ -576,6 +608,11 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 WHERE s.launch_date <= :epoch_date
                 AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
                 AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                AND (
+                    :constellation IS NULL
+                    OR (s.constellation IS NOT NULL AND s.constellation
+                    ILIKE :constellation || '%')
+                )
                 ORDER BY t.epoch DESC
                 """
             ).bindparams(
@@ -591,6 +628,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "start_date": two_weeks_prior,
                     "end_date": epoch_date,
                     "epoch_date": epoch_date,
+                    "constellation": constellation,
                 },
             )
 
@@ -602,6 +640,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     sat_number=row.sat_number,
                     decay_date=row.decay_date,
                     has_current_sat_number=row.has_current_sat_number,
+                    constellation=row.constellation,
                 )
 
                 tle = TLE(
