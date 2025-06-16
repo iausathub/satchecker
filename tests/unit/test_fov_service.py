@@ -1,5 +1,6 @@
 # ruff: noqa: S101
 import logging
+from datetime import timezone
 
 import pytest
 from astropy.time import Time
@@ -209,12 +210,14 @@ def test_satellites_above_horizon(test_location, test_time):
         sat_number=31746,
         decay_date=None,
         has_current_sat_number=True,
+        constellation="starlink",
     )
 
     tle = TLEFactory(
         satellite=satellite,
         tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
         tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+        epoch=test_time.to_datetime(timezone.utc),
     )
 
     tle_repo = FakeTLERepository([tle])
@@ -287,6 +290,30 @@ def test_satellites_above_horizon(test_location, test_time):
         min_altitude=0,
         min_range=1500,
         max_range=1500000,
+    )
+
+    assert len(result["data"]) == 0
+
+    result = get_satellites_above_horizon(
+        tle_repo,
+        location=test_location,
+        julian_dates=[test_time],
+        min_altitude=0,
+        min_range=1000,
+        max_range=1500000,
+        constellation="starlink",
+    )
+
+    assert len(result["data"]) == 1
+
+    result = get_satellites_above_horizon(
+        tle_repo,
+        location=test_location,
+        julian_dates=[test_time],
+        min_altitude=0,
+        min_range=1000,
+        max_range=1500000,
+        constellation="oneweb",
     )
 
     assert len(result["data"]) == 0

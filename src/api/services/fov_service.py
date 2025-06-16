@@ -1,7 +1,7 @@
 import logging
 import time as python_time
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -290,7 +290,7 @@ def get_satellites_above_horizon(
     min_range: float,
     max_range: float,
     illuminated_only: bool = False,
-    constellation: str = "",
+    constellation: Optional[str] = None,
     api_source: str = "",
     api_version: str = "",
 ) -> dict[str, Any]:

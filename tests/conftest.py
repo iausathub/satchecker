@@ -389,7 +389,13 @@ class FakeTLERepository(AbstractTLERepository):
     def _get_all_tles_at_epoch(
         self, epoch_date, page, per_page, format, constellation=None
     ):
-        return list(self._tles), len(self._tles), "database"
+        filtered_tles = [
+            tle
+            for tle in self._tles
+            if (constellation is None or tle.satellite.constellation == constellation)
+            and (epoch_date is None or tle.epoch <= epoch_date)
+        ]
+        return filtered_tles, len(filtered_tles), "database"
 
     def _get_adjacent_tles(self, id, id_type, epoch):
         # limit to one before and one after for the given id (satellite number)

@@ -26,6 +26,7 @@ Satellite passes Through FOV
    :query fov_radius: (*required*) -- Radius of circular FOV in degrees
    :query group_by: (*optional*) -- How to group results ("satellite" or "time"). Default is "time" for chronological order
    :query include_tles: (*optional*) -- If True, include TLE data used to calculate the passes in the response. Default is False.
+   :query constellation: (*optional*) -- Constellation name (e.g. 'starlink') - if provided, only satellites from this constellation will be returned.
 
 
 **Example Request**
@@ -165,6 +166,7 @@ Satellites above the horizon
    :query min_range: (*optional*) -- Minimum range in kilometers. Default is 0.
    :query max_range: (*optional*) -- Maximum range in kilometers. Default is 1500000.
    :query illuminated_only: (*optional*) -- If True, only return satellites that are illuminated. Default is False.
+   :query constellation: (*optional*) -- Constellation name (e.g. 'starlink') - if provided, only satellites from this constellation will be returned.
 
 
 **Example Request**
