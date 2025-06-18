@@ -397,7 +397,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             if tle is not None
         ]
 
-    def _get_all_tles_at_epoch(
+    # pragma: no cover
+    def _get_all_tles_at_epoch_prior_version(
         self,
         epoch_date: datetime,
         page: int,
@@ -569,8 +570,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             logger.error("Database query failed, rolling back transaction")
             raise
 
-    # pragma: no cover
-    def _get_all_tles_at_epoch_experimental(
+    def _get_all_tles_at_epoch(
         self,
         epoch_date: datetime,
         page: int,
@@ -585,34 +585,93 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
         # Ensure current_time has the same timezone awareness as epoch_date
+        current_time = datetime.now(timezone.utc)
         total_count = 0
 
+        logger.info(
+            f"Fetching TLEs for epoch {epoch_date} (page {page}, per_page {per_page})"
+        )
+        start_time = time.time()
+
+        try:
+            # if the epoch date is in the future, or up to 3 hours ago, use the cache
+            if (epoch_date > current_time - timedelta(hours=3)) and self.cache_enabled:
+                cached_data = get_cached_data(RECENT_TLES_CACHE_KEY)
+
+                if cached_data:
+                    total_count = cached_data.get("total_count", 0)
+
+                if total_count > 0:
+                    cached_at_str = cached_data.get(
+                        "cached_at", "2000-01-01T00:00:00+00:00"
+                    )
+
+                    try:
+                        cached_at = datetime.fromisoformat(cached_at_str)
+                        # If cached_at has no timezone but should have one, add UTC
+                        if cached_at.tzinfo is None and current_time.tzinfo is not None:
+                            cached_at = cached_at.replace(tzinfo=timezone.utc)
+                    except ValueError as e:
+                        logger.error(
+                            f"Failed to parse cached_at timestamp: "
+                            f"{cached_at_str} - {e}"
+                        )
+                        cached_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
+
+                    # make sure that the cache is not older than 3 hours as
+                    # a double check that this is recent data
+                    cache_age = (current_time - cached_at).total_seconds()
+                    if cache_age < self.cache_ttl:
+                        # Get serialized TLEs from cache
+                        serialized_tles = cached_data.get("tles", [])
+
+                        # Deserialize the TLEs
+                        tles = self.deserialize_cached_tles(serialized_tles)
+
+                        logger.debug(f"Returning {len(tles)} TLEs from cache")
+                        execution_time = time.time() - start_time
+                        logger.info(
+                            f"Cache retrieval completed in {execution_time:.2f} seconds"
+                        )
+                        return tles, total_count, "cache"
+            else:
+                logger.info(f"Cache miss for epoch {epoch_date}")
+
+        except Exception as e:
+            logger.error(f"Error getting TLEs from cache: {e}")
+            logger.error("TLE cache retrieval failed, loading from database")
+            # continue with the database query in case of error
+
+        # If we get here, we need to query the database
+        logger.info("Querying database for TLEs")
         try:
             tles_sql = text(
                 """
-                SELECT
-                    s.id AS sat_id, s.sat_name, s.sat_number, s.decay_date,
-                    s.has_current_sat_number, s.constellation,
-                    t.id, t.date_collected, t.tle_line1, t.tle_line2, t.epoch,
-                    t.is_supplemental, t.data_source
-                FROM satellites s
-                JOIN LATERAL (
-                    SELECT id, sat_id, date_collected, tle_line1, tle_line2,
-                        epoch, is_supplemental, data_source
-                    FROM tle
-                    WHERE sat_id = s.id
-                    AND epoch BETWEEN :start_date AND :end_date
-                    ORDER BY epoch DESC
-                    LIMIT 1
-                ) t ON TRUE
-                WHERE s.launch_date <= :epoch_date
-                AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-                AND s.sat_name != 'TBA - TO BE ASSIGNED'
-                AND (
-                    :constellation IS NULL
-                    OR (s.constellation IS NOT NULL AND s.constellation
-                    ILIKE :constellation || '%')
+                WITH RECURSIVE latest_per_sat AS (
+                    SELECT
+                        s.id AS sat_id,
+                        (
+                            SELECT t.id
+                            FROM tle t
+                            WHERE t.sat_id = s.id
+                                AND t.epoch BETWEEN :start_date AND :end_date
+                            ORDER BY t.epoch DESC
+                            LIMIT 1
+                        ) AS tle_id
+                    FROM satellites s
+                    WHERE s.launch_date <= :epoch_date
+                        AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                        AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                        AND (
+                            :constellation IS NULL
+                            OR (s.constellation IS NOT NULL AND s.constellation
+                            ILIKE :constellation || '%')
+                        )
                 )
+                SELECT t.*, s.*
+                FROM latest_per_sat l
+                JOIN tle t ON t.id = l.tle_id
+                JOIN satellites s ON s.id = l.sat_id
                 ORDER BY t.epoch DESC
                 """
             ).bindparams(
@@ -660,11 +719,18 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 start_idx = (page - 1) * per_page
                 end_idx = start_idx + per_page
                 tles = tles[start_idx:end_idx]
+                logger.info(
+                    f"Pagination: returning {len(tles)} TLEs out of {total_count} total"
+                )
 
+            execution_time = time.time() - start_time
+            logger.info(f"Database query completed in {execution_time:.2f} seconds")
             return tles, total_count, "database"
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error getting TLEs: {e}")
             self.session.rollback()
+            logger.error("Database query failed, rolling back transaction")
             raise
 
     def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
