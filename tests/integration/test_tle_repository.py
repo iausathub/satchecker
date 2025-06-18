@@ -689,7 +689,7 @@ def test_get_all_tles_at_epoch_with_constellation(session, services_available):
     assert len(all_tles) == 2
 
 
-def test_get_all_tles_at_epoch_experimental_with_constellation(
+def test_get_all_tles_at_epoch_prior_version_with_constellation(
     session, services_available
 ):
     """Test getting TLEs filtered by constellation using experimental method."""
@@ -721,21 +721,21 @@ def test_get_all_tles_at_epoch_experimental_with_constellation(
     session.commit()
 
     # Test filtering by starlink constellation
-    starlink_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+    starlink_tles, count, _ = tle_repository._get_all_tles_at_epoch_prior_version(
         epoch, 1, 10000, "zip", "starlink"
     )
     assert len(starlink_tles) == 1
     assert starlink_tles[0].satellite.constellation == "starlink"
 
     # Test filtering by oneweb constellation
-    oneweb_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+    oneweb_tles, count, _ = tle_repository._get_all_tles_at_epoch_prior_version(
         epoch, 1, 10000, "zip", "oneweb"
     )
     assert len(oneweb_tles) == 1
     assert oneweb_tles[0].satellite.constellation == "oneweb"
 
     # Test with no constellation filter
-    all_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+    all_tles, count, _ = tle_repository._get_all_tles_at_epoch_prior_version(
         epoch, 1, 10000, "zip", None
     )
     assert len(all_tles) == 2
