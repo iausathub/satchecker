@@ -535,11 +535,39 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     if generated_at is None:
         generated_at = ephemeris_start
 
-    # log parsed data
-    logging.info(f"Parsed {len(timestamps)} timestamps")
-    logging.info(f"Parsed {len(positions)} positions")
-    logging.info(f"Parsed {len(velocities)} velocities")
-    logging.info(f"Parsed {len(covariances)} covariances")
+    # Filter data to only include 26 hours (1 day + 2 hours) from start
+    timestamps_array = np.array(timestamps)
+    positions_array = np.array(positions, dtype=np.float64)
+    velocities_array = np.array(velocities, dtype=np.float64)
+    covariances_array = np.array(covariances, dtype=np.float64)
+
+    # Calculate cutoff time (26 hours from ephemeris start)
+    cutoff_time = ephemeris_start + timedelta(hours=26)
+
+    time_mask = timestamps_array <= cutoff_time
+
+    # Filter all arrays using the mask
+    filtered_timestamps = timestamps_array[time_mask]
+    filtered_positions = positions_array[time_mask]
+    filtered_velocities = velocities_array[time_mask]
+    filtered_covariances = covariances_array[time_mask]
+
+    # Update ephemeris_stop to reflect the actual end time of filtered data
+    if len(filtered_timestamps) > 0:
+        actual_ephemeris_stop = filtered_timestamps[-1]
+        ephemeris_stop = min(cutoff_time, actual_ephemeris_stop)
+    else:
+        ephemeris_stop = cutoff_time
+
+    original_count = len(timestamps)
+    filtered_count = len(filtered_timestamps)
+    logging.info(f"Original data points: {original_count}")
+    logging.info(f"Filtered data points (26 hours): {filtered_count}")
+    logging.info(f"Data reduction: {original_count - filtered_count} points removed")
+    logging.info(f"Parsed {filtered_count} timestamps")
+    logging.info(f"Parsed {len(filtered_positions)} positions")
+    logging.info(f"Parsed {len(filtered_velocities)} velocities")
+    logging.info(f"Parsed {len(filtered_covariances)} covariances")
     logging.info(f"Ephemeris start: {ephemeris_start}")
     logging.info(f"Ephemeris stop: {ephemeris_stop}")
     logging.info(f"Generated at: {generated_at}")
@@ -547,10 +575,10 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     logging.info(f"Filename: {filename}")
 
     return {
-        "timestamps": np.array(timestamps),
-        "positions": np.array(positions, dtype=np.float64),
-        "velocities": np.array(velocities, dtype=np.float64),
-        "covariances": np.array(covariances, dtype=np.float64),
+        "timestamps": filtered_timestamps,
+        "positions": filtered_positions,
+        "velocities": filtered_velocities,
+        "covariances": filtered_covariances,
         "frame": "UVW",
         "ephemeris_start": ephemeris_start,
         "ephemeris_stop": ephemeris_stop,
