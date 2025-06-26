@@ -27,7 +27,7 @@ Satellite passes Through FOV
    :query group_by: (*optional*) -- How to group results ("satellite" or "time"). Default is "time" for chronological order
    :query include_tles: (*optional*) -- If True, include TLE data used to calculate the passes in the response. Default is False.
    :query constellation: (*optional*) -- Constellation name (e.g. 'starlink') - if provided, only satellites from this constellation will be returned.
-
+   :query data_source: (*optional*) -- Data source to use for TLEs ("celestrak", "spacetrack", or "any"). Default is "any".
 
 **Example Request**
     .. tabs::
