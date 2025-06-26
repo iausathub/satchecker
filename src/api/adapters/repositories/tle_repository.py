@@ -71,10 +71,10 @@ class AbstractTLERepository(abc.ABC):
         per_page: int,
         format: str,
         constellation: Optional[str] = None,
-        data_source: Optional[str] = None,
+        data_source_limit: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         return self._get_all_tles_at_epoch(
-            epoch_date, page, per_page, format, constellation, data_source
+            epoch_date, page, per_page, format, constellation, data_source_limit
         )
 
     def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
@@ -406,7 +406,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         per_page: int,
         format: str,
         constellation: Optional[str] = None,
-        data_source: Optional[str] = None,
+        data_source_limit: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -492,8 +492,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             """
             )
 
-            if data_source == "any":
-                data_source = None
+            if data_source_limit == "any":
+                data_source_limit = None
 
             # Then get their latest TLEs
             tles_sql = text(
@@ -505,7 +505,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     FROM tle
                     WHERE epoch BETWEEN :start_date AND :end_date
                     AND sat_id = ANY(:satellite_ids)
-                    AND (:data_source IS NULL OR data_source = :data_source)
+                    AND (:data_source_limit IS NULL OR data_source = :data_source_limit)
                     ORDER BY sat_id, epoch DESC
                 )
                 SELECT * FROM latest_tles
@@ -530,7 +530,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "start_date": two_weeks_prior,
                     "end_date": epoch_date,
                     "satellite_ids": list(valid_satellites.keys()),
-                    "data_source": data_source,
+                    "data_source_limit": data_source_limit,
                 },
             )
 
