@@ -10,7 +10,6 @@ from skyfield.api import EarthSatellite, load, wgs84
 
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.services.cache_service import (
-    check_redis_memory,
     create_fov_cache_key,
     get_cached_data,
     set_cached_data,
@@ -35,6 +34,7 @@ def get_satellite_passes_in_fov(
     include_tles: bool,
     skip_cache: bool,
     constellation: str,
+    data_source: str,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -87,6 +87,7 @@ def get_satellite_passes_in_fov(
         fov_radius,
         False if include_tles is None else include_tles,
         constellation,
+        data_source,
     )
 
     # TODO: resolve caching issue
@@ -112,7 +113,6 @@ def get_satellite_passes_in_fov(
     else:
         logger.info("No cached data found")
     logger.info(f"Cached data: {cached_data}")
-    check_redis_memory()
 
     if cached_data and not skip_cache:
         cache_time = python_time.time() - start_time
@@ -149,7 +149,12 @@ def get_satellite_passes_in_fov(
 
     try:
         tles, count, _ = tle_repo.get_all_tles_at_epoch(
-            astropy_time_to_datetime_utc(time_param), 1, 10000, "zip", constellation
+            astropy_time_to_datetime_utc(time_param),
+            1,
+            10000,
+            "zip",
+            constellation,
+            data_source,
         )
         logger.info(f"Successfully retrieved {count} TLEs")
     except Exception as e:

@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, and_, bindparam, func, text
+from sqlalchemy import DateTime, String, and_, bindparam, func, text
 from sqlalchemy.orm.exc import NoResultFound
 
 from api.adapters.database_orm import SatelliteDb, TLEDb
@@ -71,9 +71,10 @@ class AbstractTLERepository(abc.ABC):
         per_page: int,
         format: str,
         constellation: Optional[str] = None,
+        data_source: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         return self._get_all_tles_at_epoch(
-            epoch_date, page, per_page, format, constellation
+            epoch_date, page, per_page, format, constellation, data_source
         )
 
     def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
@@ -132,6 +133,7 @@ class AbstractTLERepository(abc.ABC):
         per_page: int,
         format: str,
         constellation: Optional[str] = None,
+        data_source: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         raise NotImplementedError
 
@@ -404,6 +406,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         per_page: int,
         format: str,
         constellation: Optional[str] = None,
+        data_source: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -489,6 +492,9 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             """
             )
 
+            if data_source == "any":
+                data_source = None
+
             # Then get their latest TLEs
             tles_sql = text(
                 """
@@ -499,6 +505,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     FROM tle
                     WHERE epoch BETWEEN :start_date AND :end_date
                     AND sat_id = ANY(:satellite_ids)
+                    AND (:data_source IS NULL OR data_source = :data_source)
                     ORDER BY sat_id, epoch DESC
                 )
                 SELECT * FROM latest_tles
@@ -523,6 +530,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "start_date": two_weeks_prior,
                     "end_date": epoch_date,
                     "satellite_ids": list(valid_satellites.keys()),
+                    "data_source": data_source,
                 },
             )
 
@@ -577,6 +585,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         per_page: int,
         format: str,
         constellation: Optional[str] = None,
+        data_source: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -644,6 +653,10 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
         # If we get here, we need to query the database
         logger.info("Querying database for TLEs")
+
+        if data_source == "any":
+            data_source = None
+
         try:
             tles_sql = text(
                 """
@@ -655,6 +668,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                             FROM tle t
                             WHERE t.sat_id = s.id
                                 AND t.epoch BETWEEN :start_date AND :end_date
+                                AND (:data_source IS NULL OR t.data_source = :data_source)
                             ORDER BY t.epoch DESC
                             LIMIT 1
                         ) AS tle_id
@@ -673,11 +687,13 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 JOIN tle t ON t.id = l.tle_id
                 JOIN satellites s ON s.id = l.sat_id
                 ORDER BY t.epoch DESC
-                """
+                """  # noqa: E501
             ).bindparams(
                 start_date=bindparam("start_date", type_=DateTime(timezone=True)),
                 end_date=bindparam("end_date", type_=DateTime(timezone=True)),
                 epoch_date=bindparam("epoch_date", type_=DateTime(timezone=True)),
+                constellation=bindparam("constellation", type_=String),
+                data_source=bindparam("data_source", type_=String),
             )
 
             # Then get TLEs for those satellites
@@ -688,6 +704,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "end_date": epoch_date,
                     "epoch_date": epoch_date,
                     "constellation": constellation,
+                    "data_source": data_source,
                 },
             )
 

@@ -224,6 +224,7 @@ def get_satellite_passes():
         "include_tles",
         "skip_cache",
         "constellation",
+        "data_source",
     ]
 
     if "site" not in request.args:
@@ -263,6 +264,7 @@ def get_satellite_passes():
             validated_parameters["include_tles"],
             validated_parameters["skip_cache"],
             validated_parameters["constellation"],
+            validated_parameters["data_source"],
             api_source,
             api_version,
         )

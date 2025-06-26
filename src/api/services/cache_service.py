@@ -26,6 +26,7 @@ def create_fov_cache_key(
     fov_radius: float,
     include_tles: bool = False,
     constellation: Optional[str] = None,
+    data_source: Optional[str] = None,
 ) -> str:
     """Create a unique cache key for the FOV calculation."""
     key_parts = [
@@ -41,6 +42,7 @@ def create_fov_cache_key(
         f"radius_{fov_radius}",
         f"include_tles_{include_tles}",
         f"constellation_{constellation}",
+        f"data_source_{data_source}",
     ]
     return ":".join(key_parts)
 
