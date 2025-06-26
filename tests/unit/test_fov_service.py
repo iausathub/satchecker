@@ -49,7 +49,7 @@ def test_satellite_in_fov(test_location, test_time):
         include_tles=False,
         skip_cache=False,
         constellation=None,
-        data_source=None,
+        data_source="any",
         api_source="test",
         api_version="1.0",
     )
@@ -104,7 +104,7 @@ def test_satellite_in_fov(test_location, test_time):
         include_tles=True,
         skip_cache=False,
         constellation=None,
-        data_source="any",
+        data_source=None,
         api_source="test",
         api_version="1.0",
     )
@@ -130,7 +130,7 @@ def test_satellite_in_fov(test_location, test_time):
         api_source="test",
         api_version="1.0",
     )
-    # Get the first satellite key (safer for tests)
+    # Get the first satellite key
     satellite_key = list(result["data"]["satellites"].keys())[0]
     assert (
         result["data"]["satellites"][satellite_key]["tle_data"]["tle_line1"]
@@ -358,6 +358,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         False,
         False,
         None,
+        None,
         "test",
         "v1",
     )
@@ -457,6 +458,7 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
             False,
             False,
             None,
+            None,
             "test",
             "v1",
         )
@@ -500,6 +502,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         False,
         False,
         None,
+        None,
         "test",
         "v1",
     )
@@ -522,6 +525,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
             "include_tles": False,
             "skip_cache": False,
             "constellation": None,
+            "data_source": None,
             "api_source": "test",
             "api_version": "v1",
         }

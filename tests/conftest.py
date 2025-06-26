@@ -394,7 +394,11 @@ class FakeTLERepository(AbstractTLERepository):
             for tle in self._tles
             if (constellation is None or tle.satellite.constellation == constellation)
             and (epoch_date is None or tle.epoch <= epoch_date)
-            and (data_source is None or tle.data_source == data_source)
+            and (
+                data_source is None
+                or tle.data_source == data_source
+                or data_source == "any"
+            )
         ]
         return filtered_tles, len(filtered_tles), "database"
 
