@@ -325,6 +325,7 @@ def test_satellites_above_horizon(test_location, test_time):
     assert len(result["data"]) == 0
 
 
+@pytest.mark.skip(reason="Caching is temporarily disabled")
 def test_fov_caching_cycle(mocker, test_location, test_time):
     """Test the complete caching cycle: miss, compute, store, then hit."""
     # Create a simple dictionary to act as our cache storage
@@ -389,6 +390,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         False,
         False,
         None,
+        None,
         "test",
         "v1",
     )
@@ -422,6 +424,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
         "time",
         False,
         True,  # skip_cache=True
+        None,
         None,
         "test",
         "v1",

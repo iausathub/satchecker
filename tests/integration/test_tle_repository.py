@@ -775,21 +775,21 @@ def test_get_all_tles_at_epoch_experimental_with_data_source(
 
     # Test filtering by spacetrack data source
     spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
-        epoch, 1, 10000, "zip", data_source="spacetrack"
+        epoch, 1, 10000, "zip", data_source_limit="spacetrack"
     )
     assert len(spacetrack_tles) == 1
     assert spacetrack_tles[0].data_source == "spacetrack"
 
     # Test filtering by celestrak data source
     celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
-        epoch, 1, 10000, "zip", data_source="celestrak"
+        epoch, 1, 10000, "zip", data_source_limit="celestrak"
     )
     assert len(celestrak_tles) == 1
     assert celestrak_tles[0].data_source == "celestrak"
 
     # Test filtering by any data source
     all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
-        epoch, 1, 10000, "zip", data_source="any"
+        epoch, 1, 10000, "zip", data_source_limit="any"
     )
     assert len(all_tles) == 2
     assert all_tles[0].data_source == "spacetrack"
@@ -828,21 +828,21 @@ def test_get_all_tles_at_epoch_with_data_source(session, services_available):
 
     # Test filtering by spacetrack data source
     spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
-        epoch, 1, 10000, "zip", data_source="spacetrack"
+        epoch, 1, 10000, "zip", data_source_limit="spacetrack"
     )
     assert len(spacetrack_tles) == 1
     assert spacetrack_tles[0].data_source == "spacetrack"
 
     # Test filtering by celestrak data source
     celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
-        epoch, 1, 10000, "zip", data_source="celestrak"
+        epoch, 1, 10000, "zip", data_source_limit="celestrak"
     )
     assert len(celestrak_tles) == 1
     assert celestrak_tles[0].data_source == "celestrak"
 
     # Test filtering by any data source
     all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
-        epoch, 1, 10000, "zip", data_source="any"
+        epoch, 1, 10000, "zip", data_source_limit="any"
     )
     assert len(all_tles) == 2
     assert all_tles[0].data_source == "spacetrack"
