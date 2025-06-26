@@ -120,6 +120,12 @@ def get_satellite_passes():
         required: false
         description: Constellation of the satellites to include in the response
         example: "starlink"
+      - name: data_source
+        in: query
+        type: string
+        required: false
+        description: Data source to use for TLEs ("celestrak" or "spacetrack"). Default is any/all sources.
+        example: "celestrak"
     responses:
       200:
         description: Successful response with satellite passes
@@ -224,6 +230,7 @@ def get_satellite_passes():
         "include_tles",
         "skip_cache",
         "constellation",
+        "data_source",
     ]
 
     if "site" not in request.args:
@@ -263,6 +270,7 @@ def get_satellite_passes():
             validated_parameters["include_tles"],
             validated_parameters["skip_cache"],
             validated_parameters["constellation"],
+            validated_parameters["data_source"],
             api_source,
             api_version,
         )

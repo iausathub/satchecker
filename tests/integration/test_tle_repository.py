@@ -739,3 +739,111 @@ def test_get_all_tles_at_epoch_experimental_with_constellation(
         epoch, 1, 10000, "zip", None
     )
     assert len(all_tles) == 2
+
+
+def test_get_all_tles_at_epoch_experimental_with_data_source(
+    session, services_available
+):
+    """Test getting TLEs filtered by data source using experimental method."""
+    # Create satellites with different data sources
+    satellite = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    satellite_2 = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    sat_repository.add(satellite_2)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    spacetrack_tle = TLEFactory(
+        satellite=satellite, epoch=epoch, data_source="spacetrack"
+    )
+    celestrak_tle = TLEFactory(
+        satellite=satellite_2, epoch=epoch, data_source="celestrak"
+    )
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(spacetrack_tle)
+    tle_repository.add(celestrak_tle)
+    session.commit()
+
+    # Test filtering by spacetrack data source
+    spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="spacetrack"
+    )
+    assert len(spacetrack_tles) == 1
+    assert spacetrack_tles[0].data_source == "spacetrack"
+
+    # Test filtering by celestrak data source
+    celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="celestrak"
+    )
+    assert len(celestrak_tles) == 1
+    assert celestrak_tles[0].data_source == "celestrak"
+
+    # Test filtering by any data source
+    all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="any"
+    )
+    assert len(all_tles) == 2
+    assert all_tles[0].data_source == "spacetrack"
+    assert all_tles[1].data_source == "celestrak"
+
+
+def test_get_all_tles_at_epoch_with_data_source(session, services_available):
+    """Test getting TLEs filtered by data source using experimental method."""
+    # Create satellites with different data sources
+    satellite = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    satellite_2 = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    sat_repository.add(satellite_2)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    spacetrack_tle = TLEFactory(
+        satellite=satellite, epoch=epoch, data_source="spacetrack"
+    )
+    celestrak_tle = TLEFactory(
+        satellite=satellite_2, epoch=epoch, data_source="celestrak"
+    )
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(spacetrack_tle)
+    tle_repository.add(celestrak_tle)
+    session.commit()
+
+    # Test filtering by spacetrack data source
+    spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="spacetrack"
+    )
+    assert len(spacetrack_tles) == 1
+    assert spacetrack_tles[0].data_source == "spacetrack"
+
+    # Test filtering by celestrak data source
+    celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="celestrak"
+    )
+    assert len(celestrak_tles) == 1
+    assert celestrak_tles[0].data_source == "celestrak"
+
+    # Test filtering by any data source
+    all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="any"
+    )
+    assert len(all_tles) == 2
+    assert all_tles[0].data_source == "spacetrack"
+    assert all_tles[1].data_source == "celestrak"

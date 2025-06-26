@@ -387,13 +387,18 @@ class FakeTLERepository(AbstractTLERepository):
         )
 
     def _get_all_tles_at_epoch(
-        self, epoch_date, page, per_page, format, constellation=None
+        self, epoch_date, page, per_page, format, constellation=None, data_source=None
     ):
         filtered_tles = [
             tle
             for tle in self._tles
             if (constellation is None or tle.satellite.constellation == constellation)
             and (epoch_date is None or tle.epoch <= epoch_date)
+            and (
+                data_source is None
+                or tle.data_source == data_source
+                or data_source == "any"
+            )
         ]
         return filtered_tles, len(filtered_tles), "database"
 
