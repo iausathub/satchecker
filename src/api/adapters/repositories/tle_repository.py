@@ -577,8 +577,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             logger.error("Database query failed, rolling back transaction")
             raise
 
-    # pragma: no cover
-    def _get_all_tles_at_epoch_experimental(
+    def _get_all_tles_at_epoch_experimental(  # pragma: no cover
         self,
         epoch_date: datetime,
         page: int,
