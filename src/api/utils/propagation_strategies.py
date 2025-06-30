@@ -279,8 +279,7 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
         return results
 
 
-# pragma: no cover
-class SGP4PropagationStrategy(BasePropagationStrategy):
+class SGP4PropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def propagate(
         self,
         julian_dates: Union[float, list[float], np.ndarray],
@@ -393,8 +392,7 @@ class SGP4PropagationStrategy(BasePropagationStrategy):
         return results[0] if len(results) == 1 else results
 
 
-# pragma: no cover
-class TestPropagationStrategy(BasePropagationStrategy):
+class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def propagate(
         self,
         julian_dates: Union[float, list[float], np.ndarray],
@@ -775,7 +773,7 @@ class FOVParallelPropagationStrategy:
         return all_results, execution_time, satellites_processed
 
 
-class KroghPropagationStrategy(BasePropagationStrategy):
+class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def __init__(self):
         """Initialize the Krogh propagation strategy."""
         self.ephemeris_data = None
