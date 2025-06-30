@@ -279,6 +279,7 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
         return results
 
 
+# pragma: no cover
 class SGP4PropagationStrategy(BasePropagationStrategy):
     def propagate(
         self,
@@ -392,6 +393,7 @@ class SGP4PropagationStrategy(BasePropagationStrategy):
         return results[0] if len(results) == 1 else results
 
 
+# pragma: no cover
 class TestPropagationStrategy(BasePropagationStrategy):
     def propagate(
         self,
