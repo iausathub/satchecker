@@ -577,7 +577,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             logger.error("Database query failed, rolling back transaction")
             raise
 
-    def _get_all_tles_at_epoch_experimental(  # pragma: no cover
+    def _get_all_tles_at_epoch_experimental(
         self,
         epoch_date: datetime,
         page: int,
@@ -585,7 +585,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         format: str,
         constellation: Optional[str] = None,
         data_source: Optional[str] = None,
-    ) -> tuple[list[TLE], int, str]:
+    ) -> tuple[list[TLE], int, str]:  # pragma: no cover
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
             epoch_date = epoch_date.replace(tzinfo=timezone.utc)
