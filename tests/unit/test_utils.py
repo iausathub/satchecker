@@ -6,11 +6,16 @@ import numpy as np
 import pytest
 from astropy.time import Time
 from skyfield.api import wgs84
+from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.tle_factory import TLEFactory
 
 from api.common.exceptions import ValidationError
 from api.utils import coordinate_systems, time_utils
 from api.utils.output_utils import position_data_to_json
-from api.utils.propagation_strategies import SkyfieldPropagationStrategy
+from api.utils.propagation_strategies import (
+    SkyfieldPropagationStrategy,
+    process_satellite_batch,
+)
 
 
 def test_icrf2radec_degrees_unit():
@@ -161,6 +166,47 @@ def test_tle_to_icrf_state_invalid_tle():
 
     with pytest.raises(ValidationError):
         coordinate_systems.tle_to_icrf_state(tle_line_1, tle_line_2, jd)
+
+
+def test_process_satellite_batch():
+    # Use the same TLE values from the passing FOV tests (FENGYUN 1C DEB)
+    # Create proper satellite and TLE objects like in the FOV tests
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
+        tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+    )
+
+    tle_batch = [tle]
+    julian_dates = [Time("2024-10-01T18:19:13", format="isot", scale="utc").jd]
+    latitude = 43.1929
+    longitude = -81.3256
+    elevation = 300
+    fov_center = (24.797270, 75.774139)
+    fov_radius = 2.0
+    include_tles = True
+
+    args = (
+        tle_batch,
+        julian_dates,
+        latitude,
+        longitude,
+        elevation,
+        fov_center,
+        fov_radius,
+        include_tles,
+    )
+    result = process_satellite_batch(args)
+
+    assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
+    assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
 
 
 def test_skyfield_propagation_strategy():
