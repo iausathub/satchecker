@@ -12,6 +12,7 @@ from api.services.cache_service import (
     check_redis_memory,
     create_fov_cache_key,
     get_cached_data,
+    refresh_tle_cache,
     set_cached_data,
 )
 
@@ -185,6 +186,89 @@ def test_batch_serialize_tles_datetime_serialization_error(mocker):
 
     with pytest.raises(AttributeError):
         batch_serialize_tles([mock_tle])
+
+
+def test_refresh_tle_cache_no_flask_context(mocker):
+    mock_logger = mocker.patch("api.services.cache_service.logger")
+    mocker.patch("flask.current_app", None)
+
+    result = refresh_tle_cache()
+
+    assert result is False
+    mock_logger.error.assert_called_once()
+
+
+def test_refresh_tle_cache_database_error(mocker):
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository"
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mock_current_app = mocker.MagicMock()
+    mocker.patch("flask.current_app", mock_current_app)
+
+    mock_session = mocker.Mock()
+    mock_db.session = mock_session
+
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_tles_at_epoch.side_effect = Exception("Database error")
+    mock_repo_class.return_value = mock_repo
+
+    result = refresh_tle_cache()
+
+    assert result is False
+    mock_session.rollback.assert_called_once()
+
+
+def test_refresh_tle_cache_serialization_error(mocker):
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository"
+    )
+    mock_batch_serialize = mocker.patch(
+        "api.services.cache_service.batch_serialize_tles"
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mock_current_app = mocker.MagicMock()
+    mocker.patch("flask.current_app", mock_current_app)
+
+    mock_session = mocker.Mock()
+    mock_db.session = mock_session
+
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_tles_at_epoch.return_value = ([], 0, "database")
+    mock_repo_class.return_value = mock_repo
+
+    mock_batch_serialize.side_effect = Exception("Serialization error")
+
+    result = refresh_tle_cache()
+
+    assert result is False
+
+
+def test_refresh_tle_cache_cache_set_failure(mocker):
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository"
+    )
+    mock_set_cached = mocker.patch("api.services.cache_service.set_cached_data")
+    mock_batch_serialize = mocker.patch(
+        "api.services.cache_service.batch_serialize_tles"
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mock_current_app = mocker.MagicMock()
+    mocker.patch("flask.current_app", mock_current_app)
+
+    mock_session = mocker.Mock()
+    mock_db.session = mock_session
+
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_tles_at_epoch.return_value = ([], 0, "database")
+    mock_repo_class.return_value = mock_repo
+
+    mock_batch_serialize.return_value = []
+    mock_set_cached.return_value = False
+
+    result = refresh_tle_cache()
+
+    assert result is True
 
 
 def test_check_redis_memory_connection_error(mocker):
