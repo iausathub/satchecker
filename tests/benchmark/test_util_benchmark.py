@@ -6,6 +6,7 @@ from skyfield.api import load, wgs84
 
 from api.utils import coordinate_systems
 from api.utils.propagation_strategies import (
+    FOVPropagationStrategy,
     PropagationInfo,
     SkyfieldPropagationStrategy,
     satellite_position,
@@ -111,6 +112,39 @@ def test_benchmark_skyfield_propagation(
     assert len(result) == 1
     assert hasattr(result[0], "ra")
     assert hasattr(result[0], "dec")
+
+
+def test_benchmark_fov_propagation_strategy(
+    benchmark, sample_tle, sample_location, sample_julian_date
+):
+    """Benchmark the single satellite FOV propagation strategy."""
+    tle_line_1, tle_line_2 = sample_tle
+    latitude, longitude, elevation = sample_location
+
+    def setup_and_propagate():
+        strategy = FOVPropagationStrategy()
+        return strategy.propagate(
+            julian_dates=[sample_julian_date],
+            tle_line_1=tle_line_1,
+            tle_line_2=tle_line_2,
+            latitude=latitude,
+            longitude=longitude,
+            elevation=elevation,
+            fov_center=(234.01865005, -51.42418930),  # RA, Dec in degrees
+            fov_radius=1.0,  # FOV radius in degrees
+        )
+
+    result = benchmark(setup_and_propagate)
+    assert isinstance(result, list)  # Returns list of dicts
+    # Note: result might be empty if satellite isn't in FOV
+    for entry in result:
+        assert "ra" in entry
+        assert "dec" in entry
+        assert "altitude" in entry
+        assert "azimuth" in entry
+        assert "range_km" in entry
+        assert "julian_date" in entry
+        assert "angle" in entry
 
 
 def test_benchmark_is_illuminated(benchmark, sample_julian_date):
