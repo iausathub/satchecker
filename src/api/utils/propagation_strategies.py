@@ -507,6 +507,7 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         return results[0] if len(results) == 1 else results
 
 
+# remove pragma: no cover if another use is found for this
 class FOVPropagationStrategy(BasePropagationStrategy):
     def propagate(
         self,
@@ -519,7 +520,7 @@ class FOVPropagationStrategy(BasePropagationStrategy):
         fov_center: tuple[float, float] = (0.0, 0.0),  # Default to (0,0)
         fov_radius: float = 0.0,  # Default to 0 degrees
         **kwargs,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict[str, Any]]:  # pragma: no cover
         """
         Propagate satellite positions and check if they fall within FOV.
 
