@@ -235,14 +235,17 @@ def cannot_connect_to_services():
 
 
 class FakeSatelliteRepository(AbstractSatelliteRepository):
-    def __init__(self, satellites):
+    def __init__(self, satellites, exception_to_raise=None):
         super().__init__()
         self._satellites = satellites
+        self.exception_to_raise = exception_to_raise
 
     def _add(self, satellite):
         self._satellites.add(satellite)
 
     def _get_norad_ids_from_satellite_name(self, name):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return [
             [
                 satellite.sat_number,
@@ -254,6 +257,8 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         ]
 
     def _get_satellite_names_from_norad_id(self, id):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return [
             [satellite.sat_name, datetime(2024, 1, 1), satellite.has_current_sat_number]
             for satellite in self._satellites
@@ -261,6 +266,8 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         ]
 
     def _get_satellite_data_by_id(self, id):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         try:
             id_int = int(id) if isinstance(id, str) and id.isdigit() else id
             matching_satellites = [
@@ -273,12 +280,16 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
             return None
 
     def _get_satellite_data_by_name(self, name):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         matching_satellites = [
             satellite for satellite in self._satellites if satellite.sat_name == name
         ]
         return matching_satellites[0] if matching_satellites else None
 
     def _get_starlink_generations(self):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         # Group satellites by generation
         generations = {}
         for satellite in self._satellites:
@@ -313,6 +324,8 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         ]
 
     def _get_active_satellites(self, object_type=None):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return [
             satellite
             for satellite in self._satellites
@@ -336,8 +349,9 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
 
 
 class FakeTLERepository(AbstractTLERepository):
-    def __init__(self, tles):
+    def __init__(self, tles, exception_to_raise=None):
         self._tles = set(tles)
+        self.exception_to_raise = exception_to_raise
 
     def _add(self, tle):
         self._tles.add(tle)
@@ -345,6 +359,8 @@ class FakeTLERepository(AbstractTLERepository):
     def _get_all_for_date_range_by_satellite_name(
         self, satellite_name, start_date, end_date
     ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return [
             tle
             for tle in self._tles
@@ -360,6 +376,8 @@ class FakeTLERepository(AbstractTLERepository):
     def _get_all_for_date_range_by_satellite_number(
         self, satellite_number, start_date, end_date
     ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return [
             tle
             for tle in self._tles
@@ -373,6 +391,8 @@ class FakeTLERepository(AbstractTLERepository):
         ]
 
     def _get_closest_by_satellite_name(self, satellite_name, epoch):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return min(
             (tle for tle in self._tles if tle.satellite.sat_name == satellite_name),
             key=lambda tle: abs(tle.epoch - epoch),
@@ -380,6 +400,8 @@ class FakeTLERepository(AbstractTLERepository):
         )
 
     def _get_closest_by_satellite_number(self, satellite_number, epoch):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return min(
             (tle for tle in self._tles if tle.satellite.sat_number == satellite_number),
             key=lambda tle: abs(tle.epoch - epoch),
@@ -389,6 +411,8 @@ class FakeTLERepository(AbstractTLERepository):
     def _get_all_tles_at_epoch(
         self, epoch_date, page, per_page, format, constellation=None, data_source=None
     ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         filtered_tles = [
             tle
             for tle in self._tles
@@ -403,16 +427,22 @@ class FakeTLERepository(AbstractTLERepository):
         return filtered_tles, len(filtered_tles), "database"
 
     def _get_adjacent_tles(self, id, id_type, epoch):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         # limit to one before and one after for the given id (satellite number)
         tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
         return tles[:1] + tles[1:]
 
     def _get_tles_around_epoch(self, id, id_type, epoch, count_before, count_after):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         # limit to count_before + count_after
         tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
         return tles[: count_before + count_after]
 
     def _get_nearest_tle(self, id, id_type, epoch):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
         return min(
             (tle for tle in self._tles if tle.satellite.sat_number == id),
             key=lambda tle: abs(tle.epoch - epoch),
