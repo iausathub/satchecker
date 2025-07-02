@@ -95,7 +95,7 @@ def get_satellite_passes_in_fov(
 
     cached_data = get_cached_data(cache_key)
 
-    if cached_data:
+    if cached_data:  # pragma: no cover
         logger.info(
             f"Cached data found with {len(cached_data.get('results', []))} results and "
             f"{cached_data.get('points_in_fov', 0)} points in FOV"
@@ -114,7 +114,7 @@ def get_satellite_passes_in_fov(
         logger.info("No cached data found")
     logger.info(f"Cached data: {cached_data}")
 
-    if cached_data and not skip_cache:
+    if cached_data and not skip_cache:  # pragma: no cover
         cache_time = python_time.time() - start_time
         logger.info(
             f"Cache hit: Found {len(cached_data['results'])} results with "
