@@ -1,18 +1,20 @@
 # ruff: noqa: S101
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
 from astropy.time import Time
 from skyfield.api import wgs84
+from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.tle_factory import TLEFactory
 
 from api.common.exceptions import ValidationError
 from api.utils import coordinate_systems, time_utils
 from api.utils.output_utils import position_data_to_json
 from api.utils.propagation_strategies import (
-    PropagationInfo,
     SkyfieldPropagationStrategy,
+    process_satellite_batch,
 )
 
 
@@ -166,6 +168,47 @@ def test_tle_to_icrf_state_invalid_tle():
         coordinate_systems.tle_to_icrf_state(tle_line_1, tle_line_2, jd)
 
 
+def test_process_satellite_batch():
+    # Use the same TLE values from the passing FOV tests (FENGYUN 1C DEB)
+    # Create proper satellite and TLE objects like in the FOV tests
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
+        tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+    )
+
+    tle_batch = [tle]
+    julian_dates = [Time("2024-10-01T18:19:13", format="isot", scale="utc").jd]
+    latitude = 43.1929
+    longitude = -81.3256
+    elevation = 300
+    fov_center = (24.797270, 75.774139)
+    fov_radius = 2.0
+    include_tles = True
+
+    args = (
+        tle_batch,
+        julian_dates,
+        latitude,
+        longitude,
+        elevation,
+        fov_center,
+        fov_radius,
+        include_tles,
+    )
+    result = process_satellite_batch(args)
+
+    assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
+    assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
+
+
 def test_skyfield_propagation_strategy():
     julian_date = 2459000.5
     tle_line_1 = "1 25544U 98067A   20333.54791667  .00016717  00000-0  10270-3 0  9000"
@@ -174,16 +217,15 @@ def test_skyfield_propagation_strategy():
     longitude = -118.2437
     elevation = 100
 
-    propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(),
-        tle_line_1,
-        tle_line_2,
-        [julian_date],
-        latitude,
-        longitude,
-        elevation,
+    strategy = SkyfieldPropagationStrategy()
+    result = strategy.propagate(
+        julian_dates=[julian_date],
+        tle_line_1=tle_line_1,
+        tle_line_2=tle_line_2,
+        latitude=latitude,
+        longitude=longitude,
+        elevation=elevation,
     )
-    result = propagation_info.propagate()
 
     assert result[0].ra == pytest.approx(234.01865005681205, rel=1e-9)
     assert result[0].dec == pytest.approx(-51.424189307650366, rel=1e-9)
@@ -197,16 +239,15 @@ def test_skyfield_propagation_strategy_error():
     longitude = 0
     elevation = 0
 
-    propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(),
-        tle_line_1,
-        tle_line_2,
-        [julian_date],
-        latitude,
-        longitude,
-        elevation,
+    strategy = SkyfieldPropagationStrategy()
+    result = strategy.propagate(
+        julian_dates=[julian_date],
+        tle_line_1=tle_line_1,
+        tle_line_2=tle_line_2,
+        latitude=latitude,
+        longitude=longitude,
+        elevation=elevation,
     )
-    result = propagation_info.propagate()
     # Weird lat/long./elevation values will not cause errors -
     # they will be normalized to a valid range; invalid TLE data
     # will cause a NaN result, but not throw an exception
@@ -564,3 +605,32 @@ def test_is_illuminated():
     sat_gcrs = np.array([1.0, 0.0])
     with pytest.raises(ValueError):
         is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+
+
+def test_ensure_datetime():
+    # Test date string in YYYY-MM-DD format
+    date_str = "2025-01-01"
+    result = time_utils.ensure_datetime(date_str)
+    assert result == datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    # Test date string in YYYY-MM-DD HH:MM:SS format
+    date_str = "2025-01-01 12:00:00"
+    result = time_utils.ensure_datetime(date_str)
+    assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Test timezone-aware datetime
+    dt = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    result = time_utils.ensure_datetime(dt)
+    assert result == dt
+
+    # Test naive datetime
+    dt = datetime(2025, 1, 1, 12, 0, 0)
+    result = time_utils.ensure_datetime(dt)
+    assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Test invalid input types
+    with pytest.raises(TypeError):
+        time_utils.ensure_datetime(123)
+
+    with pytest.raises(ValueError):
+        time_utils.ensure_datetime("invalid-date")

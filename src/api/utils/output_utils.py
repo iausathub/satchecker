@@ -1,4 +1,5 @@
 from datetime import timezone
+from typing import Any
 
 import numpy as np
 from astropy.time import Time
@@ -144,15 +145,15 @@ def position_data_to_json(
 
 
 def fov_data_to_json(
-    results: list,
+    results: list[dict[str, Any]],
     points_in_fov: int,
-    performance_metrics: dict,
+    performance_metrics: dict[str, Any],
     api_source: str,
     api_version: str,
     group_by: str,
     precision_angles=8,
     precision_date=8,
-) -> dict:
+) -> dict[str, Any]:
     """Convert FOV results to JSON format with optional grouping by satellite.
 
     Args:
@@ -185,6 +186,7 @@ def fov_data_to_json(
                 result["date_time"] = format_date(
                     Time(value, format="jd").to_datetime()
                 )
+    formatted_results: dict[str, Any]
 
     if group_by == "satellite":
         # Group passes by satellite
@@ -197,11 +199,19 @@ def fov_data_to_json(
             sat_key = f"{sat_name} ({sat_norad_id})"
 
             if sat_key not in satellites:
-                satellites[sat_key] = {
+                # Create base satellite dictionary
+                satellite_dict = {
                     "name": sat_name,
                     "norad_id": sat_norad_id,
                     "positions": [],
                 }
+
+                # Only add tle_data if it's not null/empty
+                tle_data = result.get("tle_data")
+                if tle_data is not None and tle_data != {}:
+                    satellite_dict["tle_data"] = tle_data
+
+                satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info
             pass_data = {
                 "ra": result["ra"],
@@ -230,7 +240,7 @@ def fov_data_to_json(
         # Original chronological format
         formatted_results = {
             "data": results,
-            "count": len(results),
+            "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,
             "version": api_version,

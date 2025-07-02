@@ -1,22 +1,17 @@
 # ruff: noqa: S101
 
+import time
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from src.api.adapters.database_orm import TLEDb
 from src.api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
 from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from tests.conftest import cannot_connect_to_services
 from tests.factories import SatelliteFactory, TLEFactory
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_add_tle(session):
+def test_add_tle(session, services_available):
     tle = TLEFactory()
     tle_repository = SqlAlchemyTLERepository(session)
 
@@ -27,11 +22,7 @@ def test_add_tle(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_add_tle_existing_satellite(session):
+def test_add_tle_existing_satellite(session, services_available):
     tle = TLEFactory()
     satellite = SatelliteFactory()
 
@@ -48,11 +39,7 @@ def test_add_tle_existing_satellite(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tle_by_satellite_number(session):
+def test_get_tle_by_satellite_number(session, services_available):
     tle = TLEFactory()
     tle_repository = SqlAlchemyTLERepository(session)
 
@@ -65,11 +52,7 @@ def test_get_tle_by_satellite_number(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tle_by_satellite_name(session):
+def test_get_tle_by_satellite_name(session, services_available):
     tle = TLEFactory()
     tle_repository = SqlAlchemyTLERepository(session)
 
@@ -82,11 +65,7 @@ def test_get_tle_by_satellite_name(session):
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tle_by_satellite_number_no_match(session):
+def test_get_tle_by_satellite_number_no_match(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
 
     session.commit()
@@ -97,11 +76,7 @@ def test_get_tle_by_satellite_number_no_match(session):
     assert repo_tle is None
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tle_by_satellite_name_no_match(session):
+def test_get_tle_by_satellite_name_no_match(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
 
     session.commit()
@@ -112,11 +87,7 @@ def test_get_tle_by_satellite_name_no_match(session):
     assert repo_tle is None
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_all_for_date_range_by_satellite_number(session):
+def test_get_all_for_date_range_by_satellite_number(session, services_available):
 
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
@@ -138,11 +109,7 @@ def test_get_all_for_date_range_by_satellite_number(session):
     assert len(repo_tles) == 2
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_all_for_date_range_by_satellite_name(session):
+def test_get_all_for_date_range_by_satellite_name(session, services_available):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
@@ -163,11 +130,9 @@ def test_get_all_for_date_range_by_satellite_name(session):
     assert len(repo_tles) == 2
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_all_for_date_range_by_satellite_number_no_match(session):
+def test_get_all_for_date_range_by_satellite_number_no_match(
+    session, services_available
+):
     tle_repository = SqlAlchemyTLERepository(session)
 
     repo_tles = tle_repository.get_all_for_date_range_by_satellite_number(
@@ -176,11 +141,7 @@ def test_get_all_for_date_range_by_satellite_number_no_match(session):
     assert repo_tles == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_all_for_date_range_by_satellite_name_no_match(session):
+def test_get_all_for_date_range_by_satellite_name_no_match(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
 
     repo_tles = tle_repository.get_all_for_date_range_by_satellite_name(
@@ -189,11 +150,7 @@ def test_get_all_for_date_range_by_satellite_name_no_match(session):
     assert repo_tles == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_all_for_date_range_with_dates(session):
+def test_get_all_for_date_range_with_dates(session, services_available):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
@@ -224,11 +181,7 @@ def test_get_all_for_date_range_with_dates(session):
     assert len(repo_tles) == 1
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_norad_ids_from_satellite_name(session):
+def test_get_norad_ids_from_satellite_name(session, services_available):
     satellite = SatelliteFactory()
     satellite_new = SatelliteFactory(sat_name=satellite.sat_name)
     sat_repository = SqlAlchemySatelliteRepository(session)
@@ -242,11 +195,9 @@ def test_get_norad_ids_from_satellite_name(session):
     assert satellite_new.sat_number in sat_numbers
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_names_from_norad_id(session):
+def test_get_satellite_names_from_norad_id(
+    session,
+):
     satellite = SatelliteFactory()
     satellite_new = SatelliteFactory(sat_number=satellite.sat_number)
     sat_repository = SqlAlchemySatelliteRepository(session)
@@ -262,11 +213,7 @@ def test_get_satellite_names_from_norad_id(session):
     assert satellite_new.sat_name in sat_names
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_names_from_norad_id_no_match(session):
+def test_get_satellite_names_from_norad_id_no_match(session, services_available):
     sat_repository = SqlAlchemySatelliteRepository(session)
 
     results = sat_repository.get_satellite_names_from_norad_id("12345")
@@ -280,11 +227,7 @@ def test_get_satellite_names_from_norad_id_no_match(session):
     assert results == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_norad_ids_from_satellite_name_no_match(session):
+def test_get_norad_ids_from_satellite_name_no_match(session, services_available):
     sat_repository = SqlAlchemySatelliteRepository(session)
 
     results = sat_repository.get_norad_ids_from_satellite_name("NO_MATCH")
@@ -298,11 +241,7 @@ def test_get_norad_ids_from_satellite_name_no_match(session):
     assert results == []
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_data_by_id(session):
+def test_get_satellite_data_by_id(session, services_available):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
@@ -312,11 +251,7 @@ def test_get_satellite_data_by_id(session):
     assert results.sat_name == satellite.sat_name
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_data_by_id_no_match(session):
+def test_get_satellite_data_by_id_no_match(session, services_available):
     sat_repository = SqlAlchemySatelliteRepository(session)
     session.commit()
 
@@ -324,11 +259,7 @@ def test_get_satellite_data_by_id_no_match(session):
     assert results is None
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_data_by_name(session):
+def test_get_satellite_data_by_name(session, services_available):
     satellite = SatelliteFactory()
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
@@ -338,11 +269,7 @@ def test_get_satellite_data_by_name(session):
     assert results.sat_number == satellite.sat_number
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_satellite_data_by_name_no_match(session):
+def test_get_satellite_data_by_name_no_match(session, services_available):
     sat_repository = SqlAlchemySatelliteRepository(session)
     session.commit()
 
@@ -350,11 +277,7 @@ def test_get_satellite_data_by_name_no_match(session):
     assert results is None
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_all_tles_at_epoch(session):
+def test_get_all_tles_at_epoch(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
 
     satellite = SatelliteFactory(decay_date=None)
@@ -363,28 +286,32 @@ def test_get_all_tles_at_epoch(session):
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
 
-    tle_1 = TLEFactory(epoch=datetime.now(), satellite=satellite)
-    tle_2 = TLEFactory(epoch=datetime.now() - timedelta(days=30), satellite=satellite_2)
+    tle_1 = TLEFactory(epoch=datetime.now(timezone.utc), satellite=satellite)
+    tle_2 = TLEFactory(
+        epoch=datetime.now(timezone.utc) - timedelta(days=30), satellite=satellite_2
+    )
     tle_repository.add(tle_1)
     tle_repository.add(tle_2)
     session.commit()
 
-    results = tle_repository.get_all_tles_at_epoch(datetime.now(), 1, 10, "zip")
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc), 1, 10, "zip"
+    )
     assert len(results[0]) == 1
 
-    tle_3 = TLEFactory(epoch=datetime.now() - timedelta(days=12), satellite=satellite_3)
+    tle_3 = TLEFactory(
+        epoch=datetime.now(timezone.utc) - timedelta(days=12), satellite=satellite_3
+    )
     tle_repository.add(tle_3)
     session.commit()
 
-    results = tle_repository.get_all_tles_at_epoch(datetime.now(), 1, 10, "zip")
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc), 1, 10, "zip"
+    )
     assert len(results[0]) == 2
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_adjacent_tles(session):
+def test_get_adjacent_tles(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -430,11 +357,7 @@ def test_get_adjacent_tles(session):
     assert len(results) == 0
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_adjacent_tles_no_after(session):
+def test_get_adjacent_tles_no_after(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -456,11 +379,7 @@ def test_get_adjacent_tles_no_after(session):
     assert abs((results[0].epoch - tle_1.epoch).total_seconds()) < 1
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_adjacent_tles_no_before(session):
+def test_get_adjacent_tles_no_before(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -482,11 +401,7 @@ def test_get_adjacent_tles_no_before(session):
     assert abs((results[0].epoch - tle_1.epoch).total_seconds()) < 1
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_adjacent_tles_multiple_satellites(session):
+def test_get_adjacent_tles_multiple_satellites(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -520,11 +435,7 @@ def test_get_adjacent_tles_multiple_satellites(session):
     assert all(result.satellite.sat_name == satellite.sat_name for result in results)
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_tles_around_epoch(session):
+def test_get_tles_around_epoch(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -586,11 +497,7 @@ def test_get_tles_around_epoch(session):
     assert len(results) == 0
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_nearest_tle(session):
+def test_get_nearest_tle(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
@@ -622,3 +529,321 @@ def test_get_nearest_tle(session):
 
     result = tle_repository.get_nearest_tle(-1, "catalog", epoch)
     assert result is None
+
+
+def test_get_all_tles_at_epoch_cache(session, app, services_available):
+    tle_repository = SqlAlchemyTLERepository(session)
+
+    # Empty cache, no TLEs added yet
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc), 1, 10, "zip"
+    )
+    assert len(results[0]) == 0
+
+    # Add TLEs to repository
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        decay_date=None,
+        launch_date=datetime.now(timezone.utc) - timedelta(days=1000),
+        has_current_sat_number=True,
+    )
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    session.commit()
+
+    tle = TLEFactory(epoch=datetime.now(timezone.utc), satellite=satellite)
+    tle_repository.add(tle)
+    tle2 = TLEFactory(
+        epoch=datetime.now(timezone.utc) - timedelta(days=1), satellite=satellite
+    )
+    tle_repository.add(tle2)
+    session.commit()
+
+    # Import and use cache functions directly
+    from api.services.cache_service import (
+        RECENT_TLES_CACHE_KEY,
+        batch_serialize_tles,
+        set_cached_data,
+    )
+
+    # Explicitly initialize the cache with our test data for consistent testing
+    with app.app_context():
+        print("DEBUG - Manually initializing Redis cache with test data")
+        cache_data = {
+            "tles": batch_serialize_tles([tle]),
+            "total_count": 1,
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }
+        set_cached_data(RECENT_TLES_CACHE_KEY, cache_data)
+
+    # Check that TLEs are returned from cache
+    try:
+        results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert len(results[0]) == 1
+        assert results[2] == "cache"
+    except Exception as e:
+        print(e)
+        raise e
+
+    # Check that TLEs are returned from database for an older date
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc) - timedelta(days=0.5), 1, 10, "zip"
+    )
+    assert len(results[0]) == 1
+    assert results[2] == "database"
+
+    # Check that TLEs are returned from cache for a future date
+    results = tle_repository.get_all_tles_at_epoch(
+        datetime.now(timezone.utc) + timedelta(days=1), 1, 10, "zip"
+    )
+    assert len(results[0]) == 1
+    assert results[2] == "cache"
+
+    # temporarily change cache storage time
+    with app.app_context():
+        tle_repository.cache_ttl = 5
+
+        cache_data = {
+            "tles": batch_serialize_tles([tle]),
+            "total_count": 1,
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }
+        success = set_cached_data(RECENT_TLES_CACHE_KEY, cache_data, ttl=5)
+        assert success
+
+        results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert results[2] == "cache"
+
+        # wait for cache to expire
+        time.sleep(6)
+        results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert results[2] == "database"
+
+    # test that the TLEs load from the database if there are issues with the cache
+    with app.app_context():
+        cache_results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        tle_repository.cache_enabled = False
+
+        db_results = tle_repository.get_all_tles_at_epoch(
+            datetime.now(timezone.utc), 1, 10, "zip"
+        )
+        assert db_results[2] == "database"
+        assert cache_results[0] == db_results[0]
+
+
+def test_get_all_tles_at_epoch_with_constellation(session, services_available):
+    """Test getting TLEs filtered by constellation."""
+    # Create satellites with different constellations
+    starlink_sat = SatelliteFactory(
+        constellation="starlink",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    oneweb_sat = SatelliteFactory(
+        constellation="oneweb",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(starlink_sat)
+    sat_repository.add(oneweb_sat)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    starlink_tle = TLEFactory(satellite=starlink_sat, epoch=epoch)
+    oneweb_tle = TLEFactory(satellite=oneweb_sat, epoch=epoch)
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(starlink_tle)
+    tle_repository.add(oneweb_tle)
+    session.commit()
+
+    # Test filtering by starlink constellation
+    starlink_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", "starlink"
+    )
+    assert len(starlink_tles) == 1
+    assert starlink_tles[0].satellite.constellation == "starlink"
+
+    # Test filtering by oneweb constellation
+    oneweb_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", "oneweb"
+    )
+    assert len(oneweb_tles) == 1
+    assert oneweb_tles[0].satellite.constellation == "oneweb"
+
+    # Test with no constellation filter
+    all_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", None
+    )
+    assert len(all_tles) == 2
+
+
+def test_get_all_tles_at_epoch_experimental_with_constellation(
+    session, services_available
+):
+    """Test getting TLEs filtered by constellation using experimental method."""
+    # Create satellites with different constellations
+    starlink_sat = SatelliteFactory(
+        constellation="starlink",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    oneweb_sat = SatelliteFactory(
+        constellation="oneweb",
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(starlink_sat)
+    sat_repository.add(oneweb_sat)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)  # Fixed epoch date
+    starlink_tle = TLEFactory(satellite=starlink_sat, epoch=epoch)
+    oneweb_tle = TLEFactory(satellite=oneweb_sat, epoch=epoch)
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(starlink_tle)
+    tle_repository.add(oneweb_tle)
+    session.commit()
+
+    # Test filtering by starlink constellation
+    starlink_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+        epoch, 1, 10000, "zip", "starlink"
+    )
+    assert len(starlink_tles) == 1
+    assert starlink_tles[0].satellite.constellation == "starlink"
+
+    # Test filtering by oneweb constellation
+    oneweb_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+        epoch, 1, 10000, "zip", "oneweb"
+    )
+    assert len(oneweb_tles) == 1
+    assert oneweb_tles[0].satellite.constellation == "oneweb"
+
+    # Test with no constellation filter
+    all_tles, count, _ = tle_repository._get_all_tles_at_epoch_experimental(
+        epoch, 1, 10000, "zip", None
+    )
+    assert len(all_tles) == 2
+
+
+def test_get_all_tles_at_epoch_experimental_with_data_source(
+    session, services_available
+):
+    """Test getting TLEs filtered by data source using experimental method."""
+    # Create satellites with different data sources
+    satellite = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    satellite_2 = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    sat_repository.add(satellite_2)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    spacetrack_tle = TLEFactory(
+        satellite=satellite, epoch=epoch, data_source="spacetrack"
+    )
+    celestrak_tle = TLEFactory(
+        satellite=satellite_2, epoch=epoch, data_source="celestrak"
+    )
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(spacetrack_tle)
+    tle_repository.add(celestrak_tle)
+    session.commit()
+
+    # Test filtering by spacetrack data source
+    spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="spacetrack"
+    )
+    assert len(spacetrack_tles) == 1
+    assert spacetrack_tles[0].data_source == "spacetrack"
+
+    # Test filtering by celestrak data source
+    celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="celestrak"
+    )
+    assert len(celestrak_tles) == 1
+    assert celestrak_tles[0].data_source == "celestrak"
+
+    # Test filtering by any data source
+    all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="any"
+    )
+    assert len(all_tles) == 2
+    assert all_tles[0].data_source == "spacetrack"
+    assert all_tles[1].data_source == "celestrak"
+
+
+def test_get_all_tles_at_epoch_with_data_source(session, services_available):
+    """Test getting TLEs filtered by data source using experimental method."""
+    # Create satellites with different data sources
+    satellite = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    satellite_2 = SatelliteFactory(
+        launch_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
+    sat_repository = SqlAlchemySatelliteRepository(session)
+    sat_repository.add(satellite)
+    sat_repository.add(satellite_2)
+    session.commit()
+
+    # Create TLEs for both satellites with the same epoch
+    epoch = datetime(2024, 6, 1, tzinfo=timezone.utc)
+    spacetrack_tle = TLEFactory(
+        satellite=satellite, epoch=epoch, data_source="spacetrack"
+    )
+    celestrak_tle = TLEFactory(
+        satellite=satellite_2, epoch=epoch, data_source="celestrak"
+    )
+
+    tle_repository = SqlAlchemyTLERepository(session)
+    tle_repository.add(spacetrack_tle)
+    tle_repository.add(celestrak_tle)
+    session.commit()
+
+    # Test filtering by spacetrack data source
+    spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="spacetrack"
+    )
+    assert len(spacetrack_tles) == 1
+    assert spacetrack_tles[0].data_source == "spacetrack"
+
+    # Test filtering by celestrak data source
+    celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="celestrak"
+    )
+    assert len(celestrak_tles) == 1
+    assert celestrak_tles[0].data_source == "celestrak"
+
+    # Test filtering by any data source
+    all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+        epoch, 1, 10000, "zip", data_source_limit="any"
+    )
+    assert len(all_tles) == 2
+    assert all_tles[0].data_source == "spacetrack"
+    assert all_tles[1].data_source == "celestrak"

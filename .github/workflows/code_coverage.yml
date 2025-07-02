@@ -99,6 +99,7 @@ jobs:
         fi
 
         echo "Code coverage: $COVERAGE_PCT%" >> $GITHUB_STEP_SUMMARY
+
     - name: Generate HTML coverage report
       run: |
         pytest --ignore=tests/benchmark --cov-report=html:coverage-html-report --cov=. --cov-config=pytest.ini tests/

@@ -14,6 +14,17 @@ DECam/Blanco by Guillermo Damke to verify that a given set of satellites appeare
 in the expected location at the expected time (Starlink Gen 2s). The results were
 consistent with the expected positions.
 
+TLE Accuracy
+-----------------------------------------------------------
+It's important to note that TLE accuracy varies and can impact predicted satellite
+positions. Public Space-Track TLEs for LEO satellites are often off by several arcminutes, and
+in occasional cases, errors can reach up to a degree, even for recent data. Accuracy tends to degrade
+with time since the TLE was issued and can also be affected by conditions like space weather.
+Occasionally, TLEs are systematically incorrect and later corrected.
+
+SatChecker draws from both Space-Track and CelesTrak, the latter of which includes supplemental
+TLEs from satellite operators such as SpaceX and Amazon, which can sometimes incorporate
+maneuvers and updates, and increase the accuracy of the predictions.
 
 Satellite IDs
 -----------------------------------------------------------

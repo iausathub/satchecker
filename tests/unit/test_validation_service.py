@@ -282,6 +282,25 @@ def test_validate_parameters_invalid_object_type(app):
             )
 
 
+def test_validate_parameters_constellation(app):
+    with app.test_request_context("/?constellation=invalid"):
+        parameter_list = ["constellation"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("/?constellation=starlink"):
+        parameter_list = ["constellation"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["constellation"] == "starlink"
+
+
 def test_validate_parameters_tle(app):
     # valid TLE
     with app.test_request_context(
@@ -402,7 +421,7 @@ def test_parse_tle():
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     result = parse_tle(tle)
     assert result.satellite.sat_name == "ISS (ZARYA)"
-    assert result.satellite.sat_number == "25544"
+    assert result.satellite.sat_number == 25544
     assert (
         result.tle_line1
         == "1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997"

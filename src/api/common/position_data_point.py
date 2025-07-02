@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 position_data_point = namedtuple(
-    "data_point",
+    "position_data_point",
     [
         "ra",
         "dec",

@@ -1,1 +1,6 @@
-from api import app, celery  # noqa: F401, I001
+"""SatChecker application runner."""
+
+from api import app
+
+if __name__ == "__main__":
+    app.run(debug=True)

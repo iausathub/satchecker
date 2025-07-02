@@ -1,10 +1,14 @@
 import datetime
+import random
 
 import factory
 from faker import Faker
 from src.api.domain.models.satellite import Satellite
 
 faker = Faker()
+
+# List of valid satellite constellations from validation_service.py
+CONSTELLATIONS = ["starlink", "oneweb", "kuiper", "planet", "ast"]
 
 
 class SatelliteFactory(factory.Factory):
@@ -13,7 +17,9 @@ class SatelliteFactory(factory.Factory):
 
     sat_number = factory.Sequence(lambda n: n)
     sat_name = factory.LazyFunction(faker.word)
-    constellation = faker.word()
+    constellation = factory.LazyFunction(
+        lambda: random.choice(CONSTELLATIONS)  # noqa: S311
+    )
     rcs_size = faker.word()
     launch_date = faker.date_time_between(
         start_date="-10y", end_date=datetime.datetime.now()

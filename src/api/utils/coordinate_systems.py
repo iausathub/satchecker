@@ -1,6 +1,9 @@
 import functools
+import os
+from pathlib import Path
 
 import numpy as np
+from astropy.config import set_temp_cache
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.nutationlib import iau2000b
 from skyfield.timelib import Time
@@ -8,6 +11,15 @@ from skyfield.timelib import Time
 from api.common import error_messages
 from api.common.exceptions import ValidationError
 from api.utils.time_utils import calculate_lst, jd_to_gst
+
+# Configure Astropy to use a secure cache directory within the application
+cache_dir = (
+    Path(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    / "data"
+    / "astropy_cache"
+)
+cache_dir.mkdir(parents=True, exist_ok=True)
+set_temp_cache(cache_dir)
 
 
 # TODO: Verify if teme_to_ecef is correct
@@ -290,7 +302,7 @@ def icrf2radec(pos, unit_vector=False, deg=True):
     modulo = np.mod
     pix2 = 2.0 * np.pi
 
-    r = 1
+    r = 1.0
     if pos.ndim > 1:
         if not unit_vector:
             r = norm(pos, axis=1)
@@ -299,7 +311,7 @@ def icrf2radec(pos, unit_vector=False, deg=True):
         zu = pos[:, 2] / r
     else:
         if not unit_vector:
-            r = norm(pos)
+            r = float(norm(pos))
         xu = pos[0] / r
         yu = pos[1] / r
         zu = pos[2] / r
@@ -378,8 +390,8 @@ def tle_to_icrf_state(tle_line_1, tle_line_2, jd):
             state. If 0, the function will use the epoch specified in the TLE set.
 
     Returns:
-        np.array: A 1D array containing the ICRF position (in km) and velocity (in km/s)
-            of the satellite.
+        np.ndarray: A 1D array containing the ICRF position (in km) and velocity
+        (in km/s) of the satellite.
     """
 
     tle_line_1 = tle_line_1.strip().replace("%20", " ")
@@ -404,7 +416,7 @@ def tle_to_icrf_state(tle_line_1, tle_line_2, jd):
     return np.concatenate(np.array([r, v]))
 
 
-def is_illuminated(sat_gcrs: np.array, julian_date: float) -> bool:
+def is_illuminated(sat_gcrs: np.ndarray, julian_date: float) -> bool:
     """
     Determines if a satellite is illuminated by the sun.
 
@@ -412,7 +424,7 @@ def is_illuminated(sat_gcrs: np.array, julian_date: float) -> bool:
     the satellite is illuminated.
 
     Parameters:
-        sat_gcrs (np.array): The position of the satellite in the GCRS frame.
+        sat_gcrs (np.ndarray): The position of the satellite in the GCRS frame.
         julian_date (float): The Julian date to check if the satellite is illuminated.
 
     Returns:
@@ -488,7 +500,7 @@ def get_earth_sun_positions(t: float | Time) -> tuple[np.ndarray, np.ndarray]:
 
 
 def get_phase_angle(
-    topocentric_gcrs_norm: np.array, sat_gcrs: np.array, julian_date: float
+    topocentric_gcrs_norm: np.ndarray, sat_gcrs: np.ndarray, julian_date: float
 ) -> float:
     """
     Computes the phase angle between a satellite and the Sun as seen from Earth.
@@ -498,9 +510,9 @@ def get_phase_angle(
     The phase angle is useful in determining the illumination of the satellite.
 
     Args:
-        topocentric_gcrs_norm (np.array): Normalized vector representing the
+        topocentric_gcrs_norm (np.ndarray): Normalized vector representing the
                                           topocentric position in GCRS coordinates.
-        sat_gcrs (np.array): Vector representing the satellite's position in
+        sat_gcrs (np.ndarray): Vector representing the satellite's position in
                              GCRS coordinates.
         julian_date (float): The Julian date at which to compute the phase angle.
 
@@ -513,5 +525,5 @@ def get_phase_angle(
     satsun = sat_gcrs - earthsun
     satsunn = satsun / np.linalg.norm(satsun)
 
-    phase_angle = np.rad2deg(np.arccos(np.dot(satsunn, topocentric_gcrs_norm)))
+    phase_angle = float(np.rad2deg(np.arccos(np.dot(satsunn, topocentric_gcrs_norm))))
     return phase_angle

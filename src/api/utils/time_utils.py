@@ -1,4 +1,8 @@
+from datetime import datetime, timezone
+from typing import Any
+
 import numpy as np
+from astropy.time import Time
 
 
 def jd_to_gst(jd: float, nutation: float) -> float:
@@ -45,7 +49,8 @@ def jd_to_gst(jd: float, nutation: float) -> float:
     # Convert to radians
     theta_gast = np.deg2rad(theta_gast)
 
-    return theta_gast
+    # Ensure we return a Python float, not a NumPy type
+    return float(theta_gast)
 
 
 def calculate_lst(longitude: float, jd: float) -> float:
@@ -89,4 +94,56 @@ def calculate_lst(longitude: float, jd: float) -> float:
     # Convert LST from degrees to radians
     lst = np.radians(lst_deg)
 
-    return lst
+    # Ensure we return a Python float, not a NumPy type
+    return float(lst)
+
+
+def astropy_time_to_datetime_utc(time_obj: Time) -> datetime:
+    """
+    Convert an astropy Time object to a timezone-aware Python datetime (UTC).
+
+    Args:
+        time_obj: Astropy Time object to convert
+
+    Returns:
+        datetime.datetime object with UTC timezone
+    """
+    # Make sure the time object is in UTC scale before converting
+    # to datetime with timezone
+    if time_obj.scale != "utc":
+        time_obj = time_obj.utc
+
+    # Explicitly cast to datetime to satisfy the type checker
+    dt: datetime = time_obj.to_datetime(timezone=timezone.utc)
+    return dt
+
+
+def ensure_datetime(date_value: Any) -> datetime:
+    """
+    Ensure that the input is a datetime object with timezone info.
+
+    Args:
+        date_value: A datetime object or a string representing a date/time
+
+    Returns:
+        A datetime object with timezone info
+
+    Raises:
+        TypeError: If the input cannot be converted to a datetime object
+    """
+    if isinstance(date_value, str):
+        try:
+            # Try to parse the string as a datetime in ISO format
+            date_value = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+        except ValueError:
+            date_value = datetime.strptime(date_value, "%Y-%m-%d")
+
+    # Ensure the result is actually a datetime
+    if not isinstance(date_value, datetime):
+        raise TypeError(f"Cannot convert {type(date_value)} to datetime")
+
+    # Ensure the datetime has timezone info
+    if date_value.tzinfo is None:
+        date_value = date_value.replace(tzinfo=timezone.utc)
+
+    return date_value

@@ -134,11 +134,11 @@ def health():
         "(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     }
     try:
-        response = requests.get(
-            "https://cps.iau.org/tools/satchecker/api/", headers=headers, timeout=10
-        )
+        url = "https://satchecker.cps.iau.org/tools/get-satellite-data/"
+        url += "?id=25544&id_type=catalog"
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
     except Exception as e:
-        abort(503, f"Error: Unable to connect to IAU CPS URL - {e}")
+        abort(503, f"Error: Unable to connect to test URL - {e}")
     else:
         return {"message": "Healthy"}

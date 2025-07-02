@@ -1,4 +1,8 @@
 # SatChecker
+[![Tests/linting](https://github.com/iausathub/satchecker/actions/workflows/run_tests.yml/badge.svg)](https://github.com/iausathub/satchecker/actions/workflows/run_tests.yml)
+[![codecov](https://codecov.io/gh/iausathub/satchecker/branch/main/graph/badge.svg)](https://codecov.io/gh/iausathub/satchecker)
+[![Benchmarks](https://github.com/iausathub/satchecker/actions/workflows/benchmark.yml/badge.svg)](https://github.com/iausathub/satchecker/actions/workflows/benchmark.yml)
+
 SatChecker is a satellite tracking and prediction tool from the IAU CPS (IAU Centre for the Protection of the Dark and Quiet Sky from Satellite Constellation Interference) SatHub group. Its primary goal is to help everyone observe the night sky without interference from satellites. SatChecker uses Two-Line Element Sets (TLEs) from Space Track (and Celestrak), but it will eventually incorporate data formats from other sources to provide accurate predictions of satellite positions at a given time and location.
 
 SatChecker can help you observe satellites to verify brightness predictions and contribute to quantifying the issue in general, but it also helps you avoid them. For planning astronomical observations, SatChecker will (in future versions) alert you to potential satellite passes that may interfere with your observations. This tool will provide detailed information about each predicted satellite pass, including range, on-sky velocity, and an "illuminated" flag to indicate when a satellite is reflecting sunlight.

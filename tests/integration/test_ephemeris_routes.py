@@ -1,9 +1,7 @@
 # ruff: noqa: E501, S101, F841
 from datetime import datetime, timezone
 
-import pytest
 from astropy.time import TimeDelta
-from tests.conftest import cannot_connect_to_services
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
@@ -11,11 +9,7 @@ from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common import error_messages
 
 
-@pytest.mark.skipif(
-    cannot_connect_to_services(),
-    reason="Services not available",
-)
-def test_get_ephemeris_by_name(client, session):
+def test_get_ephemeris_by_name(client, session, services_available):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
@@ -28,8 +22,7 @@ def test_get_ephemeris_by_name(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_by_name_jd_step(client, session):
+def test_get_ephemeris_by_name_jd_step(client, session, services_available):
     satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
@@ -43,8 +36,7 @@ def test_get_ephemeris_by_name_jd_step(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_by_catalog_number(client, session):
+def test_get_ephemeris_by_catalog_number(client, session, services_available):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
@@ -57,8 +49,7 @@ def test_get_ephemeris_by_catalog_number(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_by_catalog_number_jdstep(client, session):
+def test_get_ephemeris_by_catalog_number_jdstep(client, session, services_available):
     satellite = SatelliteFactory(sat_number="25544")
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
@@ -71,8 +62,7 @@ def test_get_ephemeris_by_catalog_number_jdstep(client, session):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_no_tle(client):
+def test_get_ephemeris_no_tle(client, services_available):
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
     )
@@ -98,8 +88,7 @@ def test_get_ephemeris_no_tle(client):
     assert "No TLE found" in response.text
 
 
-@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_data_from_tle(client):
+def test_get_ephemeris_data_from_tle(client, services_available):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
@@ -110,8 +99,7 @@ def test_get_ephemeris_data_from_tle(client):
     assert response.status_code == 200
 
 
-@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_data_from_tle_jdstep(client):
+def test_get_ephemeris_data_from_tle_jdstep(client, services_available):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
@@ -181,8 +169,9 @@ def test_get_ephemeris_by_tle_incorrect_format(client):
     assert "Invalid TLE format" in response.text
 
 
-@pytest.mark.skipif(cannot_connect_to_services(), reason="Services not available")
-def test_get_ephemeris_tle_date_out_of_range(client, session, test_time):
+def test_get_ephemeris_tle_date_out_of_range(
+    client, session, test_time, services_available
+):
     # Use a fixed Julian date as the base time to avoid any timezone issues
     base_jd = test_time
     base_datetime = base_jd.to_datetime(timezone=timezone.utc)

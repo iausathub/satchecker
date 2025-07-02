@@ -28,6 +28,11 @@ on:
         type: boolean
         default: true
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   # Linting check
   lint:

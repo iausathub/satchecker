@@ -56,14 +56,14 @@ def get_ephemeris_by_name():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: "MPC:G68"
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: julian_date
         in: query
         type: number
         format: float
         required: true
-        description: UT1 Universal Time Julian Date (use 0 to use the TLE epoch)
+        description: UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
         example: 2459000.5
       - name: min_altitude
         in: query
@@ -83,7 +83,7 @@ def get_ephemeris_by_name():
         in: query
         type: string
         required: false
-        description: Original source of TLE data
+        description: Original source of TLE data (default is whichever has the closest TLE epoch)
         enum: ["celestrak", "spacetrack"]
         example: "celestrak"
     responses:
@@ -94,29 +94,43 @@ def get_ephemeris_by_name():
             schema:
               type: object
               properties:
-                ephemeris:
+                count:
+                  type: integer
+                  description: The number of satellite positions returned
+                data:
                   type: array
+                  description: A list of lists, where each inner list contains the data for a single satellite position
                   items:
-                    type: object
-                    properties:
-                      julian_date:
-                        type: number
-                        format: float
-                      altitude:
-                        type: number
-                        format: float
-                      azimuth:
-                        type: number
-                        format: float
-                      distance:
-                        type: number
-                        format: float
-                      illuminated:
-                        type: boolean
-                api_source:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+                        - type: array
+                          items:
+                            type: number
+                fields:
+                  type: array
+                  description: A list of field names corresponding to the data in each inner list
+                  items:
+                    type: string
+                    enum: [
+                      "name", "catalog_id", "julian_date", "satellite_gcrs_km",
+                      "right_ascension_deg", "declination_deg", "tle_date",
+                      "dra_cosdec_deg_per_sec", "ddec_deg_per_sec", "altitude_deg",
+                      "azimuth_deg", "range_km", "range_rate_km_per_sec",
+                      "phase_angle_deg", "illuminated", "data_source",
+                      "observer_gcrs_km", "international_designator", "tle_epoch"
+                    ]
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing or invalid parameters
       404:
@@ -224,8 +238,8 @@ def get_ephemeris_by_name_jdstep():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: "MPC:G68"
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: startjd
         in: query
         type: number
@@ -245,7 +259,7 @@ def get_ephemeris_by_name_jdstep():
         type: number
         format: float
         required: false
-        description: Time step between calculations in Julian date (default varies)
+        description: UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
         example: 0.01
       - name: min_altitude
         in: query
@@ -265,7 +279,7 @@ def get_ephemeris_by_name_jdstep():
         in: query
         type: string
         required: false
-        description: Original source of TLE data
+        description: Original source of TLE data (default is whichever has the closest TLE epoch)
         enum: ["celestrak", "spacetrack"]
         example: "celestrak"
     responses:
@@ -276,29 +290,43 @@ def get_ephemeris_by_name_jdstep():
             schema:
               type: object
               properties:
-                ephemeris:
+                count:
+                  type: integer
+                  description: The number of satellite positions returned
+                data:
                   type: array
+                  description: A list of lists, where each inner list contains the data for a single satellite position
                   items:
-                    type: object
-                    properties:
-                      julian_date:
-                        type: number
-                        format: float
-                      altitude:
-                        type: number
-                        format: float
-                      azimuth:
-                        type: number
-                        format: float
-                      distance:
-                        type: number
-                        format: float
-                      illuminated:
-                        type: boolean
-                api_source:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+                        - type: array
+                          items:
+                            type: number
+                fields:
+                  type: array
+                  description: A list of field names corresponding to the data in each inner list
+                  items:
+                    type: string
+                    enum: [
+                      "name", "catalog_id", "julian_date", "satellite_gcrs_km",
+                      "right_ascension_deg", "declination_deg", "tle_date",
+                      "dra_cosdec_deg_per_sec", "ddec_deg_per_sec", "altitude_deg",
+                      "azimuth_deg", "range_km", "range_rate_km_per_sec",
+                      "phase_angle_deg", "illuminated", "data_source",
+                      "observer_gcrs_km", "international_designator", "tle_epoch"
+                    ]
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing or invalid parameters
       404:
@@ -408,14 +436,14 @@ def get_ephemeris_by_catalog_number():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: "MPC:G68"
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: julian_date
         in: query
         type: number
         format: float
         required: true
-        description: UT1 Universal Time Julian Date (use 0 to use the TLE epoch)
+        description: UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
         example: 2459000.5
       - name: min_altitude
         in: query
@@ -435,7 +463,7 @@ def get_ephemeris_by_catalog_number():
         in: query
         type: string
         required: false
-        description: Original source of TLE data
+        description: Original source of TLE data (default is whichever has the closest TLE epoch)
         enum: ["celestrak", "spacetrack"]
         example: "celestrak"
     responses:
@@ -446,29 +474,43 @@ def get_ephemeris_by_catalog_number():
             schema:
               type: object
               properties:
-                ephemeris:
+                count:
+                  type: integer
+                  description: The number of satellite positions returned
+                data:
                   type: array
+                  description: A list of lists, where each inner list contains the data for a single satellite position
                   items:
-                    type: object
-                    properties:
-                      julian_date:
-                        type: number
-                        format: float
-                      altitude:
-                        type: number
-                        format: float
-                      azimuth:
-                        type: number
-                        format: float
-                      distance:
-                        type: number
-                        format: float
-                      illuminated:
-                        type: boolean
-                api_source:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+                        - type: array
+                          items:
+                            type: number
+                fields:
+                  type: array
+                  description: A list of field names corresponding to the data in each inner list
+                  items:
+                    type: string
+                    enum: [
+                      "name", "catalog_id", "julian_date", "satellite_gcrs_km",
+                      "right_ascension_deg", "declination_deg", "tle_date",
+                      "dra_cosdec_deg_per_sec", "ddec_deg_per_sec", "altitude_deg",
+                      "azimuth_deg", "range_km", "range_rate_km_per_sec",
+                      "phase_angle_deg", "illuminated", "data_source",
+                      "observer_gcrs_km", "international_designator", "tle_epoch"
+                    ]
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing or invalid parameters
       404:
@@ -572,8 +614,8 @@ def get_ephemeris_by_catalog_number_jdstep():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: "MPC:G68"
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: startjd
         in: query
         type: number
@@ -593,7 +635,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         type: number
         format: float
         required: false
-        description: Time step between calculations in Julian date (default varies)
+        description: UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
         example: 0.01
       - name: min_altitude
         in: query
@@ -613,7 +655,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         in: query
         type: string
         required: false
-        description: Original source of TLE data
+        description: Original source of TLE data (default is whichever has the closest TLE epoch)
         enum: ["celestrak", "spacetrack"]
         example: "celestrak"
     responses:
@@ -624,29 +666,43 @@ def get_ephemeris_by_catalog_number_jdstep():
             schema:
               type: object
               properties:
-                ephemeris:
+                count:
+                  type: integer
+                  description: The number of satellite positions returned
+                data:
                   type: array
+                  description: A list of lists, where each inner list contains the data for a single satellite position
                   items:
-                    type: object
-                    properties:
-                      julian_date:
-                        type: number
-                        format: float
-                      altitude:
-                        type: number
-                        format: float
-                      azimuth:
-                        type: number
-                        format: float
-                      distance:
-                        type: number
-                        format: float
-                      illuminated:
-                        type: boolean
-                api_source:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+                        - type: array
+                          items:
+                            type: number
+                fields:
+                  type: array
+                  description: A list of field names corresponding to the data in each inner list
+                  items:
+                    type: string
+                    enum: [
+                      "name", "catalog_id", "julian_date", "satellite_gcrs_km",
+                      "right_ascension_deg", "declination_deg", "tle_date",
+                      "dra_cosdec_deg_per_sec", "ddec_deg_per_sec", "altitude_deg",
+                      "azimuth_deg", "range_km", "range_rate_km_per_sec",
+                      "phase_angle_deg", "illuminated", "data_source",
+                      "observer_gcrs_km", "international_designator", "tle_epoch"
+                    ]
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing or invalid parameters
       404:
@@ -756,8 +812,8 @@ def get_ephemeris_by_tle():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: "MPC:G68"
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json) , can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: julian_date
         in: query
         type: number
@@ -787,29 +843,43 @@ def get_ephemeris_by_tle():
             schema:
               type: object
               properties:
-                ephemeris:
+                count:
+                  type: integer
+                  description: The number of satellite positions returned
+                data:
                   type: array
+                  description: A list of lists, where each inner list contains the data for a single satellite position
                   items:
-                    type: object
-                    properties:
-                      julian_date:
-                        type: number
-                        format: float
-                      altitude:
-                        type: number
-                        format: float
-                      azimuth:
-                        type: number
-                        format: float
-                      distance:
-                        type: number
-                        format: float
-                      illuminated:
-                        type: boolean
-                api_source:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+                        - type: array
+                          items:
+                            type: number
+                fields:
+                  type: array
+                  description: A list of field names corresponding to the data in each inner list
+                  items:
+                    type: string
+                    enum: [
+                      "name", "catalog_id", "julian_date", "satellite_gcrs_km",
+                      "right_ascension_deg", "declination_deg", "tle_date",
+                      "dra_cosdec_deg_per_sec", "ddec_deg_per_sec", "altitude_deg",
+                      "azimuth_deg", "range_km", "range_rate_km_per_sec",
+                      "phase_angle_deg", "illuminated", "data_source",
+                      "observer_gcrs_km", "international_designator", "tle_epoch"
+                    ]
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing, invalid parameters or invalid TLE format
       500:
@@ -903,8 +973,8 @@ def get_ephemeris_by_tle_jdstep():
         in: query
         type: string
         required: false
-        description: Predefined site code, can be used instead of latitude/longitude/elevation
-        example: "MPC:G68"
+        description: Predefined site name/alias from AstroPy list (https://www.astropy.org/astropy-data/coordinates/sites.json), can be used instead of latitude/longitude/elevation
+        example: "rubin"
       - name: startjd
         in: query
         type: number
@@ -924,7 +994,7 @@ def get_ephemeris_by_tle_jdstep():
         type: number
         format: float
         required: false
-        description: Time step between calculations in Julian date (default varies)
+        description: UT1 time step in Julian Days for ephemeris generation. Default is .05 (1.2 hours).
         example: 0.01
       - name: min_altitude
         in: query
@@ -948,29 +1018,43 @@ def get_ephemeris_by_tle_jdstep():
             schema:
               type: object
               properties:
-                ephemeris:
+                count:
+                  type: integer
+                  description: The number of satellite positions returned
+                data:
                   type: array
+                  description: A list of lists, where each inner list contains the data for a single satellite position
                   items:
-                    type: object
-                    properties:
-                      julian_date:
-                        type: number
-                        format: float
-                      altitude:
-                        type: number
-                        format: float
-                      azimuth:
-                        type: number
-                        format: float
-                      distance:
-                        type: number
-                        format: float
-                      illuminated:
-                        type: boolean
-                api_source:
+                    type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: number
+                        - type: boolean
+                        - type: array
+                          items:
+                            type: number
+                fields:
+                  type: array
+                  description: A list of field names corresponding to the data in each inner list
+                  items:
+                    type: string
+                    enum: [
+                      "name", "catalog_id", "julian_date", "satellite_gcrs_km",
+                      "right_ascension_deg", "declination_deg", "tle_date",
+                      "dra_cosdec_deg_per_sec", "ddec_deg_per_sec", "altitude_deg",
+                      "azimuth_deg", "range_km", "range_rate_km_per_sec",
+                      "phase_angle_deg", "illuminated", "data_source",
+                      "observer_gcrs_km", "international_designator", "tle_epoch"
+                    ]
+                source:
                   type: string
+                  description: The source of the satellite position data
+                  example: "IAU CPS SatChecker"
                 version:
                   type: string
+                  description: The version of the API
+                  example: "1.X.x"
       400:
         description: Bad request due to missing, invalid parameters or invalid TLE format
       500:
