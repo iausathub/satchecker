@@ -487,3 +487,76 @@ def test_validate_parameters_site_and_location(app):
             parameters = validate_parameters(  # noqa: F841
                 request, parameter_list, required_parameters
             )
+
+
+def test_validate_parameters_ra_dec(app):
+    with app.test_request_context("/?ra=1"):
+        parameter_list = ["ra"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["ra"] == pytest.approx(1, rel=1e-9)
+
+    with app.test_request_context("/?ra=a"):
+        parameter_list = ["ra"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+    with app.test_request_context("/?dec=1"):
+        parameter_list = ["dec"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+        assert parameters["dec"] == pytest.approx(1, rel=1e-9)
+
+    with app.test_request_context("/?dec=a"):
+        parameter_list = ["dec"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_duration(app):
+    with app.test_request_context("/?duration=1"):
+        parameter_list = ["duration"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["duration"] == pytest.approx(1, rel=1e-9)
+
+    with app.test_request_context("/?duration=a"):
+        parameter_list = ["duration"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
+
+
+def test_validate_parameters_fov_radius(app):
+    with app.test_request_context("/?fov_radius=1"):
+        parameter_list = ["fov_radius"]
+        required_parameters = []
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+
+        assert parameters["fov_radius"] == pytest.approx(1, rel=1e-9)
+
+    with app.test_request_context("/?fov_radius=a"):
+        parameter_list = ["fov_radius"]
+        required_parameters = []
+
+        with pytest.raises(ValidationError, match="Invalid parameter format"):
+            parameters = validate_parameters(  # noqa: F841
+                request, parameter_list, required_parameters
+            )
