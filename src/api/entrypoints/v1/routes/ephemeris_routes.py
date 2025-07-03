@@ -3,7 +3,7 @@ from flask import abort, request
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.common.exceptions import DataError, ValidationError
+from api.common.exceptions import DataError
 from api.entrypoints.extensions import db, limiter
 from api.services.ephemeris_service import (
     generate_ephemeris_data,
@@ -165,14 +165,11 @@ def get_ephemeris_by_name():
     else:
         required_parameters = ["name", "site", "julian_date"]
 
-    try:
-        parameters = validate_parameters(
-            request,
-            parameter_list,
-            required_parameters,
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(
+        request,
+        parameter_list,
+        required_parameters,
+    )
 
     try:
         position_data = generate_ephemeris_data(
@@ -364,14 +361,11 @@ def get_ephemeris_by_name_jdstep():
     else:
         required_parameters = ["name", "site", "startjd", "stopjd"]
 
-    try:
-        parameters = validate_parameters(
-            request,
-            parameter_list,
-            required_parameters,
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(
+        request,
+        parameter_list,
+        required_parameters,
+    )
 
     try:
         position_data = generate_ephemeris_data(
@@ -545,14 +539,11 @@ def get_ephemeris_by_catalog_number():
     else:
         required_parameters = ["catalog", "site", "julian_date"]
 
-    try:
-        parameters = validate_parameters(
-            request,
-            parameter_list,
-            required_parameters,
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(
+        request,
+        parameter_list,
+        required_parameters,
+    )
 
     position_data = generate_ephemeris_data(
         satellite_repository,
@@ -740,14 +731,11 @@ def get_ephemeris_by_catalog_number_jdstep():
     else:
         required_parameters = ["catalog", "site", "startjd", "stopjd"]
 
-    try:
-        parameters = validate_parameters(
-            request,
-            parameter_list,
-            required_parameters,
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(
+        request,
+        parameter_list,
+        required_parameters,
+    )
 
     try:
         position_data = generate_ephemeris_data(
@@ -908,14 +896,11 @@ def get_ephemeris_by_tle():
     else:
         required_parameters = ["tle", "site", "julian_date"]
 
-    try:
-        parameters = validate_parameters(
-            request,
-            parameter_list,
-            required_parameters,
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(
+        request,
+        parameter_list,
+        required_parameters,
+    )
 
     position_data = generate_ephemeris_data_user(
         parameters["tle"],
@@ -1086,14 +1071,11 @@ def get_ephemeris_by_tle_jdstep():
     else:
         required_parameters = ["tle", "site", "startjd", "stopjd"]
 
-    try:
-        parameters = validate_parameters(
-            request,
-            parameter_list,
-            required_parameters,
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(
+        request,
+        parameter_list,
+        required_parameters,
+    )
 
     position_data = generate_ephemeris_data_user(
         parameters["tle"],

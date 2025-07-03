@@ -22,7 +22,10 @@ def handle_error(error):
         message = getattr(error, "description", str(error))
     elif hasattr(error, "status_code"):
         code = error.status_code
-        message = str(error)
+        if hasattr(error, "message"):
+            message = error.message
+        else:
+            message = str(error)
     else:
         code = 500
         message = "Internal server error"

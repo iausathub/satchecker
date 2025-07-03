@@ -1,9 +1,8 @@
 # ruff: noqa: E501
-from flask import abort, jsonify, request
 from flask import current_app as app
+from flask import jsonify, request
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
 from api.services.fov_service import (
     get_satellite_passes_in_fov,
@@ -246,12 +245,7 @@ def get_satellite_passes():
     else:
         required_parameters = ["site", "duration", "ra", "dec", "fov_radius"]
 
-    try:
-        validated_parameters = validate_parameters(
-            request, parameters, required_parameters
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    validated_parameters = validate_parameters(request, parameters, required_parameters)
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
@@ -577,12 +571,7 @@ def _handle_satellites_above_horizon(with_duration=False):
     if with_duration:
         required_parameters.append("duration")
 
-    try:
-        validated_parameters = validate_parameters(
-            request, parameters, required_parameters
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    validated_parameters = validate_parameters(request, parameters, required_parameters)
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
