@@ -166,6 +166,9 @@ def batch_serialize_tles(tles: list[TLE]) -> list[dict[str, Any]]:
         satellite = tle.satellite
         decay_date = satellite.decay_date
 
+        # Get the designation that was valid at the TLE's epoch time
+        epoch_designation = satellite.get_designation_at_date(tle.epoch)
+
         # Create efficient TLE dictionary with direct attribute access
         tle_dict = {
             "tle_line1": tle.tle_line1,
@@ -175,12 +178,10 @@ def batch_serialize_tles(tles: list[TLE]) -> list[dict[str, Any]]:
             "is_supplemental": tle.is_supplemental,
             "data_source": tle.data_source,
             "satellite": {
-                "sat_name": satellite.sat_name,
-                "sat_number": satellite.sat_number,
+                "sat_name": epoch_designation.sat_name,
+                "sat_number": epoch_designation.sat_number,
                 "decay_date": decay_date.isoformat() if decay_date else None,
-                "has_current_sat_number": getattr(
-                    satellite, "has_current_sat_number", True
-                ),
+                "constellation": satellite.constellation,
             },
         }
         result_append(tle_dict)

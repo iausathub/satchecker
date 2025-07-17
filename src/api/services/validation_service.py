@@ -10,6 +10,7 @@ from astropy.time import Time
 import api.common.error_messages as error_messages
 from api.common.exceptions import ValidationError
 from api.domain.models.satellite import Satellite
+from api.domain.models.satellite_designation import SatelliteDesignation
 from api.domain.models.tle import TLE
 from api.utils.location_utils import get_location_from_astropy_site
 
@@ -546,7 +547,10 @@ def parse_tle(tle):
     epoch_date = epoch_date + timedelta(days=epoch_day - 1)
 
     catalog = int(tle_line_1[2:7])
-    satellite = Satellite(sat_number=catalog, sat_name=name)
+    designation = SatelliteDesignation(
+        sat_number=catalog, sat_name=name, valid_from=epoch_date, valid_to=None
+    )
+    satellite = Satellite(designations=[designation])
     tle = TLE(
         tle_line1=tle_line_1,
         tle_line2=tle_line_2,

@@ -1,9 +1,12 @@
 import datetime
 import random
+from datetime import timezone
 
 import factory
 from faker import Faker
 from src.api.domain.models.satellite import Satellite
+
+from api.domain.models.satellite_designation import SatelliteDesignation
 
 faker = Faker()
 
@@ -11,12 +14,20 @@ faker = Faker()
 CONSTELLATIONS = ["starlink", "oneweb", "kuiper", "planet", "ast"]
 
 
+class SatelliteDesignationFactory(factory.Factory):
+    class Meta:
+        model = SatelliteDesignation
+
+    sat_number = factory.Sequence(lambda n: n)
+    sat_name = factory.LazyFunction(faker.word)
+    valid_from = datetime.datetime(1957, 1, 1, tzinfo=timezone.utc)
+    valid_to = None
+
+
 class SatelliteFactory(factory.Factory):
     class Meta:
         model = Satellite
 
-    sat_number = factory.Sequence(lambda n: n)
-    sat_name = factory.LazyFunction(faker.word)
     constellation = factory.LazyFunction(
         lambda: random.choice(CONSTELLATIONS)  # noqa: S311
     )
@@ -29,4 +40,7 @@ class SatelliteFactory(factory.Factory):
     )
     object_id = faker.word()
     object_type = faker.word()
-    has_current_sat_number = factory.LazyAttribute(lambda o: True)
+    generation = factory.LazyFunction(
+        lambda: random.choice(["v1", "v2", "v3"])  # noqa: S311
+    )
+    designations = factory.LazyFunction(lambda: [SatelliteDesignationFactory()])

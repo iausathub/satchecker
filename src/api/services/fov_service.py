@@ -369,13 +369,14 @@ def get_satellites_above_horizon(
                     )
                     if not illuminated:
                         continue
+                designation = tle.satellite.get_designation_at_date(tle.epoch)
                 position = {
                     "ra": ra_sat,
                     "dec": dec_sat,
                     "altitude": float(alt._degrees[0]),
                     "azimuth": float(az._degrees[0]),
-                    "name": tle.satellite.sat_name,
-                    "norad_id": tle.satellite.sat_number,
+                    "name": designation.sat_name,
+                    "norad_id": designation.sat_number,
                     "julian_date": time_jd.jd,
                     "range_km": float(distance.km[0]),
                     "tle_epoch": output_utils.format_date(tle.epoch),
@@ -393,7 +394,9 @@ def get_satellites_above_horizon(
                 print(f"Found {visible_satellites} visible satellites so far")
 
         except Exception as e:
-            print(f"Error processing Satellite {tle.satellite.sat_name}: {e}")
+            # TODO: Verify that correct designation is the one to use here
+            sat_name = tle.satellite.get_current_designation().sat_name
+            print(f"Error processing Satellite {sat_name}: {e}")
             satellites_processed += 1
             continue
 

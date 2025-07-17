@@ -1,12 +1,16 @@
 # ruff: noqa: S101
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from astropy.time import Time
 from tests.conftest import FakeSatelliteRepository, FakeTLERepository
-from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.satellite_factory import (
+    SatelliteDesignationFactory,
+    SatelliteFactory,
+)
 from tests.factories.tle_factory import TLEFactory
 
+from api.domain.models.satellite_designation import SatelliteDesignation
 from api.services.tools_service import (
     get_active_satellites,
     get_adjacent_tle_results,
@@ -46,8 +50,6 @@ class BrokenSatellite:
 
     def __init__(self, broken_attr=None, sat_number=25544, sat_name="ISS"):
         self.broken_attr = broken_attr
-        self.sat_name = sat_name
-        self.sat_number = sat_number
         self.object_id = "1998-067A"
         self.rcs_size = "LARGE"
         self.launch_date = datetime.now()
@@ -55,7 +57,14 @@ class BrokenSatellite:
         self.object_type = "PAYLOAD"
         self.generation = "v1.0"
         self.constellation = "ISS"
-        self.has_current_sat_number = True  # Required for fake repository filtering
+        self.designations = [
+            SatelliteDesignation(
+                sat_name=sat_name,
+                sat_number=sat_number,
+                valid_from=datetime.now(),
+                valid_to=None,
+            )
+        ]
 
     def __getattribute__(self, name):
         broken_attr = object.__getattribute__(self, "broken_attr")
@@ -63,9 +72,25 @@ class BrokenSatellite:
             raise AttributeError(f"Broken satellite attribute: {name}")
         return object.__getattribute__(self, name)
 
+    def get_current_designation(self):
+        return self.designations[0]
+
+    def get_designation_at_date(self, date):
+        return self.designations[0]
+
 
 def test_get_tle_data():
-    satellite = SatelliteFactory(sat_name="ISS")
+    epoch = datetime(2021, 1, 1, tzinfo=timezone.utc)
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="ISS",
+                sat_number=25544,
+                valid_from=datetime(1957, 10, 4, tzinfo=timezone.utc),
+                valid_to=None,
+            )
+        ]
+    )
     tle_1 = TLEFactory(satellite=satellite)
     tle_2 = TLEFactory(satellite=satellite)
     tle_repo = FakeTLERepository([tle_1, tle_2])
@@ -74,8 +99,8 @@ def test_get_tle_data():
     assert len(results) == 2
     assert results[0]["satellite_name"] == "ISS"
     assert results[1]["satellite_name"] == "ISS"
-    assert results[0]["satellite_id"] == satellite.sat_number
-    assert results[1]["satellite_id"] == satellite.sat_number
+    assert results[0]["satellite_id"] == satellite.get_current_designation().sat_number
+    assert results[1]["satellite_id"] == satellite.get_current_designation().sat_number
     assert any(tle_1.tle_line1 in result.values() for result in results)
     assert any(tle_1.tle_line2 in result.values() for result in results)
     assert any(tle_2.tle_line1 in result.values() for result in results)
@@ -95,21 +120,27 @@ def test_get_tle_data():
     assert len(results) == 0
 
     results = get_tle_data(
-        tle_repo, satellite.sat_number, "catalog", None, None, "test", "1.0"
+        tle_repo,
+        satellite.get_current_designation().sat_number,
+        "catalog",
+        None,
+        None,
+        "test",
+        "1.0",
     )
     assert len(results) == 2
 
     results = get_tle_data(tle_repo, 12345, "catalog", None, None, "test", "1.0")
     assert len(results) == 0
 
-    tle_1.epoch = datetime(2021, 1, 1)
-    tle_2.epoch = datetime(2022, 1, 2)
+    tle_1.epoch = epoch
+    tle_2.epoch = epoch + timedelta(days=365)
     results = get_tle_data(
         tle_repo,
         "ISS",
         "name",
-        datetime(2020, 1, 1),
-        datetime(2021, 1, 2),
+        datetime(2020, 1, 1, tzinfo=timezone.utc),
+        datetime(2021, 1, 2, tzinfo=timezone.utc),
         "test",
         "1.0",
     )
@@ -120,14 +151,23 @@ def test_get_tle_data():
 
 
 def test_get_ids_for_satellite_name():
-    satellite = SatelliteFactory(sat_name="ISS")
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="ISS",
+                sat_number=25544,
+                valid_from=datetime(2024, 1, 1),
+                valid_to=None,
+            )
+        ]
+    )
     sat_repo = FakeSatelliteRepository([satellite])
     results = get_ids_for_satellite_name(sat_repo, "ISS", "test", "1.0")
     assert len(results) == 1
     assert results[0]["name"] == "ISS"
-    assert results[0]["norad_id"] == satellite.sat_number
-    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
-    assert results[0]["is_current_version"] == satellite.has_current_sat_number
+    assert results[0]["norad_id"] == 25544
+    assert results[0]["valid_from"] == format_date(datetime(2024, 1, 1))
+    assert results[0]["valid_to"] is None
 
     results = get_ids_for_satellite_name(sat_repo, "not_found", "test", "1.0")
     assert len(results) == 0
@@ -140,19 +180,33 @@ def test_get_ids_for_satellite_name_no_match():
 
 
 def test_get_ids_for_satellite_name_multiple_matches():
-    satellite = SatelliteFactory(sat_name="ISS")
-    satellite_new = SatelliteFactory(sat_name="ISS")
-    sat_repo = FakeSatelliteRepository([satellite, satellite_new])
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="ISS",
+                sat_number=25545,
+                valid_from=datetime(2023, 1, 1),
+                valid_to=datetime(2024, 1, 1),
+            ),
+            SatelliteDesignationFactory(
+                sat_name="ISS",
+                sat_number=25544,
+                valid_from=datetime(2024, 1, 1),
+                valid_to=None,
+            ),
+        ]
+    )
+    sat_repo = FakeSatelliteRepository([satellite])
     results = get_ids_for_satellite_name(sat_repo, "ISS", "test", "1.0")
     assert len(results) == 2
     assert results[0]["name"] == "ISS"
-    assert results[0]["norad_id"] == satellite.sat_number
-    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
-    assert results[0]["is_current_version"] == satellite.has_current_sat_number
+    assert results[0]["norad_id"] == 25545
+    assert results[0]["valid_from"] == format_date(datetime(2023, 1, 1))
+    assert results[0]["valid_to"] == format_date(datetime(2024, 1, 1))
     assert results[1]["name"] == "ISS"
-    assert results[1]["norad_id"] == satellite_new.sat_number
-    assert results[1]["date_added"] == format_date(datetime(2024, 1, 1))
-    assert results[1]["is_current_version"] == satellite_new.has_current_sat_number
+    assert results[1]["norad_id"] == 25544
+    assert results[1]["valid_from"] == format_date(datetime(2024, 1, 1))
+    assert results[1]["valid_to"] is None
 
 
 def test_get_ids_for_satellite_name_errors():
@@ -169,14 +223,16 @@ def test_get_ids_for_satellite_name_errors():
 
 
 def test_get_names_for_satellite_id():
-    satellite = SatelliteFactory(sat_number=25544)
+    satellite = SatelliteFactory(
+        designations=[SatelliteDesignationFactory(sat_number=25544)]
+    )
     sat_repo = FakeSatelliteRepository([satellite])
     results = get_names_for_satellite_id(sat_repo, 25544, "test", "1.0")
     assert len(results) == 1
-    assert results[0]["name"] == satellite.sat_name
+    assert results[0]["name"] == satellite.get_current_designation().sat_name
     assert results[0]["norad_id"] == 25544
-    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
-    assert results[0]["is_current_version"] == satellite.has_current_sat_number
+    assert results[0]["valid_from"] == satellite.get_current_designation().valid_from
+    assert results[0]["valid_to"] == satellite.get_current_designation().valid_to
 
     results = get_names_for_satellite_id(sat_repo, 99999, "test", "1.0")
     assert len(results) == 0
@@ -189,19 +245,34 @@ def test_get_names_for_satellite_id_no_match():
 
 
 def test_get_names_for_satellite_id_multiple_matches():
-    satellite = SatelliteFactory(sat_number=25544)
-    satellite_new = SatelliteFactory(sat_number=25544)
-    sat_repo = FakeSatelliteRepository([satellite, satellite_new])
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="ISS",
+                sat_number=25544,
+                valid_from=datetime(2024, 1, 1),
+                valid_to=datetime(2024, 1, 2),
+            ),
+            SatelliteDesignationFactory(
+                sat_name="ISS",
+                sat_number=25544,
+                valid_from=datetime(2024, 1, 2),
+                valid_to=None,
+            ),
+        ]
+    )
+
+    sat_repo = FakeSatelliteRepository([satellite])
     results = get_names_for_satellite_id(sat_repo, 25544, "test", "1.0")
     assert len(results) == 2
-    assert results[0]["name"] == satellite.sat_name
+    assert results[0]["name"] == satellite.get_current_designation().sat_name
     assert results[0]["norad_id"] == 25544
-    assert results[0]["date_added"] == format_date(datetime(2024, 1, 1))
-    assert results[0]["is_current_version"] == satellite.has_current_sat_number
-    assert results[1]["name"] == satellite_new.sat_name
+    assert results[0]["valid_from"] == datetime(2024, 1, 1)
+    assert results[0]["valid_to"] == datetime(2024, 1, 2)
+    assert results[1]["name"] == satellite.get_current_designation().sat_name
     assert results[1]["norad_id"] == 25544
-    assert results[1]["date_added"] == format_date(datetime(2024, 1, 1))
-    assert results[1]["is_current_version"] == satellite_new.has_current_sat_number
+    assert results[1]["valid_from"] == datetime(2024, 1, 2)
+    assert results[1]["valid_to"] is None
 
 
 def test_get_names_for_satellite_id_errors():
@@ -223,13 +294,24 @@ def test_get_active_satellites():
     assert results["count"] == 0
 
     satellite = SatelliteFactory(
-        sat_name="ISS", has_current_sat_number=True, decay_date=None
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="ISS",
+                sat_number=25544,
+                valid_from=datetime.now(),
+                valid_to=None,
+            )
+        ],
+        decay_date=None,
     )
     sat_repo = FakeSatelliteRepository([satellite])
     results = get_active_satellites(sat_repo, None, "test", "1.0")
     assert results["count"] == 1
     assert results["data"][0]["satellite_name"] == "ISS"
-    assert results["data"][0]["satellite_id"] == satellite.sat_number
+    assert (
+        results["data"][0]["satellite_id"]
+        == satellite.get_current_designation().sat_number
+    )
     assert results["data"][0]["international_designator"] == satellite.object_id
     assert results["data"][0]["rcs_size"] == satellite.rcs_size
     assert results["data"][0]["launch_date"] == satellite.launch_date.strftime(
@@ -245,8 +327,14 @@ def test_get_starlink_generations():
     assert results["count"] == 0
 
     satellite = SatelliteFactory(
-        sat_name="starlink1",
-        has_current_sat_number=True,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="starlink1",
+                sat_number=25544,
+                valid_from=datetime(2019, 5, 10),
+                valid_to=None,
+            )
+        ],
         launch_date=datetime(2019, 5, 10),
         generation="gen1",
     )
@@ -259,8 +347,14 @@ def test_get_starlink_generations():
     assert results["data"][0]["latest_launch_date"] == "2019-05-10 00:00:00 UTC"
 
     satellite2 = SatelliteFactory(
-        sat_name="starlink2",
-        has_current_sat_number=True,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="starlink2",
+                sat_number=25545,
+                valid_from=datetime(2019, 5, 20),
+                valid_to=None,
+            )
+        ],
         launch_date=datetime(2019, 5, 20),
         generation="gen1",
     )
@@ -272,8 +366,14 @@ def test_get_starlink_generations():
     assert results["data"][0]["latest_launch_date"] == "2019-05-20 00:00:00 UTC"
 
     satellite3 = SatelliteFactory(
-        sat_name="starlink3",
-        has_current_sat_number=True,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="starlink3",
+                sat_number=25546,
+                valid_from=datetime(2020, 6, 10),
+                valid_to=None,
+            )
+        ],
         launch_date=datetime(2020, 6, 10),
         generation="gen2",
     )
@@ -291,8 +391,14 @@ def test_get_starlink_generations():
 def test_get_starlink_generations_errors():
     # Create a satellite with an invalid launch date type
     satellite = SatelliteFactory(
-        sat_name="starlink1",
-        has_current_sat_number=True,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="starlink1",
+                sat_number=25544,
+                valid_from=datetime(2019, 5, 10),
+                valid_to=None,
+            )
+        ],
         launch_date="invalid_date",  # This will cause TypeError in the repository
         generation="gen1",
     )
@@ -306,8 +412,7 @@ def test_get_starlink_generations_errors():
 
 def test_get_active_satellites_with_object_type():
     satellite = SatelliteFactory(
-        sat_name="ISS",
-        has_current_sat_number=True,
+        designations=[SatelliteDesignationFactory(sat_name="ISS")],
         decay_date=None,
         object_type="payload",
     )
@@ -315,7 +420,10 @@ def test_get_active_satellites_with_object_type():
     results = get_active_satellites(sat_repo, "payload", "test", "1.0")
     assert results["count"] == 1
     assert results["data"][0]["satellite_name"] == "ISS"
-    assert results["data"][0]["satellite_id"] == satellite.sat_number
+    assert (
+        results["data"][0]["satellite_id"]
+        == satellite.get_current_designation().sat_number
+    )
     assert results["data"][0]["international_designator"] == satellite.object_id
     assert results["data"][0]["rcs_size"] == satellite.rcs_size
     assert results["data"][0]["launch_date"] == satellite.launch_date.strftime(
@@ -327,8 +435,7 @@ def test_get_active_satellites_with_object_type():
 
 def test_get_active_satellites_with_invalid_object_type():
     satellite = SatelliteFactory(
-        sat_name="ISS",
-        has_current_sat_number=True,
+        designations=[SatelliteDesignationFactory(sat_name="ISS")],
         decay_date=None,
         object_type="payload",
     )
@@ -339,8 +446,18 @@ def test_get_active_satellites_with_invalid_object_type():
 
 def test_get_all_tles_at_epoch_formatted():
     tle_repo = FakeTLERepository([])
-    tle_1 = TLEFactory(satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now())
-    tle_2 = TLEFactory(satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now())
+    tle_1 = TLEFactory(
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_name="ISS")]
+        ),
+        epoch=datetime.now(),
+    )
+    tle_2 = TLEFactory(
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_name="ISS")]
+        ),
+        epoch=datetime.now(),
+    )
     tle_repo = FakeTLERepository([tle_1, tle_2])
     results = get_all_tles_at_epoch_formatted(
         tle_repo, datetime.now(), "json", 1, 100, "test", "1.0"
@@ -385,11 +502,15 @@ def test_get_all_tles_at_epoch_formatted():
 def test_get_adjacent_tles():
     tle_repo = FakeTLERepository([])
     tle_1 = TLEFactory(
-        satellite=SatelliteFactory(sat_number=25544),
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_number=25544)]
+        ),
         epoch=datetime.now() - timedelta(days=1),
     )
     tle_2 = TLEFactory(
-        satellite=SatelliteFactory(sat_number=25544),
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_number=25544)]
+        ),
         epoch=datetime.now() + timedelta(days=1),
     )
     tle_repo = FakeTLERepository([tle_1, tle_2])
@@ -409,10 +530,16 @@ def test_get_nearest_tle():
     tle_repo = FakeTLERepository([])
     epoch = datetime.now()
     tle_1 = TLEFactory(
-        satellite=SatelliteFactory(sat_number=25544), epoch=epoch - timedelta(days=1)
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_number=25544)]
+        ),
+        epoch=epoch - timedelta(days=1),
     )
     tle_2 = TLEFactory(
-        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=3)
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_number=25544)]
+        ),
+        epoch=epoch + timedelta(days=3),
     )
     tle_repo = FakeTLERepository([tle_1, tle_2])
 
@@ -428,13 +555,22 @@ def test_get_tles_around_epoch():
     tle_repo = FakeTLERepository([])
     epoch = datetime.now()
     tle_1 = TLEFactory(
-        satellite=SatelliteFactory(sat_number=25544), epoch=epoch - timedelta(days=1)
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_number=25544)]
+        ),
+        epoch=epoch - timedelta(days=1),
     )
     tle_2 = TLEFactory(
-        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=3)
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_number=25544)]
+        ),
+        epoch=epoch + timedelta(days=3),
     )
     tle_3 = TLEFactory(
-        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=5)
+        satellite=SatelliteFactory(
+            designations=[SatelliteDesignationFactory(sat_number=25544)]
+        ),
+        epoch=epoch + timedelta(days=5),
     )
     tle_repo = FakeTLERepository([tle_1, tle_2, tle_3])
 
@@ -462,8 +598,7 @@ def test_get_tles_around_epoch():
 def test_get_satellite_data():
     # Satellite with all fields populated
     satellite = SatelliteFactory(
-        sat_name="ISS",
-        sat_number=25544,
+        designations=[SatelliteDesignationFactory(sat_name="ISS", sat_number=25544)],
         object_id="1998-067A",
         rcs_size="LARGE",
         launch_date=datetime(1998, 11, 20),
@@ -510,9 +645,13 @@ def test_get_tle_data_repository_exceptions():
 
 
 def test_get_tle_data_formatting_exception():
-    tle_repo = FakeTLERepository([BrokenTLE("sat_name", sat_number=25544)])
+    tle_repo = FakeTLERepository(
+        [BrokenTLE("get_designation_at_date", sat_number=25544)]
+    )
 
-    with pytest.raises(AttributeError, match="Broken satellite attribute: sat_name"):
+    with pytest.raises(
+        AttributeError, match="Broken satellite attribute: get_designation_at_date"
+    ):
         get_tle_data(tle_repo, 25544, "catalog", None, None, "test", "1.0")
 
 
@@ -563,8 +702,12 @@ def test_get_adjacent_tle_repository_exception():
 
 def test_get_adjacent_tle_formatting_exceptions():
     # Test TXT exception
-    tle_repo = FakeTLERepository([BrokenTLE("sat_name", sat_number=25544)])
-    with pytest.raises(AttributeError, match="Broken satellite attribute: sat_name"):
+    tle_repo = FakeTLERepository(
+        [BrokenTLE("get_designation_at_date", sat_number=25544)]
+    )
+    with pytest.raises(
+        AttributeError, match="Broken satellite attribute: get_designation_at_date"
+    ):
         get_adjacent_tle_results(
             tle_repo, 25544, "catalog", datetime.now(), "test", "1.0", "txt"
         )
@@ -590,9 +733,7 @@ def test_get_satellite_data_repository_exceptions():
 
 
 def test_get_satellite_data_formatting_exception():
-    sat_repo = FakeSatelliteRepository(
-        [BrokenSatellite("object_id", sat_number=25544, sat_name="ISS")]
-    )
+    sat_repo = FakeSatelliteRepository([BrokenSatellite("object_id", 25544, "ISS")])
 
     with pytest.raises(AttributeError, match="Broken satellite attribute: object_id"):
         get_satellite_data(sat_repo, 25544, "catalog", "test", "1.0")
@@ -613,7 +754,7 @@ def test_get_active_satellites_repository_exception():
 
 
 def test_get_active_satellites_formatting_exception():
-    sat_repo = FakeSatelliteRepository([BrokenSatellite("launch_date")])
+    sat_repo = FakeSatelliteRepository([BrokenSatellite("launch_date", 25544, "ISS")])
 
     with pytest.raises(AttributeError, match="Broken satellite attribute: launch_date"):
         get_active_satellites(sat_repo, None, "test", "1.0")
@@ -637,8 +778,10 @@ def test_get_all_tles_at_epoch_formatting_exceptions():
         )
 
     # Test JSON exception
-    tle_repo = FakeTLERepository([BrokenTLE("sat_number")])
-    with pytest.raises(AttributeError, match="Broken satellite attribute: sat_number"):
+    tle_repo = FakeTLERepository([BrokenTLE("get_designation_at_date")])
+    with pytest.raises(
+        AttributeError, match="Broken satellite attribute: get_designation_at_date"
+    ):
         get_all_tles_at_epoch_formatted(
             tle_repo, datetime.now(), "json", 1, 100, "test", "1.0"
         )

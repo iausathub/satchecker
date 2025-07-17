@@ -1,11 +1,14 @@
 # ruff: noqa: S101
 import logging
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from astropy.time import Time
 from tests.conftest import FakeTLERepository
-from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.satellite_factory import (
+    SatelliteDesignationFactory,
+    SatelliteFactory,
+)
 from tests.factories.tle_factory import TLEFactory
 
 from api.services.fov_service import (
@@ -17,14 +20,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def test_satellite_in_fov(test_location, test_time):
+def test_satellite_in_fov(test_location, test_time, test_date):
     """Test when a satellite passes through FOV"""
     # Set up known satellite TLE that will pass through a specific FOV
+    # test_time is a jd
     satellite = SatelliteFactory(
-        sat_name="FENGYUN 1C DEB",
-        sat_number=31746,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="FENGYUN 1C DEB",
+                sat_number=31746,
+                valid_from=datetime(1957, 1, 1),
+            )
+        ],
         decay_date=None,
-        has_current_sat_number=True,
     )
 
     tle = TLEFactory(
@@ -142,15 +150,19 @@ def test_satellite_in_fov(test_location, test_time):
     )
 
 
-def test_satellite_outside_fov(test_location, test_time):
+def test_satellite_outside_fov(test_location, test_time, test_date):
     """Test when satellite never enters FOV"""
     # Set up with FOV pointing away from orbit - RA changed to 48.797270
 
     satellite = SatelliteFactory(
-        sat_name="FENGYUN 1C DEB",
-        sat_number=31746,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="FENGYUN 1C DEB",
+                sat_number=31746,
+                valid_from=test_date - timedelta(days=1),
+            )
+        ],
         decay_date=None,
-        has_current_sat_number=True,
     )
 
     tle = TLEFactory(
@@ -209,13 +221,17 @@ def test_empty_tle_list(test_location, test_time):
     assert result["data"]["total_position_results"] == 0
 
 
-def test_satellites_above_horizon(test_location, test_time):
+def test_satellites_above_horizon(test_location, test_time, test_date):
     # Test for satellite above horizon
     satellite = SatelliteFactory(
-        sat_name="FENGYUN 1C DEB",
-        sat_number=31746,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="FENGYUN 1C DEB",
+                sat_number=31746,
+                valid_from=test_date - timedelta(days=1),
+            )
+        ],
         decay_date=None,
-        has_current_sat_number=True,
         constellation="starlink",
     )
 

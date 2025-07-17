@@ -66,18 +66,21 @@ def get_tle_data(
 
     # Extract the TLE data from the result set
     try:
-        tle_data = [
-            {
-                "satellite_name": tle.satellite.sat_name,
-                "satellite_id": tle.satellite.sat_number,
-                "tle_line1": tle.tle_line1,
-                "tle_line2": tle.tle_line2,
-                "epoch": format_date(tle.epoch),
-                "date_collected": format_date(tle.date_collected),
-                "data_source": tle.data_source,
-            }
-            for tle in tles
-        ]
+        tle_data = []
+        for tle in tles:
+            satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+            tle_data.append(
+                {
+                    "satellite_name": satellite_designation.sat_name,
+                    "satellite_id": satellite_designation.sat_number,
+                    "tle_line1": tle.tle_line1,
+                    "tle_line2": tle.tle_line2,
+                    "epoch": format_date(tle.epoch),
+                    "date_collected": format_date(tle.date_collected),
+                    "data_source": tle.data_source,
+                }
+            )
+
         logger.info(f"Successfully formatted {len(tle_data)} TLE records")
         return tle_data
     except Exception as e:
@@ -139,18 +142,20 @@ def get_tles_around_epoch_results(
 
     try:
         # Extract the TLE data from the result set
-        tle_data = [
-            {
-                "satellite_name": tle.satellite.sat_name,
-                "satellite_id": tle.satellite.sat_number,
-                "tle_line1": tle.tle_line1,
-                "tle_line2": tle.tle_line2,
-                "epoch": format_date(tle.epoch),
-                "date_collected": format_date(tle.date_collected),
-                "data_source": tle.data_source,
-            }
-            for tle in tles
-        ]
+        tle_data = []
+        for tle in tles:
+            satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+            tle_data.append(
+                {
+                    "satellite_name": satellite_designation.sat_name,
+                    "satellite_id": satellite_designation.sat_number,
+                    "tle_line1": tle.tle_line1,
+                    "tle_line2": tle.tle_line2,
+                    "epoch": format_date(tle.epoch),
+                    "date_collected": format_date(tle.date_collected),
+                    "data_source": tle.data_source,
+                }
+            )
         logger.info(f"Successfully formatted {len(tle_data)} TLE records")
     except Exception as e:
         logger.error(f"Failed to format TLE data: {str(e)}", exc_info=True)
@@ -213,10 +218,11 @@ def get_nearest_tle_result(
     try:
         if tle is not None:
             logger.info(f"Found nearest TLE with epoch: {tle.epoch}")
+            satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
             tle_data = [
                 {
-                    "satellite_name": tle.satellite.sat_name,
-                    "satellite_id": tle.satellite.sat_number,
+                    "satellite_name": satellite_designation.sat_name,
+                    "satellite_id": satellite_designation.sat_number,
                     "tle_line1": tle.tle_line1,
                     "tle_line2": tle.tle_line2,
                     "epoch": format_date(tle.epoch),
@@ -279,7 +285,7 @@ def get_adjacent_tle_results(
     if format == "txt":
         try:
             tle_data: list[str] = [
-                f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
+                f"{tle.satellite.get_designation_at_date(tle.epoch).sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
                 for tle in tles
             ]
             text_content = "".join(tle_data)
@@ -290,18 +296,20 @@ def get_adjacent_tle_results(
             raise
     else:
         try:
-            tle_json_data = [
-                {
-                    "satellite_name": tle.satellite.sat_name,
-                    "satellite_id": tle.satellite.sat_number,
-                    "tle_line1": tle.tle_line1,
-                    "tle_line2": tle.tle_line2,
-                    "epoch": format_date(tle.epoch),
-                    "date_collected": format_date(tle.date_collected),
-                    "data_source": tle.data_source,
-                }
-                for tle in tles
-            ]
+            tle_json_data = []
+            for tle in tles:
+                satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+                tle_json_data.append(
+                    {
+                        "satellite_name": satellite_designation.sat_name,
+                        "satellite_id": satellite_designation.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
+                    }
+                )
             logger.info("Successfully formatted TLE data as JSON")
             return [
                 {
@@ -352,7 +360,7 @@ def get_satellite_data(
         if satellite is None:
             logger.warning(f"No satellite found for {id_type} ID: {id}")
             return []
-        logger.info(f"Found satellite: {satellite.sat_name}")
+        logger.info(f"Found satellite: {satellite.get_current_designation().sat_name}")
     except Exception as e:
         logger.error(f"Failed to retrieve satellite data: {str(e)}", exc_info=True)
         raise
@@ -360,8 +368,9 @@ def get_satellite_data(
     try:
         satellite_data = [
             {
-                "satellite_name": satellite.sat_name,
-                "satellite_id": satellite.sat_number,
+                # TODO: Verify that current designation is the one to use here
+                "satellite_name": satellite.get_current_designation().sat_name,
+                "satellite_id": satellite.get_current_designation().sat_number,
                 "international_designator": satellite.object_id,
                 "rcs_size": satellite.rcs_size,
                 "launch_date": (
@@ -490,8 +499,8 @@ def get_active_satellites(
     try:
         satellite_list = [
             {
-                "satellite_name": satellite.sat_name,
-                "satellite_id": satellite.sat_number,
+                "satellite_name": satellite.get_current_designation().sat_name,
+                "satellite_id": satellite.get_current_designation().sat_number,
                 "international_designator": satellite.object_id,
                 "rcs_size": satellite.rcs_size,
                 "launch_date": (
@@ -566,7 +575,7 @@ def get_all_tles_at_epoch_formatted(
     if format == "txt":
         try:
             tle_data: list[str] = [
-                f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
+                f"{tle.satellite.get_designation_at_date(tle.epoch).sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
                 for tle in tles
             ]
             text_content = "".join(tle_data)
@@ -594,10 +603,11 @@ def get_all_tles_at_epoch_formatted(
             )
 
             for tle in tles:
+                satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
                 csv_writer.writerow(
                     [
-                        tle.satellite.sat_name,
-                        tle.satellite.sat_number,
+                        satellite_designation.sat_name,
+                        satellite_designation.sat_number,
                         tle.tle_line1,
                         tle.tle_line2,
                         format_date(tle.epoch),
@@ -619,18 +629,20 @@ def get_all_tles_at_epoch_formatted(
 
     else:
         try:
-            tle_json_data = [
-                {
-                    "satellite_name": tle.satellite.sat_name,
-                    "satellite_id": tle.satellite.sat_number,
-                    "tle_line1": tle.tle_line1,
-                    "tle_line2": tle.tle_line2,
-                    "epoch": format_date(tle.epoch),
-                    "date_collected": format_date(tle.date_collected),
-                    "data_source": tle.data_source,
-                }
-                for tle in tles
-            ]
+            tle_json_data = []
+            for tle in tles:
+                satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+                tle_json_data.append(
+                    {
+                        "satellite_name": satellite_designation.sat_name,
+                        "satellite_id": satellite_designation.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
+                    }
+                )
             logger.info("Successfully formatted TLE data as JSON")
             return [
                 {
@@ -687,8 +699,8 @@ def get_ids_for_satellite_name(
             {
                 "name": satellite_name,
                 "norad_id": id_date[0],
-                "date_added": format_date(id_date[1]),
-                "is_current_version": id_date[2],
+                "valid_from": format_date(id_date[1]),
+                "valid_to": format_date(id_date[2]),
             }
             for id_date in satellite_ids_dates
         ]
@@ -742,8 +754,8 @@ def get_names_for_satellite_id(
             {
                 "name": name_date[0],
                 "norad_id": satellite_id,
-                "date_added": format_date(name_date[1]),
-                "is_current_version": name_date[2],
+                "valid_from": name_date[1],
+                "valid_to": name_date[2],
             }
             for name_date in satellite_names_and_dates
         ]

@@ -6,7 +6,10 @@ import numpy as np
 import pytest
 from astropy.time import Time
 from skyfield.api import wgs84
-from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.satellite_factory import (
+    SatelliteDesignationFactory,
+    SatelliteFactory,
+)
 from tests.factories.tle_factory import TLEFactory
 
 from api.common.exceptions import ValidationError
@@ -172,10 +175,15 @@ def test_process_satellite_batch():
     # Use the same TLE values from the passing FOV tests (FENGYUN 1C DEB)
     # Create proper satellite and TLE objects like in the FOV tests
     satellite = SatelliteFactory(
-        sat_name="FENGYUN 1C DEB",
-        sat_number=31746,
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="FENGYUN 1C DEB",
+                sat_number=31746,
+                valid_from=datetime(1957, 10, 1),
+                valid_to=None,
+            )
+        ],
         decay_date=None,
-        has_current_sat_number=True,
     )
 
     tle = TLEFactory(
