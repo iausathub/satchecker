@@ -19,7 +19,7 @@ from connections import get_db_login
 from psycopg2 import OperationalError
 from satellite_utils import (
     get_decayed_satellites,
-    # get_ephemeris_data_from_spacetrack,
+    get_starlink_ephemeris_data,
     get_starlink_generations,
 )
 from tle_utils import (
@@ -106,8 +106,7 @@ def main():
         get_spacetrack_tles(cursor, connection)
         get_decayed_satellites(cursor, connection)
         get_starlink_generations(cursor, connection)
-
-        # get_ephemeris_data_from_spacetrack(cursor, connection)
+        get_starlink_ephemeris_data(cursor, connection)
 
         connection.commit()
         cursor.close()

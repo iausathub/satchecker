@@ -2,12 +2,11 @@
 import io
 from datetime import datetime, timezone
 
-from flask import abort, jsonify, request, send_file
 from flask import current_app as app
+from flask import jsonify, request, send_file
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
     get_active_satellites,
@@ -512,10 +511,7 @@ def get_active_satellites_list():
     sat_repo = SqlAlchemySatelliteRepository(session)
 
     parameter_list = ["object_type"]
-    try:
-        parameters = validate_parameters(request, parameter_list, [])
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(request, parameter_list, [])
 
     active_satellites = get_active_satellites(
         sat_repo, parameters.get("object_type"), api_source, api_version
