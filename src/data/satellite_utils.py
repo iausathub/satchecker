@@ -28,7 +28,7 @@ def get_decayed_satellites(cursor, connection):
             raise requests.HTTPError(resp, "failed on login")
 
         decayed_satellites = session.get(
-            "https://www.space-track.org/basicspacedata/query/class/satcat_change/PREVIOUS_DECAY/null-val/CURRENT_DECAY/%3C%3Enull-val/orderby/CHANGE_MADE%20desc/format/json",
+            "https://www.space-track.org/basicspacedata/query/class/satcat_change/PREVIOUS_DECAY/null-val/CURRENT_DECAY/%3C%3Enull-val/orderby/CHANGE_MADE%20desc/format/json/change_made/%3Enow-1",
             timeout=60,
         )
 
