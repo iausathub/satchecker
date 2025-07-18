@@ -106,7 +106,6 @@ def main():
         get_spacetrack_tles(cursor, connection)
         get_decayed_satellites(cursor, connection)
         get_starlink_generations(cursor, connection)
-
         get_starlink_ephemeris_data(cursor, connection)
 
         connection.commit()
