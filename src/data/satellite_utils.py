@@ -1,8 +1,5 @@
-import io
 import logging
 import re
-import time
-import zipfile
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -588,19 +585,15 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     }
 
 
-def get_ephemeris_data_from_spacetrack(cursor, connection):
+def get_starlink_ephemeris_data(cursor, connection):
     """
-    Fetch and process ephemeris data from Space-Track for SpaceX satellites.
+    Fetch and process ephemeris data for Starlink satellites.
 
     This function:
-    1. Authenticates with Space-Track API
-    2. Retrieves metadata for public files
-    3. Filters for SpaceX files from today
-    4. Downloads and processes each file
-    5. Parses ephemeris data and inserts it into the database
+    1. Downloads and processes each ephemeris data file
+    2. Parses ephemeris data and inserts it into the database
 
     The function processes files in the following format:
-    - Each file is a zip archive containing multiple ephemeris files
     - Each ephemeris file contains satellite position, velocity, and covariance data
     - Files are named in format:
         MEME_57851_STARLINK-30405_1490204_Operational_1432778700_UNCLASSIFIED
@@ -614,61 +607,26 @@ def get_ephemeris_data_from_spacetrack(cursor, connection):
         Exception: For other errors during processing
 
     Note:
-        - Only processes files from the current UTC day
-        - Includes rate limiting (2 second delay between files)
-        - Logs processing statistics for each file
         - Uses ON CONFLICT DO NOTHING for database inserts to handle duplicates
     """
     try:
         with requests.Session() as session:
-            username, password = get_spacetrack_login()
-            site_cred = {
-                "identity": username,
-                "password": password,
-            }
-            base_uri = "https://www.space-track.org"
-            resp = session.post(base_uri + "/ajaxauth/login", data=site_cred)
-            if resp.status_code != 200:
-                raise requests.HTTPError(resp, "failed on login")
-
-            # First get metadata about public files
-            public_files_metadata = session.get(
-                "https://www.space-track.org/publicfiles/query/class/loadpublicdata",
+            # Retrieve list of ephemeris files
+            ephemeris_files = session.get(
+                "https://api.starlink.com/public-files/ephemerides/MANIFEST.txt",
                 timeout=60,
             )
 
-            # Get files and filter for SpaceX
-            files_metadata = public_files_metadata.json()
-            spacex_files = [
-                f for f in files_metadata if f["source"].lower() == "spacex"
-            ]
+            files_processed = 0
+            total_data_points = 0
 
             # Get today's date in UTC
             today = datetime.now(timezone.utc).date()
 
             logging.info(f"Today's date: {today}")
 
-            # Filter files for today's date only
-            today_files = [
-                f
-                for f in spacex_files
-                if datetime.strptime(f["date"], "%Y-%m-%d %H:%M:%S").date() == today
-            ]
-
-            if not today_files:
-                logging.info(f"No SpaceX files found for today ({today})")
-                return
-
-            # Sort files by date in descending order (newest first)
-            today_files.sort(
-                key=lambda x: datetime.strptime(x["date"], "%Y-%m-%d %H:%M:%S"),
-                reverse=True,
-            )
-
-            logging.info(f"Found {len(today_files)} SpaceX files for today ({today})")
-
             # Process each file individually
-            for file in today_files:
+            for file_name in ephemeris_files:
                 try:
                     # Check if file has already been processed
                     cursor.execute(
@@ -676,64 +634,44 @@ def get_ephemeris_data_from_spacetrack(cursor, connection):
                         SELECT COUNT(*) FROM interpolable_ephemeris
                         WHERE file_reference = %s
                         """,
-                        (file["name"],),
+                        (file_name,),
                     )
                     if cursor.fetchone()[0] > 0:
-                        logging.info(f"Skipping already processed file: {file['name']}")
+                        logging.info(f"Skipping already processed file: {file_name}")
                         continue
 
                     # Download the file
                     file_url = (
-                        f"{base_uri}/publicfiles/query/class/download"
-                        f"?name={file['link']}"
+                        f"https://api.starlink.com/public-files/ephemerides/{file_name}"
                     )
                     response = session.get(file_url, timeout=120)
                     response.raise_for_status()
 
-                    logging.info(f"Processing file: {file['name']}")
+                    logging.info(f"Processing file: {file_name}")
 
-                    # Process the zip file in memory
-                    with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
-                        file_list = zip_ref.namelist()
-                        logging.info(f"Found {len(file_list)} files in the zip")
+                    try:
+                        file_content = response.content.decode("utf-8")
+                        parsed_data = parse_ephemeris_file(file_content, file_name)
+                        insert_ephemeris_data(parsed_data, cursor, connection)
+                        num_points = len(parsed_data["timestamps"])
 
-                        start_time = datetime.now(timezone.utc)
-                        total_data_points = 0
-                        files_processed = 0
-                        for file_name in file_list:
-                            try:
-                                with zip_ref.open(file_name) as f:
-                                    file_content = f.read().decode("utf-8")
-                                parsed_data = parse_ephemeris_file(
-                                    file_content, file_name
-                                )
-                                insert_ephemeris_data(parsed_data, cursor, connection)
-                                num_points = len(parsed_data["timestamps"])
-                                total_data_points += num_points
-                                files_processed += 1
-                            except Exception as e:
-                                logging.error(f"Error processing file {file_name}: {e}")
-                                continue
-
-                        end_time = datetime.now(timezone.utc)
-                        total_duration = (end_time - start_time).total_seconds()
-                        logging.info(f"\nProcessing Summary for {file['name']}:")
-                        logging.info(f"Total files processed: {files_processed}")
-                        logging.info(f"Total data points: {total_data_points}")
-                        logging.info(
-                            f"Total processing time: " f"{total_duration:.2f} seconds"
+                    except Exception as e:
+                        logging.error(
+                            "Error parsing/inserting ephemeris data for file %s: %s",
+                            file_name,
+                            e,
                         )
-                        logging.info(
-                            f"Average time per file: "
-                            f"{total_duration/len(file_list):.2f} seconds"
-                        )
-
-                        # Add a small delay between files to avoid rate limiting
-                        time.sleep(2)
+                        continue
 
                 except Exception as e:
-                    logging.error(f"Error processing zip file {file['name']}: {e}")
+                    logging.error(f"Error processing file {file_name}: {e}")
                     continue
+
+                total_data_points += num_points
+                files_processed += 1
+
+            logging.info(f"Total data points: {total_data_points}")
+            logging.info(f"Files processed: {files_processed}")
     except Exception as err:
-        logging.error(f"Error getting ephemeris data from Space-Track: {err}")
+        logging.error(f"Error getting ephemeris data for Starlink satellites: {err}")
         raise
