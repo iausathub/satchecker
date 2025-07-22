@@ -612,10 +612,16 @@ def get_starlink_ephemeris_data(cursor, connection):
     try:
         with requests.Session() as session:
             # Retrieve list of ephemeris files
-            ephemeris_files = session.get(
+            ephemeris_response = session.get(
                 "https://api.starlink.com/public-files/ephemerides/MANIFEST.txt",
                 timeout=60,
             )
+            ephemeris_response.raise_for_status()
+
+            # Parse the manifest to get file names
+            manifest_content = ephemeris_response.text
+            ephemeris_files = [line.strip() for line in manifest_content.splitlines() if line.strip()]
+
 
             files_processed = 0
             total_data_points = 0
@@ -624,6 +630,7 @@ def get_starlink_ephemeris_data(cursor, connection):
             today = datetime.now(timezone.utc).date()
 
             logging.info(f"Today's date: {today}")
+            logging.info(f"Found {len(ephemeris_files)} files in manifest")
 
             # Process each file individually
             for file_name in ephemeris_files:
