@@ -620,8 +620,9 @@ def get_starlink_ephemeris_data(cursor, connection):
 
             # Parse the manifest to get file names
             manifest_content = ephemeris_response.text
-            ephemeris_files = [line.strip() for line in manifest_content.splitlines() if line.strip()]
-
+            ephemeris_files = [
+                line.strip() for line in manifest_content.splitlines() if line.strip()
+            ]
 
             files_processed = 0
             total_data_points = 0
