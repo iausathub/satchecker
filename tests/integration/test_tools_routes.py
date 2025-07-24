@@ -91,12 +91,14 @@ def test_get_satellite_data_no_match(client, services_available):
 
 
 def test_get_tles_at_epoch(client, session, services_available):
+    test_epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
+
     satellite = SatelliteFactory(
         designations=[SatelliteDesignationFactory(sat_name="ISS")],
         decay_date=None,
+        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
     )
-    epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
-    tle = TLEFactory(satellite=satellite, epoch=epoch_date)
+    tle = TLEFactory(satellite=satellite, epoch=test_epoch_date)
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -115,6 +117,8 @@ def test_get_tles_at_epoch(client, session, services_available):
 
 
 def test_get_tles_at_epoch_pagination(client, session, services_available):
+    test_epoch_date = datetime.strptime("2024-10-22", "%Y-%m-%d")
+
     satellite = SatelliteFactory(
         designations=[
             SatelliteDesignationFactory(
@@ -122,13 +126,15 @@ def test_get_tles_at_epoch_pagination(client, session, services_available):
             )
         ],
         decay_date=None,
+        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
     )
-    epoch_date = datetime.strptime("2024-10-22", "%Y-%m-%d")
-    tle = TLEFactory(satellite=satellite, epoch=epoch_date)
-    print(tle.epoch)
+
+    tle = TLEFactory(satellite=satellite, epoch=test_epoch_date)
+
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
+
     epoch_date = 2460606
     response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}&page=1&per_page=1")
     tles = response.json[0]["data"]
@@ -146,6 +152,7 @@ def test_get_tles_at_epoch_optional_epoch_date(client, session, services_availab
             )
         ],
         decay_date=None,
+        launch_date=datetime.now() - timedelta(days=365),
     )
     # get current date for TLE epoch
     tle = TLEFactory(
@@ -171,6 +178,7 @@ def test_get_tles_at_epoch_zipped(client, session, services_available):
             )
         ],
         decay_date=None,
+        launch_date=epoch_date - timedelta(days=365),
     )
     # get current date for TLE epoch
 
@@ -190,15 +198,16 @@ def test_get_tles_at_epoch_zipped(client, session, services_available):
 
 
 def test_get_adjacent_tles(client, session, services_available):
+    epoch = datetime.now()
     satellite = SatelliteFactory(
         designations=[
             SatelliteDesignationFactory(
-                sat_number="25544", valid_from=datetime.now() - timedelta(days=1)
+                sat_number="25544", valid_from=epoch - timedelta(days=1)
             )
         ],
         decay_date=None,
+        launch_date=epoch - timedelta(days=365),
     )
-    epoch = datetime.now()
     tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
     tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
