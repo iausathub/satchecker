@@ -69,6 +69,12 @@ def get_tle_data(
         tle_data = []
         for tle in tles:
             satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+            if satellite_designation is None:
+                logger.warning(
+                    f"No satellite designation found for {tle.satellite.object_id} "
+                    f"at {tle.epoch}"
+                )
+                continue
             tle_data.append(
                 {
                     "satellite_name": satellite_designation.sat_name,
@@ -145,6 +151,12 @@ def get_tles_around_epoch_results(
         tle_data = []
         for tle in tles:
             satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+            if satellite_designation is None:
+                logger.warning(
+                    f"No satellite designation found for {tle.satellite.object_id} "
+                    f"at {tle.epoch}"
+                )
+                continue
             tle_data.append(
                 {
                     "satellite_name": satellite_designation.sat_name,
@@ -219,17 +231,24 @@ def get_nearest_tle_result(
         if tle is not None:
             logger.info(f"Found nearest TLE with epoch: {tle.epoch}")
             satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
-            tle_data = [
-                {
-                    "satellite_name": satellite_designation.sat_name,
-                    "satellite_id": satellite_designation.sat_number,
-                    "tle_line1": tle.tle_line1,
-                    "tle_line2": tle.tle_line2,
-                    "epoch": format_date(tle.epoch),
-                    "date_collected": format_date(tle.date_collected),
-                    "data_source": tle.data_source,
-                }
-            ]
+            if satellite_designation is None:
+                logger.warning(
+                    f"No satellite designation found for {tle.satellite.object_id} "
+                    f"at {tle.epoch}"
+                )
+                tle_data = []
+            else:
+                tle_data = [
+                    {
+                        "satellite_name": satellite_designation.sat_name,
+                        "satellite_id": satellite_designation.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
+                    }
+                ]
         else:
             tle_data = []
             logger.warning(f"No TLE found for {id_type} ID: {id} near epoch {epoch}")
@@ -284,10 +303,13 @@ def get_adjacent_tle_results(
 
     if format == "txt":
         try:
-            tle_data: list[str] = [
-                f"{tle.satellite.get_designation_at_date(tle.epoch).sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
-                for tle in tles
-            ]
+            tle_data: list[str] = []
+            for tle in tles:
+                designation = tle.satellite.get_designation_at_date(tle.epoch)
+                if designation is not None:
+                    tle_data.append(
+                        f"{designation.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
+                    )
             text_content = "".join(tle_data)
             logger.info("Successfully formatted TLE data as text")
             return io.BytesIO(text_content.encode())
@@ -299,6 +321,12 @@ def get_adjacent_tle_results(
             tle_json_data = []
             for tle in tles:
                 satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+                if satellite_designation is None:
+                    logger.warning(
+                        f"No satellite designation found for {tle.satellite.object_id} "
+                        f"at {tle.epoch}"
+                    )
+                    continue
                 tle_json_data.append(
                     {
                         "satellite_name": satellite_designation.sat_name,
@@ -574,10 +602,13 @@ def get_all_tles_at_epoch_formatted(
 
     if format == "txt":
         try:
-            tle_data: list[str] = [
-                f"{tle.satellite.get_designation_at_date(tle.epoch).sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
-                for tle in tles
-            ]
+            tle_data: list[str] = []
+            for tle in tles:
+                designation = tle.satellite.get_designation_at_date(tle.epoch)
+                if designation is not None:
+                    tle_data.append(
+                        f"{designation.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
+                    )
             text_content = "".join(tle_data)
             logger.info("Successfully formatted TLE data as text")
             return io.BytesIO(text_content.encode())
@@ -604,6 +635,12 @@ def get_all_tles_at_epoch_formatted(
 
             for tle in tles:
                 satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+                if satellite_designation is None:
+                    logger.warning(
+                        f"No satellite designation found for {tle.satellite.object_id} "
+                        f"at {tle.epoch}"
+                    )
+                    continue
                 csv_writer.writerow(
                     [
                         satellite_designation.sat_name,
@@ -632,6 +669,12 @@ def get_all_tles_at_epoch_formatted(
             tle_json_data = []
             for tle in tles:
                 satellite_designation = tle.satellite.get_designation_at_date(tle.epoch)
+                if satellite_designation is None:
+                    logger.warning(
+                        f"No satellite designation found for {tle.satellite.object_id} "
+                        f"at {tle.epoch}"
+                    )
+                    continue
                 tle_json_data.append(
                     {
                         "satellite_name": satellite_designation.sat_name,

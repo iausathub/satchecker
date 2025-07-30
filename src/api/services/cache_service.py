@@ -168,7 +168,12 @@ def batch_serialize_tles(tles: list[TLE]) -> list[dict[str, Any]]:
 
         # Get the designation that was valid at the TLE's epoch time
         epoch_designation = satellite.get_designation_at_date(tle.epoch)
-
+        if epoch_designation is None:
+            logger.warning(
+                f"No satellite designation found for {satellite.object_id} "
+                f"at {tle.epoch}"
+            )
+            continue
         # Create efficient TLE dictionary with direct attribute access
         tle_dict = {
             "tle_line1": tle.tle_line1,

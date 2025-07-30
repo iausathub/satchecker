@@ -370,6 +370,12 @@ def get_satellites_above_horizon(
                     if not illuminated:
                         continue
                 designation = tle.satellite.get_designation_at_date(tle.epoch)
+                if designation is None:
+                    logger.warning(
+                        f"No satellite designation found for {tle.satellite.object_id} "
+                        f"at {tle.epoch}"
+                    )
+                    continue
                 position = {
                     "ra": ra_sat,
                     "dec": dec_sat,
@@ -395,7 +401,14 @@ def get_satellites_above_horizon(
 
         except Exception as e:
             # TODO: Verify that correct designation is the one to use here
-            sat_name = tle.satellite.get_current_designation().sat_name
+            designation = tle.satellite.get_current_designation()
+            if designation is None:
+                logger.warning(
+                    f"No satellite designation found for {tle.satellite.object_id} "
+                    f"at {tle.epoch}"
+                )
+                continue
+            sat_name = designation.sat_name
             print(f"Error processing Satellite {sat_name}: {e}")
             satellites_processed += 1
             continue

@@ -20,6 +20,7 @@ INVALID_SOURCE = "Error: Invalid data source"
 INVALID_TLE = "Error: Invalid TLE format"
 INVALID_FORMAT = "Error: Invalid result format"
 NO_TLE_FOUND = "Error: No TLE found"
+NO_DESIGNATION_FOUND = "Error: No satellite designation found"
 TLE_DATE_OUT_OF_RANGE = (
     "Error: TLE date out of range - TLE epoch is more than 30 days "
     "before or after the requested date"

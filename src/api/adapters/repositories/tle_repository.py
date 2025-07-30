@@ -280,6 +280,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         try:
             # Check if satellite designation exists and get the associated satellite
             designation = tle.satellite.get_current_designation()
+            if designation is None:
+                logger.warning(
+                    f"No satellite designation found for {tle.satellite.object_id} "
+                    f"at {tle.epoch}"
+                )
+                return
             existing_satellite = (
                 self.session.query(SatelliteDb)
                 .join(SatelliteDesignationDb)
@@ -552,7 +558,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 {"epoch_date": epoch_date, "constellation": constellation},
             )
 
-            satellites_by_id = {}
+            satellites_by_id: dict[int, dict[str, Any]] = {}
             for row in satellites_result:
                 sat_id = row.sat_id
 
@@ -763,7 +769,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             )
 
             # Group results by satellite and collect all designations
-            satellites_by_id = {}
+            satellites_by_id: dict[int, dict[str, Any]] = {}
             tle_data_by_id = {}
 
             for row in tles_result:

@@ -143,7 +143,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
         return satellite_names_and_dates
 
-    def _get_satellite_data_by_id(self, id, epoch: datetime = None):
+    def _get_satellite_data_by_id(self, id, epoch: Optional[datetime] = None):
         """
         Retrieves satellite data (rcs_size, launch date, etc. ) for a given NORAD ID.
 
@@ -186,7 +186,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         data = query.first()
         return self._to_domain(data)
 
-    def _get_satellite_data_by_name(self, name, epoch: datetime = None):
+    def _get_satellite_data_by_name(self, name, epoch: Optional[datetime] = None):
         """
         Retrieves satellite data (rcs_size, launch date, etc. ) for a given satellite
         name.
