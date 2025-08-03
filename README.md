@@ -21,7 +21,7 @@ Planned features include:
 ### [API Documentation](https://satchecker.readthedocs.io/en/latest/)
 Read the Docs documentation for the current version (API and code)
 
-### [Contributing Guide](setup/CONTRIBUTING.md)
+### [Contributing Guide](dev/CONTRIBUTING.md)
 The contributing guide has links to the info to get things running locally and guidelines on making changes.
 
 ### [Wiki](https://github.com/iausathub/satchecker/wiki)
