@@ -116,7 +116,9 @@ def main():
             get_celestrak_general_tles(cursor, connection)
 
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
-            logging.info(log_time + "\t" + "Daily GP save successful.")
+            logging.info(
+                log_time + "\t" + "Celestrak general TLE data saved successfully."
+            )
 
         # Download and save the supplemental TLEs if any new ones have been added since
         # the last check
@@ -124,7 +126,9 @@ def main():
             get_celestrak_supplemental_tles(cursor, connection)
 
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
-            logging.info(log_time + "\t" + "Hourly SUP save successful.")
+            logging.info(
+                log_time + "\t" + "Celestrak supplemental TLE data saved successfully."
+            )
 
         connection.commit()
         cursor.close()
