@@ -70,6 +70,7 @@ class SatelliteDb(Base):
     designations = relationship("SatelliteDesignationDb", back_populates="satellite")
 
     __table_args__ = (
+        UniqueConstraint("object_id", "launch_date"),
         Index(
             "idx_satellites_active",
             decay_date,
