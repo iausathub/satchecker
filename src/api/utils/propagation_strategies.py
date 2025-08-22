@@ -613,7 +613,7 @@ def process_satellite_batch(args):
         fov_center,
         fov_radius,
         include_tles,
-        is_illuminated,
+        illuminated_only,
     ) = args
 
     # Convert single date to list for consistent handling
@@ -644,7 +644,7 @@ def process_satellite_batch(args):
             # Vectorized angle calculation
             sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
             in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
-            if is_illuminated:
+            if illuminated_only:
                 # run is_illuminated for each julian date so we can
                 # only show points that are illuminated
                 sat_gcrs = [
@@ -716,7 +716,7 @@ class FOVParallelPropagationStrategy:
         batch_size=1000,
         max_workers=None,
         include_tles=True,
-        is_illuminated=False,
+        illuminated_only=False,
     ) -> tuple[list[dict[str, Any]], float, int]:
         """
         Propagate satellite positions and check if they fall within FOV.
@@ -769,7 +769,7 @@ class FOVParallelPropagationStrategy:
                 fov_center,
                 fov_radius,
                 include_tles,
-                is_illuminated,
+                illuminated_only,
             )
             for batch in satellite_batches
         ]

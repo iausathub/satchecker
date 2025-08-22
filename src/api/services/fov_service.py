@@ -35,7 +35,7 @@ def get_satellite_passes_in_fov(
     skip_cache: bool,
     constellation: str,
     data_source: str,
-    is_illuminated: bool,
+    illuminated_only: bool,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -56,7 +56,7 @@ def get_satellite_passes_in_fov(
         skip_cache: Whether to skip cache and force recalculation
         constellation: Constellation of the satellites to include in the response
         data_source: Data source for TLEs
-        is_illuminated: Whether to include only illuminated satellites
+        illuminated_only: Whether to include only illuminated satellites
         api_source: Source of the API call
         api_version: Version of the API
 
@@ -203,7 +203,7 @@ def get_satellite_passes_in_fov(
             fov_radius=fov_radius,
             batch_size=250,
             include_tles=include_tles,
-            is_illuminated=is_illuminated,
+            illuminated_only=illuminated_only,
         )
 
         # Add all valid results to the final output
