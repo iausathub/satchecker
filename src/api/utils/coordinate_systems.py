@@ -450,6 +450,73 @@ def is_illuminated(sat_gcrs: np.ndarray, julian_date: float) -> bool:
     return illuminated
 
 
+def is_illuminated_vectorized(
+    sat_gcrs_list: list[np.ndarray], julian_dates: list[float]
+) -> list[bool]:
+    """
+    Vectorized version of is_illuminated that processes multiple satellite
+    positions at once.
+
+    This function batches the Earth-Sun position calculations and vectorizes
+    the computations.
+
+    Parameters:
+        sat_gcrs_list (list[np.ndarray]): List of satellite positions in the GCRS frame.
+        julian_dates (list[float]): List of Julian dates corresponding to each
+        satellite position.
+
+    Returns:
+        list[bool]: List of illumination states for each satellite position.
+    """
+    if len(sat_gcrs_list) != len(julian_dates):
+        raise ValueError("sat_gcrs_list and julian_dates must have the same length")
+
+    if not sat_gcrs_list:
+        return []
+
+    # Convert to numpy arrays for vectorized operations
+    sat_gcrs_array = np.array(sat_gcrs_list)
+    julian_dates_array = np.array(julian_dates)
+
+    # Get unique Julian dates to avoid redundant Earth-Sun calculations
+    unique_jds, inverse_indices = np.unique(julian_dates_array, return_inverse=True)
+
+    # Pre-calculate Earth-Sun positions for all unique dates
+    earth_sun_positions = {}
+    for jd in unique_jds:
+        earthp, sunp = get_earth_sun_positions(jd)
+        earthsun = sunp - earthp
+        earthsun_norm = earthsun / np.linalg.norm(earthsun)
+        earth_sun_positions[jd] = earthsun_norm
+
+    illuminated_results = np.ones(len(sat_gcrs_list), dtype=bool)
+
+    for jd in unique_jds:
+        # Find all satellites at this Julian date
+        mask = julian_dates_array == jd
+        sat_positions = sat_gcrs_array[mask]
+
+        if len(sat_positions) == 0:
+            continue
+
+        earthsun_norm = earth_sun_positions[jd]
+
+        # Vectorized calculations for all satellites at this time
+        r_parallel_lengths = np.dot(sat_positions, earthsun_norm)
+        r_parallel = r_parallel_lengths[:, np.newaxis] * earthsun_norm
+        r_tangential = sat_positions - r_parallel
+        r_tangential_norms = np.linalg.norm(r_tangential, axis=1)
+
+        in_shadow = r_tangential_norms < 6370
+
+        # illuminated = not in_shadow OR (in_shadow AND r_parallel_length > 0)
+        illuminated_at_this_time = ~in_shadow | (in_shadow & (r_parallel_lengths > 0))
+
+        illuminated_results[mask] = illuminated_at_this_time
+
+    return illuminated_results.tolist()
+
+
 @functools.cache
 def load_earth_sun() -> tuple:
     """

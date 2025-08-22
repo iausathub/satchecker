@@ -28,6 +28,7 @@ from api.utils.coordinate_systems import (
     get_phase_angle,
     icrf2radec,
     is_illuminated,
+    is_illuminated_vectorized,
     itrs_to_gcrs,
     teme_to_ecef,
 )
@@ -645,12 +646,11 @@ def process_satellite_batch(args):
             sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
             in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
             if illuminated_only:
-                # run is_illuminated for each julian date so we can
                 # only show points that are illuminated
                 sat_gcrs = [
                     satellite.at(ts.ut1_jd(jd)).position.km for jd in julian_dates
                 ]
-                illuminated = [is_illuminated(sat_gcrs, jd) for jd in julian_dates]
+                illuminated = is_illuminated_vectorized(sat_gcrs, julian_dates)
                 visible_mask = np.logical_and(in_fov_mask, illuminated)
             else:
                 visible_mask = in_fov_mask
