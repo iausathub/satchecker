@@ -28,6 +28,7 @@ Satellite passes Through FOV
    :query include_tles: (*optional*) -- If True, include TLE data used to calculate the passes in the response. Default is False.
    :query constellation: (*optional*) -- Constellation name (e.g. 'starlink') - if provided, only satellites from this constellation will be returned.
    :query data_source: (*optional*) -- Data source to use for TLEs ("celestrak", "spacetrack", or "any"). Default is "any".
+   :query is_illuminated: (*optional*) -- If True, only return satellites that are illuminated. Default is False.
 
 **Example Request**
     .. tabs::

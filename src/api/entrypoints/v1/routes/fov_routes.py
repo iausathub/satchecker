@@ -125,6 +125,12 @@ def get_satellite_passes():
         required: false
         description: Data source to use for TLEs ("celestrak" or "spacetrack"). Default is any/all sources.
         example: "celestrak"
+      - name: is_illuminated
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include only illuminated satellites (default is false)
+        example: true
     responses:
       200:
         description: Successful response with satellite passes
@@ -230,6 +236,7 @@ def get_satellite_passes():
         "skip_cache",
         "constellation",
         "data_source",
+        "is_illuminated",
     ]
 
     if "site" not in request.args:
@@ -265,6 +272,7 @@ def get_satellite_passes():
             validated_parameters["skip_cache"],
             validated_parameters["constellation"],
             validated_parameters["data_source"],
+            validated_parameters["is_illuminated"],
             api_source,
             api_version,
         )
@@ -362,6 +370,12 @@ def get_all_satellites_above_horizon():
         required: false
         description: Constellation of the satellites to include in the response
         example: "starlink"
+      - name: is_illuminated
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include only illuminated satellites (default is false)
+        example: true
     responses:
       200:
         description: Successful response with satellites above horizon
@@ -507,6 +521,12 @@ def get_all_satellites_above_horizon_range():
         required: false
         description: Maximum range of satellites in kilometers (default is infinity)
         example: 500.0
+      - name: is_illuminated
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include only illuminated satellites (default is false)
+        example: true
     responses:
       200:
         description: Successful response with satellites above horizon during the specified period
@@ -555,6 +575,7 @@ def _handle_satellites_above_horizon(with_duration=False):
         "min_range",
         "max_range",
         "constellation",
+        "is_illuminated",
     ]
 
     # Add duration parameter if needed
@@ -604,6 +625,7 @@ def _handle_satellites_above_horizon(with_duration=False):
                 validated_parameters["max_range"],
                 validated_parameters["illuminated_only"],
                 validated_parameters["constellation"],
+                validated_parameters["is_illuminated"],
                 api_source,
                 api_version,
             )
