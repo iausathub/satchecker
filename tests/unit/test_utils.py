@@ -192,6 +192,7 @@ def test_process_satellite_batch():
     fov_center = (24.797270, 75.774139)
     fov_radius = 2.0
     include_tles = True
+    illuminated_only = False
 
     args = (
         tle_batch,
@@ -202,6 +203,7 @@ def test_process_satellite_batch():
         fov_center,
         fov_radius,
         include_tles,
+        illuminated_only,
     )
     result = process_satellite_batch(args)
 
