@@ -125,6 +125,12 @@ def get_satellite_passes():
         required: false
         description: Data source to use for TLEs ("celestrak" or "spacetrack"). Default is any/all sources.
         example: "celestrak"
+      - name: illuminated_only
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include only illuminated satellites (default is false)
+        example: true
     responses:
       200:
         description: Successful response with satellite passes
@@ -230,6 +236,7 @@ def get_satellite_passes():
         "skip_cache",
         "constellation",
         "data_source",
+        "illuminated_only",
     ]
 
     if "site" not in request.args:
@@ -265,6 +272,7 @@ def get_satellite_passes():
             validated_parameters["skip_cache"],
             validated_parameters["constellation"],
             validated_parameters["data_source"],
+            validated_parameters["illuminated_only"],
             api_source,
             api_version,
         )
