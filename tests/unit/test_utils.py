@@ -210,7 +210,7 @@ def test_process_satellite_batch():
     assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
     assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
 
-    illuminated_only = False
+    illuminated_only = True
     args = (
         tle_batch,
         julian_dates,
