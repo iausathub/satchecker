@@ -468,11 +468,11 @@ def is_illuminated_vectorized(
     Returns:
         list[bool]: List of illumination states for each satellite position.
     """
-    if len(sat_gcrs_list) != len(julian_dates):
-        raise ValueError("sat_gcrs_list and julian_dates must have the same length")
-
     if not sat_gcrs_list:
         return []
+
+    if len(sat_gcrs_list) != len(julian_dates):
+        raise ValueError("sat_gcrs_list and julian_dates must have the same length")
 
     # Convert to numpy arrays for vectorized operations
     sat_gcrs_array = np.array(sat_gcrs_list)
