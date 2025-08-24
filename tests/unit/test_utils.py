@@ -210,6 +210,23 @@ def test_process_satellite_batch():
     assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
     assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
 
+    illuminated_only = False
+    args = (
+        tle_batch,
+        julian_dates,
+        latitude,
+        longitude,
+        elevation,
+        fov_center,
+        fov_radius,
+        include_tles,
+        illuminated_only,
+    )
+    result = process_satellite_batch(args)
+
+    assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
+    assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
+
 
 def test_skyfield_propagation_strategy():
     julian_date = 2459000.5
@@ -656,11 +673,16 @@ def test_is_illuminated_vectorized():
     assert not is_illuminated[0]
 
     # with error
-    sat_gcrs = np.array([1.0, 0.0])
+    sat_gcrs = [1, 2, 3, 4]
     with pytest.raises(ValueError):
         is_illuminated = coordinate_systems.is_illuminated_vectorized(
-            [sat_gcrs], [julian_date]
+            sat_gcrs, [julian_date]
         )
+
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [], [julian_date, julian_date]
+    )
+    assert is_illuminated == []
 
 
 def test_ensure_datetime():
