@@ -28,6 +28,7 @@ from api.utils.coordinate_systems import (
     get_phase_angle,
     icrf2radec,
     is_illuminated,
+    is_illuminated_vectorized,
     itrs_to_gcrs,
     teme_to_ecef,
 )
@@ -604,7 +605,17 @@ class FOVPropagationStrategy(BasePropagationStrategy):
 
 def process_satellite_batch(args):
     """Process a batch of satellites for FOV calculations."""
-    tle_batch, julian_dates, lat, lon, elev, fov_center, fov_radius, include_tles = args
+    (
+        tle_batch,
+        julian_dates,
+        lat,
+        lon,
+        elev,
+        fov_center,
+        fov_radius,
+        include_tles,
+        illuminated_only,
+    ) = args
 
     # Convert single date to list for consistent handling
     if isinstance(julian_dates, (float, int)):
@@ -634,8 +645,17 @@ def process_satellite_batch(args):
             # Vectorized angle calculation
             sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
             in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
+            if illuminated_only:
+                # only show points that are illuminated
+                sat_gcrs = [
+                    satellite.at(ts.ut1_jd(jd)).position.km for jd in julian_dates
+                ]
+                illuminated = is_illuminated_vectorized(sat_gcrs, julian_dates)
+                visible_mask = np.logical_and(in_fov_mask, illuminated)
+            else:
+                visible_mask = in_fov_mask
 
-            if not np.any(in_fov_mask):
+            if not np.any(visible_mask):
                 satellites_processed += 1
                 continue
 
@@ -696,6 +716,7 @@ class FOVParallelPropagationStrategy:
         batch_size=1000,
         max_workers=None,
         include_tles=True,
+        illuminated_only=False,
     ) -> tuple[list[dict[str, Any]], float, int]:
         """
         Propagate satellite positions and check if they fall within FOV.
@@ -739,7 +760,17 @@ class FOVParallelPropagationStrategy:
             satellite_batches.append(batch)
 
         args_list = [
-            (batch, jd_times, lat, lon, elev, fov_center, fov_radius, include_tles)
+            (
+                batch,
+                jd_times,
+                lat,
+                lon,
+                elev,
+                fov_center,
+                fov_radius,
+                include_tles,
+                illuminated_only,
+            )
             for batch in satellite_batches
         ]
 

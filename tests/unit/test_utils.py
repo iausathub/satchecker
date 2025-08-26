@@ -192,6 +192,7 @@ def test_process_satellite_batch():
     fov_center = (24.797270, 75.774139)
     fov_radius = 2.0
     include_tles = True
+    illuminated_only = False
 
     args = (
         tle_batch,
@@ -202,6 +203,24 @@ def test_process_satellite_batch():
         fov_center,
         fov_radius,
         include_tles,
+        illuminated_only,
+    )
+    result = process_satellite_batch(args)
+
+    assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
+    assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
+
+    illuminated_only = True
+    args = (
+        tle_batch,
+        julian_dates,
+        latitude,
+        longitude,
+        elevation,
+        fov_center,
+        fov_radius,
+        include_tles,
+        illuminated_only,
     )
     result = process_satellite_batch(args)
 
@@ -605,6 +624,65 @@ def test_is_illuminated():
     sat_gcrs = np.array([1.0, 0.0])
     with pytest.raises(ValueError):
         is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+
+
+def test_is_illuminated_vectorized():
+    # should be illuminated
+    sat_gcrs = np.array([-1807.4145165806299, -5481.865083864486, 3817.782079208943])
+    julian_date = 2460546.599502
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    sat_gcrs = np.array([-1726.6525239983253, -5556.764988629915, 3732.6312069408664])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    sat_gcrs = np.array([-2788.9344500353254, -6082.063324305135, 1780.452113395069])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    sat_gcrs = np.array([-6285.693766146678, -2883.510160329265, 372.90511732453666])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    # should not be illuminated
+    sat_gcrs = np.array([2148.476260974862, -5720.341032518884, 3250.5047622565057])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert not is_illuminated[0]
+
+    sat_gcrs = np.array([1239.1815032279183, -6748.906100431373, 1012.4062279591224])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert not is_illuminated[0]
+
+    sat_gcrs = np.array([-145.69690994172956, -6807.470474898967, 877.3659084400132])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert not is_illuminated[0]
+
+    # with error
+    sat_gcrs = [1, 2, 3, 4]
+    with pytest.raises(ValueError):
+        is_illuminated = coordinate_systems.is_illuminated_vectorized(
+            sat_gcrs, [julian_date]
+        )
+
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [], [julian_date, julian_date]
+    )
+    assert is_illuminated == []
 
 
 def test_ensure_datetime():
