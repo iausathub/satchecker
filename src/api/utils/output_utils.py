@@ -80,6 +80,9 @@ def position_data_to_json(
         "range_km",
         "range_rate_km_per_sec",
         "phase_angle_deg",
+        "sat_altitude_km",
+        "solar_elevation_deg",
+        "solar_azimuth_deg",
         "illuminated",
         "data_source",
         "observer_gcrs_km",
@@ -98,6 +101,9 @@ def position_data_to_json(
             r,
             dr,
             phaseangle,
+            sat_altitude_km,
+            solar_elevation_deg,
+            solar_azimuth_deg,
             illuminated,
             satellite_gcrs,
             observer_gcrs,
@@ -125,6 +131,21 @@ def position_data_to_json(
                 (
                     my_round(phaseangle, precision_angles)
                     if phaseangle is not None
+                    else None
+                ),
+                (
+                    my_round(sat_altitude_km, precision_range)
+                    if sat_altitude_km is not None
+                    else None
+                ),
+                (
+                    my_round(solar_elevation_deg, precision_angles)
+                    if solar_elevation_deg is not None
+                    else None
+                ),
+                (
+                    my_round(solar_azimuth_deg, precision_angles)
+                    if solar_azimuth_deg is not None
                     else None
                 ),
                 illuminated,

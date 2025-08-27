@@ -584,7 +584,7 @@ def get_phase_angle(
         julian_date (float): The Julian date at which to compute the phase angle.
 
     Returns:
-        float: The phase angle in degrees.
+        float: The phase angle in degrees
     """
     earthp, sunp = get_earth_sun_positions(julian_date)
     earthsun = sunp - earthp

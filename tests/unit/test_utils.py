@@ -248,6 +248,24 @@ def test_skyfield_propagation_strategy():
 
     assert result[0].ra == pytest.approx(234.01865005681205, rel=1e-9)
     assert result[0].dec == pytest.approx(-51.424189307650366, rel=1e-9)
+    assert result[0].alt == pytest.approx(-34.06892428236129, rel=1e-9)
+    assert result[0].az == pytest.approx(133.08510694319676, rel=1e-9)
+    assert result[0].ddec == pytest.approx(0.052750501583968656, rel=1e-9)
+    assert result[0].ddistance == pytest.approx(-0.9569424023839184, rel=1e-9)
+    assert result[0].distance == pytest.approx(7847.70289113159, rel=1e-9)
+    assert result[0].drac == pytest.approx(0.009594649342782794, rel=1e-9)
+    assert result[0].illuminated is False
+    assert result[0].julian_date == 2459000.5
+    assert result[0].observer_gcrs == pytest.approx(
+        [-3425.160358112812, 4025.640233578061, 3558.0063252620484], rel=1e-9
+    )
+    assert result[0].phase_angle == pytest.approx(31.472683052741548, rel=1e-9)
+    assert result[0].sat_altitude_km == pytest.approx(432.19358087422665, rel=1e-9)
+    assert result[0].solar_elevation_deg == pytest.approx(34.48609291068308, rel=1e-9)
+    assert result[0].solar_azimuth_deg == pytest.approx(274.7653770807215, rel=1e-9)
+    assert result[0].satellite_gcrs == pytest.approx(
+        [-6300.1587196871105, 65.83457279009582, -2577.2006164157906], rel=1e-9
+    )
 
 
 def test_skyfield_propagation_strategy_error():
@@ -293,6 +311,9 @@ def test_position_data_to_json():
             5942.835544462139,
             25.903436713068203,
             51.95659698598527,
+            100.0,
+            0.0,
+            0.0,
             True,
             [-643.0446467211723, -0.01912640597469738, 166.51906642428338],
             [-3554.7354993588046, 3998.2681386590784, 3460.9157688886103],
