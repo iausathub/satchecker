@@ -253,7 +253,7 @@ def test_skyfield_propagation_strategy():
     assert result[0].ddec == pytest.approx(0.052750501583968656, rel=1e-9)
     assert result[0].ddistance == pytest.approx(-0.9569424023839184, rel=1e-9)
     assert result[0].distance == pytest.approx(7847.70289113159, rel=1e-9)
-    assert result[0].drac == pytest.approx(0.009594649342782794, rel=1e-9)
+    assert result[0].dracosdec == pytest.approx(0.009594649342782794, rel=1e-9)
     assert result[0].illuminated is False
     assert result[0].julian_date == 2459000.5
     assert result[0].observer_gcrs == pytest.approx(
