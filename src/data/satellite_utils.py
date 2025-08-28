@@ -331,7 +331,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 parsed_data["satellite_name"],
                 datetime.now(timezone.utc),  # date_collected
                 parsed_data["generated_at"],
-                "spacetrack",
+                "starlink",
                 parsed_data["filename"],
                 parsed_data["ephemeris_start"],
                 parsed_data["ephemeris_stop"],

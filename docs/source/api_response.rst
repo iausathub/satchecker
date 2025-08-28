@@ -32,6 +32,12 @@ The API response is a JSON object with the following fields:
      - Position vector for the observer (Geocentric Celestial Reference System (GCRS), relative to Earth's center)
    * - phase_angle_deg
      - The angle between the satellite, the observer, and the sun in degrees
+   * - sat_altitude_km
+     - Altitude of the satellite above the Earth's surface in kilometers
+   * - solar_elevation_deg
+     - Elevation angle of the sun above/below the observer's horizon in degrees
+   * - solar_azimuth_deg
+     - Azimuth angle of the sun relative to the observer's north in degrees
    * - range_km
      - Distance to the satellite in kilometers
    * - range_rate_km_per_sec

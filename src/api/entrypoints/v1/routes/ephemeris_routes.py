@@ -120,7 +120,8 @@ def get_ephemeris_by_name():
                       "right_ascension_deg", "declination_deg", "tle_date",
                       "dra_cosdec_deg_per_sec", "ddec_deg_per_sec", "altitude_deg",
                       "azimuth_deg", "range_km", "range_rate_km_per_sec",
-                      "phase_angle_deg", "illuminated", "data_source",
+                      "phase_angle_deg", "sat_altitude_km", "solar_elevation_deg",
+                      "solar_azimuth_deg", "illuminated", "data_source",
                       "observer_gcrs_km", "international_designator", "tle_epoch"
                     ]
                 source:
