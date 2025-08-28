@@ -4,6 +4,18 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
+# 1.5.0 (2025-08-28)
+
+### Features
+
+- Added `illuminated_only` parameter to FOV endpoints to filter satellites based on expected solar illumination status. ([#163](https://github.com/iausathub/satchecker/pull/163))
+- Add `sat_altitude_km`, `solar_elevation_deg`, and `solar_azimuth_deg` to ephemeris API responses. ([#164](https://github.com/iausathub/satchecker/pull/164))
+
+### Changes
+
+- Updated validation errors to use the main error handler and improve error message text for ra, dec, duration, and fov_radius. ([#156](https://github.com/iausathub/satchecker/pull/156))
+
+
 # 1.4.0 (2025-07-01)
 
 ### Miscellaneous
