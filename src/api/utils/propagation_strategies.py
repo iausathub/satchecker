@@ -527,6 +527,9 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                     distance.km,
                     ddistance,
                     phase_angle,
+                    None,
+                    None,
+                    None,
                     illuminated,
                     None,  # satellite_gcrs
                     None,  # observer_gcrs
@@ -914,6 +917,9 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                     distance=None,  # Not available from Krogh interpolation
                     ddistance=None,  # Not available from Krogh interpolation
                     phase_angle=None,  # Not available from Krogh interpolation
+                    sat_altitude_km=None,  # Not available from Krogh interpolation
+                    solar_elevation_deg=None,  # Not available from Krogh interpolation
+                    solar_azimuth_deg=None,  # Not available from Krogh interpolation
                     illuminated=None,  # Not available from Krogh interpolation
                     satellite_gcrs=mean_state[:3].tolist(),  # Position components
                     observer_gcrs=None,  # Not available from Krogh interpolation
