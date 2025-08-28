@@ -1,5 +1,8 @@
 name: Radon Code Complexity Analysis
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     # This allows the workflow to be called by other workflows

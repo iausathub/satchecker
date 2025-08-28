@@ -26,27 +26,6 @@ def page_not_found(error):
     )
 
 
-@api_main.app_errorhandler(400)
-@api_v1.app_errorhandler(400)
-def missing_parameter(e):
-    """Handle bad request errors.
-    ---
-    tags:
-      - Errors
-    summary: Bad request error
-    description: Returns when request parameters are incorrect or missing
-    responses:
-      400:
-        description: The request contains invalid parameters or too many results
-    """
-    return (
-        f"Error 400: Incorrect parameters or too many results to return \
-        (maximum of 1000 in a single request)<br /> \
-        Check your request and try again.<br /><br />{str(e)}",
-        400,
-    )
-
-
 @api_main.app_errorhandler(429)
 @api_v1.app_errorhandler(429)
 def ratelimit_handler(e):
@@ -61,21 +40,6 @@ def ratelimit_handler(e):
         description: The client has exceeded the allowed request rate
     """
     return "Error 429: You have exceeded your rate limit:<br />" + e.description, 429
-
-
-@api_main.app_errorhandler(500)
-def internal_server_error(e):
-    """Handle internal server errors.
-    ---
-    tags:
-      - Errors
-    summary: Internal server error
-    description: Returns when an unexpected server error occurs
-    responses:
-      500:
-        description: An unexpected error occurred on the server
-    """
-    return "Error 500: Internal server error:<br />" + e.description, 500
 
 
 @api_v1.route("/")

@@ -1,9 +1,8 @@
 # ruff: noqa: E501
-from flask import abort, jsonify, request
 from flask import current_app as app
+from flask import jsonify, request
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
 from api.services.fov_service import (
     get_satellite_passes_in_fov,
@@ -125,6 +124,12 @@ def get_satellite_passes():
         required: false
         description: Data source to use for TLEs ("celestrak" or "spacetrack"). Default is any/all sources.
         example: "celestrak"
+      - name: illuminated_only
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include only illuminated satellites (default is false)
+        example: true
     responses:
       200:
         description: Successful response with satellite passes
@@ -230,6 +235,7 @@ def get_satellite_passes():
         "skip_cache",
         "constellation",
         "data_source",
+        "illuminated_only",
     ]
 
     if "site" not in request.args:
@@ -245,12 +251,7 @@ def get_satellite_passes():
     else:
         required_parameters = ["site", "duration", "ra", "dec", "fov_radius"]
 
-    try:
-        validated_parameters = validate_parameters(
-            request, parameters, required_parameters
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    validated_parameters = validate_parameters(request, parameters, required_parameters)
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
@@ -270,6 +271,7 @@ def get_satellite_passes():
             validated_parameters["skip_cache"],
             validated_parameters["constellation"],
             validated_parameters["data_source"],
+            validated_parameters["illuminated_only"],
             api_source,
             api_version,
         )
@@ -576,12 +578,7 @@ def _handle_satellites_above_horizon(with_duration=False):
     if with_duration:
         required_parameters.append("duration")
 
-    try:
-        validated_parameters = validate_parameters(
-            request, parameters, required_parameters
-        )
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    validated_parameters = validate_parameters(request, parameters, required_parameters)
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)

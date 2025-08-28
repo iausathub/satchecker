@@ -287,16 +287,36 @@ def validate_parameters(
             ) from e
 
     if "ra" in parameters.keys() and parameters["ra"] is not None:
-        parameters["ra"] = float(parameters["ra"])
+        try:
+            parameters["ra"] = float(parameters["ra"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - ra", e
+            ) from e
 
     if "dec" in parameters.keys() and parameters["dec"] is not None:
-        parameters["dec"] = float(parameters["dec"])
+        try:
+            parameters["dec"] = float(parameters["dec"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - dec", e
+            ) from e
 
     if "fov_radius" in parameters.keys() and parameters["fov_radius"] is not None:
-        parameters["fov_radius"] = float(parameters["fov_radius"])
+        try:
+            parameters["fov_radius"] = float(parameters["fov_radius"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - fov_radius", e
+            ) from e
 
     if "duration" in parameters.keys() and parameters["duration"] is not None:
-        parameters["duration"] = float(parameters["duration"])
+        try:
+            parameters["duration"] = float(parameters["duration"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - duration", e
+            ) from e
 
     if "count_before" in parameters.keys():
         if parameters["count_before"] is not None:

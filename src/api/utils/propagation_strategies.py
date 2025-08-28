@@ -28,7 +28,9 @@ from api.utils.coordinate_systems import (
     get_phase_angle,
     icrf2radec,
     is_illuminated,
+    is_illuminated_vectorized,
     itrs_to_gcrs,
+    load_earth_sun,
     teme_to_ecef,
 )
 from api.utils.time_utils import jd_to_gst
@@ -68,6 +70,12 @@ A named tuple containing the following fields:
         Rate of change of distance.
     phase_angle (float):
         Phase angle between the satellite, observer, and the Sun.
+    sat_altitude_km (float):
+        Satellite altitude above Earth's surface in km.
+    solar_elevation_deg (float):
+        Solar elevation angle in degrees.
+    solar_azimuth_deg (float):
+        Solar azimuth angle in degrees.
     illuminated (bool):
         Whether the satellite is illuminated.
     satellite_gcrs (list):
@@ -89,6 +97,9 @@ satellite_position = namedtuple(
         "distance",
         "ddistance",
         "phase_angle",
+        "sat_altitude_km",
+        "solar_elevation_deg",
+        "solar_azimuth_deg",
         "illuminated",
         "satellite_gcrs",
         "observer_gcrs",
@@ -250,9 +261,22 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
 
                 # drav, ddecv = icrf2radec(vsattop / sattopr, unit_vector=True)
                 # dracosdecv = drav * np.cos(dec.radians)
-                phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
-                illuminated = is_illuminated(sat_gcrs, julian_date)
                 obs_gcrs = curr_pos.at(t).position.km
+                phase_angle = get_phase_angle(topocentricn, sat_gcrs, julian_date)
+
+                # Get solar altitude and azimuth
+                earth, sun = load_earth_sun()
+                sun_relative_to_earth = sun - earth
+                sun_relative_to_observer = sun_relative_to_earth - curr_pos
+
+                solar_alt, solar_az, _ = sun_relative_to_observer.at(t).altaz()
+                solar_elevation_deg = solar_alt.degrees
+                solar_azimuth_deg = solar_az.degrees
+
+                illuminated = is_illuminated(sat_gcrs, julian_date)
+
+                # Calculate satellite altitude above Earth's surface
+                sat_altitude_km = wgs84.height_of(satellite.at(t)).km
 
                 results.append(
                     satellite_position(
@@ -265,6 +289,9 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
                         distance.km,
                         ddistance,
                         phase_angle,
+                        sat_altitude_km,
+                        solar_elevation_deg,
+                        solar_azimuth_deg,
                         illuminated,
                         sat_gcrs.tolist(),
                         obs_gcrs.tolist(),
@@ -382,6 +409,9 @@ class SGP4PropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                     distance,
                     ddistance,
                     phase_angle,
+                    None,  # sat_altitude_km - not calculated in SGP4
+                    None,
+                    None,
                     illuminated,
                     sat_gcrs.tolist() if sat_gcrs is not None else None,
                     obs_gcrs.tolist() if obs_gcrs is not None else None,
@@ -497,6 +527,9 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                     distance.km,
                     ddistance,
                     phase_angle,
+                    None,
+                    None,
+                    None,
                     illuminated,
                     None,  # satellite_gcrs
                     None,  # observer_gcrs
@@ -604,7 +637,17 @@ class FOVPropagationStrategy(BasePropagationStrategy):
 
 def process_satellite_batch(args):
     """Process a batch of satellites for FOV calculations."""
-    tle_batch, julian_dates, lat, lon, elev, fov_center, fov_radius, include_tles = args
+    (
+        tle_batch,
+        julian_dates,
+        lat,
+        lon,
+        elev,
+        fov_center,
+        fov_radius,
+        include_tles,
+        illuminated_only,
+    ) = args
 
     # Convert single date to list for consistent handling
     if isinstance(julian_dates, (float, int)):
@@ -634,8 +677,17 @@ def process_satellite_batch(args):
             # Vectorized angle calculation
             sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
             in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
+            if illuminated_only:
+                # only show points that are illuminated
+                sat_gcrs = [
+                    satellite.at(ts.ut1_jd(jd)).position.km for jd in julian_dates
+                ]
+                illuminated = is_illuminated_vectorized(sat_gcrs, julian_dates)
+                visible_mask = np.logical_and(in_fov_mask, illuminated)
+            else:
+                visible_mask = in_fov_mask
 
-            if not np.any(in_fov_mask):
+            if not np.any(visible_mask):
                 satellites_processed += 1
                 continue
 
@@ -700,6 +752,7 @@ class FOVParallelPropagationStrategy:
         batch_size=1000,
         max_workers=None,
         include_tles=True,
+        illuminated_only=False,
     ) -> tuple[list[dict[str, Any]], float, int]:
         """
         Propagate satellite positions and check if they fall within FOV.
@@ -743,7 +796,17 @@ class FOVParallelPropagationStrategy:
             satellite_batches.append(batch)
 
         args_list = [
-            (batch, jd_times, lat, lon, elev, fov_center, fov_radius, include_tles)
+            (
+                batch,
+                jd_times,
+                lat,
+                lon,
+                elev,
+                fov_center,
+                fov_radius,
+                include_tles,
+                illuminated_only,
+            )
             for batch in satellite_batches
         ]
 
@@ -858,6 +921,9 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                     distance=None,  # Not available from Krogh interpolation
                     ddistance=None,  # Not available from Krogh interpolation
                     phase_angle=None,  # Not available from Krogh interpolation
+                    sat_altitude_km=None,  # Not available from Krogh interpolation
+                    solar_elevation_deg=None,  # Not available from Krogh interpolation
+                    solar_azimuth_deg=None,  # Not available from Krogh interpolation
                     illuminated=None,  # Not available from Krogh interpolation
                     satellite_gcrs=mean_state[:3].tolist(),  # Position components
                     observer_gcrs=None,  # Not available from Krogh interpolation
