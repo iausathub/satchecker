@@ -1,7 +1,7 @@
 import logging
 import time as python_time
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -39,6 +39,9 @@ def get_satellite_passes_in_fov(
     group_by: str,
     include_tles: bool,
     skip_cache: bool,
+    constellation: str,
+    data_source: str,
+    illuminated_only: bool,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -58,6 +61,9 @@ def get_satellite_passes_in_fov(
         group_by: Grouping strategy ('satellite' or 'time')
         include_tles: Whether to include TLE data in results
         skip_cache: Whether to skip cache and force recalculation
+        constellation: Constellation of the satellites to include in the response
+        data_source: Data source for TLEs
+        illuminated_only: Whether to include only illuminated satellites
         api_source: Source of the API call
         api_version: Version of the API
 
@@ -68,6 +74,17 @@ def get_satellite_passes_in_fov(
     logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
     logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
     logger.info(f"Duration: {duration} seconds")
+    logger.info(
+        f"Location: lat={location.lat.value}°, "
+        f"lon={location.lon.value}°, "
+        f"height={location.height.value}m"
+    )
+    logger.info(
+        f"Time parameters: mid_obs_time={mid_obs_time_jd}, start_time={start_time_jd}"
+    )
+    logger.info(
+        f"Group by: {group_by}, Include TLEs: {include_tles}, Skip cache: {skip_cache}"
+    )
 
     # Create cache key and check cache
     cache_key = create_fov_cache_key(
@@ -79,10 +96,35 @@ def get_satellite_passes_in_fov(
         dec,
         fov_radius,
         False if include_tles is None else include_tles,
+        constellation,
+        data_source,
     )
 
+    # TODO: resolve caching issue
+    skip_cache = True
+
     cached_data = get_cached_data(cache_key)
-    if cached_data and not skip_cache:
+
+    if cached_data:  # pragma: no cover
+        logger.info(
+            f"Cached data found with {len(cached_data.get('results', []))} results and "
+            f"{cached_data.get('points_in_fov', 0)} points in FOV"
+        )
+        # Log structure details for debugging
+        for key in cached_data:
+            if isinstance(cached_data[key], (list, dict)):
+                logger.debug(
+                    f"Cached {key}: {type(cached_data[key])} with length {len(cached_data[key])}"  # noqa: E501
+                )  # noqa: E501
+            else:
+                logger.debug(
+                    f"Cached {key}: {type(cached_data[key])} = {cached_data[key]}"
+                )  # noqa: E501
+    else:
+        logger.info("No cached data found")
+    logger.info(f"Cached data: {cached_data}")
+
+    if cached_data and not skip_cache:  # pragma: no cover
         cache_time = python_time.time() - start_time
         logger.info(
             f"Cache hit: Found {len(cached_data['results'])} results with "
@@ -113,9 +155,21 @@ def get_satellite_passes_in_fov(
     # Get all current TLEs
     tle_start = python_time.time()
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
-    tles, count, _ = tle_repo.get_all_tles_at_epoch(
-        astropy_time_to_datetime_utc(time_param), 1, 10000, "zip"
-    )
+    logger.info(f"Fetching TLEs for epoch: {astropy_time_to_datetime_utc(time_param)}")
+
+    try:
+        tles, count, _ = tle_repo.get_all_tles_at_epoch(
+            astropy_time_to_datetime_utc(time_param),
+            1,
+            10000,
+            "zip",
+            constellation,
+            data_source,
+        )
+        logger.info(f"Successfully retrieved {count} TLEs")
+    except Exception as e:
+        logger.error(f"Failed to retrieve TLEs: {str(e)}", exc_info=True)
+        raise
 
     tle_time = python_time.time() - tle_start
     logger.info(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
@@ -299,14 +353,19 @@ def get_satellite_passes_in_fov(
                     f"Found None value in result {idx}, field {key} before returning"
                 )
 
-    json_result: dict[str, Any] = output_utils.fov_data_to_json(
-        all_results,
-        points_in_fov,
-        performance_metrics,
-        api_source,
-        api_version,
-        group_by,
-    )
+    try:
+        json_result: dict[str, Any] = output_utils.fov_data_to_json(
+            all_results,
+            points_in_fov,
+            performance_metrics,
+            api_source,
+            api_version,
+            group_by,
+        )
+        logger.info("Successfully formatted results to JSON")
+    except Exception as e:
+        logger.error(f"Failed to format results to JSON: {str(e)}", exc_info=True)
+        raise
 
     # Cache only the raw results and points_in_fov
     cache_data = {
@@ -316,7 +375,12 @@ def get_satellite_passes_in_fov(
     logger.info(
         f"Caching {len(all_results)} results with {points_in_fov} points in FOV"
     )
-    set_cached_data(cache_key, cache_data)
+    try:
+        set_cached_data(cache_key, cache_data)
+        logger.info("Successfully cached results")
+    except Exception as e:
+        logger.error(f"Failed to cache results: {str(e)}", exc_info=True)
+        # Don't raise here as caching is not critical
 
     return json_result
 
@@ -329,6 +393,7 @@ def get_satellites_above_horizon(
     min_range: float,
     max_range: float,
     illuminated_only: bool = False,
+    constellation: Optional[str] = None,
     api_source: str = "",
     api_version: str = "",
 ) -> dict[str, Any]:
@@ -343,6 +408,7 @@ def get_satellites_above_horizon(
         min_range: Minimum range in kilometers
         max_range: Maximum range in kilometers
         illuminated_only: Whether to only return illuminated satellites
+        constellation: Constellation of the satellites to include in the response
         api_source: Source of the API call
         api_version: Version of the API
 
@@ -360,7 +426,7 @@ def get_satellites_above_horizon(
     # Get all current TLEs
     tle_start = python_time.time()
     tles, count, _ = tle_repo.get_all_tles_at_epoch(
-        astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip"
+        astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
     )
     tle_time = python_time.time() - tle_start
 

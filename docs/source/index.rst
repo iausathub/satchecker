@@ -31,6 +31,13 @@ For assistance with SatChecker, please open an issue on the `GitHub repository <
 or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
 
 .. toctree::
+   :caption: General
+   :maxdepth: 3
+   :hidden:
+
+   notes
+
+.. toctree::
    :caption: Ephemeris API
    :maxdepth: 3
    :hidden:
@@ -38,7 +45,6 @@ or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
    api
    api_response
    errors
-   notes
 
 .. toctree::
    :caption: Tools API

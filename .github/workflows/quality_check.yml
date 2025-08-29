@@ -51,13 +51,13 @@ jobs:
     secrets: inherit
 
   # Code complexity analysis
-  complexity-analysis:
+  complexity_analysis:
     if: ${{ inputs.run_complexity == true }}
     uses: ./.github/workflows/radon_complexity.yml
     secrets: inherit
 
   # Code coverage
-  code-coverage:
+  code_coverage:
     if: ${{ inputs.run_coverage == true }}
     uses: ./.github/workflows/code_coverage.yml
     secrets: inherit
@@ -69,14 +69,14 @@ jobs:
     secrets: inherit
 
   # Load testing
-  load-testing:
+  load_testing:
     if: ${{ inputs.run_load_testing == true }}
     uses: ./.github/workflows/load_testing.yml
     secrets: inherit
 
   # Final summary job that runs after all others complete
   summary:
-    needs: [lint, tests, complexity-analysis, code-coverage, benchmark, load-testing]
+    needs: [lint, tests, complexity_analysis, code_coverage, benchmark, load_testing]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -104,14 +104,14 @@ jobs:
 
           # Complexity status
           if [[ "${{ inputs.run_complexity }}" == "true" ]]; then
-            echo "| Complexity Analysis | ${{ needs.complexity-analysis.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Complexity Analysis | ${{ needs.complexity_analysis.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Complexity Analysis | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
           fi
 
           # Coverage status
           if [[ "${{ inputs.run_coverage }}" == "true" ]]; then
-            echo "| Code Coverage | ${{ needs.code-coverage.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Code Coverage | ${{ needs.code_coverage.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Code Coverage | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
           fi
@@ -125,14 +125,14 @@ jobs:
 
           # Load testing status
           if [[ "${{ inputs.run_load_testing }}" == "true" ]]; then
-            echo "| Load Testing | ${{ needs.load-testing.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Load Testing | ${{ needs.load_testing.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Load Testing | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Publish combined dashboard to GitHub Pages
-  dashboard-publisher:
-    needs: [lint, tests, complexity-analysis, code-coverage, benchmark, load-testing, summary]
+  dashboard_publisher:
+    needs: [lint, tests, complexity_analysis, code_coverage, benchmark, load_testing, summary]
     if: always()
     runs-on: ubuntu-latest
 
@@ -149,7 +149,7 @@ jobs:
           path: gh-pages
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
@@ -174,24 +174,25 @@ jobs:
       - name: Copy Load Test Results
         if: ${{ inputs.run_load_testing == true }}
         run: |
+          mkdir -p gh-pages/dashboard/latest/load_testing
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load_testing
+
           if [ -d "artifacts/artillery-report" ]; then
-            cp -r artifacts/artillery-report/* gh-pages/dashboard/latest/load-testing/
-            cp -r artifacts/artillery-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load-testing/
+            cp -r artifacts/artillery-report/* gh-pages/dashboard/latest/load_testing/
+            cp -r artifacts/artillery-report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/load_testing/
           fi
 
-      - name: Create Radon Complexity Report
+      - name: Copy Complexity Analysis Results
         if: ${{ inputs.run_complexity == true }}
         run: |
-          mkdir -p gh-pages/dashboard/latest/complexity
-          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity
+          mkdir -p gh-pages/dashboard/latest/complexity_report
+          mkdir -p gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity_report
 
-          # Extract data from GitHub Step Summary
-          STEP_SUMMARY_PATH="${{ needs.complexity-analysis.outputs.summary-path || env.GITHUB_STEP_SUMMARY }}"
-          if [ -f "$STEP_SUMMARY_PATH" ]; then
-            cp "$STEP_SUMMARY_PATH" gh-pages/dashboard/latest/complexity/summary.md
-            cp "$STEP_SUMMARY_PATH" gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity/summary.md
+          if [ -d "artifacts/complexity_report" ]; then
+            cp -r artifacts/complexity_report/* gh-pages/dashboard/latest/complexity_report/
+            cp -r artifacts/complexity_report/* gh-pages/dashboard/$(date +%Y-%m-%d_%H-%M-%S)/complexity_report/
           else
-            echo "No complexity report summary found" > gh-pages/dashboard/latest/complexity/summary.md
+            echo "No complexity report found" > gh-pages/dashboard/latest/complexity_report/index.html
           fi
 
       - name: Copy Code Coverage Results
@@ -207,6 +208,11 @@ jobs:
 
       - name: Generate Dashboard HTML
         run: |
+          # Extract coverage data for the Python script to use
+          COVERAGE_PCT="${{ needs.code_coverage.outputs.coverage-percentage || 'N/A' }}"
+          COVERAGE_COLOR="${{ needs.code_coverage.outputs.coverage-color || 'gray' }}"
+
+          # Create the dashboard HTML
           cat > dashboard_template.html << 'EOL'
           <!DOCTYPE html>
           <html lang="en">
@@ -260,7 +266,7 @@ jobs:
                   <div class="card">
                     <div class="card-header">Code Complexity</div>
                     <div class="card-body">
-                      <p>View the <a href="complexity/index.html">complexity report</a></p>
+                      <p>View the <a href="complexity_report/index.html">complexity report</a></p>
                     </div>
                   </div>
                 </div>
@@ -283,7 +289,7 @@ jobs:
                   <div class="card">
                     <div class="card-header">Performance Benchmarks</div>
                     <div class="card-body">
-                      <p>View the <a href="../bench/index.html">benchmark results</a></p>
+                      <p>View the <a href="/satchecker/dev/bench/index.html">benchmark results</a></p>
                     </div>
                   </div>
                 </div>
@@ -292,7 +298,7 @@ jobs:
                   <div class="card">
                     <div class="card-header">Load Testing</div>
                     <div class="card-body">
-                      <p>View the <a href="load-testing/artillery-report.html">load test report</a></p>
+                      <p>View the <a href="load_testing/artillery-report.html">load test report</a></p>
                     </div>
                   </div>
                 </div>
@@ -313,7 +319,7 @@ jobs:
           </html>
           EOL
 
-          python - << 'EOL'
+          COVERAGE_PCT="$COVERAGE_PCT" COVERAGE_COLOR="$COVERAGE_COLOR" python - << 'EOL'
           import os
           import glob
           from datetime import datetime
@@ -330,8 +336,8 @@ jobs:
               'run_id': os.environ.get('GITHUB_RUN_ID', ''),
               'lint_status': "${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }}",
               'test_status': "${{ needs.tests.result == 'success' && '✅ Passed' || '❌ Failed' }}",
-              'coverage_percentage': "${{ needs.code-coverage.outputs.coverage-percentage || 'N/A' }}",
-              'coverage_color': "${{ needs.code-coverage.outputs.coverage-color || 'gray' }}",
+              'coverage_percentage': os.environ.get('COVERAGE_PCT', 'N/A'),
+              'coverage_color': os.environ.get('COVERAGE_COLOR', 'gray'),
               'historical_runs': ''
           }
 

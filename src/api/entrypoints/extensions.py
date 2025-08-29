@@ -81,7 +81,7 @@ limiter = Limiter(
     default_limits=["100 per second", "2000 per minute"],
     storage_uri=(f"redis://{redis_host}:{redis_port}/0"),
     headers_enabled=True,
-    strategy="fixed-window",
+    strategy="moving-window",
 )
 
 # Initialize Swagger for documentation

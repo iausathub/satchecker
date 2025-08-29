@@ -80,6 +80,9 @@ def position_data_to_json(
         "range_km",
         "range_rate_km_per_sec",
         "phase_angle_deg",
+        "sat_altitude_km",
+        "solar_elevation_deg",
+        "solar_azimuth_deg",
         "illuminated",
         "data_source",
         "observer_gcrs_km",
@@ -98,6 +101,9 @@ def position_data_to_json(
             r,
             dr,
             phaseangle,
+            sat_altitude_km,
+            solar_elevation_deg,
+            solar_azimuth_deg,
             illuminated,
             satellite_gcrs,
             observer_gcrs,
@@ -127,6 +133,21 @@ def position_data_to_json(
                     if phaseangle is not None
                     else None
                 ),
+                (
+                    my_round(sat_altitude_km, precision_range)
+                    if sat_altitude_km is not None
+                    else None
+                ),
+                (
+                    my_round(solar_elevation_deg, precision_angles)
+                    if solar_elevation_deg is not None
+                    else None
+                ),
+                (
+                    my_round(solar_azimuth_deg, precision_angles)
+                    if solar_azimuth_deg is not None
+                    else None
+                ),
                 illuminated,
                 data_source,
                 observer_gcrs,
@@ -145,9 +166,9 @@ def position_data_to_json(
 
 
 def fov_data_to_json(
-    results: list,
+    results: list[dict[str, Any]],
     points_in_fov: int,
-    performance_metrics: dict,
+    performance_metrics: dict[str, Any],
     api_source: str,
     api_version: str,
     group_by: str,
@@ -186,6 +207,7 @@ def fov_data_to_json(
                 result["date_time"] = format_date(
                     Time(value, format="jd").to_datetime()
                 )
+    formatted_results: dict[str, Any]
 
     if group_by == "satellite":
         # Group passes by satellite
@@ -239,7 +261,7 @@ def fov_data_to_json(
         # Original chronological format
         formatted_results = {
             "data": results,
-            "count": len(results),  # type: ignore[dict-item]
+            "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,
             "version": api_version,

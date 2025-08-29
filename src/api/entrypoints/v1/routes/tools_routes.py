@@ -2,12 +2,11 @@
 import io
 from datetime import datetime, timezone
 
-from flask import abort, jsonify, request, send_file
 from flask import current_app as app
+from flask import jsonify, request, send_file
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
     get_active_satellites,
@@ -17,6 +16,7 @@ from api.services.tools_service import (
     get_names_for_satellite_id,
     get_nearest_tle_result,
     get_satellite_data,
+    get_starlink_generations,
     get_tle_data,
     get_tles_around_epoch_results,
 )
@@ -87,8 +87,17 @@ def get_norad_ids_from_name():
 
         return jsonify(norad_ids_and_dates)
     except Exception as e:
-        app.logger.error(e)
-        return None
+        app.logger.error(f"Error getting NORAD IDs from name: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "error": "Internal server error",
+                    "message": "An error occurred while retrieving NORAD IDs",
+                    "status_code": 500,
+                }
+            ),
+            500,
+        )
 
 
 @api_v1.route("/tools/names-from-norad-id/")
@@ -153,8 +162,91 @@ def get_names_from_norad_id():
 
         return jsonify(satellite_names_and_dates)
     except Exception as e:
-        app.logger.error(e)
-        return None
+        app.logger.error(f"Error getting names from NORAD ID: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "error": "Internal server error",
+                    "message": "An error occurred while retrieving satellite names",
+                    "status_code": 500,
+                }
+            ),
+            500,
+        )
+
+
+@api_v1.route("/tools/get-starlink-generations/")
+@api_main.route("/tools/get-starlink-generations/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_starlink_generations_list():
+    """Get a list of all Starlink satellite generations.
+    ---
+    tags:
+      - Tools
+    summary: Get a list of all generations of Starlink satellites in the database
+    description: Returns a list of all generations of Starlink satellites in the database,
+                including their earliest and latest launch dates.
+    responses:
+      200:
+        description: A list of all generations of Starlink satellites in the database
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  description: Number of Starlink generations found
+                  example: 2
+                data:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      generation:
+                        type: string
+                        description: The generation identifier
+                        example: "gen1"
+                      earliest_launch_date:
+                        type: string
+                        description: The earliest launch date for this generation
+                        example: "2019-05-10 00:00:00 UTC"
+                      latest_launch_date:
+                        type: string
+                        description: The latest launch date for this generation
+                        example: "2019-05-20 00:00:00 UTC"
+                source:
+                  type: string
+                  description: The API source identifier
+                  example: "api"
+                version:
+                  type: string
+                  description: The API version identifier
+                  example: "1.0"
+    """
+    session = db.session
+    sat_repo = SqlAlchemySatelliteRepository(session)
+
+    try:
+        starlink_generations = get_starlink_generations(
+            sat_repo, api_source, api_version
+        )
+        if not starlink_generations:
+            return jsonify([]), 200
+
+        return jsonify(starlink_generations)
+    except Exception as e:
+        app.logger.error(f"Error getting Starlink generations: {str(e)}")
+        return (
+            jsonify(
+                {
+                    "error": "Internal server error",
+                    "message": "An error occurred while retrieving Starlink generations",
+                    "status_code": 500,
+                }
+            ),
+            500,
+        )
 
 
 @api_v1.route("/tools/get-tle-data/")
@@ -419,10 +511,7 @@ def get_active_satellites_list():
     sat_repo = SqlAlchemySatelliteRepository(session)
 
     parameter_list = ["object_type"]
-    try:
-        parameters = validate_parameters(request, parameter_list, [])
-    except ValidationError as e:
-        abort(e.status_code, e.message)
+    parameters = validate_parameters(request, parameter_list, [])
 
     active_satellites = get_active_satellites(
         sat_repo, parameters.get("object_type"), api_source, api_version

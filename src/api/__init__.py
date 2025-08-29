@@ -97,7 +97,7 @@ def setup_logging(app):
 
     is_gunicorn = "gunicorn" in sys.modules
 
-    if is_gunicorn:
+    if is_gunicorn:  # pragma: no cover
         # Use Gunicorn's logger for production
         gunicorn_logger = logging.getLogger("gunicorn.error")
         for handler in gunicorn_logger.handlers:

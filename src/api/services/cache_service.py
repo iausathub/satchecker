@@ -1,7 +1,7 @@
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
@@ -25,6 +25,8 @@ def create_fov_cache_key(
     dec: float,
     fov_radius: float,
     include_tles: bool = False,
+    constellation: Optional[str] = None,
+    data_source: Optional[str] = None,
 ) -> str:
     """Create a unique cache key for the FOV calculation."""
     key_parts = [
@@ -39,6 +41,8 @@ def create_fov_cache_key(
         f"dec_{dec}",
         f"radius_{fov_radius}",
         f"include_tles_{include_tles}",
+        f"constellation_{constellation}",
+        f"data_source_{data_source}",
     ]
     return ":".join(key_parts)
 
@@ -59,7 +63,8 @@ def get_cached_data(key: str, default: Any = None) -> Any:
         data = redis_client.get(key)
         if not data:
             return default
-        return json.loads(data)  # type: ignore
+        # Cast to str to ensure mypy knows this is a string for json.loads
+        return json.loads(str(data))
     except Exception as e:
         logger.warning(f"Cache retrieval error for key {key}: {e}")
         return default
@@ -79,15 +84,63 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
 
     try:
         serialized = json.dumps(data)
-        if len(serialized) > 500 * 1024 * 1024:
+        serialized_size = len(serialized)
+
+        # Log data structure details for debugging
+        if isinstance(data, dict):
+            if "results" in data:
+                results_count = len(data["results"]) if data["results"] else 0
+                logger.info(
+                    f"Caching {results_count} results in data structure "
+                    f"for key {key}"
+                )
+            if "tles" in data:
+                tles_count = len(data["tles"]) if data["tles"] else 0
+                logger.info(
+                    f"Caching {tles_count} TLEs in data structure for key {key}"
+                )
+
+        if serialized_size > 500 * 1024 * 1024:
             logger.warning(
                 f"Data for key {key} is too large to cache "
-                f"({len(serialized)} bytes), skipping"
+                f"({serialized_size} bytes), skipping"
             )
             return False
-        logger.info(f"Attempting to cache data for key {key}: {len(serialized)} bytes")
+
+        logger.info(f"Attempting to cache data for key {key}: {serialized_size} bytes")
         redis_client.setex(key, ttl, serialized)
-        logger.info(f"Successfully cached data for key {key}")
+
+        check_redis_memory()
+
+        # Immediately verify the data was cached successfully
+        verification_data = redis_client.get(key)
+        if verification_data:
+            verified_data = json.loads(str(verification_data))
+            if isinstance(verified_data, dict):
+                if "results" in verified_data:
+                    verified_count = (
+                        len(verified_data["results"]) if verified_data["results"] else 0
+                    )
+                    logger.info(
+                        f"Verification: Retrieved {verified_count} results "
+                        f"from cache for key {key}"
+                    )
+                if "tles" in verified_data:
+                    verified_tles = (
+                        len(verified_data["tles"]) if verified_data["tles"] else 0
+                    )
+                    logger.info(
+                        f"Verification: Retrieved {verified_tles} TLEs "
+                        f"from cache for key {key}"
+                    )
+            logger.info(f"Successfully cached and verified data for key {key}")
+        else:
+            logger.warning(
+                "Cache verification failed - data not found immediately "
+                f"after setex for key {key}"
+            )
+            return False
+
         return True
     except Exception as e:
         logger.warning(f"Cache set error for key {key}: {e}", exc_info=True)
@@ -309,14 +362,40 @@ def initialize_cache_refresh_scheduler(hours=3):
 
 
 def check_redis_memory() -> None:
-    """Check Redis memory usage."""
+    """Check Redis memory usage and eviction stats."""
     try:
-        # Type annotation to help the type checker
-        info: dict[str, Any] = redis_client.info(section="memory")  # type: ignore
-        used_memory = info.get("used_memory", 0)
-        used_memory_peak = info.get("used_memory_peak", 0)
+        # Get memory info
+        memory_info: dict[str, Any] = redis_client.info(section="memory")  # type: ignore
+        used_memory = memory_info.get("used_memory", 0)
+        used_memory_peak = memory_info.get("used_memory_peak", 0)
+        maxmemory = memory_info.get("maxmemory", 0)
+        maxmemory_policy = memory_info.get("maxmemory_policy", "unknown")
+
+        # Get stats for evictions
+        stats_info: dict[str, Any] = redis_client.info(section="stats")  # type: ignore
+        evicted_keys = stats_info.get("evicted_keys", 0)
+        expired_keys = stats_info.get("expired_keys", 0)
+
         logger.info(
-            f"Redis memory usage: {used_memory/1024/1024:.2f}MB (peak: {used_memory_peak/1024/1024:.2f}MB)"  # noqa: E501
+            f"Redis memory usage: {used_memory/1024/1024:.2f}MB "
+            f"(peak: {used_memory_peak/1024/1024:.2f}MB)"
         )
+
+        if maxmemory > 0:
+            memory_usage_pct = (used_memory / maxmemory) * 100
+            logger.info(
+                f"Redis memory limit: {maxmemory/1024/1024:.2f}MB "
+                f"({memory_usage_pct:.1f}% used), policy: {maxmemory_policy}"
+            )
+        else:
+            logger.info(f"Redis memory limit: unlimited, policy: {maxmemory_policy}")
+
+        if evicted_keys > 0:
+            logger.warning(
+                f"Redis has evicted {evicted_keys} keys due to memory pressure"
+            )
+
+        logger.info(f"Redis expired keys: {expired_keys}, evicted keys: {evicted_keys}")
+
     except Exception as e:
         logger.error(f"Failed to get Redis memory info: {e}")

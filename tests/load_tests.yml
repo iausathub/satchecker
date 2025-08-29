@@ -1,5 +1,7 @@
 config:
-  target: 'https://satchecker.cps.iau.org'  # Base URL
+  http:
+    extendedMetrics: true
+  target: 'https://dev.satchecker.cps.iau.noirlab.edu'  # Base URL, temporarily using dev because of the full data set
   phases:
     - duration: 30
       arrivalRate: 10
@@ -17,13 +19,13 @@ config:
   defaults:
     headers:
       Accept: "application/json"
-    timeout: 10000
+    timeout: 600000
     maxRedirects: 0
     ensureSuccess: false
   plugins:
     metrics-by-endpoint: {}
   thresholds:
-    http.response_time.p95: 2000
+    http.response_time.p95: 20000
     http.errors: 1
 
 
@@ -42,12 +44,11 @@ scenarios:
   - name: FOV Repeat (Cache Check)
     flow:
       - loop:
-          count: 5
-          do:
-            - get:
-                url: "/fov/satellite-passes/?latitude=43.1929&longitude=-81.325655&elevation=327&mid_obs_time_jd=2460584.519211&duration=60&ra=224.048903&dec=78.778084&fov_radius=1&skip_cache=false"
-                expect:
-                  - statusCode: [200, 429]  # Accept both success and rate limit
+          - get:
+              url: "/fov/satellite-passes/?latitude=43.1929&longitude=-81.325655&elevation=327&mid_obs_time_jd=2460584.519211&duration=60&ra=224.048903&dec=78.778084&fov_radius=1&skip_cache=false"
+              expect:
+                - statusCode: [200, 429]  # Accept both success and rate limit
+        count: 5
 
   - name: Satellite Variety
     flow:

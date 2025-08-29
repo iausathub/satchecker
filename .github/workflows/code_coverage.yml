@@ -4,6 +4,7 @@ name: Code coverage - pull request
 
 on:
   pull_request:
+  workflow_dispatch:
   workflow_call:
     outputs:
       coverage-percentage:
@@ -83,7 +84,9 @@ jobs:
     - name: Extract coverage percentage
       id: extract-coverage
       run: |
-        COVERAGE_PCT=$(grep -oP 'TOTAL\s+\d+\s+\d+\s+\d+\s+\d+\s+\K\d+%' pytest-coverage.txt | sed 's/%//')
+        # Extract coverage percentage using the correct pattern for TOTAL line
+        COVERAGE_PCT=$(grep TOTAL pytest-coverage.txt | awk '{print $NF}' | sed 's/%//')
+
         echo "coverage-percentage=$COVERAGE_PCT" >> $GITHUB_OUTPUT
 
         # Set color based on coverage percentage
@@ -122,3 +125,4 @@ jobs:
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        slug: iausathub/satchecker

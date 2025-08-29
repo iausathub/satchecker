@@ -1,18 +1,30 @@
-# ruff: noqa: S101, E501, S311, I001
+# ruff: noqa: S101, E501
+import logging
 from datetime import datetime, timedelta
-import random
+from functools import wraps
 from time import sleep
 from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
+import requests
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
+from api import create_app
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.entrypoints.v1.routes.fov_routes import (
+    get_all_satellites_above_horizon,
+    get_all_satellites_above_horizon_range,
+    get_satellite_passes,
+)
 from api.services.fov_service import (
     get_satellites_above_horizon,
 )
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class MockTLERepository(AbstractTLERepository):
@@ -82,7 +94,9 @@ class MockTLERepository(AbstractTLERepository):
             return None
         return matching_tles[0]  # Just return the first one for simplicity in testing
 
-    def _get_all_tles_at_epoch(self, epoch_date, page, per_page, format):
+    def _get_all_tles_at_epoch(
+        self, epoch_date, page, per_page, format, constellation, data_source
+    ):
         return self.mock_tles, len(self.mock_tles), "database"
 
     def _get_adjacent_tles(self, id, id_type, epoch):
@@ -239,6 +253,7 @@ def test_benchmark_get_satellites_above_horizon_complete(
             illuminated_only=False,
             api_source="test",
             api_version="v1",
+            constellation=None,
         )
 
     result = benchmark(run_full_function)
@@ -308,7 +323,7 @@ def test_benchmark_get_satellites_above_horizon_setup(
         # This replicates what happens at the beginning of get_satellites_above_horizon
         time_jd = mid_obs_time
         tles, count, _ = mock_tle_repository._get_all_tles_at_epoch(
-            time_jd.to_datetime(), 1, 10000, "zip"
+            time_jd.to_datetime(), 1, 10000, "zip", None, None
         )
         all_results = []
 
@@ -319,17 +334,408 @@ def test_benchmark_get_satellites_above_horizon_setup(
     assert result[0] > 0  # At least one TLE in the repository
 
 
-def test_simple_random_sleep(benchmark):
-    """
-    A simple benchmark that sleeps for a random period.
-    Perfect for demonstrating chart changes between runs.
-    """
+# Add URL response time benchmarks
+def noop_decorator(*args, **kwargs):
+    """A decorator that does nothing."""
 
-    def random_sleep():
-        # Sleep for a random period between 10ms and 100ms
-        sleep_time = random.uniform(0.01, 0.1)
-        sleep(sleep_time)
-        return 42
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            return f(*args, **kwargs)
 
-    result = benchmark(random_sleep)
-    assert result == 42
+        return wrapped
+
+    return decorator
+
+
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    """Disable rate limiting for all tests."""
+    # Patch the actual route functions to bypass rate limiting
+    with (
+        patch(
+            "api.entrypoints.v1.routes.fov_routes.get_satellite_passes",
+            side_effect=lambda: noop_decorator(get_satellite_passes),
+        ),
+        patch(
+            "api.entrypoints.v1.routes.fov_routes.get_all_satellites_above_horizon",
+            side_effect=lambda: noop_decorator(get_all_satellites_above_horizon),
+        ),
+        patch(
+            "api.entrypoints.v1.routes.fov_routes.get_all_satellites_above_horizon_range",
+            side_effect=lambda: noop_decorator(get_all_satellites_above_horizon_range),
+        ),
+    ):
+        yield
+
+
+@pytest.fixture
+def test_client():
+    """Create a Flask test client."""
+    app = create_app()
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+# Test case parameters
+FOV_TEST_CASES = [
+    # By year
+    {
+        "name": "2025",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2024",
+        "mid_obs_time_jd": 2460431.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2023",
+        "mid_obs_time_jd": 2460065.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2022",
+        "mid_obs_time_jd": 2459700.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2021",
+        "mid_obs_time_jd": 2459335.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2020",
+        "mid_obs_time_jd": 2458970.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2019",
+        "mid_obs_time_jd": 2458604.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2015",
+        "mid_obs_time_jd": 2457143.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2010",
+        "mid_obs_time_jd": 2455317.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "2000",
+        "mid_obs_time_jd": 2451665.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "1980",
+        "mid_obs_time_jd": 2444360.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "1960",
+        "mid_obs_time_jd": 2437055.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    # By duration
+    {
+        "name": "duration_30",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "duration_60",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 60,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "duration_180",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 180,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "duration_240",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 240,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "duration_300",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 300,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "duration_600",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 600,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    # By radius
+    {
+        "name": "radius_1",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 1,
+    },
+    {
+        "name": "radius_2",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 2,
+    },
+    {
+        "name": "radius_5",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 5,
+    },
+    {
+        "name": "radius_10",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 10,
+    },
+    {
+        "name": "radius_20",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 20,
+    },
+    {
+        "name": "radius_45",
+        "mid_obs_time_jd": 2460796.5,
+        "duration": 30,
+        "ra": 224.048903,
+        "dec": 78.778084,
+        "fov_radius": 45,
+    },
+]
+
+HORIZON_TEST_CASES = [
+    {
+        "name": "2025",
+        "julian_date": 2460796.5,
+    },
+    {
+        "name": "2024",
+        "julian_date": 2460431.5,
+    },
+    {
+        "name": "2023",
+        "julian_date": 2460065.5,
+    },
+    {
+        "name": "2022",
+        "julian_date": 2459700.5,
+    },
+    {
+        "name": "2021",
+        "julian_date": 2459335.5,
+    },
+    {
+        "name": "2020",
+        "julian_date": 2458970.5,
+    },
+    {
+        "name": "2019",
+        "julian_date": 2458604.5,
+    },
+    {
+        "name": "2015",
+        "julian_date": 2457143.5,
+    },
+    {
+        "name": "2010",
+        "julian_date": 2455317.5,
+    },
+    {
+        "name": "2000",
+        "julian_date": 2451665.5,
+    },
+    {
+        "name": "1980",
+        "julian_date": 2444360.5,
+    },
+    {
+        "name": "1960",
+        "julian_date": 2437055.5,
+    },
+]
+
+# Test location
+TEST_LOCATION = {
+    "name": "test_location",
+    "lat": 33.0,
+    "lon": -117.0,
+    "height": 100.0,
+}
+
+
+@pytest.fixture
+def test_location():
+    """Create test location."""
+    return EarthLocation.from_geodetic(
+        lon=TEST_LOCATION["lon"],
+        lat=TEST_LOCATION["lat"],
+        height=TEST_LOCATION["height"],
+    )
+
+
+@pytest.mark.parametrize(
+    "fov_case",
+    FOV_TEST_CASES,
+    ids=lambda case: f"FOV_{case['name']}_radius{case['fov_radius']}_duration{case['duration']}",
+)
+def test_benchmark_fov_endpoint_response_time(
+    benchmark, test_client, test_location, fov_case
+):
+    """Benchmark the response time of the FOV endpoint with different parameters."""
+
+    def make_request():
+        logger.debug(f"Making request for FOV case: {fov_case['name']}")
+        url = "https://dev.satchecker.cps.iau.noirlab.edu/fov/satellite-passes/"
+        params = {
+            "latitude": test_location.lat.value,
+            "longitude": test_location.lon.value,
+            "elevation": test_location.height.value,
+            "mid_obs_time_jd": fov_case["mid_obs_time_jd"],
+            "duration": fov_case["duration"],
+            "ra": fov_case["ra"],
+            "dec": fov_case["dec"],
+            "fov_radius": fov_case["fov_radius"],
+            "skip_cache": "true",
+        }
+        logger.debug(f"Request URL: {url}")
+        logger.debug(f"Request parameters: {params}")
+        response = requests.get(url, params=params)  # noqa: S113
+        logger.debug(f"Response status: {response.status_code}")
+        logger.debug(f"Response headers: {dict(response.headers)}")
+        if response.status_code != 200:
+            logger.error(f"Response body: {response.text}")
+        assert response.status_code == 200
+        result = response.json()
+
+        # Log performance metrics
+        print(f"\nFOV Test Case: {fov_case['name']}")
+        print(
+            f"Satellites processed: {result.get('performance_metrics', {}).get('satellites_processed', 0)}"
+        )
+        print(
+            f"Propagation time: {result.get('performance_metrics', {}).get('propagation_time', 0)}s"
+        )
+        print(f"TLE time: {result.get('performance_metrics', {}).get('tle_time', 0)}s")
+        print(
+            f"Total time: {result.get('performance_metrics', {}).get('total_time', 0)}s"
+        )
+        print(
+            f"Points in FOV: {result.get('performance_metrics', {}).get('points_in_fov', 0)}"
+        )
+
+        return result
+
+    result = benchmark(make_request)
+    assert isinstance(result, dict)
+
+
+@pytest.mark.parametrize(
+    "horizon_case", HORIZON_TEST_CASES, ids=lambda case: f"Horizon_{case['name']}"
+)
+def test_benchmark_horizon_endpoint_response_time(
+    benchmark, test_client, test_location, horizon_case
+):
+    """Benchmark the response time of the horizon endpoint with different parameters."""
+
+    def make_request():
+        url = "https://dev.satchecker.cps.iau.noirlab.edu/fov/satellites-above-horizon/"
+        params = {
+            "latitude": test_location.lat.value,
+            "longitude": test_location.lon.value,
+            "elevation": test_location.height.value,
+            "julian_date": horizon_case["julian_date"],
+        }
+        response = requests.get(url, params=params)  # noqa: S113
+        assert response.status_code == 200
+        result = response.json()
+
+        # Log performance metrics
+        print(f"\nHorizon Test Case: {horizon_case['name']}")
+        print(
+            f"Satellites processed: {result.get('performance_metrics', {}).get('satellites_processed', 0)}"
+        )
+        print(
+            f"Total time: {result.get('performance_metrics', {}).get('total_time', 0)}s"
+        )
+        print(
+            f"Visible satellites: {result.get('performance_metrics', {}).get('visible_satellites', 0)}"
+        )
+
+        return result
+
+    result = benchmark(make_request)
+    sleep(10)
+    assert isinstance(result, dict)

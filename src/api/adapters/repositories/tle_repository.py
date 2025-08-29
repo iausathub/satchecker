@@ -1,9 +1,10 @@
 import abc
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, and_, bindparam, func, text
+from sqlalchemy import DateTime, String, and_, bindparam, func, text
 from sqlalchemy.orm.exc import NoResultFound
 
 from api.adapters.database_orm import SatelliteDb, TLEDb
@@ -64,9 +65,17 @@ class AbstractTLERepository(abc.ABC):
         )
 
     def get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
+        data_source_limit: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
-        return self._get_all_tles_at_epoch(epoch_date, page, per_page, format)
+        return self._get_all_tles_at_epoch(
+            epoch_date, page, per_page, format, constellation, data_source_limit
+        )
 
     def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
         return self._get_nearest_tle(id, id_type, epoch)
@@ -118,7 +127,13 @@ class AbstractTLERepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
+        data_source: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         raise NotImplementedError
 
@@ -226,6 +241,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     sat_number=sat_data.get("sat_number", ""),
                     decay_date=decay_date,
                     has_current_sat_number=sat_data.get("has_current_sat_number", True),
+                    constellation=sat_data.get("constellation", ""),
                 )
 
                 # Parse datetime fields
@@ -384,7 +400,13 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         ]
 
     def _get_all_tles_at_epoch(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
+        data_source_limit: Optional[str] = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -395,6 +417,11 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         # Ensure current_time has the same timezone awareness as epoch_date
         current_time = datetime.now(timezone.utc)
         total_count = 0
+
+        logger.info(
+            f"Fetching TLEs for epoch {epoch_date} (page {page}, per_page {per_page})"
+        )
+        start_time = time.time()
 
         try:
             # if the epoch date is in the future, or up to 3 hours ago, use the cache
@@ -424,9 +451,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     # make sure that the cache is not older than 3 hours as
                     # a double check that this is recent data
                     cache_age = (current_time - cached_at).total_seconds()
-                    if (
-                        cache_age < self.cache_ttl
-                    ):  # Use instance property instead of hardcoded value
+                    if cache_age < self.cache_ttl:
                         # Get serialized TLEs from cache
                         serialized_tles = cached_data.get("tles", [])
 
@@ -434,23 +459,41 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                         tles = self.deserialize_cached_tles(serialized_tles)
 
                         logger.debug(f"Returning {len(tles)} TLEs from cache")
+                        execution_time = time.time() - start_time
+                        logger.info(
+                            f"Cache retrieval completed in {execution_time:.2f} seconds"
+                        )
                         return tles, total_count, "cache"
+            else:
+                logger.info(f"Cache miss for epoch {epoch_date}")
+
         except Exception as e:
             logger.error(f"Error getting TLEs from cache: {e}")
             logger.error("TLE cache retrieval failed, loading from database")
             # continue with the database query in case of error
 
+        # If we get here, we need to query the database
+        logger.info("Querying database for TLEs")
         try:
             # First get valid satellites
             satellites_sql = text(
                 """
-                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number
+                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number,
+                constellation, launch_date
                 FROM satellites s
                 WHERE s.launch_date <= :epoch_date
                 AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
                 AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                AND (
+                    :constellation IS NULL
+                    OR (s.constellation IS NOT NULL AND s.constellation
+                    ILIKE :constellation || '%')
+                )
             """
             )
+
+            if data_source_limit == "any":
+                data_source_limit = None
 
             # Then get their latest TLEs
             tles_sql = text(
@@ -462,6 +505,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     FROM tle
                     WHERE epoch BETWEEN :start_date AND :end_date
                     AND sat_id = ANY(:satellite_ids)
+                    AND (:data_source_limit IS NULL OR data_source = :data_source_limit)
                     ORDER BY sat_id, epoch DESC
                 )
                 SELECT * FROM latest_tles
@@ -471,7 +515,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
             # Get valid satellites first
             satellites_result = self.session.execute(
-                satellites_sql, {"epoch_date": epoch_date}
+                satellites_sql,
+                {"epoch_date": epoch_date, "constellation": constellation},
             )
             valid_satellites = {row.id: row for row in satellites_result}
 
@@ -485,6 +530,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "start_date": two_weeks_prior,
                     "end_date": epoch_date,
                     "satellite_ids": list(valid_satellites.keys()),
+                    "data_source_limit": data_source_limit,
                 },
             )
 
@@ -497,6 +543,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     sat_number=sat_data.sat_number,
                     decay_date=sat_data.decay_date,
                     has_current_sat_number=sat_data.has_current_sat_number,
+                    constellation=sat_data.constellation,
                 )
 
                 tle = TLE(
@@ -516,17 +563,29 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 start_idx = (page - 1) * per_page
                 end_idx = start_idx + per_page
                 tles = tles[start_idx:end_idx]
+                logger.info(
+                    f"Pagination: returning {len(tles)} TLEs out of {total_count} total"
+                )
 
+            execution_time = time.time() - start_time
+            logger.info(f"Database query completed in {execution_time:.2f} seconds")
             return tles, total_count, "database"
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error getting TLEs: {e}")
             self.session.rollback()
+            logger.error("Database query failed, rolling back transaction")
             raise
 
-    # pragma: no cover
     def _get_all_tles_at_epoch_experimental(
-        self, epoch_date: datetime, page: int, per_page: int, format: str
-    ) -> tuple[list[TLE], int, str]:
+        self,
+        epoch_date: datetime,
+        page: int,
+        per_page: int,
+        format: str,
+        constellation: Optional[str] = None,
+        data_source: Optional[str] = None,
+    ) -> tuple[list[TLE], int, str]:  # pragma: no cover
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
             epoch_date = epoch_date.replace(tzinfo=timezone.utc)
@@ -534,35 +593,106 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         two_weeks_prior = epoch_date - timedelta(weeks=2)
 
         # Ensure current_time has the same timezone awareness as epoch_date
+        current_time = datetime.now(timezone.utc)
         total_count = 0
+
+        logger.info(
+            f"Fetching TLEs for epoch {epoch_date} (page {page}, per_page {per_page})"
+        )
+        start_time = time.time()
+
+        try:
+            # if the epoch date is in the future, or up to 3 hours ago, use the cache
+            if (epoch_date > current_time - timedelta(hours=3)) and self.cache_enabled:
+                cached_data = get_cached_data(RECENT_TLES_CACHE_KEY)
+
+                if cached_data:
+                    total_count = cached_data.get("total_count", 0)
+
+                if total_count > 0:
+                    cached_at_str = cached_data.get(
+                        "cached_at", "2000-01-01T00:00:00+00:00"
+                    )
+
+                    try:
+                        cached_at = datetime.fromisoformat(cached_at_str)
+                        # If cached_at has no timezone but should have one, add UTC
+                        if cached_at.tzinfo is None and current_time.tzinfo is not None:
+                            cached_at = cached_at.replace(tzinfo=timezone.utc)
+                    except ValueError as e:
+                        logger.error(
+                            f"Failed to parse cached_at timestamp: "
+                            f"{cached_at_str} - {e}"
+                        )
+                        cached_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
+
+                    # make sure that the cache is not older than 3 hours as
+                    # a double check that this is recent data
+                    cache_age = (current_time - cached_at).total_seconds()
+                    if cache_age < self.cache_ttl:
+                        # Get serialized TLEs from cache
+                        serialized_tles = cached_data.get("tles", [])
+
+                        # Deserialize the TLEs
+                        tles = self.deserialize_cached_tles(serialized_tles)
+
+                        logger.debug(f"Returning {len(tles)} TLEs from cache")
+                        execution_time = time.time() - start_time
+                        logger.info(
+                            f"Cache retrieval completed in {execution_time:.2f} seconds"
+                        )
+                        return tles, total_count, "cache"
+            else:
+                logger.info(f"Cache miss for epoch {epoch_date}")
+
+        except Exception as e:
+            logger.error(f"Error getting TLEs from cache: {e}")
+            logger.error("TLE cache retrieval failed, loading from database")
+            # continue with the database query in case of error
+
+        # If we get here, we need to query the database
+        logger.info("Querying database for TLEs")
+
+        if data_source == "any":
+            data_source = None
 
         try:
             tles_sql = text(
                 """
-                SELECT
-                    s.id AS sat_id, s.sat_name, s.sat_number, s.decay_date,
-                    s.has_current_sat_number,
-                    t.id, t.date_collected, t.tle_line1, t.tle_line2, t.epoch,
-                    t.is_supplemental, t.data_source
-                FROM satellites s
-                JOIN LATERAL (
-                    SELECT id, sat_id, date_collected, tle_line1, tle_line2,
-                        epoch, is_supplemental, data_source
-                    FROM tle
-                    WHERE sat_id = s.id
-                    AND epoch BETWEEN :start_date AND :end_date
-                    ORDER BY epoch DESC
-                    LIMIT 1
-                ) t ON TRUE
-                WHERE s.launch_date <= :epoch_date
-                AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-                AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                WITH RECURSIVE latest_per_sat AS (
+                    SELECT
+                        s.id AS sat_id,
+                        (
+                            SELECT t.id
+                            FROM tle t
+                            WHERE t.sat_id = s.id
+                                AND t.epoch BETWEEN :start_date AND :end_date
+                                AND (:data_source IS NULL OR t.data_source = :data_source)
+                            ORDER BY t.epoch DESC
+                            LIMIT 1
+                        ) AS tle_id
+                    FROM satellites s
+                    WHERE s.launch_date <= :epoch_date
+                        AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                        AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                        AND (
+                            :constellation IS NULL
+                            OR (s.constellation IS NOT NULL AND s.constellation
+                            ILIKE :constellation || '%')
+                        )
+                )
+                SELECT t.*, s.*
+                FROM latest_per_sat l
+                JOIN tle t ON t.id = l.tle_id
+                JOIN satellites s ON s.id = l.sat_id
                 ORDER BY t.epoch DESC
-                """
+                """  # noqa: E501
             ).bindparams(
                 start_date=bindparam("start_date", type_=DateTime(timezone=True)),
                 end_date=bindparam("end_date", type_=DateTime(timezone=True)),
                 epoch_date=bindparam("epoch_date", type_=DateTime(timezone=True)),
+                constellation=bindparam("constellation", type_=String),
+                data_source=bindparam("data_source", type_=String),
             )
 
             # Then get TLEs for those satellites
@@ -572,6 +702,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "start_date": two_weeks_prior,
                     "end_date": epoch_date,
                     "epoch_date": epoch_date,
+                    "constellation": constellation,
+                    "data_source": data_source,
                 },
             )
 
@@ -583,6 +715,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     sat_number=row.sat_number,
                     decay_date=row.decay_date,
                     has_current_sat_number=row.has_current_sat_number,
+                    constellation=row.constellation,
                 )
 
                 tle = TLE(
@@ -602,11 +735,18 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 start_idx = (page - 1) * per_page
                 end_idx = start_idx + per_page
                 tles = tles[start_idx:end_idx]
+                logger.info(
+                    f"Pagination: returning {len(tles)} TLEs out of {total_count} total"
+                )
 
+            execution_time = time.time() - start_time
+            logger.info(f"Database query completed in {execution_time:.2f} seconds")
             return tles, total_count, "database"
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error getting TLEs: {e}")
             self.session.rollback()
+            logger.error("Database query failed, rolling back transaction")
             raise
 
     def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:

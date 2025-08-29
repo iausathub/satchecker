@@ -4,6 +4,42 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
+# 1.5.0 (2025-08-28)
+
+### Features
+
+- Added `illuminated_only` parameter to FOV endpoints to filter satellites based on expected solar illumination status. ([#163](https://github.com/iausathub/satchecker/pull/163))
+- Add `sat_altitude_km`, `solar_elevation_deg`, and `solar_azimuth_deg` to ephemeris API responses. ([#164](https://github.com/iausathub/satchecker/pull/164))
+
+### Changes
+
+- Updated validation errors to use the main error handler and improve error message text for ra, dec, duration, and fov_radius. ([#156](https://github.com/iausathub/satchecker/pull/156))
+
+
+# 1.4.0 (2025-07-01)
+
+### Miscellaneous
+
+- Added type checking to linting part of GitHub actions (and associated changes to address type checking errors). ([#136](https://github.com/iausathub/satchecker/pull/136))
+- Start collecting ephemeris files from the public files on Space-Track (Starlink only). ([#143](https://github.com/iausathub/satchecker/pull/143))
+
+### Bugfixes
+
+- Fix for range_km being null in satellite-passes FOV endpoint. ([#151](https://github.com/iausathub/satchecker/pull/151))
+
+### Features
+
+- Add `include_tles` parameter to the satellite-passes FOV endpoint to show the TLE data used to generate the position data. ([#135](https://github.com/iausathub/satchecker/pull/135))
+- Add satellite generation (Starlink only at the moment) to the available satellite metadata. ([#137](https://github.com/iausathub/satchecker/pull/137))
+- Add `constellation` parameter to the satellite-passes FOV endpoint satellites-above-horizon to filter the results to a specific constellation. Valid options are currently `starlink`, `oneweb`, `kuiper`, `ast` and `planet`. ([#149](https://github.com/iausathub/satchecker/pull/149))
+- Added optional `data_source` parameter to `fov` endpoint. Can be Celestrak or Spacetrack - default is "any". ([#152](https://github.com/iausathub/satchecker/pull/152))
+
+### Changes
+
+- Cache most recent TLE set for use with FOV queries from the current time either into the future or up to 3 hours into the past. If cache is inaccessible for any reason, it defaults to a regular database query. ([#136](https://github.com/iausathub/satchecker/pull/136))
+- Update API error message text to add more context to the error. ([#151](https://github.com/iausathub/satchecker/pull/151))
+
+
 # 1.3.0 (2025-03-21)
 
 ### Miscellaneous
