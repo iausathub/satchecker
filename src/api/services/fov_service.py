@@ -12,7 +12,6 @@ from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepo
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.services.cache_service import (
     create_fov_cache_key,
-    get_cached_data,
     set_cached_data,
 )
 from api.utils import coordinate_systems, output_utils
@@ -103,7 +102,7 @@ def get_satellite_passes_in_fov(
     # TODO: resolve caching issue
     skip_cache = True
 
-    cached_data = get_cached_data(cache_key)
+    cached_data = False  # get_cached_data(cache_key)
 
     if cached_data:  # pragma: no cover
         logger.info(
@@ -204,8 +203,11 @@ def get_satellite_passes_in_fov(
         ensure_datetime(jd_times[-1]),
     )
     logger.info(f"Satellites with ephemeris: {len(satellites_with_ephemeris)}")
+
+    satellite_numbers_with_ephemeris = set(satellites_with_ephemeris)
+
     for tle in tles:
-        if tle.satellite not in satellites_with_ephemeris:
+        if tle.satellite.sat_number not in satellite_numbers_with_ephemeris:
             tles_to_propagate.append(tle)
 
     # Process Starlink satellites with Krogh propagation
@@ -218,7 +220,7 @@ def get_satellite_passes_in_fov(
         for satellite_number in satellites_with_ephemeris:
             try:
                 # Load ephemeris data for this Starlink satellite
-                logger.error(f"Satellite number: {satellite_number}")
+                logger.info(f"Satellite number: {satellite_number}")
                 ephemeris = ephemeris_repo.get_closest_by_satellite_number(
                     str(satellite_number),
                     ensure_datetime(jd_times[0]),
@@ -234,17 +236,32 @@ def get_satellite_passes_in_fov(
                     satellites_processed += 1
                     continue
 
-                krogh_strategy.load_ephemeris(ephemeris)
+                try:
+                    krogh_strategy.load_ephemeris(ephemeris)
+                except Exception as e:
+                    logger.error(
+                        f"Error loading ephemeris for satellite {satellite_number}: {e}"
+                    )
+                    satellites_processed += 1
+                    continue
 
-                # Propagate positions
-                positions = krogh_strategy.propagate(
-                    jd_times,
-                    None,
-                    None,
-                    location.lat.value,
-                    location.lon.value,
-                    location.height.value,
-                )
+                try:
+                    # Propagate positions
+                    positions = krogh_strategy.propagate(
+                        jd_times,
+                        None,
+                        None,
+                        location.lat.value,
+                        location.lon.value,
+                        location.height.value,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Error propagating positions for satellite "
+                        f"{satellite_number}: {e}"
+                    )
+                    satellites_processed += 1
+                    continue
 
                 # Check if positions are in FOV
                 for pos in positions:
@@ -254,34 +271,21 @@ def get_satellite_passes_in_fov(
                             (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
                         )
                         if angular_distance <= fov_radius:
-                            result = {
-                                "ra": pos.ra,
-                                "dec": pos.dec,
-                                "altitude": pos.alt if pos.alt is not None else None,
-                                "azimuth": pos.az if pos.az is not None else None,
-                                "range_km": (
-                                    pos.distance if pos.distance is not None else None
-                                ),
-                                "julian_date": float(
-                                    pos.julian_date
-                                ),  # Ensure float conversion
-                                "name": tle.satellite.sat_name,
-                                "norad_id": tle.satellite.sat_number,
-                                "tle_epoch": output_utils.format_date(tle.epoch),
-                            }
-                            if include_tles:
-                                result["tle_data"] = {
-                                    "tle_line1": tle.tle_line1,
-                                    "tle_line2": tle.tle_line2,
-                                    "source": tle.data_source,
-                                }
+                            pos.name = tle.satellite.sat_name
+                            pos.norad_id = tle.satellite.sat_number
+                            pos.propagation_epoch = output_utils.format_date(
+                                ephemeris.epoch
+                            )
+                            pos.propagation_source = "ephemeris"
+                            result = pos._asdict()
+
                             all_results.append(result)
                             points_in_fov += 1
 
                 satellites_processed += 1
             except Exception as e:
                 logger.error(
-                    f"Error processing Starlink satellite {tle.satellite.sat_name}: {e}"
+                    f"Error processing Starlink satellite {satellite_number}: {e}"
                 )
                 satellites_processed += 1
                 continue

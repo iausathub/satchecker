@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 import numpy as np
-from sqlalchemy import desc
+from sqlalchemy import asc, desc
 
 from api.adapters.database_orm import (
     EphemerisPointDb,
@@ -181,18 +181,16 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         # Ensure epoch is a datetime object with timezone info
         epoch = ensure_datetime(epoch)
 
-        # First find the ephemeris entry with the closest generated_at time that is
-        # before or equal to the requested epoch
+        # Find any ephemeris that covers the epoch, then get the most recent one
         query = (
             self.session.query(InterpolableEphemerisDb)
             .join(InterpolableEphemerisDb.satellite_ref)
             .filter(
                 SatelliteDb.sat_number == satellite_number,
-                InterpolableEphemerisDb.generated_at <= epoch,
                 InterpolableEphemerisDb.ephemeris_start <= epoch,
                 InterpolableEphemerisDb.ephemeris_stop >= epoch,
             )
-            .order_by(desc(InterpolableEphemerisDb.generated_at))
+            .order_by(asc(InterpolableEphemerisDb.generated_at))
         )
 
         if data_source:
@@ -282,23 +280,32 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
     def _get_satellites_with_ephemeris(
         self, start_time: datetime, end_time: datetime
     ) -> list[Satellite]:
-        # Ensure epoch is a datetime object with timezone info
-        start_time = ensure_datetime(start_time)
-        end_time = ensure_datetime(end_time)
+        try:
+            # Ensure epoch is a datetime object with timezone info
+            start_time = ensure_datetime(start_time)
+            end_time = ensure_datetime(end_time)
 
-        # Get satellites that have ephemeris data valid for the epoch
-        # (epoch must be within the ephemeris time range and generated
-        # at or before epoch)
-        query = (
-            self.session.query(InterpolableEphemerisDb.satellite)
-            .filter(
-                InterpolableEphemerisDb.generated_at <= start_time,
-                InterpolableEphemerisDb.ephemeris_start <= start_time,
-                InterpolableEphemerisDb.ephemeris_stop >= end_time,
+            # Get satellites that have ephemeris data valid for the epoch
+            # (epoch must be within the ephemeris time range and generated
+            # at or before epoch)
+            query = (
+                self.session.query(SatelliteDb.sat_number)
+                .join(
+                    InterpolableEphemerisDb,
+                    SatelliteDb.id == InterpolableEphemerisDb.satellite,
+                )
+                .filter(
+                    InterpolableEphemerisDb.generated_at <= start_time,
+                    InterpolableEphemerisDb.ephemeris_start <= start_time,
+                    InterpolableEphemerisDb.ephemeris_stop >= end_time,
+                )
+                .distinct()
             )
-            .distinct()
-        )
 
-        # Extract satellite numbers and return as list of integers
-        satellites = [self._to_domain(result) for result in query.all()]
-        return satellites
+            # Extract satellite numbers from the query results
+            satellite_numbers = [row[0] for row in query.all()]
+
+            return satellite_numbers
+        except Exception as e:
+            logger.error(f"Error getting satellites with ephemeris: {e}")
+            return []

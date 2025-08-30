@@ -22,6 +22,7 @@ from api.utils import coordinate_systems, output_utils
 from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
     calculate_current_position,
+    calculate_satellite_observer_relative,
     ecef_to_enu,
     ecef_to_itrs,
     enu_to_az_el,
@@ -108,6 +109,23 @@ satellite_position = namedtuple(
 )
 
 
+satellite_position_fov = namedtuple(
+    "satellite_position_fov",
+    [
+        "ra",
+        "dec",
+        "altitude",
+        "azimuth",
+        "range_km",
+        "julian_date",
+        "name",
+        "norad_id",
+        "propagation_epoch",
+        "propagation_source",
+    ],
+)
+
+
 class BasePropagationStrategy(ABC):
     """Base class for all propagation strategies."""
 
@@ -121,7 +139,12 @@ class BasePropagationStrategy(ABC):
         longitude: float,
         elevation: float,
         **kwargs,
-    ) -> Union[satellite_position, list[satellite_position], list[dict[str, Any]]]:
+    ) -> Union[
+        satellite_position,
+        list[satellite_position],
+        list[satellite_position_fov],
+        list[dict[str, Any]],
+    ]:
         """
         Propagate satellite positions.
 
@@ -869,7 +892,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         longitude: float,
         elevation: float,
         **kwargs,
-    ) -> list[satellite_position]:
+    ) -> list[satellite_position_fov]:
         """
         Propagate satellite positions using Krogh interpolation.
 
@@ -904,25 +927,27 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                 interpolated_points
             )
 
+            # Extract position from mean state (first 3 components)
+            satellite_position_gcrs = mean_state[:3]
+
+            # Calculate observer-relative coordinates
+            altitude, azimuth, range_km = calculate_satellite_observer_relative(
+                satellite_position_gcrs, latitude, longitude, elevation, jd
+            )
+
             # Convert to satellite position format
             results.append(
-                satellite_position(
-                    ra=mean_state[0],  # Assuming first component is RA
-                    dec=mean_state[1],  # Assuming second component is Dec
-                    dracosdec=None,  # Now calculated from velocity
-                    ddec=None,  # Now calculated from velocity
-                    alt=None,  # Not available from Krogh interpolation
-                    az=None,  # Not available from Krogh interpolation
-                    distance=None,  # Not available from Krogh interpolation
-                    ddistance=None,  # Not available from Krogh interpolation
-                    phase_angle=None,  # Not available from Krogh interpolation
-                    sat_altitude_km=None,  # Not available from Krogh interpolation
-                    solar_elevation_deg=None,  # Not available from Krogh interpolation
-                    solar_azimuth_deg=None,  # Not available from Krogh interpolation
-                    illuminated=None,  # Not available from Krogh interpolation
-                    satellite_gcrs=mean_state[:3].tolist(),  # Position components
-                    observer_gcrs=None,  # Not available from Krogh interpolation
+                satellite_position_fov(
+                    ra=mean_state[0],
+                    dec=mean_state[1],
+                    altitude=altitude,
+                    azimuth=azimuth,
+                    range_km=range_km,
                     julian_date=float(jd),  # Ensure jd is a float
+                    name=None,  # added in fov_service
+                    norad_id=None,  # added in fov_service
+                    propagation_epoch=None,  # added in fov_service
+                    propagation_source=None,  # added in fov_service
                 )
             )
 
