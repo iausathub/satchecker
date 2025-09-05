@@ -368,7 +368,7 @@ def validate_parameters(
             )
 
     if "include_tles" in parameters.keys() and parameters["include_tles"] is not None:
-        if parameters["include_tles"] not in ["true", "false"]:
+        if parameters["include_tles"].lower() not in ["true", "false"]:
             raise ValidationError(
                 400,
                 error_messages.INVALID_PARAMETER
@@ -391,7 +391,7 @@ def validate_parameters(
         "illuminated_only" in parameters.keys()
         and parameters["illuminated_only"] is not None
     ):
-        if parameters["illuminated_only"] not in ["true", "false"]:
+        if parameters["illuminated_only"].lower() not in ["true", "false"]:
             raise ValidationError(
                 400,
                 error_messages.INVALID_PARAMETER
