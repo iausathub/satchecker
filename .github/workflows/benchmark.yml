@@ -85,7 +85,7 @@ jobs:
           tool: 'pytest'
           output-file-path: output.json
           # Store benchmark data in gh-pages directory
-          benchmark-data-dir-path: gh-pages/dev/bench
+          benchmark-data-dir-path: dev/bench
           auto-push: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Workflow will fail when an alert happens
