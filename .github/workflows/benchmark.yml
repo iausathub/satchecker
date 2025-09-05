@@ -77,12 +77,6 @@ jobs:
             SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
             LOCAL_DB: 1
 
-      - name: Checkout GitHub Pages Branch
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: gh-pages
-
       # Store benchmark result and prepare for upload
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
@@ -92,18 +86,8 @@ jobs:
           output-file-path: output.json
           # Store benchmark data in gh-pages directory
           benchmark-data-dir-path: gh-pages/dev/bench
-          auto-push: false
+          auto-push: true
           # Workflow will fail when an alert happens
           fail-on-alert: true
           # Enable alert commit comment
           comment-on-alert: false
-
-      - name: Publish benchmark results to GitHub Pages
-        if: always()
-        run: |
-          cd gh-pages
-          git config user.name "GitHub Actions Bot"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Update benchmark results [skip ci]" || echo "No changes to commit"
-          git push
