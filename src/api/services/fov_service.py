@@ -127,8 +127,8 @@ def get_satellite_passes_in_fov(
     if cached_data and not skip_cache:  # pragma: no cover
         cache_time = python_time.time() - start_time
         logger.info(
-            f"Cache hit: Found {len(cached_data['results'])} results with "
-            f"{cached_data['points_in_fov']} points in FOV"
+            f"Cache hit: Found {len(cached_data['results'])} results with "  # type: ignore[index]
+            f"{cached_data['points_in_fov']} points in FOV"  # type: ignore[index]
         )
         # Log any None values in the cached results
         for idx, result in enumerate(cached_data.get("results", [])):  # type: ignore[attr-defined]

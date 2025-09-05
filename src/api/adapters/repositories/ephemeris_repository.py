@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 import numpy as np
-from sqlalchemy import asc, desc
+from sqlalchemy import desc, func
 
 from api.adapters.database_orm import (
     EphemerisPointDb,
@@ -190,7 +190,12 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
                 InterpolableEphemerisDb.ephemeris_start <= epoch,
                 InterpolableEphemerisDb.ephemeris_stop >= epoch,
             )
-            .order_by(asc(InterpolableEphemerisDb.generated_at))
+            .order_by(
+                func.abs(
+                    func.extract("epoch", InterpolableEphemerisDb.generated_at)
+                    - func.extract("epoch", epoch)
+                )
+            )
         )
 
         if data_source:
@@ -219,7 +224,12 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
                 InterpolableEphemerisDb.ephemeris_start <= epoch,
                 InterpolableEphemerisDb.ephemeris_stop >= epoch,
             )
-            .order_by(desc(InterpolableEphemerisDb.generated_at))
+            .order_by(
+                func.abs(
+                    func.extract("epoch", InterpolableEphemerisDb.generated_at)
+                    - func.extract("epoch", epoch)
+                )
+            )
         )
 
         if data_source:
