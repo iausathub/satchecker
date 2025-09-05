@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -10,6 +11,15 @@ import requests
 from bs4 import BeautifulSoup
 from connections import get_spacetrack_login
 from psycopg2.extras import execute_values
+
+from api.domain.models.interpolable_ephemeris import (
+    EphemerisPoint,
+    InterpolableEphemeris,
+)
+from api.utils.interpolation_utils import (
+    generate_and_propagate_sigma_points,
+    interpolate_sigma_pointsKI,
+)
 
 
 def get_decayed_satellites(cursor, connection):
@@ -111,9 +121,38 @@ def fetch_wikipedia_page(url: str) -> BeautifulSoup:
         requests.exceptions.RequestException: If the request fails
     """
     logging.info(f"Fetching data from {url}")
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return BeautifulSoup(response.text, "html.parser")
+
+    # Add headers to mimic a real browser request
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;q=0.9,"
+            "image/webp,*/*;q=0.8"
+        ),
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
+
+    for attempt in range(3):
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return BeautifulSoup(response.text, "html.parser")
+        except requests.exceptions.RequestException as e:
+            if attempt == 2:
+                logging.error(f"Failed to fetch {url} after 3 attempts: {e}")
+                raise
+            else:
+                logging.warning(
+                    f"Attempt {attempt + 1} failed for {url}, retrying: {e}"
+                )
+                time.sleep(1)
 
 
 def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
@@ -170,7 +209,15 @@ def scrape_starlink_data(
         Dictionary with satellite data matched to Starlink generations
     """
     url = "https://en.wikipedia.org/wiki/List_of_Starlink_and_Starshield_launches"
-    soup = fetch_wikipedia_page(url)
+
+    try:
+        soup = fetch_wikipedia_page(url)
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to fetch Wikipedia data: {e}")
+        logging.info(
+            "Skipping Starlink generation data due to Wikipedia access failure"
+        )
+        return {"error": "Wikipedia access failed"}
 
     # Find the table - usually "wikitable" class for Wikipedia tables
     table = soup.find("table", {"class": "wikitable"})
@@ -289,7 +336,9 @@ def get_starlink_generations(cursor, connection):
     )
 
 
-def insert_ephemeris_data(parsed_data, cursor, connection):
+def insert_ephemeris_data(
+    parsed_data, cursor, connection
+) -> Optional[InterpolableEphemeris]:
     """
     Insert ephemeris data into the database efficiently using batch inserts.
 
@@ -297,8 +346,29 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         parsed_data (dict): Dictionary containing parsed ephemeris data
         cursor: Database cursor
         connection: Database connection
+
+    Returns:
+        InterpolableEphemeris: The created ephemeris object if successful,
+        None if duplicate
     """
     try:
+        # TODO: fix usage of has_current_sat_number
+        # Get the satellite ID first to avoid duplicate queries
+        cursor.execute(
+            "SELECT id FROM satellites "
+            "WHERE sat_name = %s "
+            "AND has_current_sat_number = true",
+            (parsed_data["satellite_name"],),
+        )
+        satellite_result = cursor.fetchone()
+        if satellite_result is None:
+            logging.error(f"Satellite not found: {parsed_data['satellite_name']}")
+            return None
+        satellite_id = satellite_result[0]
+
+        date_collected = datetime.now(timezone.utc)
+        data_source = "starlink"
+
         ephemeris_insert = """
             INSERT INTO interpolable_ephemeris (
                 satellite,
@@ -310,9 +380,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 ephemeris_stop,
                 frame
             ) VALUES (
-                (SELECT id FROM satellites
-                 WHERE sat_name = %s
-                 AND has_current_sat_number = true),
+                %s,
                 %s,
                 %s,
                 %s,
@@ -328,17 +396,23 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         cursor.execute(
             ephemeris_insert,
             (
-                parsed_data["satellite_name"],
-                datetime.now(timezone.utc),  # date_collected
+                satellite_id,
+                date_collected,
                 parsed_data["generated_at"],
-                "starlink",
+                data_source,
                 parsed_data["filename"],
                 parsed_data["ephemeris_start"],
                 parsed_data["ephemeris_stop"],
                 parsed_data["frame"],
             ),
         )
-        ephemeris_id = cursor.fetchone()[0]
+        ephemeris_result = cursor.fetchone()
+        if ephemeris_result is None:
+            logging.error(
+                f"Likely duplicate ephemeris data for {parsed_data['satellite_name']}"
+            )
+            return None
+        ephemeris_id = ephemeris_result[0]
 
         # Prepare the points data for batch insert
         timestamps = parsed_data["timestamps"]
@@ -379,6 +453,32 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
             f"Successfully inserted {len(points)} "
             f"points for ephemeris_id {ephemeris_id}"
         )
+
+        # Create EphemerisPoint objects from the data
+        ephemeris_points = []
+        for i in range(len(timestamps)):
+            point = EphemerisPoint(
+                timestamp=timestamps[i],
+                position=np.array(positions[i]),
+                velocity=np.array(velocities[i]),
+                covariance=np.array(covariances[i]),
+            )
+            ephemeris_points.append(point)
+
+        # Create and return the InterpolableEphemeris object
+        ephemeris = InterpolableEphemeris(
+            satellite=satellite_id,
+            generated_at=parsed_data["generated_at"],
+            data_source=data_source,
+            frame=parsed_data["frame"],
+            points=ephemeris_points,
+            ephemeris_start=parsed_data["ephemeris_start"],
+            ephemeris_stop=parsed_data["ephemeris_stop"],
+            file_reference=parsed_data["filename"],
+            date_collected=date_collected,
+        )
+
+        return ephemeris
 
     except Exception as e:
         connection.rollback()
@@ -660,8 +760,21 @@ def get_starlink_ephemeris_data(cursor, connection):
                     try:
                         file_content = response.content.decode("utf-8")
                         parsed_data = parse_ephemeris_file(file_content, file_name)
-                        insert_ephemeris_data(parsed_data, cursor, connection)
-                        num_points = len(parsed_data["timestamps"])
+                        ephemeris = insert_ephemeris_data(
+                            parsed_data, cursor, connection
+                        )
+                        # calculate splines and store in database
+                        # ephemeris_data = parse_ephemeris_file(ephemeris_file)
+                        sigma_points_dict = generate_and_propagate_sigma_points(
+                            ephemeris
+                        )
+                        interpolated_splines = interpolate_sigma_pointsKI(  # noqa: F841
+                            sigma_points_dict
+                        )
+
+                        # insert_interpolated_splines(interpolated_splines, cursor,
+                        # connection)
+                        num_points = len(parsed_data["timestamps"]) if ephemeris else 0
 
                     except Exception as e:
                         logging.error(

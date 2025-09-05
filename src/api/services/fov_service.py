@@ -18,6 +18,7 @@ from api.utils import coordinate_systems, output_utils
 from api.utils.propagation_strategies import (
     FOVParallelPropagationStrategy,
     KroghPropagationStrategy,
+    satellite_position_fov,
     # FOVPropagationStrategy,
 )
 from api.utils.time_utils import astropy_time_to_datetime_utc, ensure_datetime
@@ -106,18 +107,18 @@ def get_satellite_passes_in_fov(
 
     if cached_data:  # pragma: no cover
         logger.info(
-            f"Cached data found with {len(cached_data.get('results', []))} results and "
-            f"{cached_data.get('points_in_fov', 0)} points in FOV"
+            f"Cached data found with {len(cached_data.get('results', []))} results and "  # type: ignore[attr-defined]
+            f"{cached_data.get('points_in_fov', 0)} points in FOV"  # type: ignore[attr-defined]
         )
         # Log structure details for debugging
-        for key in cached_data:
-            if isinstance(cached_data[key], (list, dict)):
+        for key in cached_data:  # type: ignore[attr-defined]
+            if isinstance(cached_data[key], (list, dict)):  # type: ignore[index]
                 logger.debug(
-                    f"Cached {key}: {type(cached_data[key])} with length {len(cached_data[key])}"  # noqa: E501
+                    f"Cached {key}: {type(cached_data[key])} with length {len(cached_data[key])}"  # type: ignore[index] # noqa: E501
                 )  # noqa: E501
             else:
                 logger.debug(
-                    f"Cached {key}: {type(cached_data[key])} = {cached_data[key]}"
+                    f"Cached {key}: {type(cached_data[key])} = {cached_data[key]}"  # type: ignore[index]
                 )  # noqa: E501
     else:
         logger.info("No cached data found")
@@ -126,11 +127,11 @@ def get_satellite_passes_in_fov(
     if cached_data and not skip_cache:  # pragma: no cover
         cache_time = python_time.time() - start_time
         logger.info(
-            f"Cache hit: Found {len(cached_data['results'])} results with "
-            f"{cached_data['points_in_fov']} points in FOV"
+            f"Cache hit: Found {len(cached_data['results'])} results with "  # type: ignore[index]
+            f"{cached_data['points_in_fov']} points in FOV"  # type: ignore[index]
         )
         # Log any None values in the cached results
-        for idx, result in enumerate(cached_data.get("results", [])):
+        for idx, result in enumerate(cached_data.get("results", [])):  # type: ignore[attr-defined]
             for key, value in result.items():
                 if value is None:
                     logger.warning(
@@ -138,11 +139,11 @@ def get_satellite_passes_in_fov(
                     )
         # Return cached results using the same formatting function
         return output_utils.fov_data_to_json(
-            cached_data["results"],
-            cached_data["points_in_fov"],
+            cached_data["results"],  # type: ignore[index]
+            cached_data["points_in_fov"],  # type: ignore[index]
             {
                 "total_time": round(cache_time, 3),
-                "points_in_fov": cached_data["points_in_fov"],
+                "points_in_fov": cached_data["points_in_fov"],  # type: ignore[index]
                 "from_cache": True,
             },
             api_source,
@@ -249,8 +250,8 @@ def get_satellite_passes_in_fov(
                     # Propagate positions
                     positions = krogh_strategy.propagate(
                         jd_times,
-                        None,
-                        None,
+                        "",
+                        "",
                         location.lat.value,
                         location.lon.value,
                         location.height.value,
@@ -271,13 +272,22 @@ def get_satellite_passes_in_fov(
                             (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
                         )
                         if angular_distance <= fov_radius:
-                            pos.name = tle.satellite.sat_name
-                            pos.norad_id = tle.satellite.sat_number
-                            pos.propagation_epoch = output_utils.format_date(
-                                ephemeris.epoch
+                            # Create new satellite_position_fov with updated values
+                            updated_pos = satellite_position_fov(
+                                ra=pos.ra,
+                                dec=pos.dec,
+                                altitude=pos.altitude,
+                                azimuth=pos.azimuth,
+                                range_km=pos.range_km,
+                                julian_date=pos.julian_date,
+                                name=tle.satellite.sat_name,
+                                norad_id=tle.satellite.sat_number,
+                                propagation_epoch=output_utils.format_date(
+                                    ephemeris.generated_at
+                                ),
+                                propagation_source="ephemeris",
                             )
-                            pos.propagation_source = "ephemeris"
-                            result = pos._asdict()
+                            result = updated_pos._asdict()
 
                             all_results.append(result)
                             points_in_fov += 1

@@ -670,4 +670,4 @@ def calculate_satellite_observer_relative(
     # Calculate range
     range_km = np.linalg.norm(relative_position_enu)
 
-    return altitude_deg, azimuth_deg, range_km
+    return float(altitude_deg), float(azimuth_deg), float(range_km)
