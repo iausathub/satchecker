@@ -87,6 +87,7 @@ jobs:
           # Store benchmark data in gh-pages directory
           benchmark-data-dir-path: gh-pages/dev/bench
           auto-push: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           # Workflow will fail when an alert happens
           fail-on-alert: true
           # Enable alert commit comment
