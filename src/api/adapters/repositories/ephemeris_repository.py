@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 import numpy as np
-from sqlalchemy import desc, func
+from sqlalchemy import DateTime, bindparam, desc, func
 
 from api.adapters.database_orm import (
     EphemerisPointDb,
@@ -180,6 +180,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
     ) -> Optional[InterpolableEphemeris]:
         # Ensure epoch is a datetime object with timezone info
         epoch = ensure_datetime(epoch)
+        epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
 
         # Find any ephemeris that covers the epoch, then get the most recent one
         query = (
@@ -193,7 +194,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             .order_by(
                 func.abs(
                     func.extract("epoch", InterpolableEphemerisDb.generated_at)
-                    - func.extract("epoch", epoch)
+                    - func.extract("epoch", epoch_param)
                 )
             )
         )
@@ -212,6 +213,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         self, satellite_name: str, epoch: datetime, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
         epoch = ensure_datetime(epoch)
+        epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
 
         # First find the ephemeris entry with the closest generated_at time that
         # is before or equal to the requested epoch
@@ -227,7 +229,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             .order_by(
                 func.abs(
                     func.extract("epoch", InterpolableEphemerisDb.generated_at)
-                    - func.extract("epoch", epoch)
+                    - func.extract("epoch", epoch_param)
                 )
             )
         )
