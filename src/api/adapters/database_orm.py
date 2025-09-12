@@ -40,12 +40,21 @@ class SatelliteDesignationDb(Base):
     satellite = relationship("SatelliteDb", back_populates="designations")
 
     __table_args__ = (
-        UniqueConstraint("sat_number", "sat_name", "sat_id"),
+        UniqueConstraint(
+            "sat_number",
+            "sat_name",
+            "sat_id",
+            "valid_from",
+            "valid_to",
+            name="satellite_designation_unique_period",
+        ),
         Index("idx_sat_des_sat_number_sat_name", sat_number, sat_name),
         Index("idx_sat_des_valid_from", valid_from),
         Index("idx_sat_des_valid_to", valid_to),
         Index("idx_sat_des_temporal_range", valid_from, valid_to),
         Index("idx_sat_des_sat_id_temporal", sat_id, valid_from, valid_to),
+        Index("idx_sat_des_temporal_periods", sat_id, valid_from, valid_to),
+        Index("idx_sat_des_designation_lookup", sat_number, sat_name, sat_id),
     )
 
 

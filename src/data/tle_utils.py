@@ -26,6 +26,7 @@ def insert_record(
 
     satellite = EarthSatellite(tle_line_1, tle_line_2, name=name, ts=timescale)
     current_date_time = datetime.datetime.now(datetime.timezone.utc)
+    tle_epoch = satellite.epoch.utc_datetime()
 
     # check if satellite's object_id is 'UNKNOWN' - if so, set object_id to
     # 'UNKNOWN_' + sat_number
@@ -125,8 +126,7 @@ def insert_record(
         logging.info(f"{log_time}\tnew satellite: {satellite.model.satnum}")
 
     # if the current designation (valid_to is null) has a different sat_number or
-    # sat_name, set valid_to to the current date and time so it's no longer the
-    # current designation
+    # sat_name, set valid_to to the TLE epoch so it's no longer the current designation
     designation_update_query = """
     UPDATE satellite_designation
     SET valid_to = %s, date_modified = %s
@@ -139,7 +139,7 @@ def insert_record(
     );
     """
     designation_to_update = (
-        current_date_time,
+        tle_epoch,
         current_date_time,
         sat_id,
         satellite.model.satnum,
@@ -149,21 +149,21 @@ def insert_record(
     designation_changed = cursor.rowcount > 0
 
     # add designation to database if it doesn't already exist
-    # set valid_from to current date and time, valid_to to null (only if new, don't
+    # set valid_from to TLE epoch, valid_to to null (only if new, don't
     # edit otherwise)
     if designation_changed:
         designation_insert_query = """
         INSERT INTO satellite_designation (sat_id, sat_name, sat_number,
         valid_from, valid_to)
         VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT (sat_number, sat_name, sat_id) DO NOTHING
+        ON CONFLICT (sat_number, sat_name, sat_id, valid_from, valid_to) DO NOTHING
         RETURNING id;
         """
         designation_to_insert = (
             sat_id,
             name,
             satellite.model.satnum,
-            current_date_time,
+            tle_epoch,
             None,
         )
         cursor.execute(designation_insert_query, designation_to_insert)
