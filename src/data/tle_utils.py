@@ -195,7 +195,7 @@ def insert_record(
 # Parse TLE list and add entries to database if they don't exist
 def add_tle_list_to_db(tle, constellation, cursor, connection, is_supplemental, source):
     tle_count = 0
-    commit_batch_size = 100  # Commit every 100 TLEs
+    commit_batch_size = 10
 
     try:
         if source == "celestrak":
