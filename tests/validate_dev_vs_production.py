@@ -377,7 +377,7 @@ def main():
         (
             "/ephemeris/name-jdstep/",
             {
-                "name": "ISS",
+                "name": "ISS (ZARYA)",
                 "latitude": 48.8566,
                 "longitude": 2.3522,
                 "elevation": 35.0,
@@ -390,7 +390,7 @@ def main():
         # Tool endpoint test cases
         (
             "/tools/norad-ids-from-name/",
-            {"name": "ISS"},
+            {"name": "ISS (ZARYA)"},
             "Tools - NORAD IDs from name (ISS)",
         ),
         (
@@ -406,7 +406,7 @@ def main():
         (
             "/tools/get-tle-data/",
             {
-                "id": "ISS",
+                "id": "ISS (ZARYA)",
                 "id_type": "name",
                 "start_date_jd": 2460900.0,
                 "end_date_jd": 2461000.0,

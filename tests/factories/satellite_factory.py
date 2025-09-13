@@ -13,6 +13,8 @@ faker = Faker()
 # List of valid satellite constellations from validation_service.py
 CONSTELLATIONS = ["starlink", "oneweb", "kuiper", "planet", "ast"]
 
+_object_id_counter = 0
+
 
 class SatelliteDesignationFactory(factory.Factory):
     class Meta:
@@ -38,7 +40,13 @@ class SatelliteFactory(factory.Factory):
     decay_date = faker.date_time_between(
         start_date="-10y", end_date=datetime.datetime.now()
     )
-    object_id = faker.word()
+
+    @factory.lazy_attribute
+    def object_id(self):
+        global _object_id_counter
+        _object_id_counter += 1
+        return f"test_object_{_object_id_counter}"
+
     object_type = faker.word()
     generation = factory.LazyFunction(
         lambda: random.choice(["v1", "v2", "v3"])  # noqa: S311
