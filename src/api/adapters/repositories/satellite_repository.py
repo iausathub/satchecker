@@ -84,6 +84,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
             self.session.query(SatelliteDb)
             .join(SatelliteDesignationDb)
             .filter(SatelliteDesignationDb.sat_number == satellite_id)
+            .filter(SatelliteDesignationDb.valid_to.is_(None))
             .first()
         )  # noqa: E501
         return self._to_domain(orm_satellite)
