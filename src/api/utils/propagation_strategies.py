@@ -14,6 +14,7 @@ from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.nutationlib import iau2000b
 
+from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
 from api.utils import coordinate_systems, output_utils
 from api.utils.coordinate_systems import (
@@ -870,7 +871,9 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         self.sigma_points_dict: Optional[dict] = None
         self.interpolated_splines: Optional[dict[str, Any]] = None
 
-    def load_ephemeris(self, ephemeris: InterpolableEphemeris) -> None:
+    def load_ephemeris(
+        self, ephemeris: InterpolableEphemeris, ephem_repo: AbstractEphemerisRepository
+    ) -> None:
         """
         Load and parse ephemeris data from a file.
 
@@ -882,7 +885,12 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         self.sigma_points_dict = generate_and_propagate_sigma_points(
             self.ephemeris_data
         )
-        self.interpolated_splines = interpolate_sigma_pointsKI(self.sigma_points_dict)
+        interpolated_splines_obj = ephem_repo.get_interpolator_splines(ephemeris.id)
+        if interpolated_splines_obj is None:
+            interpolated_splines = interpolate_sigma_pointsKI(self.sigma_points_dict)
+        else:
+            interpolated_splines = interpolated_splines_obj.get_interpolated_splines()
+        self.interpolated_splines = interpolated_splines
 
     def propagate(
         self,

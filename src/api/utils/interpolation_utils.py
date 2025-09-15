@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, TypedDict
 
 import julian
 import numpy as np
@@ -7,6 +7,14 @@ from scipy.linalg import sqrtm
 
 from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
 from api.domain.models.interpolator_splines import InterpolatorChunk
+
+
+class InterpolatedSplinesDict(TypedDict):
+    """Type definition for the return value of interpolate_sigma_pointsKI."""
+
+    positions: list[list[list[InterpolatorChunk] | None]]
+    velocities: list[list[list[InterpolatorChunk] | None]]
+    time_range: tuple[float, float]
 
 
 def generate_and_propagate_sigma_points(ephemeris: InterpolableEphemeris) -> dict:
@@ -223,7 +231,7 @@ def create_chunked_krogh_interpolator(
 
 def interpolate_sigma_pointsKI(  # noqa: N802
     sigma_points_dict: dict,
-) -> dict[str, list[list[list[InterpolatorChunk] | None]] | tuple[float, float]]:
+) -> InterpolatedSplinesDict:
     """
     Create high-precision interpolation splines for sigma point trajectories using
     chunked Krogh interpolation.

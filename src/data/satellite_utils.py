@@ -338,7 +338,7 @@ def get_starlink_generations(cursor, connection):
 
 def insert_ephemeris_data(
     parsed_data, cursor, connection
-) -> Optional[InterpolableEphemeris]:
+) -> Optional[tuple[InterpolableEphemeris, int]]:
     """
     Insert ephemeris data into the database efficiently using batch inserts.
 
@@ -478,7 +478,7 @@ def insert_ephemeris_data(
             date_collected=date_collected,
         )
 
-        return ephemeris
+        return ephemeris, ephemeris_id
 
     except Exception as e:
         connection.rollback()
@@ -685,6 +685,12 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     }
 
 
+def insert_interpolated_splines(interpolated_splines, cursor, connection):
+    """
+    Insert interpolated splines into the database.
+    """
+
+
 def get_starlink_ephemeris_data(cursor, connection):
     """
     Fetch and process ephemeris data for Starlink satellites.
@@ -760,7 +766,7 @@ def get_starlink_ephemeris_data(cursor, connection):
                     try:
                         file_content = response.content.decode("utf-8")
                         parsed_data = parse_ephemeris_file(file_content, file_name)
-                        ephemeris = insert_ephemeris_data(
+                        ephemeris, ephemeris_id = insert_ephemeris_data(
                             parsed_data, cursor, connection
                         )
                         # calculate splines and store in database
@@ -772,8 +778,17 @@ def get_starlink_ephemeris_data(cursor, connection):
                             sigma_points_dict
                         )
 
-                        # insert_interpolated_splines(interpolated_splines, cursor,
-                        # connection)
+                        insert_interpolated_splines(
+                            ephemeris_id,
+                            ephemeris.generated_at,
+                            ephemeris.data_source,
+                            ephemeris.frame,
+                            ephemeris.ephemeris_start,
+                            ephemeris.ephemeris_stop,
+                            interpolated_splines,
+                            cursor,
+                            connection,
+                        )
                         num_points = len(parsed_data["timestamps"]) if ephemeris else 0
 
                     except Exception as e:

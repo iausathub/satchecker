@@ -47,7 +47,9 @@ class InterpolableEphemeris:
         ephemeris_stop: datetime,
         file_reference: Optional[str] = None,
         date_collected: Optional[datetime] = None,
+        id: Optional[int] = None,
     ):
+        self.id = id
         self.satellite = satellite
         self.date_collected = date_collected or datetime.now(timezone.utc)
         self.generated_at = generated_at
@@ -67,7 +69,8 @@ class InterpolableEphemeris:
     def __eq__(self, other):
         try:
             return (
-                self.satellite == other.satellite
+                self.id == other.id
+                and self.satellite == other.satellite
                 and self.generated_at == other.generated_at
                 and self.data_source == other.data_source
                 and self.file_reference == other.file_reference
@@ -102,6 +105,7 @@ class InterpolableEphemeris:
         point_tuples_tuple = tuple(point_tuples)
 
         hash_tuple = (
+            self.id,
             self.satellite,
             self.generated_at,
             self.data_source,

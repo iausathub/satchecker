@@ -10,6 +10,7 @@ from skyfield.api import EarthSatellite, load, wgs84
 
 from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.domain.models.interpolator_splines import InterpolatorSplines
 from api.services.cache_service import (
     create_fov_cache_key,
     set_cached_data,
@@ -211,6 +212,9 @@ def get_satellite_passes_in_fov(
         if tle.satellite.sat_number not in satellite_numbers_with_ephemeris:
             tles_to_propagate.append(tle)
 
+    # TODO: Change to getting all interpolator splines at the epoch instead
+    # of getting each ephemeris
+
     # Process Starlink satellites with Krogh propagation
     if satellites_with_ephemeris:
         logger.info(
@@ -238,12 +242,47 @@ def get_satellite_passes_in_fov(
                     continue
 
                 try:
-                    krogh_strategy.load_ephemeris(ephemeris)
+                    krogh_strategy.load_ephemeris(ephemeris, ephemeris_repo)
                 except Exception as e:
                     logger.error(
                         f"Error loading ephemeris for satellite {satellite_number}: {e}"
                     )
                     satellites_processed += 1
+                    continue
+
+                try:
+                    # create a new InterpolatorSplines object to save to the database
+                    # Convert Julian dates to datetime objects
+                    splines_dict = krogh_strategy.interpolated_splines
+
+                    time_range_start_dt = Time(
+                        splines_dict["time_range"][0], format="jd"
+                    ).datetime
+                    time_range_end_dt = Time(
+                        splines_dict["time_range"][1], format="jd"
+                    ).datetime
+
+                    interpolator_splines = InterpolatorSplines(
+                        sat_id=krogh_strategy.ephemeris_data.satellite,
+                        ephemeris_id=ephemeris.id,
+                        time_range_start=time_range_start_dt,
+                        time_range_end=time_range_end_dt,
+                        generated_at=krogh_strategy.ephemeris_data.generated_at,
+                        data_source=krogh_strategy.ephemeris_data.data_source,
+                        method="krogh_chunked",
+                        chunk_size=14,
+                        overlap=8,
+                        n_sigma_points=13,
+                        date_collected=krogh_strategy.ephemeris_data.date_collected,
+                        interpolated_splines=krogh_strategy.interpolated_splines,
+                    )
+
+                    ephemeris_repo.add_interpolator_splines(interpolator_splines)
+                except Exception as e:
+                    logger.error(
+                        f"Error adding interpolator splines for satellite "
+                        f"{satellite_number}: {e}"
+                    )
                     continue
 
                 try:
