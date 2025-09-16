@@ -176,7 +176,7 @@ stack-data==0.6.2
 tenacity==9.0.0
 tinycss2==1.1.1
 tomlkit==0.12.1
-tornado==6.4.2
+tornado==6.5
 towncrier==24.8.0
 traitlets==5.14.3
 types-setuptools==80.3.0.20250505
