@@ -567,3 +567,25 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
 
     # Every variation should generate a unique key
     assert len(cache_keys) == len(param_variations) + 1
+
+
+def test_get_satellites_above_horizon_exception_handling(test_location, test_time):
+    """Test exception handling in get_satellites_above_horizon when
+    satellite processing fails."""
+    from unittest.mock import patch
+
+    satellite = SatelliteFactory(
+        designations=[SatelliteDesignationFactory(sat_name="TEST SATELLITE")]
+    )
+    tle = TLEFactory(satellite=satellite)
+    tle_repo = FakeTLERepository([tle])
+
+    with patch("api.services.fov_service.EarthSatellite") as mock_earth_satellite:
+        mock_earth_satellite.side_effect = Exception("Test error")
+        result = get_satellites_above_horizon(
+            tle_repo, test_location, [test_time], 0, 0, 1500000
+        )
+
+    assert len(result["data"]) == 0
+    assert result["performance"]["satellites_processed"] == 1
+    assert result["performance"]["visible_satellites"] == 0
