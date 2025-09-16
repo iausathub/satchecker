@@ -264,3 +264,28 @@ def test_get_ephemeris_tle_date_in_range(client, session, test_time):
         f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={valid_past_jd.jd}"
     )
     assert response.status_code == 200
+
+
+def test_get_ephemeris_no_designation_found(client, session, services_available):
+    """Test that NO_DESIGNATION_FOUND error is returned when satellite has TLE but no valid designation at TLE epoch."""
+    # Create a satellite with a designation that is valid after the TLE epoch
+    base_datetime = datetime(2020, 5, 30, tzinfo=timezone.utc)
+
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="NO_DESIGNATION_SAT",
+                valid_from=base_datetime + timedelta(days=10),
+            )
+        ]
+    )
+    tle = TLEFactory(satellite=satellite, epoch=base_datetime)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    response = client.get(
+        "/ephemeris/name/?name=NO_DESIGNATION_SAT&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
+    )
+    assert response.status_code == 500
+    assert error_messages.NO_DESIGNATION_FOUND in response.text

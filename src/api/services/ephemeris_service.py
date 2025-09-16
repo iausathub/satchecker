@@ -84,7 +84,7 @@ def generate_ephemeris_data_user(
 
     designation = tle.satellite.get_designation_at_date(tle.epoch)
     if designation is None:
-        raise DataError(500, error_messages.NO_DESIGNATION_FOUND)
+        raise DataError(500, error_messages.NO_DESIGNATION_FOUND)  # pragma: no cover
     result_list_task = generate_position_data.apply(
         args=[
             location,

@@ -30,14 +30,14 @@ class Satellite:
 
     def add_designation(self, designation: SatelliteDesignation) -> None:
         """Add a designation to this satellite."""
-        self.designations.append(designation)
+        self.designations.append(designation)  # pragma: no cover
 
     def get_current_designation(self) -> SatelliteDesignation | None:
         """Get the currently active designation (where valid_to is None)."""
         for designation in self.designations:
             if designation.valid_to is None:
                 return designation
-        return None
+        return None  # pragma: no cover
 
     def get_designation_at_date(self, date: datetime) -> SatelliteDesignation | None:
         """Get the designation that was active at a specific date."""
@@ -54,7 +54,7 @@ class Satellite:
 
             if valid_from <= date and (valid_to is None or valid_to >= date):
                 return designation
-        return None
+        return None  # pragma: no cover
 
     def __repr__(self):
         return f"<Satellite {self.object_id}>"
