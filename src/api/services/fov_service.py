@@ -404,8 +404,7 @@ def get_satellites_above_horizon(
                 print(f"Found {visible_satellites} visible satellites so far")
 
         except Exception as e:
-            # TODO: Verify that correct designation is the one to use here
-            designation = tle.satellite.get_current_designation()
+            designation = tle.satellite.get_designation_at_date(tle.epoch)
             if designation is None:
                 logger.warning(
                     f"No satellite designation found for {tle.satellite.object_id} "
