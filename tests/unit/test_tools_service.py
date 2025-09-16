@@ -1,4 +1,5 @@
 # ruff: noqa: S101
+import logging
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -77,6 +78,45 @@ class BrokenSatellite:
 
     def get_designation_at_date(self, date):
         return self.designations[0]
+
+
+class SatelliteWithNoDesignation:
+    """Mock satellite that returns None for get_designation_at_date"""
+
+    def __init__(self, object_id="1998-067A", sat_number=25544):
+        self.object_id = object_id
+        self.rcs_size = "LARGE"
+        self.launch_date = datetime.now()
+        self.decay_date = None
+        self.object_type = "PAYLOAD"
+        self.generation = "v1.0"
+        self.constellation = "ISS"
+        self.sat_number = sat_number
+
+    def get_current_designation(self):
+        # Return a mock designation for repository filtering,
+        # but None for actual processing
+        return SatelliteDesignation(
+            sat_name="MOCK",
+            sat_number=self.sat_number,
+            valid_from=datetime.now(),
+            valid_to=None,
+        )
+
+    def get_designation_at_date(self, date):
+        return None
+
+
+class TLEWithNoDesignation:
+    """Mock TLE with satellite that has no designation"""
+
+    def __init__(self, object_id="1998-067A", sat_number=25544):
+        self.satellite = SatelliteWithNoDesignation(object_id, sat_number)
+        self.tle_line1 = f"1 {sat_number}U 98067A   21001.00000000  .00001000  00000-0  10000-3 0  9990"  # noqa: E501
+        self.tle_line2 = f"2 {sat_number}  51.6400 000.0000 0000000   0.0000   0.0000 15.50000000000000"  # noqa: E501
+        self.epoch = datetime.now()
+        self.date_collected = datetime.now()
+        self.data_source = "test"
 
 
 def test_get_tle_data():
@@ -795,3 +835,47 @@ def test_satellite_name_id_repository_exceptions():
     sat_repo = FakeSatelliteRepository([], LookupError("ID not found"))
     with pytest.raises(LookupError, match="ID not found"):
         get_names_for_satellite_id(sat_repo, 25544, "test", "1.0")
+
+
+# Tests for satellite designation warnings
+def test_satellite_designation_warnings(caplog):
+    """Test that all methods log warnings when satellite designation is None"""
+    tle_with_no_designation = TLEWithNoDesignation("1998-067A", 25544)
+    tle_repo = FakeTLERepository([tle_with_no_designation])
+
+    with caplog.at_level(logging.WARNING):
+        # Test get_tle_data
+        get_tle_data(tle_repo, "25544", "catalog", None, None, "test", "1.0")
+
+        # Test get_tles_around_epoch_results
+        get_tles_around_epoch_results(
+            tle_repo, "25544", "catalog", datetime.now(), 1, 1, "test", "1.0"
+        )
+
+        # Test get_nearest_tle_result
+        get_nearest_tle_result(
+            tle_repo, "25544", "catalog", datetime.now(), "test", "1.0"
+        )
+
+        # Test get_adjacent_tle_results (JSON format)
+        get_adjacent_tle_results(
+            tle_repo, "25544", "catalog", datetime.now(), "test", "1.0", "json"
+        )
+
+        # Test get_all_tles_at_epoch_formatted (JSON format)
+        get_all_tles_at_epoch_formatted(
+            tle_repo, datetime.now(), "json", 1, 100, "test", "1.0"
+        )
+
+        # Test get_all_tles_at_epoch_formatted (ZIP format)
+        get_all_tles_at_epoch_formatted(
+            tle_repo, datetime.now(), "zip", 1, 100, "test", "1.0"
+        )
+
+    # Should log warnings for all methods that check designation
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(warning_records) >= 5  # At least 5 warnings should be logged
+    assert all(
+        "No satellite designation found for 1998-067A" in r.message
+        for r in warning_records
+    )

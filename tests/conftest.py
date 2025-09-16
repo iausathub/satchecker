@@ -413,7 +413,8 @@ class FakeTLERepository(AbstractTLERepository):
             tle
             for tle in self._tles
             if (
-                tle.satellite.get_current_designation().sat_number == satellite_number
+                tle.satellite.get_current_designation().sat_number
+                == int(satellite_number)
                 and (
                     (start_date is None or start_date <= tle.epoch)
                     and (end_date is None or tle.epoch <= end_date)
@@ -442,7 +443,7 @@ class FakeTLERepository(AbstractTLERepository):
                 tle
                 for tle in self._tles
                 if tle.satellite.get_current_designation().sat_number
-                == satellite_number
+                == int(satellite_number)
             ),
             key=lambda tle: abs(tle.epoch - epoch),
             default=None,
@@ -473,7 +474,7 @@ class FakeTLERepository(AbstractTLERepository):
         tles = [
             tle
             for tle in self._tles
-            if tle.satellite.get_current_designation().sat_number == id
+            if tle.satellite.get_current_designation().sat_number == int(id)
         ]
         return tles[:1] + tles[1:]
 
@@ -484,7 +485,7 @@ class FakeTLERepository(AbstractTLERepository):
         tles = [
             tle
             for tle in self._tles
-            if tle.satellite.get_current_designation().sat_number == id
+            if tle.satellite.get_current_designation().sat_number == int(id)
         ]
         return tles[: count_before + count_after]
 
@@ -495,7 +496,7 @@ class FakeTLERepository(AbstractTLERepository):
             (
                 tle
                 for tle in self._tles
-                if tle.satellite.get_current_designation().sat_number == id
+                if tle.satellite.get_current_designation().sat_number == int(id)
             ),
             key=lambda tle: abs(tle.epoch - epoch),
             default=None,
