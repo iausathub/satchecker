@@ -120,11 +120,15 @@ app = create_app()
 with app.app_context():
     from api.services.cache_service import initialize_cache_refresh_scheduler
 
-    try:
-        app.logger.info("Setting up cache refresh scheduler")
-        initial_refresh_func = initialize_cache_refresh_scheduler(hours=3)
-        refresh_success = initial_refresh_func()
-        if not refresh_success:
-            app.logger.warning("Initial TLE cache refresh was not successful")
-    except Exception as e:
-        app.logger.error(f"Error during cache initialization: {e}", exc_info=True)
+    # Skip cache refresh if SKIP_CACHE_REFRESH is set
+    if not os.environ.get("SKIP_CACHE_REFRESH"):
+        try:
+            app.logger.info("Setting up cache refresh scheduler")
+            initial_refresh_func = initialize_cache_refresh_scheduler(hours=3)
+            refresh_success = initial_refresh_func()
+            if not refresh_success:
+                app.logger.warning("Initial TLE cache refresh was not successful")
+        except Exception as e:
+            app.logger.error(f"Error during cache initialization: {e}", exc_info=True)
+    else:
+        app.logger.info("Skipping cache refresh (SKIP_CACHE_REFRESH is set)")
