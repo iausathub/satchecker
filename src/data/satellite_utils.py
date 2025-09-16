@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -111,9 +112,38 @@ def fetch_wikipedia_page(url: str) -> BeautifulSoup:
         requests.exceptions.RequestException: If the request fails
     """
     logging.info(f"Fetching data from {url}")
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return BeautifulSoup(response.text, "html.parser")
+
+    # Add headers to mimic a real browser request
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;q=0.9,"
+            "image/webp,*/*;q=0.8"
+        ),
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
+
+    for attempt in range(3):
+        try:
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            return BeautifulSoup(response.text, "html.parser")
+        except requests.exceptions.RequestException as e:
+            if attempt == 2:
+                logging.error(f"Failed to fetch {url} after 3 attempts: {e}")
+                raise
+            else:
+                logging.warning(
+                    f"Attempt {attempt + 1} failed for {url}, retrying: {e}"
+                )
+                time.sleep(1)
 
 
 def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
@@ -170,7 +200,15 @@ def scrape_starlink_data(
         Dictionary with satellite data matched to Starlink generations
     """
     url = "https://en.wikipedia.org/wiki/List_of_Starlink_and_Starshield_launches"
-    soup = fetch_wikipedia_page(url)
+
+    try:
+        soup = fetch_wikipedia_page(url)
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to fetch Wikipedia data: {e}")
+        logging.info(
+            "Skipping Starlink generation data due to Wikipedia access failure"
+        )
+        return {"error": "Wikipedia access failed"}
 
     # Find the table - usually "wikitable" class for Wikipedia tables
     table = soup.find("table", {"class": "wikitable"})
