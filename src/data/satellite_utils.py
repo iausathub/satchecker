@@ -48,14 +48,13 @@ def update_decayed_satellites(decayed_satellites, cursor):
             current_date_time = datetime.now(timezone.utc)
 
             decay_date = sat.get("CURRENT_DECAY", None)
-            sat_name = sat.get("CURRENT_NAME", None)
-            sat_number = int(sat.get("NORAD_CAT_ID", None))
+            object_id = sat.get("CURRENT_INTLDES", None)
             query = """
                 UPDATE satellites SET DECAY_DATE = %s, DATE_MODIFIED = %s
-                WHERE SAT_NAME = %s AND SAT_NUMBER = %s;
+                WHERE OBJECT_ID = %s;
                 """
 
-            cursor.execute(query, (decay_date, current_date_time, sat_name, sat_number))
+            cursor.execute(query, (decay_date, current_date_time, object_id))
             logging.info(f"Query: {cursor.query}")
             # if cursor.rowcount == 0:
             #    logging.warning(
