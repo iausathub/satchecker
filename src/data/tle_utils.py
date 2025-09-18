@@ -13,7 +13,6 @@ def insert_record(
     constellation,
     is_supplemental,
     source,
-    is_current_number,
 ):
     name = record["OBJECT_NAME"]
     tle_line_1 = record["TLE_LINE1"]
@@ -27,10 +26,15 @@ def insert_record(
 
     satellite = EarthSatellite(tle_line_1, tle_line_2, name=name, ts=timescale)
     current_date_time = datetime.datetime.now(datetime.timezone.utc)
+    tle_epoch = satellite.epoch.utc_datetime()
+
+    # check if satellite's object_id is 'UNKNOWN' - if so, set object_id to
+    # 'UNKNOWN_' + sat_number
+    if object_id == "UNKNOWN":
+        object_id = f"UNKNOWN_{satellite.model.satnum}"
+
     # add satellite to database if it doesn't already exist
     sat_to_insert = (
-        satellite.model.satnum,
-        name,
         constellation,
         current_date_time,
         current_date_time,
@@ -39,34 +43,75 @@ def insert_record(
         decay_date,
         object_id,
         object_type,
-        is_current_number,
-        str(satellite.model.satnum),
-        name,
+        object_id,
     )
     satellite_insert_query = """ WITH e AS(
-    INSERT INTO satellites (SAT_NUMBER, SAT_NAME, CONSTELLATION,
+    INSERT INTO satellites (CONSTELLATION,
     DATE_ADDED, DATE_MODIFIED, RCS_SIZE, LAUNCH_DATE, DECAY_DATE, OBJECT_ID,
-    OBJECT_TYPE, HAS_CURRENT_SAT_NUMBER)
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-    ON CONFLICT (SAT_NUMBER, SAT_NAME) DO UPDATE SET
-        DECAY_DATE = EXCLUDED.DECAY_DATE,
-        CONSTELLATION = EXCLUDED.CONSTELLATION,
-        OBJECT_ID = EXCLUDED.OBJECT_ID,
-        OBJECT_TYPE = EXCLUDED.OBJECT_TYPE,
-        RCS_SIZE = EXCLUDED.RCS_SIZE,
-        LAUNCH_DATE = EXCLUDED.LAUNCH_DATE,
-        DATE_MODIFIED = EXCLUDED.DATE_MODIFIED
+    OBJECT_TYPE)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+    ON CONFLICT (OBJECT_ID) DO UPDATE SET
+        LAUNCH_DATE = CASE
+            WHEN EXCLUDED.LAUNCH_DATE IS NOT NULL
+                 AND satellites.LAUNCH_DATE IS DISTINCT FROM EXCLUDED.LAUNCH_DATE
+            THEN EXCLUDED.LAUNCH_DATE
+            ELSE satellites.LAUNCH_DATE
+        END,
+        DECAY_DATE = CASE
+            WHEN EXCLUDED.DECAY_DATE IS NOT NULL
+                 AND satellites.DECAY_DATE IS DISTINCT FROM EXCLUDED.DECAY_DATE
+            THEN EXCLUDED.DECAY_DATE
+            ELSE satellites.DECAY_DATE
+        END,
+        CONSTELLATION = CASE
+            WHEN EXCLUDED.CONSTELLATION IS NOT NULL
+                 AND satellites.CONSTELLATION IS DISTINCT FROM EXCLUDED.CONSTELLATION
+            THEN EXCLUDED.CONSTELLATION
+            ELSE satellites.CONSTELLATION
+        END,
+        OBJECT_TYPE = CASE
+            WHEN EXCLUDED.OBJECT_TYPE IS NOT NULL
+                 AND satellites.OBJECT_TYPE IS DISTINCT FROM EXCLUDED.OBJECT_TYPE
+            THEN EXCLUDED.OBJECT_TYPE
+            ELSE satellites.OBJECT_TYPE
+        END,
+        RCS_SIZE = CASE
+            WHEN EXCLUDED.RCS_SIZE IS NOT NULL
+                 AND satellites.RCS_SIZE IS DISTINCT FROM EXCLUDED.RCS_SIZE
+            THEN EXCLUDED.RCS_SIZE
+            ELSE satellites.RCS_SIZE
+        END,
+        DATE_MODIFIED = CASE
+            WHEN (EXCLUDED.LAUNCH_DATE IS NOT NULL
+                  AND satellites.LAUNCH_DATE IS DISTINCT FROM EXCLUDED.LAUNCH_DATE) OR
+                 (EXCLUDED.DECAY_DATE IS NOT NULL
+                  AND satellites.DECAY_DATE IS DISTINCT FROM EXCLUDED.DECAY_DATE) OR
+                 (EXCLUDED.CONSTELLATION IS NOT NULL
+                  AND satellites.CONSTELLATION IS DISTINCT FROM EXCLUDED.CONSTELLATION)
+                  OR
+                 (EXCLUDED.OBJECT_TYPE IS NOT NULL
+                  AND satellites.OBJECT_TYPE IS DISTINCT FROM EXCLUDED.OBJECT_TYPE) OR
+                 (EXCLUDED.RCS_SIZE IS NOT NULL
+                  AND satellites.RCS_SIZE IS DISTINCT FROM EXCLUDED.RCS_SIZE)
+            THEN EXCLUDED.DATE_MODIFIED
+            ELSE satellites.DATE_MODIFIED
+        END
     WHERE
-        satellites.DECAY_DATE IS DISTINCT FROM EXCLUDED.DECAY_DATE OR
-        satellites.CONSTELLATION IS DISTINCT FROM EXCLUDED.CONSTELLATION OR
-        satellites.OBJECT_ID IS DISTINCT FROM EXCLUDED.OBJECT_ID OR
-        satellites.OBJECT_TYPE IS DISTINCT FROM EXCLUDED.OBJECT_TYPE OR
-        satellites.RCS_SIZE IS DISTINCT FROM EXCLUDED.RCS_SIZE OR
-        satellites.LAUNCH_DATE IS DISTINCT FROM EXCLUDED.LAUNCH_DATE
+        (EXCLUDED.LAUNCH_DATE IS NOT NULL
+         AND satellites.LAUNCH_DATE IS DISTINCT FROM EXCLUDED.LAUNCH_DATE) OR
+        (EXCLUDED.DECAY_DATE IS NOT NULL
+         AND satellites.DECAY_DATE IS DISTINCT FROM EXCLUDED.DECAY_DATE) OR
+        (EXCLUDED.CONSTELLATION IS NOT NULL
+         AND satellites.CONSTELLATION IS DISTINCT FROM EXCLUDED.CONSTELLATION) OR
+        (EXCLUDED.OBJECT_TYPE IS NOT NULL
+         AND satellites.OBJECT_TYPE IS DISTINCT FROM EXCLUDED.OBJECT_TYPE) OR
+        (EXCLUDED.RCS_SIZE IS NOT NULL
+         AND satellites.RCS_SIZE IS DISTINCT FROM EXCLUDED.RCS_SIZE)
     RETURNING id, xmax = 0 as is_new)
     SELECT * FROM e
     UNION ALL
-    (SELECT id, false as is_new FROM satellites WHERE SAT_NUMBER=%s AND SAT_NAME=%s);"""
+    (SELECT id, false as is_new FROM satellites WHERE OBJECT_ID=%s);
+    """
     cursor.execute(satellite_insert_query, sat_to_insert)
     result = cursor.fetchone()
 
@@ -80,30 +125,54 @@ def insert_record(
         log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
         logging.info(f"{log_time}\tnew satellite: {satellite.model.satnum}")
 
-    # update all other satellites with the same sat_number
-    update_query = """
-        UPDATE satellites
-        SET HAS_CURRENT_SAT_NUMBER = FALSE,
-            DATE_MODIFIED = %s
-        WHERE SAT_NUMBER = %s
-        AND id != %s
-        """
+    # if the current designation (valid_to is null) has a different sat_number or
+    # sat_name, set valid_to to the TLE epoch so it's no longer the current designation
+    designation_update_query = """
+    UPDATE satellite_designation
+    SET valid_to = %s, date_modified = %s
+    WHERE id = (
+        SELECT id FROM satellite_designation
+        WHERE sat_id = %s AND valid_to IS NULL
+        AND (sat_number != %s OR sat_name != %s)
+        ORDER BY valid_from DESC
+        LIMIT 1
+    );
+    """
+    designation_to_update = (
+        tle_epoch,
+        current_date_time,
+        sat_id,
+        satellite.model.satnum,
+        name,
+    )
+    cursor.execute(designation_update_query, designation_to_update)
+    designation_changed = cursor.rowcount > 0
 
-    params = (current_date_time, satellite.model.satnum, sat_id)
-    cursor.execute(update_query, params)
-
-    # make sure this satellite has the correct has_current_sat_number value
-    # only allow data from space-track to update this value, celestrak has
-    # had a few instances of name changes outside of preliminary names
-    if is_current_number and source == "spacetrack":
-        update_query = """
-            UPDATE satellites
-            SET HAS_CURRENT_SAT_NUMBER = TRUE,
-            DATE_MODIFIED = %s
-        WHERE id = %s
+    # add designation to database if it doesn't already exist
+    # set valid_from to TLE epoch, valid_to to null (only if new, don't
+    # edit otherwise)
+    if designation_changed:
+        designation_insert_query = """
+        INSERT INTO satellite_designation (sat_id, sat_name, sat_number,
+        valid_from, valid_to)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (sat_number, sat_name, sat_id, valid_from, valid_to) DO NOTHING
+        RETURNING id;
         """
-        params = (current_date_time, sat_id)
-        cursor.execute(update_query, params)
+        designation_to_insert = (
+            sat_id,
+            name,
+            satellite.model.satnum,
+            tle_epoch,
+            None,
+        )
+        cursor.execute(designation_insert_query, designation_to_insert)
+        result = cursor.fetchone()
+        if result:
+            designation_id = result[0]
+            logging.info(
+                f"Created new designation {designation_id} for satellite {sat_id}"
+            )
 
     # add TLE to database
     tle_insert_query = """
@@ -124,11 +193,9 @@ def insert_record(
 
 
 # Parse TLE list and add entries to database if they don't exist
-def add_tle_list_to_db(
-    tle, constellation, cursor, connection, is_supplemental, source, is_current_number
-):
+def add_tle_list_to_db(tle, constellation, cursor, connection, is_supplemental, source):
     tle_count = 0
-    commit_batch_size = 100  # Commit every 100 TLEs
+    commit_batch_size = 10
 
     try:
         if source == "celestrak":
@@ -150,7 +217,6 @@ def add_tle_list_to_db(
                     constellation,
                     is_supplemental,
                     source,
-                    is_current_number,
                 )
                 counter += 3
                 tle_count += 1
@@ -185,7 +251,6 @@ def add_tle_list_to_db(
                     constellation,
                     is_supplemental,
                     source,
-                    is_current_number,
                 )
                 tle_count += 1
                 logging.info(f"TLE count before batch size check: {tle_count}")
@@ -237,7 +302,7 @@ def get_celestrak_general_tles(cursor, connection):
                 group if (group == "starlink" or group == "oneweb") else "other"
             )
             add_tle_list_to_db(
-                tle, constellation, cursor, connection, "false", "celestrak", True
+                tle, constellation, cursor, connection, "false", "celestrak"
             )
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
@@ -256,7 +321,7 @@ def get_celestrak_supplemental_tles(cursor, connection):
         tle.raise_for_status()
         try:
             add_tle_list_to_db(
-                tle, constellation, cursor, connection, "true", "celestrak", True
+                tle, constellation, cursor, connection, "true", "celestrak"
             )
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
@@ -280,7 +345,7 @@ def get_spacetrack_tles(cursor, connection):
             timeout=60,
         )
         try:
-            add_tle_list_to_db(tle, "", cursor, connection, "false", "spacetrack", True)
+            add_tle_list_to_db(tle, "", cursor, connection, "false", "spacetrack")
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
             logging.error(log_time + "\t" + "database ERROR:", err)

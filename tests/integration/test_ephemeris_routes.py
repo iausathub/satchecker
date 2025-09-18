@@ -1,8 +1,11 @@
 # ruff: noqa: E501, S101, F841
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from astropy.time import TimeDelta
-from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.satellite_factory import (
+    SatelliteDesignationFactory,
+    SatelliteFactory,
+)
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
@@ -10,7 +13,13 @@ from api.common import error_messages
 
 
 def test_get_ephemeris_by_name(client, session, services_available):
-    satellite = SatelliteFactory(sat_name="ISS")
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="ISS", valid_from=datetime(2020, 5, 20)
+            )
+        ]
+    )
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -23,7 +32,13 @@ def test_get_ephemeris_by_name(client, session, services_available):
 
 
 def test_get_ephemeris_by_name_jd_step(client, session, services_available):
-    satellite = SatelliteFactory(sat_name="ISS")
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="ISS", valid_from=datetime(2020, 5, 20)
+            )
+        ]
+    )
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -37,7 +52,13 @@ def test_get_ephemeris_by_name_jd_step(client, session, services_available):
 
 
 def test_get_ephemeris_by_catalog_number(client, session, services_available):
-    satellite = SatelliteFactory(sat_number="25544")
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_number="25544", valid_from=datetime(2020, 5, 20)
+            )
+        ]
+    )
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -50,7 +71,13 @@ def test_get_ephemeris_by_catalog_number(client, session, services_available):
 
 
 def test_get_ephemeris_by_catalog_number_jdstep(client, session, services_available):
-    satellite = SatelliteFactory(sat_number="25544")
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_number="25544", valid_from=datetime(2020, 5, 20)
+            )
+        ]
+    )
     tle = TLEFactory(satellite=satellite, epoch=datetime(2020, 5, 30))
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -176,7 +203,14 @@ def test_get_ephemeris_tle_date_out_of_range(
     base_jd = test_time
     base_datetime = base_jd.to_datetime(timezone=timezone.utc)
 
-    satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="TEST_ISS_DATE_RANGE",
+                valid_from=base_datetime - timedelta(days=30),
+            )
+        ]
+    )
     tle = TLEFactory(satellite=satellite, epoch=base_datetime)
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -204,7 +238,14 @@ def test_get_ephemeris_tle_date_in_range(client, session, test_time):
     base_jd = test_time
     base_datetime = base_jd.to_datetime(timezone=timezone.utc)
 
-    satellite = SatelliteFactory(sat_name="TEST_ISS_DATE_RANGE")
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="TEST_ISS_DATE_RANGE",
+                valid_from=base_datetime - timedelta(days=30),
+            )
+        ]
+    )
     tle = TLEFactory(satellite=satellite, epoch=base_datetime)
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -223,3 +264,28 @@ def test_get_ephemeris_tle_date_in_range(client, session, test_time):
         f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={valid_past_jd.jd}"
     )
     assert response.status_code == 200
+
+
+def test_get_ephemeris_no_designation_found(client, session, services_available):
+    """Test that NO_DESIGNATION_FOUND error is returned when satellite has TLE but no valid designation at TLE epoch."""
+    # Create a satellite with a designation that is valid after the TLE epoch
+    base_datetime = datetime(2020, 5, 30, tzinfo=timezone.utc)
+
+    satellite = SatelliteFactory(
+        designations=[
+            SatelliteDesignationFactory(
+                sat_name="NO_DESIGNATION_SAT",
+                valid_from=base_datetime + timedelta(days=10),
+            )
+        ]
+    )
+    tle = TLEFactory(satellite=satellite, epoch=base_datetime)
+    tle_repo = SqlAlchemyTLERepository(session)
+    tle_repo.add(tle)
+    session.commit()
+
+    response = client.get(
+        "/ephemeris/name/?name=NO_DESIGNATION_SAT&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
+    )
+    assert response.status_code == 500
+    assert error_messages.NO_DESIGNATION_FOUND in response.text

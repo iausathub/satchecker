@@ -1,10 +1,12 @@
 import abc
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import func
 
-from api.adapters.database_orm import SatelliteDb
+from api.adapters.database_orm import SatelliteDb, SatelliteDesignationDb
 from api.domain.models.satellite import Satellite
+from api.domain.models.satellite_designation import SatelliteDesignation
 
 
 class AbstractSatelliteRepository(abc.ABC):
@@ -80,7 +82,9 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
     def _get(self, satellite_id: str) -> Optional[Satellite]:
         orm_satellite = (
             self.session.query(SatelliteDb)
-            .filter(SatelliteDb.sat_number == satellite_id)
+            .join(SatelliteDesignationDb)
+            .filter(SatelliteDesignationDb.sat_number == satellite_id)
+            .filter(SatelliteDesignationDb.valid_to.is_(None))
             .first()
         )  # noqa: E501
         return self._to_domain(orm_satellite)
@@ -97,20 +101,21 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
             list of tuple: A list of tuples, each containing the NORAD ID, date added,
             and a boolean indicating if it has the current satellite number.
         """
-        satellite_names_and_dates = (
+        satellite_numbers_and_dates = (
             self.session.query(
-                SatelliteDb.sat_number,
-                SatelliteDb.date_added,
-                SatelliteDb.has_current_sat_number,
+                SatelliteDesignationDb.sat_number,
+                SatelliteDesignationDb.date_added,
+                SatelliteDesignationDb.valid_from,
+                SatelliteDesignationDb.valid_to,
             )
             .filter(
-                SatelliteDb.sat_name == name,
+                SatelliteDesignationDb.sat_name == name,
             )
-            .order_by(SatelliteDb.date_added.desc())
+            .order_by(SatelliteDesignationDb.date_added.desc())
             .all()
         )
 
-        return satellite_names_and_dates
+        return satellite_numbers_and_dates
 
     def _get_satellite_names_from_norad_id(self, id):
         """
@@ -125,20 +130,21 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         """
         satellite_names_and_dates = (
             self.session.query(
-                SatelliteDb.sat_name,
-                SatelliteDb.date_added,
-                SatelliteDb.has_current_sat_number,
+                SatelliteDesignationDb.sat_name,
+                SatelliteDesignationDb.date_added,
+                SatelliteDesignationDb.valid_from,
+                SatelliteDesignationDb.valid_to,
             )
             .filter(
-                SatelliteDb.sat_number == id,
+                SatelliteDesignationDb.sat_number == id,
             )
-            .order_by(SatelliteDb.date_added.desc())
+            .order_by(SatelliteDesignationDb.date_added.desc())
             .all()
         )
 
         return satellite_names_and_dates
 
-    def _get_satellite_data_by_id(self, id):
+    def _get_satellite_data_by_id(self, id, epoch: Optional[datetime] = None):
         """
         Retrieves satellite data (rcs_size, launch date, etc. ) for a given NORAD ID.
 
@@ -147,22 +153,41 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
         Args:
             id (int): The NORAD ID of the satellite.
+            epoch (datetime): The date/time to check designation validity against.
+                             If None, gets the currently active designation.
 
         Returns:
-            SatelliteDb: The satellite data if found, otherwise None.
+            Satellite: The satellite data if found, otherwise None.
         """
-        satellite = (
+        query = (
             self.session.query(SatelliteDb)
-            .filter(
-                SatelliteDb.sat_number == id,
-                SatelliteDb.has_current_sat_number == True,  # noqa: E712
-            )
-            .first()
+            .join(SatelliteDesignationDb)
+            .filter(SatelliteDesignationDb.sat_number == id)
         )
 
-        return satellite
+        if epoch is not None:
+            query = query.filter(
+                SatelliteDesignationDb.valid_from <= epoch,
+                (
+                    SatelliteDesignationDb.valid_to.is_(None)
+                    | (SatelliteDesignationDb.valid_to > epoch)
+                ),
+            )
+        else:
+            # If epoch is None, get the currently active designation
+            current_time = datetime.now()
+            query = query.filter(
+                SatelliteDesignationDb.valid_from <= current_time,
+                (
+                    SatelliteDesignationDb.valid_to.is_(None)
+                    | (SatelliteDesignationDb.valid_to > current_time)
+                ),
+            )
 
-    def _get_satellite_data_by_name(self, name):
+        data = query.first()
+        return self._to_domain(data)
+
+    def _get_satellite_data_by_name(self, name, epoch: Optional[datetime] = None):
         """
         Retrieves satellite data (rcs_size, launch date, etc. ) for a given satellite
         name.
@@ -172,18 +197,39 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
         Args:
             name (str): The name of the satellite.
+            epoch (datetime): The date/time to check designation validity against.
+                             If None, gets the currently active designation.
 
         Returns:
-            SatelliteDb: The satellite data if found, otherwise None.
+            Satellite: The satellite data if found, otherwise None.
         """
-        satellite = (
+        query = (
             self.session.query(SatelliteDb)
-            .filter(SatelliteDb.sat_name == name)
-            .order_by(SatelliteDb.date_added.desc())
-            .first()
+            .join(SatelliteDesignationDb)
+            .filter(SatelliteDesignationDb.sat_name == name)
         )
 
-        return satellite
+        if epoch is not None:
+            query = query.filter(
+                SatelliteDesignationDb.valid_from <= epoch,
+                (
+                    SatelliteDesignationDb.valid_to.is_(None)
+                    | (SatelliteDesignationDb.valid_to > epoch)
+                ),
+            )
+        else:
+            # If epoch is None, get the currently active designation
+            current_time = datetime.now()
+            query = query.filter(
+                SatelliteDesignationDb.valid_from <= current_time,
+                (
+                    SatelliteDesignationDb.valid_to.is_(None)
+                    | (SatelliteDesignationDb.valid_to > current_time)
+                ),
+            )
+
+        satellite = query.first()
+        return self._to_domain(satellite)
 
     def _get_starlink_generations(self):
         """
@@ -203,8 +249,9 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
                 func.min(SatelliteDb.launch_date).label("earliest_launch"),
                 func.max(SatelliteDb.launch_date).label("latest_launch"),
             )
+            .join(SatelliteDesignationDb)
             .filter(
-                func.lower(SatelliteDb.sat_name).like("%starlink%"),
+                func.lower(SatelliteDesignationDb.sat_name).like("%starlink%"),
                 SatelliteDb.generation.isnot(None),
             )
             .group_by(SatelliteDb.generation)
@@ -216,19 +263,20 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
     def _get_active_satellites(self, object_type: Optional[str] = None):
         """
         Retrieves active satellites based on the provided object type (optional).
-        Only returns satellites that are active (no decay date) and have current
-        satellite numbers (to eliminate duplicates).
+        Returns satellites that are active (no decay date) with all their designations
+        (both historical and current).
 
         Args:
             object_type (str): The type of the object, either "payload", "debris",
             "rocket body", "tba", or "unknown".
 
         Returns:
-            List[SatelliteDb]: A list of active satellites.
+            List[Satellite]: A list of active satellites with all their designations.
         """
-        query = self.session.query(SatelliteDb).filter(
-            SatelliteDb.decay_date.is_(None),
-            SatelliteDb.has_current_sat_number == True,  # noqa: E712
+        query = (
+            self.session.query(SatelliteDb)
+            .join(SatelliteDesignationDb)
+            .filter(SatelliteDb.decay_date.is_(None))
         )
 
         if object_type:
@@ -236,7 +284,13 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
                 func.lower(SatelliteDb.object_type) == func.lower(object_type)
             )
 
-        return query.all()
+        satellite_results = query.all()
+
+        satellites = []
+        for satellite_result in satellite_results:
+            satellites.append(self._to_domain(satellite_result))
+
+        return satellites
 
     def _add(self, satellite: Satellite):
         orm_satellite = self._to_orm(satellite)
@@ -244,12 +298,35 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
     # SQLAlchemyRepository-specific methods
     @staticmethod
+    def _designation_to_domain(orm_designation) -> SatelliteDesignation:
+        return SatelliteDesignation(
+            sat_name=orm_designation.sat_name,
+            sat_number=orm_designation.sat_number,
+            valid_from=orm_designation.valid_from,
+            valid_to=orm_designation.valid_to,
+        )
+
+    @staticmethod
+    def _designation_to_orm(domain_designation):
+        return SatelliteDesignationDb(
+            sat_name=domain_designation.sat_name,
+            sat_number=domain_designation.sat_number,
+            valid_from=domain_designation.valid_from,
+            valid_to=domain_designation.valid_to,
+        )
+
+    @staticmethod
     def _to_domain(orm_satellite) -> Optional[Satellite]:
         if orm_satellite is None:
             return None
+
+        # Convert designations from ORM to domain
+        designations = [
+            SqlAlchemySatelliteRepository._designation_to_domain(orm_designation)
+            for orm_designation in orm_satellite.designations
+        ]
+
         return Satellite(
-            sat_number=orm_satellite.sat_number,
-            sat_name=orm_satellite.sat_name,
             constellation=orm_satellite.constellation,
             generation=orm_satellite.generation,
             rcs_size=orm_satellite.rcs_size,
@@ -257,14 +334,20 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
             decay_date=orm_satellite.decay_date,
             object_id=orm_satellite.object_id,
             object_type=orm_satellite.object_type,
-            has_current_sat_number=orm_satellite.has_current_sat_number,
+            designations=designations,
         )
 
     @staticmethod
     def _to_orm(domain_satellite):
+        if domain_satellite is None:
+            return None
+
+        # Convert designations from domain to ORM
+        designations = [
+            SqlAlchemySatelliteRepository._designation_to_orm(designation)
+            for designation in domain_satellite.designations
+        ]
         return SatelliteDb(
-            sat_number=domain_satellite.sat_number,
-            sat_name=domain_satellite.sat_name,
             constellation=domain_satellite.constellation,
             generation=domain_satellite.generation,
             rcs_size=domain_satellite.rcs_size,
@@ -272,5 +355,5 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
             decay_date=domain_satellite.decay_date,
             object_id=domain_satellite.object_id,
             object_type=domain_satellite.object_type,
-            has_current_sat_number=domain_satellite.has_current_sat_number,
+            designations=designations,
         )

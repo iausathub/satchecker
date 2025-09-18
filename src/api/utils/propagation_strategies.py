@@ -712,8 +712,10 @@ def process_satellite_batch(args):
                     "range_km": float(distance.km[idx]),
                     "julian_date": julian_dates[idx],
                     "angle": np.degrees(sat_fov_angles[idx]),
-                    "name": tle.satellite.sat_name,
-                    "norad_id": tle.satellite.sat_number,
+                    "name": tle.satellite.get_designation_at_date(tle.epoch).sat_name,
+                    "norad_id": tle.satellite.get_designation_at_date(
+                        tle.epoch
+                    ).sat_number,
                     "tle_epoch": output_utils.format_date(tle.epoch),
                 }
 
@@ -731,7 +733,9 @@ def process_satellite_batch(args):
             satellites_processed += 1
 
         except Exception as e:
-            print(f"Error processing satellite {tle.satellite.sat_name}: {e}")
+            # TODO: Verify that correct designation is the one to use here
+            sat_name = tle.satellite.get_current_designation().sat_name
+            print(f"Error processing satellite {sat_name}: {e}")
             satellites_processed += 1
 
     return batch_results, satellites_processed

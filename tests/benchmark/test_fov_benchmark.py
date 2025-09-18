@@ -78,7 +78,10 @@ class MockTLERepository(AbstractTLERepository):
 
     def _get_closest_by_satellite_name(self, satellite_name, epoch):
         matching_tles = [
-            tle for tle in self.mock_tles if tle.satellite.sat_name == satellite_name
+            tle
+            for tle in self.mock_tles
+            if tle.satellite.get_designation_at_date(tle.epoch).sat_name
+            == satellite_name
         ]
         if not matching_tles:
             return None
@@ -88,7 +91,8 @@ class MockTLERepository(AbstractTLERepository):
         matching_tles = [
             tle
             for tle in self.mock_tles
-            if tle.satellite.sat_number == satellite_number
+            if tle.satellite.get_designation_at_date(tle.epoch).sat_number
+            == satellite_number
         ]
         if not matching_tles:
             return None

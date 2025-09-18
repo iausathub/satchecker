@@ -7,7 +7,6 @@ from api.entrypoints.extensions import db, limiter
 from api.services.fov_service import (
     get_satellite_passes_in_fov,
     get_satellites_above_horizon,
-    # get_satellites_above_horizon_range,
 )
 from api.services.validation_service import validate_parameters
 

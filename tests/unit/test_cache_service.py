@@ -4,7 +4,10 @@ from datetime import datetime, timezone
 import astropy.units as u
 import pytest
 from astropy.coordinates import EarthLocation
-from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.satellite_factory import (
+    SatelliteDesignationFactory,
+    SatelliteFactory,
+)
 from tests.factories.tle_factory import TLEFactory
 
 from api.services.cache_service import (
@@ -136,12 +139,13 @@ def test_batch_serialize_tles_missing_satellite_attribute(mocker):
 
 def test_batch_serialize_tles_satellite_missing_attributes(mocker):
     mock_satellite = mocker.Mock()
-    mock_satellite.sat_name = "TEST SAT"
-    mock_satellite.sat_number = 12345
-    mock_satellite.decay_date = None
+    mock_satellite.designations = [
+        SatelliteDesignationFactory(sat_name="TEST SAT", sat_number=12345)
+    ]
+    mock_satellite.constellation = None
 
-    # Missing has_current_sat_number attribute
-    del mock_satellite.has_current_sat_number
+    # Missing decay_date attribute
+    del mock_satellite.decay_date
 
     mock_tle = mocker.Mock()
     mock_tle.satellite = mock_satellite
@@ -156,10 +160,8 @@ def test_batch_serialize_tles_satellite_missing_attributes(mocker):
     mock_tle.is_supplemental = False
     mock_tle.data_source = "test"
 
-    result = batch_serialize_tles([mock_tle])
-
-    assert len(result) == 1
-    assert result[0]["satellite"]["has_current_sat_number"] is True
+    with pytest.raises(AttributeError):
+        batch_serialize_tles([mock_tle])
 
 
 def test_batch_serialize_tles_datetime_serialization_error(mocker):
@@ -168,7 +170,6 @@ def test_batch_serialize_tles_datetime_serialization_error(mocker):
     mock_satellite.sat_name = "TEST SAT"
     mock_satellite.sat_number = 12345
     mock_satellite.decay_date = None
-    mock_satellite.has_current_sat_number = True
 
     mock_tle = mocker.Mock()
     mock_tle.satellite = mock_satellite

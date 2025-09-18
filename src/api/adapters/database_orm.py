@@ -21,19 +21,14 @@ class Base(DeclarativeBase):
     pass
 
 
-class SatelliteDb(Base):
-    __tablename__ = "satellites"
+class SatelliteDesignationDb(Base):
+    __tablename__ = "satellite_designation"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    sat_number = Column(Integer, nullable=False)
+    sat_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
     sat_name = Column(Text, nullable=False)
-    constellation = Column(Text)
-    generation = Column(Text)
-    rcs_size = Column(Text)
-    launch_date = Column(DateTime(timezone=True))
-    decay_date = Column(DateTime(timezone=True))
-    object_id = Column(Text)
-    object_type = Column(Text)
-    has_current_sat_number = Column(Boolean, nullable=False, default=False)
+    sat_number = Column(Integer, nullable=False)
+    valid_from = Column(DateTime(timezone=True), nullable=False)
+    valid_to = Column(DateTime(timezone=True))
     date_added = Column(DateTime(timezone=True), nullable=False, default=func.now())
     date_modified = Column(
         DateTime(timezone=True),
@@ -41,22 +36,64 @@ class SatelliteDb(Base):
         default=func.now(),
         onupdate=func.now(),
     )
+
+    satellite = relationship("SatelliteDb", back_populates="designations")
+
     __table_args__ = (
-        UniqueConstraint("sat_number", "sat_name"),
+        UniqueConstraint(
+            "sat_number",
+            "sat_name",
+            "sat_id",
+            "valid_from",
+            "valid_to",
+            name="satellite_designation_unique_period",
+        ),
+        Index("idx_sat_des_sat_number_sat_name", sat_number, sat_name),
+        Index("idx_sat_des_valid_from", valid_from),
+        Index("idx_sat_des_valid_to", valid_to),
+        Index("idx_sat_des_temporal_range", valid_from, valid_to),
+        Index("idx_sat_des_sat_id_temporal", sat_id, valid_from, valid_to),
+        Index("idx_sat_des_temporal_periods", sat_id, valid_from, valid_to),
+        Index("idx_sat_des_designation_lookup", sat_number, sat_name, sat_id),
+    )
+
+
+class SatelliteDb(Base):
+    __tablename__ = "satellites"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    constellation = Column(Text)
+    generation = Column(Text)
+    rcs_size = Column(Text)
+    launch_date = Column(DateTime(timezone=True))
+    decay_date = Column(DateTime(timezone=True))
+    object_id = Column(Text)
+    object_type = Column(Text)
+    date_added = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    date_modified = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=func.now(),
+        onupdate=func.now(),
+    )
+
+    designations = relationship("SatelliteDesignationDb", back_populates="satellite")
+
+    __table_args__ = (
+        UniqueConstraint("object_id"),
         Index(
             "idx_satellites_active",
             decay_date,
             postgresql_where="(decay_date IS NOT NULL)",
         ),
         Index("idx_satellites_decay_date", decay_date),
+        Index("idx_satellites_launch_date", launch_date),
+        Index("idx_satellites_active_range", launch_date, decay_date),
         Index(
-            "idx_satellites_decay_name",
+            "idx_satellites_active_covering",
+            launch_date,
             decay_date,
-            sat_name,
-            postgresql_include=["id", "sat_number", "has_current_sat_number"],
+            postgresql_include=["id", "constellation", "object_id", "object_type"],
         ),
-        Index("idx_satellites_has_current_sat_number", has_current_sat_number),
-        Index("idx_satellites_sat_number_sat_name", sat_number, sat_name),
     )
 
 

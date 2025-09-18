@@ -420,8 +420,8 @@ def test_parse_tle():
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
     result = parse_tle(tle)
-    assert result.satellite.sat_name == "ISS (ZARYA)"
-    assert result.satellite.sat_number == 25544
+    assert result.satellite.get_current_designation().sat_name == "ISS (ZARYA)"
+    assert result.satellite.get_current_designation().sat_number == 25544
     assert (
         result.tle_line1
         == "1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997"
