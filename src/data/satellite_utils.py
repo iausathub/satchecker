@@ -358,9 +358,10 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 ephemeris_stop,
                 frame
             ) VALUES (
-                (SELECT id FROM satellites
-                 WHERE sat_name = %s
-                 AND has_current_sat_number = true),
+                (SELECT s.id FROM satellites s
+                 JOIN satellite_designation sd ON s.id = sd.sat_id
+                 WHERE sd.sat_name = %s
+                 AND sd.valid_to IS NULL),
                 %s,
                 %s,
                 %s,
