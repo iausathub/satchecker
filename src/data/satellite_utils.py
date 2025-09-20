@@ -347,6 +347,26 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         connection: Database connection
     """
     try:
+        satellite_lookup = """
+            SELECT s.id FROM satellites s
+            JOIN satellite_designation sd ON s.id = sd.sat_id
+            WHERE sd.sat_name = %s
+            AND sd.valid_to IS NULL
+        """
+
+        cursor.execute(satellite_lookup, (parsed_data["satellite_name"],))
+        satellite_result = cursor.fetchone()
+
+        if satellite_result is None:
+            logging.warning(
+                "Satellite {} not found in database, skipping ephemeris data".format(
+                    parsed_data["satellite_name"]
+                )
+            )
+            return
+
+        satellite_id = satellite_result[0]
+
         ephemeris_insert = """
             INSERT INTO interpolable_ephemeris (
                 satellite,
@@ -358,10 +378,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 ephemeris_stop,
                 frame
             ) VALUES (
-                (SELECT s.id FROM satellites s
-                 JOIN satellite_designation sd ON s.id = sd.sat_id
-                 WHERE sd.sat_name = %s
-                 AND sd.valid_to IS NULL),
+                %s,
                 %s,
                 %s,
                 %s,
@@ -377,7 +394,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         cursor.execute(
             ephemeris_insert,
             (
-                parsed_data["satellite_name"],
+                satellite_id,
                 datetime.now(timezone.utc),  # date_collected
                 parsed_data["generated_at"],
                 "starlink",
@@ -387,7 +404,15 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 parsed_data["frame"],
             ),
         )
-        ephemeris_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if result is None:
+            logging.info(
+                "Ephemeris data already exists for "
+                f"{parsed_data['satellite_name']} at "
+                f"{parsed_data['generated_at']}, skipping"
+            )
+            return
+        ephemeris_id = result[0]
 
         # Prepare the points data for batch insert
         timestamps = parsed_data["timestamps"]
@@ -485,6 +510,10 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
             satellite_name = filename[start_idx:end_idx]
     except Exception as e:
         logging.warning(f"Could not parse satellite name from filename {filename}: {e}")
+
+    # Validate that we have a satellite name
+    if satellite_name is None:
+        raise ValueError(f"Could not extract satellite name from filename: {filename}")
 
     # Parse creation time
     generated_at = None
