@@ -206,18 +206,7 @@ def get_starlink_satellites(cursor: psycopg2.extensions.cursor) -> list[tuple]:
     Returns:
         List of satellite tuples
     """
-    cursor.execute(
-        """
-        SELECT s.*, d.sat_name
-        FROM satellites s
-        JOIN (
-            SELECT DISTINCT ON (sat_id) sat_id, sat_name
-            FROM satellite_designation
-            WHERE sat_name ILIKE '%STARLINK%'
-            ORDER BY sat_id, sat_name
-        ) d ON s.id = d.sat_id
-    """
-    )
+    cursor.execute("SELECT * FROM satellites WHERE sat_name LIKE '%STARLINK%'")
     return cursor.fetchall()
 
 
