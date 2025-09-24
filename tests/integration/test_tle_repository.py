@@ -9,7 +9,6 @@ from src.api.adapters.repositories.satellite_repository import (
 )
 from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from tests.factories import SatelliteFactory, TLEFactory
-from tests.factories.satellite_factory import SatelliteDesignationFactory
 
 
 def test_add_tle(session, services_available):
@@ -19,7 +18,7 @@ def test_add_tle(session, services_available):
     tle_repository.add(tle)
     session.commit()
 
-    repo_tle = SqlAlchemyTLERepository._to_domain(session.query(TLEDb).first())
+    repo_tle = SqlAlchemyTLERepository._to_domain(session.query(TLEDb).one())
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
@@ -36,7 +35,7 @@ def test_add_tle_existing_satellite(session, services_available):
     tle_repository.add(tle)
     session.commit()
 
-    repo_tle = SqlAlchemyTLERepository._to_domain(session.query(TLEDb).first())
+    repo_tle = SqlAlchemyTLERepository._to_domain(session.query(TLEDb).one())
     assert repo_tle.tle_line1 == tle.tle_line1
 
 
@@ -48,7 +47,7 @@ def test_get_tle_by_satellite_number(session, services_available):
     session.commit()
 
     repo_tle = tle_repository.get_closest_by_satellite_number(
-        tle.satellite.get_current_designation().sat_number, tle.epoch, tle.data_source
+        tle.satellite.sat_number, tle.epoch, tle.data_source
     )
     assert repo_tle.tle_line1 == tle.tle_line1
 
@@ -61,7 +60,7 @@ def test_get_tle_by_satellite_name(session, services_available):
     session.commit()
 
     repo_tle = tle_repository.get_closest_by_satellite_name(
-        tle.satellite.get_current_designation().sat_name, tle.epoch, tle.data_source
+        tle.satellite.sat_name, tle.epoch, tle.data_source
     )
     assert repo_tle.tle_line1 == tle.tle_line1
 
@@ -103,7 +102,7 @@ def test_get_all_for_date_range_by_satellite_number(session, services_available)
     session.commit()
 
     repo_tles = tle_repository.get_all_for_date_range_by_satellite_number(
-        tle.satellite.get_current_designation().sat_number, None, None
+        tle.satellite.sat_number, None, None
     )
     assert any(t.tle_line1 == tle.tle_line1 for t in repo_tles)
     assert any(t.tle_line1 == tle_2.tle_line1 for t in repo_tles)
@@ -124,7 +123,7 @@ def test_get_all_for_date_range_by_satellite_name(session, services_available):
     session.commit()
 
     repo_tles = tle_repository.get_all_for_date_range_by_satellite_name(
-        tle.satellite.get_current_designation().sat_name, None, None
+        tle.satellite.sat_name, None, None
     )
     assert any(t.tle_line1 == tle.tle_line1 for t in repo_tles)
     assert any(t.tle_line1 == tle_2.tle_line1 for t in repo_tles)
@@ -165,7 +164,7 @@ def test_get_all_for_date_range_with_dates(session, services_available):
     session.commit()
 
     repo_tles = tle_repository.get_all_for_date_range_by_satellite_number(
-        tle.satellite.get_current_designation().sat_number,
+        tle.satellite.sat_number,
         tle.epoch - timedelta(days=1),
         tle.epoch + timedelta(days=1),
     )
@@ -173,7 +172,7 @@ def test_get_all_for_date_range_with_dates(session, services_available):
     assert len(repo_tles) == 1
 
     repo_tles = tle_repository.get_all_for_date_range_by_satellite_name(
-        tle_2.satellite.get_current_designation().sat_name,
+        tle_2.satellite.sat_name,
         tle_2.epoch - timedelta(days=1),
         tle_2.epoch + timedelta(days=1),
     )
@@ -184,50 +183,34 @@ def test_get_all_for_date_range_with_dates(session, services_available):
 
 def test_get_norad_ids_from_satellite_name(session, services_available):
     satellite = SatelliteFactory()
-    satellite_new = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name=satellite.get_current_designation().sat_name
-            )
-        ]
-    )
+    satellite_new = SatelliteFactory(sat_name=satellite.sat_name)
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
     sat_repository.add(satellite_new)
     session.commit()
 
-    results = sat_repository.get_norad_ids_from_satellite_name(
-        satellite.get_current_designation().sat_name
-    )
+    results = sat_repository.get_norad_ids_from_satellite_name(satellite.sat_name)
     sat_numbers = [result[0] for result in results]
-    assert satellite.get_current_designation().sat_number in sat_numbers
-    assert satellite_new.get_current_designation().sat_number in sat_numbers
+    assert satellite.sat_number in sat_numbers
+    assert satellite_new.sat_number in sat_numbers
 
 
 def test_get_satellite_names_from_norad_id(
     session,
 ):
     satellite = SatelliteFactory()
-    satellite_new = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_number=satellite.get_current_designation().sat_number
-            )
-        ]
-    )
+    satellite_new = SatelliteFactory(sat_number=satellite.sat_number)
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)
     sat_repository.add(satellite_new)
     session.commit()
 
-    results = sat_repository.get_satellite_names_from_norad_id(
-        satellite.get_current_designation().sat_number
-    )
+    results = sat_repository.get_satellite_names_from_norad_id(satellite.sat_number)
 
     # Extract names from results
     sat_names = [result[0] for result in results]
-    assert satellite.get_current_designation().sat_name in sat_names
-    assert satellite_new.get_current_designation().sat_name in sat_names
+    assert satellite.sat_name in sat_names
+    assert satellite_new.sat_name in sat_names
 
 
 def test_get_satellite_names_from_norad_id_no_match(session, services_available):
@@ -236,9 +219,7 @@ def test_get_satellite_names_from_norad_id_no_match(session, services_available)
     results = sat_repository.get_satellite_names_from_norad_id("12345")
     assert results == []
 
-    satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_number="25544")]
-    )
+    satellite = SatelliteFactory(sat_number="25544")
     sat_repository.add(satellite)
     session.commit()
 
@@ -252,9 +233,7 @@ def test_get_norad_ids_from_satellite_name_no_match(session, services_available)
     results = sat_repository.get_norad_ids_from_satellite_name("NO_MATCH")
     assert results == []
 
-    satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="ISS")]
-    )
+    satellite = SatelliteFactory(sat_name="ISS")
     sat_repository.add(satellite)
     session.commit()
 
@@ -268,12 +247,8 @@ def test_get_satellite_data_by_id(session, services_available):
     sat_repository.add(satellite)
     session.commit()
 
-    results = sat_repository.get_satellite_data_by_id(
-        satellite.get_current_designation().sat_number
-    )
-    assert (
-        results.designations[0].sat_name == satellite.get_current_designation().sat_name
-    )
+    results = sat_repository.get_satellite_data_by_id(satellite.sat_number)
+    assert results.sat_name == satellite.sat_name
 
 
 def test_get_satellite_data_by_id_no_match(session, services_available):
@@ -290,13 +265,8 @@ def test_get_satellite_data_by_name(session, services_available):
     sat_repository.add(satellite)
     session.commit()
 
-    results = sat_repository.get_satellite_data_by_name(
-        satellite.get_current_designation().sat_name
-    )
-    assert (
-        results.designations[0].sat_number
-        == satellite.get_current_designation().sat_number
-    )
+    results = sat_repository.get_satellite_data_by_name(satellite.sat_name)
+    assert results.sat_number == satellite.sat_number
 
 
 def test_get_satellite_data_by_name_no_match(session, services_available):
@@ -345,9 +315,7 @@ def test_get_adjacent_tles(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
-    satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="ISS")]
-    )
+    satellite = SatelliteFactory(sat_name="ISS")
     sat_repository.add(satellite)
 
     epoch = datetime.now(timezone.utc) - timedelta(days=3)
@@ -363,18 +331,14 @@ def test_get_adjacent_tles(session, services_available):
     tle_repository.add(tle_5)
     session.commit()
 
-    results = tle_repository.get_adjacent_tles(
-        satellite.get_current_designation().sat_number, "catalog", epoch
-    )
+    results = tle_repository.get_adjacent_tles(satellite.sat_number, "catalog", epoch)
 
     # Before and after TLEs are returned
     assert len(results) == 2
 
     # All TLEs are for the same satellite
     assert all(
-        result.satellite.get_current_designation().sat_number
-        == satellite.get_current_designation().sat_number
-        for result in results
+        result.satellite.sat_number == satellite.sat_number for result in results
     )
 
     # One TLE is before the requested epoch and one is after
@@ -397,14 +361,7 @@ def test_get_adjacent_tles_no_after(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
-    epoch = datetime.now(timezone.utc)
-    satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="ISS", valid_from=epoch - timedelta(days=1)
-            )
-        ]
-    )
+    satellite = SatelliteFactory(sat_name="ISS")
     sat_repository.add(satellite)
 
     epoch = datetime.now(timezone.utc)
@@ -415,9 +372,7 @@ def test_get_adjacent_tles_no_after(session, services_available):
     tle_repository.add(tle_2)
     session.commit()
 
-    results = tle_repository.get_adjacent_tles(
-        satellite.get_current_designation().sat_number, "catalog", epoch
-    )
+    results = tle_repository.get_adjacent_tles(satellite.sat_number, "catalog", epoch)
 
     # No TLE after the requested epoch is returned
     assert len(results) == 1
@@ -428,14 +383,7 @@ def test_get_adjacent_tles_no_before(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
-    epoch = datetime.now(timezone.utc) - timedelta(days=1)
-    satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="ISS", valid_from=epoch - timedelta(days=2)
-            )
-        ]
-    )
+    satellite = SatelliteFactory(sat_name="ISS")
     sat_repository.add(satellite)
 
     epoch = datetime.now(timezone.utc) - timedelta(days=1)
@@ -446,9 +394,7 @@ def test_get_adjacent_tles_no_before(session, services_available):
     tle_repository.add(tle_2)
     session.commit()
 
-    results = tle_repository.get_adjacent_tles(
-        satellite.get_current_designation().sat_number, "catalog", epoch
-    )
+    results = tle_repository.get_adjacent_tles(satellite.sat_number, "catalog", epoch)
 
     # No TLE after the requested epoch is returned
     assert len(results) == 1
@@ -459,21 +405,8 @@ def test_get_adjacent_tles_multiple_satellites(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
-    epoch = datetime.now(timezone.utc)
-    satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="ISS", sat_number=1, valid_from=epoch - timedelta(days=1)
-            )
-        ]
-    )
-    satellite_2 = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="TBA", sat_number=1, valid_from=epoch - timedelta(days=1)
-            )
-        ]
-    )
+    satellite = SatelliteFactory(sat_name="ISS", sat_number=1)
+    satellite_2 = SatelliteFactory(sat_name="TBA", sat_number=1)
     sat_repository.add(satellite)
     sat_repository.add(satellite_2)
     session.commit()
@@ -495,33 +428,21 @@ def test_get_adjacent_tles_multiple_satellites(session, services_available):
     tle_repository.add(tle_6)
     session.commit()
 
-    results = tle_repository.get_adjacent_tles(
-        satellite.get_current_designation().sat_number, "catalog", epoch
-    )
+    results = tle_repository.get_adjacent_tles(satellite.sat_number, "catalog", epoch)
 
     # Only the TLEs for the requested satellite are returned
     assert len(results) == 2
-    assert all(
-        result.satellite.get_current_designation().sat_name
-        == satellite.get_current_designation().sat_name
-        for result in results
-    )
+    assert all(result.satellite.sat_name == satellite.sat_name for result in results)
 
 
 def test_get_tles_around_epoch(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
-    epoch = datetime.now(timezone.utc)
-    satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="ISS", valid_from=epoch - timedelta(days=1)
-            )
-        ]
-    )
+    satellite = SatelliteFactory(sat_name="ISS")
     sat_repository.add(satellite)
 
+    epoch = datetime.now(timezone.utc)
     tle_1 = TLEFactory(epoch=epoch - timedelta(days=4), satellite=satellite)
     tle_2 = TLEFactory(epoch=epoch - timedelta(days=3), satellite=satellite)
     tle_3 = TLEFactory(epoch=epoch - timedelta(days=2), satellite=satellite)
@@ -545,58 +466,32 @@ def test_get_tles_around_epoch(session, services_available):
     session.commit()
 
     results = tle_repository.get_tles_around_epoch(
-        satellite.get_current_designation().sat_number, "catalog", epoch, 2, 2
+        satellite.sat_number, "catalog", epoch, 2, 2
     )
     assert len(results) == 4
 
     result_identifiers = [
-        (result.satellite.get_current_designation().sat_number, result.epoch)
-        for result in results
+        (result.satellite.sat_number, result.epoch) for result in results
     ]
 
-    assert (
-        tle_3.satellite.get_current_designation().sat_number,
-        tle_3.epoch,
-    ) in result_identifiers
-    assert (
-        tle_4.satellite.get_current_designation().sat_number,
-        tle_4.epoch,
-    ) in result_identifiers
-    assert (
-        tle_6.satellite.get_current_designation().sat_number,
-        tle_6.epoch,
-    ) in result_identifiers
-    assert (
-        tle_7.satellite.get_current_designation().sat_number,
-        tle_7.epoch,
-    ) in result_identifiers
+    assert (tle_3.satellite.sat_number, tle_3.epoch) in result_identifiers
+    assert (tle_4.satellite.sat_number, tle_4.epoch) in result_identifiers
+    assert (tle_6.satellite.sat_number, tle_6.epoch) in result_identifiers
+    assert (tle_7.satellite.sat_number, tle_7.epoch) in result_identifiers
 
     results = tle_repository.get_tles_around_epoch(
-        satellite.get_current_designation().sat_number, "catalog", epoch, 1, 3
+        satellite.sat_number, "catalog", epoch, 1, 3
     )
     assert len(results) == 4
 
     result_identifiers = [
-        (result.satellite.get_current_designation().sat_number, result.epoch)
-        for result in results
+        (result.satellite.sat_number, result.epoch) for result in results
     ]
 
-    assert (
-        tle_4.satellite.get_current_designation().sat_number,
-        tle_4.epoch,
-    ) in result_identifiers
-    assert (
-        tle_6.satellite.get_current_designation().sat_number,
-        tle_6.epoch,
-    ) in result_identifiers
-    assert (
-        tle_7.satellite.get_current_designation().sat_number,
-        tle_7.epoch,
-    ) in result_identifiers
-    assert (
-        tle_8.satellite.get_current_designation().sat_number,
-        tle_8.epoch,
-    ) in result_identifiers
+    assert (tle_4.satellite.sat_number, tle_4.epoch) in result_identifiers
+    assert (tle_6.satellite.sat_number, tle_6.epoch) in result_identifiers
+    assert (tle_7.satellite.sat_number, tle_7.epoch) in result_identifiers
+    assert (tle_8.satellite.sat_number, tle_8.epoch) in result_identifiers
 
     results = tle_repository.get_tles_around_epoch(-1, "catalog", epoch, 1, 1)
     assert len(results) == 0
@@ -606,55 +501,32 @@ def test_get_nearest_tle(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)
 
-    epoch = datetime.now(timezone.utc)
-
-    current_designation = SatelliteDesignationFactory(
-        sat_name="ISS", sat_number=25544, valid_from=epoch - timedelta(days=13)
-    )
-    historical_designation = SatelliteDesignationFactory(
-        sat_name="ISS (ZARYA)",
-        sat_number=25544,
-        valid_from=epoch - timedelta(days=105),
-        valid_to=epoch - timedelta(days=14),
-    )
-
-    satellite = SatelliteFactory(
-        designations=[current_designation, historical_designation]
-    )
+    satellite = SatelliteFactory(sat_name="ISS", sat_number=25544)
+    satellite_2 = SatelliteFactory(sat_name="ISS (ZARYA)", sat_number=25544)
     sat_repository.add(satellite)
+    sat_repository.add(satellite_2)
     session.commit()
 
+    epoch = datetime.now(timezone.utc)
     tle = TLEFactory(epoch=epoch, satellite=satellite)
-    tle_2 = TLEFactory(epoch=epoch - timedelta(days=14), satellite=satellite)
+    tle_2 = TLEFactory(epoch=epoch - timedelta(days=14), satellite=satellite_2)
     tle_repository.add(tle)
     tle_repository.add(tle_2)
     session.commit()
 
-    # For current date
-    sat_number = satellite.get_current_designation().sat_number
-    result = tle_repository.get_nearest_tle(sat_number, "catalog", epoch)
+    result = tle_repository.get_nearest_tle(satellite.sat_number, "catalog", epoch)
+    assert result.satellite.sat_name == satellite.sat_name
 
-    expected_name = satellite.get_current_designation().sat_name
-    actual_name = result.satellite.get_designation_at_date(epoch).sat_name
-    assert actual_name == expected_name
+    result = tle_repository.get_nearest_tle(
+        satellite_2.sat_number, "catalog", epoch - timedelta(days=8)
+    )
+    assert result.satellite.sat_name == satellite_2.sat_name
 
-    # For 8 days ago
-    past_date = epoch - timedelta(days=8)
-    result = tle_repository.get_nearest_tle(sat_number, "catalog", past_date)
+    result = tle_repository.get_nearest_tle(
+        satellite.sat_number, "catalog", epoch + timedelta(days=100)
+    )
+    assert result.satellite.sat_name == satellite.sat_name
 
-    expected_name = satellite.get_designation_at_date(past_date).sat_name
-    actual_name = result.satellite.get_designation_at_date(past_date).sat_name
-    assert actual_name == expected_name
-
-    # For 100 days in the future
-    future_date = epoch + timedelta(days=100)
-    result = tle_repository.get_nearest_tle(sat_number, "catalog", future_date)
-
-    expected_name = satellite.get_designation_at_date(future_date).sat_name
-    actual_name = result.satellite.get_designation_at_date(future_date).sat_name
-    assert actual_name == expected_name
-
-    # Test with invalid satellite number
     result = tle_repository.get_nearest_tle(-1, "catalog", epoch)
     assert result is None
 
@@ -670,9 +542,10 @@ def test_get_all_tles_at_epoch_cache(session, app, services_available):
 
     # Add TLEs to repository
     satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="ISS")],
+        sat_name="ISS",
         decay_date=None,
         launch_date=datetime.now(timezone.utc) - timedelta(days=1000),
+        has_current_sat_number=True,
     )
     sat_repository = SqlAlchemySatelliteRepository(session)
     sat_repository.add(satellite)

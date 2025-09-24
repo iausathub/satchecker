@@ -1,6 +1,6 @@
 # noqa: I001
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import urlparse
 
 import psycopg2
@@ -143,29 +143,22 @@ def session(pg_session_factory):
 
 
 @pytest.fixture(autouse=True)
-def cleanup_database(pg_session_factory):
+def cleanup_database(session):
     """Cleanup database after each test."""
     if cannot_connect_to_services():
         pytest.skip("PostgreSQL not available - skipping database cleanup")
 
     yield
-    # Use a separate session for cleanup to avoid transaction conflicts
-    cleanup_session = pg_session_factory()
     try:
-        # Delete in correct order to respect foreign key constraints
-
-        cleanup_session.execute(text("DELETE FROM ephemeris_points"))
-        cleanup_session.execute(text("DELETE FROM interpolated_splines"))
-        cleanup_session.execute(text("DELETE FROM interpolable_ephemeris"))
-        cleanup_session.execute(text("DELETE FROM tle"))
-        cleanup_session.execute(text("DELETE FROM satellite_designation"))
-        cleanup_session.execute(text("DELETE FROM satellites"))
-        cleanup_session.commit()
+        # Delete from tle first since it references satellites
+        session.execute(text("DELETE FROM tle"))
+        session.execute(text("DELETE FROM satellites"))
+        session.commit()
     except Exception as e:
-        cleanup_session.rollback()
+        session.rollback()
         raise e
     finally:
-        cleanup_session.close()
+        session.close()
 
 
 @pytest.fixture(autouse=True)
@@ -253,45 +246,36 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
     def _get_norad_ids_from_satellite_name(self, name):
         if self.exception_to_raise:
             raise self.exception_to_raise
-        results = []
-        for satellite in self._satellites:
-            for designation in satellite.designations:
-                if designation.sat_name == name:
-                    results.append(
-                        (
-                            designation.sat_number,
-                            designation.valid_from,
-                            designation.valid_to,
-                        )
-                    )
-        return results
+        return [
+            [
+                satellite.sat_number,
+                datetime(2024, 1, 1),
+                satellite.has_current_sat_number,
+            ]
+            for satellite in self._satellites
+            if satellite.sat_name == name
+        ]
 
     def _get_satellite_names_from_norad_id(self, id):
         if self.exception_to_raise:
             raise self.exception_to_raise
-        results = []
-        for satellite in self._satellites:
-            for designation in satellite.designations:
-                if designation.sat_number == id:
-                    results.append(
-                        (
-                            designation.sat_name,
-                            designation.valid_from,
-                            designation.valid_to,
-                        )
-                    )
-        return results
+        return [
+            [satellite.sat_name, datetime(2024, 1, 1), satellite.has_current_sat_number]
+            for satellite in self._satellites
+            if satellite.sat_number == id
+        ]
 
     def _get_satellite_data_by_id(self, id):
         if self.exception_to_raise:
             raise self.exception_to_raise
         try:
             id_int = int(id) if isinstance(id, str) and id.isdigit() else id
-            for satellite in self._satellites:
-                for designation in satellite.designations:
-                    if designation.sat_number == id_int:
-                        return satellite
-            return None
+            matching_satellites = [
+                satellite
+                for satellite in self._satellites
+                if satellite.sat_number == id_int
+            ]
+            return matching_satellites[0] if matching_satellites else None
         except (ValueError, TypeError):
             return None
 
@@ -299,9 +283,7 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         if self.exception_to_raise:
             raise self.exception_to_raise
         matching_satellites = [
-            satellite
-            for satellite in self._satellites
-            if satellite.get_current_designation().sat_name == name
+            satellite for satellite in self._satellites if satellite.sat_name == name
         ]
         return matching_satellites[0] if matching_satellites else None
 
@@ -311,37 +293,29 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
         # Group satellites by generation
         generations = {}
         for satellite in self._satellites:
-            if satellite.generation:
-                # Check if any designation contains "starlink" in the name
-                has_starlink_designation = any(
-                    "starlink" in designation.sat_name.lower()
-                    for designation in satellite.designations
-                )
-                if has_starlink_designation:
-                    if not isinstance(satellite.launch_date, (datetime, type(None))):
-                        raise TypeError("Launch date must be a datetime object or None")
-                    if satellite.generation not in generations:
-                        generations[satellite.generation] = {
-                            "earliest": satellite.launch_date,
-                            "latest": satellite.launch_date,
-                        }
-                    else:
-                        if (
-                            satellite.launch_date
-                            and satellite.launch_date
-                            < generations[satellite.generation]["earliest"]
-                        ):
-                            generations[satellite.generation][
-                                "earliest"
-                            ] = satellite.launch_date
-                        if (
-                            satellite.launch_date
-                            and satellite.launch_date
-                            > generations[satellite.generation]["latest"]
-                        ):
-                            generations[satellite.generation][
-                                "latest"
-                            ] = satellite.launch_date
+            if satellite.generation and "starlink" in satellite.sat_name.lower():
+                if not isinstance(satellite.launch_date, (datetime, type(None))):
+                    raise TypeError("Launch date must be a datetime object or None")
+                if satellite.generation not in generations:
+                    generations[satellite.generation] = {
+                        "earliest": satellite.launch_date,
+                        "latest": satellite.launch_date,
+                    }
+                else:
+                    if (
+                        satellite.launch_date
+                        < generations[satellite.generation]["earliest"]
+                    ):
+                        generations[satellite.generation][
+                            "earliest"
+                        ] = satellite.launch_date
+                    if (
+                        satellite.launch_date
+                        > generations[satellite.generation]["latest"]
+                    ):
+                        generations[satellite.generation][
+                            "latest"
+                        ] = satellite.launch_date
 
         # Convert to list of tuples matching the real repository's format
         return [
@@ -349,34 +323,29 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
             for gen, data in sorted(generations.items())
         ]
 
-    # TODO: Come back to this when check for is_active is implemented
     def _get_active_satellites(self, object_type=None):
         if self.exception_to_raise:
             raise self.exception_to_raise
-        results = []
-        for satellite in self._satellites:
-            # Check if satellite is active (no decay date)
-            if satellite.decay_date is None:
-                # Check if it has a current designation (valid_to is None)
-                has_current_designation = any(
-                    designation.valid_to is None
-                    for designation in satellite.designations
-                )
-                if has_current_designation:
-                    # Filter by object_type if provided
-                    if object_type is None or (
-                        satellite.object_type
-                        and satellite.object_type.lower() == object_type.lower()
-                    ):
-                        results.append(satellite)
-        return results
+        return [
+            satellite
+            for satellite in self._satellites
+            if satellite.decay_date is None
+            and satellite.has_current_sat_number
+            and (
+                object_type is None
+                or satellite.object_type.lower() == object_type.lower()
+            )
+        ]
 
     def _get(self, satellite_id):
-        for satellite in self._satellites:
-            for designation in satellite.designations:
-                if designation.sat_number == satellite_id:
-                    return satellite
-        return None
+        return next(
+            (
+                satellite
+                for satellite in self._satellites
+                if satellite.sat_number == satellite_id
+            ),  # noqa: E501
+            None,
+        )
 
 
 class FakeTLERepository(AbstractTLERepository):
@@ -396,7 +365,7 @@ class FakeTLERepository(AbstractTLERepository):
             tle
             for tle in self._tles
             if (
-                tle.satellite.get_current_designation().sat_name == satellite_name
+                tle.satellite.sat_name == satellite_name
                 and (
                     (start_date is None or start_date <= tle.epoch)
                     and (end_date is None or tle.epoch <= end_date)
@@ -413,8 +382,7 @@ class FakeTLERepository(AbstractTLERepository):
             tle
             for tle in self._tles
             if (
-                tle.satellite.get_current_designation().sat_number
-                == int(satellite_number)
+                tle.satellite.sat_number == satellite_number
                 and (
                     (start_date is None or start_date <= tle.epoch)
                     and (end_date is None or tle.epoch <= end_date)
@@ -426,11 +394,7 @@ class FakeTLERepository(AbstractTLERepository):
         if self.exception_to_raise:
             raise self.exception_to_raise
         return min(
-            (
-                tle
-                for tle in self._tles
-                if tle.satellite.get_current_designation().sat_name == satellite_name
-            ),
+            (tle for tle in self._tles if tle.satellite.sat_name == satellite_name),
             key=lambda tle: abs(tle.epoch - epoch),
             default=None,
         )
@@ -439,12 +403,7 @@ class FakeTLERepository(AbstractTLERepository):
         if self.exception_to_raise:
             raise self.exception_to_raise
         return min(
-            (
-                tle
-                for tle in self._tles
-                if tle.satellite.get_current_designation().sat_number
-                == int(satellite_number)
-            ),
+            (tle for tle in self._tles if tle.satellite.sat_number == satellite_number),
             key=lambda tle: abs(tle.epoch - epoch),
             default=None,
         )
@@ -471,33 +430,21 @@ class FakeTLERepository(AbstractTLERepository):
         if self.exception_to_raise:
             raise self.exception_to_raise
         # limit to one before and one after for the given id (satellite number)
-        tles = [
-            tle
-            for tle in self._tles
-            if tle.satellite.get_current_designation().sat_number == int(id)
-        ]
+        tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
         return tles[:1] + tles[1:]
 
     def _get_tles_around_epoch(self, id, id_type, epoch, count_before, count_after):
         if self.exception_to_raise:
             raise self.exception_to_raise
         # limit to count_before + count_after
-        tles = [
-            tle
-            for tle in self._tles
-            if tle.satellite.get_current_designation().sat_number == int(id)
-        ]
+        tles = [tle for tle in self._tles if tle.satellite.sat_number == id]
         return tles[: count_before + count_after]
 
     def _get_nearest_tle(self, id, id_type, epoch):
         if self.exception_to_raise:
             raise self.exception_to_raise
         return min(
-            (
-                tle
-                for tle in self._tles
-                if tle.satellite.get_current_designation().sat_number == int(id)
-            ),
+            (tle for tle in self._tles if tle.satellite.sat_number == id),
             key=lambda tle: abs(tle.epoch - epoch),
             default=None,
         )
@@ -518,8 +465,3 @@ def test_location():
 @pytest.fixture
 def test_time():
     return Time("2024-10-01T18:19:13", format="isot", scale="utc")
-
-
-@pytest.fixture
-def test_date():
-    return datetime(2024, 10, 1, 18, 19, 13, tzinfo=timezone.utc)

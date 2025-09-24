@@ -7,10 +7,9 @@ from typing import Any, Optional
 from sqlalchemy import DateTime, String, and_, bindparam, func, text
 from sqlalchemy.orm.exc import NoResultFound
 
-from api.adapters.database_orm import SatelliteDb, SatelliteDesignationDb, TLEDb
+from api.adapters.database_orm import SatelliteDb, TLEDb
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.domain.models.satellite import Satellite as Satellite
-from api.domain.models.satellite_designation import SatelliteDesignation
 from api.domain.models.tle import TLE
 from api.services.cache_service import RECENT_TLES_CACHE_KEY, get_cached_data
 from api.utils.time_utils import ensure_datetime
@@ -236,24 +235,19 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     except ValueError:
                         logger.warning(f"Could not parse decay_date: {decay_date_str}")
 
+                # Create the Satellite object
+                satellite = Satellite(
+                    sat_name=sat_data.get("sat_name", ""),
+                    sat_number=sat_data.get("sat_number", ""),
+                    decay_date=decay_date,
+                    has_current_sat_number=sat_data.get("has_current_sat_number", True),
+                    constellation=sat_data.get("constellation", ""),
+                )
+
                 # Parse datetime fields
                 epoch = datetime.fromisoformat(tle_dict.get("epoch", ""))
                 date_collected = datetime.fromisoformat(
                     tle_dict.get("date_collected", "")
-                )
-
-                # A full object isn't needed since this is for a single FOV use
-                designation = SatelliteDesignation(
-                    sat_name=sat_data.get("sat_name", ""),
-                    sat_number=sat_data.get("sat_number", ""),
-                    valid_from=epoch,
-                    valid_to=None,
-                )
-
-                satellite = Satellite(
-                    decay_date=decay_date,
-                    constellation=sat_data.get("constellation"),
-                    designations=[designation],
                 )
 
                 # Create the TLE domain object
@@ -278,25 +272,15 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         orm_tle = self._to_orm(tle)
 
         try:
-            # Check if satellite designation exists and get the associated satellite
-            designation = tle.satellite.get_current_designation()
-            if designation is None:
-                logger.warning(
-                    f"No satellite designation found for {tle.satellite.object_id} "
-                    f"at {tle.epoch}"
-                )
-                return
             existing_satellite = (
                 self.session.query(SatelliteDb)
-                .join(SatelliteDesignationDb)
                 .filter(
-                    SatelliteDesignationDb.sat_number == designation.sat_number,
-                    SatelliteDesignationDb.sat_name == designation.sat_name,
+                    SatelliteDb.sat_number == tle.satellite.sat_number,
+                    SatelliteDb.sat_name == tle.satellite.sat_name,
                 )
-                .first()
+                .one()
             )
-            if existing_satellite:
-                orm_tle.satellite = existing_satellite
+            orm_tle.satellite = existing_satellite
         except NoResultFound:
             # Satellite does not exist, so it will be added with the TLE
             pass
@@ -306,7 +290,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
     ) -> Optional[TLE]:
-        filter_conditions = [SatelliteDesignationDb.sat_number == satellite_number]
+        filter_conditions = [SatelliteDb.sat_number == satellite_number]
         if data_source != "any":
             filter_conditions.append(TLEDb.data_source == data_source)
 
@@ -317,7 +301,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         result = (
             self.session.query(TLEDb)
             .join(TLEDb.satellite)
-            .join(SatelliteDesignationDb)
             .filter(and_(*filter_conditions))
             .order_by(
                 func.abs(
@@ -339,7 +322,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         epoch: datetime,
         data_source: str,
     ) -> Optional[TLE]:
-        filter_conditions = [SatelliteDesignationDb.sat_name == satellite_name]
+        filter_conditions = [SatelliteDb.sat_name == satellite_name]
         if data_source != "any":
             filter_conditions.append(TLEDb.data_source == data_source)
 
@@ -350,7 +333,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         result = (
             self.session.query(TLEDb)
             .join(TLEDb.satellite)
-            .join(SatelliteDesignationDb)
             .filter(and_(*filter_conditions))
             .order_by(
                 func.abs(
@@ -375,8 +357,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         query = (
             self.session.query(TLEDb)
             .join(TLEDb.satellite)
-            .join(SatelliteDesignationDb)
-            .filter(SatelliteDesignationDb.sat_number == satellite_number)
+            .filter(SatelliteDb.sat_number == satellite_number)
         )
 
         if start_date is not None:
@@ -399,21 +380,10 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         start_date: Optional[datetime],
         end_date: Optional[datetime],
     ) -> list[TLE]:
-        # TODO: review this query
-        satellite_ids_sql = text(  # noqa: F841
-            """
-        SELECT DISTINCT sd.sat_id
-        FROM satellite_designation sd
-        WHERE sd.sat_name = :satellite_name
-        AND sd.valid_from <= COALESCE(:end_date, NOW())
-        AND (sd.valid_to IS NULL OR sd.valid_to >= COALESCE(:start_date, sd.valid_from))
-    """
-        )
         query = (
             self.session.query(TLEDb)
             .join(TLEDb.satellite)
-            .join(SatelliteDesignationDb)
-            .filter(SatelliteDesignationDb.sat_name == satellite_name)
+            .filter(SatelliteDb.sat_name == satellite_name)
         )
         if start_date is not None:
             query = query.filter(TLEDb.epoch >= start_date)
@@ -505,30 +475,21 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         # If we get here, we need to query the database
         logger.info("Querying database for TLEs")
         try:
-            # First  get valid satellites
-            satellites_and_designations_sql = text(
+            # First get valid satellites
+            satellites_sql = text(
                 """
-                SELECT DISTINCT
-                    s.id as sat_id,
-                    s.decay_date,
-                    s.constellation,
-                    s.generation,
-                    s.rcs_size,
-                    s.launch_date,
-                    s.object_id,
-                    s.object_type,
-                    sd.sat_name,
-                    sd.sat_number,
-                    sd.valid_from,
-                    sd.valid_to
+                SELECT id, sat_name, sat_number, decay_date, has_current_sat_number,
+                constellation, launch_date
                 FROM satellites s
-                JOIN satellite_designation sd ON s.id = sd.sat_id
                 WHERE s.launch_date <= :epoch_date
                 AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
-                AND sd.sat_name != 'TBA - TO BE ASSIGNED'
-                AND (:constellation IS NULL OR s.constellation ILIKE :constellation || '%')
-                ORDER BY s.id, sd.valid_from
-            """  # noqa: E501
+                AND s.sat_name != 'TBA - TO BE ASSIGNED'
+                AND (
+                    :constellation IS NULL
+                    OR (s.constellation IS NOT NULL AND s.constellation
+                    ILIKE :constellation || '%')
+                )
+            """
             )
 
             if data_source_limit == "any":
@@ -554,38 +515,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
             # Get valid satellites first
             satellites_result = self.session.execute(
-                satellites_and_designations_sql,
+                satellites_sql,
                 {"epoch_date": epoch_date, "constellation": constellation},
             )
+            valid_satellites = {row.id: row for row in satellites_result}
 
-            satellites_by_id: dict[int, dict[str, Any]] = {}
-            for row in satellites_result:
-                sat_id = row.sat_id
-
-                if sat_id not in satellites_by_id:
-                    satellites_by_id[sat_id] = {
-                        "satellite_data": {
-                            "decay_date": row.decay_date,
-                            "constellation": row.constellation,
-                            "generation": row.generation,
-                            "rcs_size": row.rcs_size,
-                            "launch_date": row.launch_date,
-                            "object_id": row.object_id,
-                            "object_type": row.object_type,
-                        },
-                        "designations": [],
-                    }
-
-                satellites_by_id[sat_id]["designations"].append(
-                    SatelliteDesignation(
-                        sat_name=row.sat_name,
-                        sat_number=row.sat_number,
-                        valid_from=row.valid_from,
-                        valid_to=row.valid_to,
-                    )
-                )
-
-            if not satellites_by_id:
+            if not valid_satellites:
                 return [], 0, "database"
 
             # Then get TLEs for those satellites
@@ -594,7 +529,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 {
                     "start_date": two_weeks_prior,
                     "end_date": epoch_date,
-                    "satellite_ids": list(satellites_by_id.keys()),
+                    "satellite_ids": list(valid_satellites.keys()),
                     "data_source_limit": data_source_limit,
                 },
             )
@@ -602,9 +537,13 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             # Map results to domain objects
             tles = []
             for row in tles_result:
-                sat_data = satellites_by_id[row.sat_id]
+                sat_data = valid_satellites[row.sat_id]
                 satellite = Satellite(
-                    designations=sat_data["designations"], **sat_data["satellite_data"]
+                    sat_name=sat_data.sat_name,
+                    sat_number=sat_data.sat_number,
+                    decay_date=sat_data.decay_date,
+                    has_current_sat_number=sat_data.has_current_sat_number,
+                    constellation=sat_data.constellation,
                 )
 
                 tle = TLE(
@@ -735,17 +674,17 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     FROM satellites s
                     WHERE s.launch_date <= :epoch_date
                         AND (s.decay_date IS NULL OR s.decay_date > :epoch_date)
+                        AND s.sat_name != 'TBA - TO BE ASSIGNED'
                         AND (
                             :constellation IS NULL
                             OR (s.constellation IS NOT NULL AND s.constellation
                             ILIKE :constellation || '%')
                         )
                 )
-                SELECT t.*, s.*, sd.*
+                SELECT t.*, s.*
                 FROM latest_per_sat l
                 JOIN tle t ON t.id = l.tle_id
                 JOIN satellites s ON s.id = l.sat_id
-                JOIN satellite_designation sd ON s.id = sd.sat_id
                 ORDER BY t.epoch DESC
                 """  # noqa: E501
             ).bindparams(
@@ -768,62 +707,25 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 },
             )
 
-            # Group results by satellite and collect all designations
-            satellites_by_id: dict[int, dict[str, Any]] = {}
-            tle_data_by_id = {}
-
-            for row in tles_result:
-                # Group satellite data and designations
-                if row.sat_id not in satellites_by_id:
-                    satellites_by_id[row.sat_id] = {
-                        "satellite_data": {
-                            "decay_date": row.decay_date,
-                            "constellation": row.constellation,
-                            "generation": row.generation,
-                            "rcs_size": row.rcs_size,
-                            "launch_date": row.launch_date,
-                            "object_id": row.object_id,
-                            "object_type": row.object_type,
-                        },
-                        "designations": set(),
-                    }
-                    # Store TLE data (assuming one TLE per satellite in this query)
-                    tle_data_by_id[row.sat_id] = {
-                        "date_collected": row.date_collected,
-                        "tle_line1": row.tle_line1,
-                        "tle_line2": row.tle_line2,
-                        "epoch": row.epoch,
-                        "is_supplemental": row.is_supplemental,
-                        "data_source": row.data_source,
-                    }
-
-                # Add designation to the satellite
-                satellites_by_id[row.sat_id]["designations"].add(
-                    SatelliteDesignation(
-                        sat_name=row.sat_name,
-                        sat_number=row.sat_number,
-                        valid_from=row.valid_from,
-                        valid_to=row.valid_to,
-                    )
-                )
-
             # Map results to domain objects
             tles = []
-            for sat_id, sat_data in satellites_by_id.items():
+            for row in tles_result:
                 satellite = Satellite(
-                    designations=list(sat_data["designations"]),
-                    **sat_data["satellite_data"],
+                    sat_name=row.sat_name,
+                    sat_number=row.sat_number,
+                    decay_date=row.decay_date,
+                    has_current_sat_number=row.has_current_sat_number,
+                    constellation=row.constellation,
                 )
 
-                tle_data = tle_data_by_id[sat_id]
                 tle = TLE(
                     satellite=satellite,
-                    date_collected=tle_data["date_collected"],
-                    tle_line1=tle_data["tle_line1"],
-                    tle_line2=tle_data["tle_line2"],
-                    epoch=tle_data["epoch"],
-                    is_supplemental=tle_data["is_supplemental"],
-                    data_source=tle_data["data_source"],
+                    date_collected=row.date_collected,
+                    tle_line1=row.tle_line1,
+                    tle_line2=row.tle_line2,
+                    epoch=row.epoch,
+                    is_supplemental=row.is_supplemental,
+                    data_source=row.data_source,
                 )
                 tles.append(tle)
 
@@ -1002,40 +904,42 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     def _get_correct_satellite_id_at_tle_epoch(
         self, id: str, id_type: str, epoch: datetime
     ) -> Optional[int]:
-
-        epoch = ensure_datetime(epoch)
-
         if id_type == "catalog":
             satellites_with_this_identifier = (
                 self.session.query(SatelliteDb)
-                .join(SatelliteDesignationDb)
-                .filter(
-                    SatelliteDesignationDb.sat_number == id,
-                    SatelliteDesignationDb.valid_from <= epoch,
-                    (
-                        SatelliteDesignationDb.valid_to.is_(None)
-                        | (SatelliteDesignationDb.valid_to > epoch)
-                    ),
-                )
-                .first()
+                .filter(SatelliteDb.sat_number == id)
+                .all()
             )
         else:
             satellites_with_this_identifier = (
-                self.session.query(SatelliteDb)
-                .join(SatelliteDesignationDb)
-                .filter(
-                    SatelliteDesignationDb.sat_name == id,
-                    SatelliteDesignationDb.valid_from <= epoch,
-                    (
-                        SatelliteDesignationDb.valid_to.is_(None)
-                        | (SatelliteDesignationDb.valid_to > epoch)
-                    ),
+                self.session.query(SatelliteDb).filter(SatelliteDb.sat_name == id).all()
+            )
+
+        if len(satellites_with_this_identifier) == 0:
+            return None
+
+        epoch = ensure_datetime(epoch)
+        # Create a bind parameter for the epoch
+        epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
+
+        # get the closest TLE for each satellite
+        closest_tles = []
+        for sat in satellites_with_this_identifier:
+            closest_tles.append(
+                self.session.query(TLEDb)
+                .filter(TLEDb.sat_id == sat.id)
+                .order_by(
+                    func.abs(
+                        func.extract("epoch", TLEDb.epoch)
+                        - func.extract("epoch", epoch_param)
+                    )
                 )
                 .first()
             )
+        # get the TLE with the epoch closest to the specified epoch
+        nearest_tle = min(closest_tles, key=lambda tle: abs(tle.epoch - epoch))
+        nearest_sat_id = int(
+            nearest_tle.sat_id
+        )  # Explicitly cast to int for type checker
 
-        return (
-            satellites_with_this_identifier.id
-            if satellites_with_this_identifier
-            else None
-        )
+        return nearest_sat_id

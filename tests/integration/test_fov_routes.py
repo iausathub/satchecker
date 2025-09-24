@@ -1,18 +1,13 @@
 # ruff: noqa: E501, S101, F841
 import pytest
-from tests.factories.satellite_factory import (
-    SatelliteDesignationFactory,
-    SatelliteFactory,
-)
+from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 
 
 def test_get_satellite_passes_in_fov(client, session, services_available):
-    satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="ISS")]
-    )
+    satellite = SatelliteFactory(sat_name="ISS")
     tle = TLEFactory(satellite=satellite)
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -52,10 +47,10 @@ def test_get_satellites_above_horizon(
     """Test get_satellites_above_horizon with different minimum altitudes and constellations."""
     # Create a satellite and TLE for testing
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(sat_name="TEST-SAT", sat_number="12345")
-        ],
+        sat_name="TEST-SAT",
+        sat_number="12345",
         decay_date=None,
+        has_current_sat_number=True,
         constellation=constellation if constellation else "test",
     )
     tle = TLEFactory(satellite=satellite)

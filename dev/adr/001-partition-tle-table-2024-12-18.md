@@ -1,7 +1,6 @@
 ---
-status: superseded
+status: accepted
 date: 2024-12-18
-superseded_by: 002-satellite-designation-table
 ---
 
 # Partition TLE table
@@ -68,6 +67,3 @@ overall query time to less than 1 second.
 
 ## More Information
 Need support for pg_partman to manage the partitions in order to make maintenance easier, since queries up to a year ago need to be able to be run quickly. Originally the idea was that queries up to a month ago would be the primary use case for needing performance improvements, but upon further investigation, we need to have faster access to data up to a year back in order to support cases where researchers don't immediately analyze their data.
-
-## Superseded Note
-This ADR was superseded because the proposed table partitioning approach did not provide the expected performance improvements in practice. The overhead of managing partitions and the complexity of the implementation outweighed the minimal performance gains observed during testing. It might be worth revisiting this approach in the future, but for now, we're going to see what changes the new satellite designation table structure has on performance.

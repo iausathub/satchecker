@@ -1,14 +1,11 @@
 # ruff: noqa: S101
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import timezone
 
 import pytest
 from astropy.time import Time
 from tests.conftest import FakeTLERepository
-from tests.factories.satellite_factory import (
-    SatelliteDesignationFactory,
-    SatelliteFactory,
-)
+from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.services.fov_service import (
@@ -20,19 +17,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def test_satellite_in_fov(test_location, test_time, test_date):
+def test_satellite_in_fov(test_location, test_time):
     """Test when a satellite passes through FOV"""
     # Set up known satellite TLE that will pass through a specific FOV
-    # test_time is a jd
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="FENGYUN 1C DEB",
-                sat_number=31746,
-                valid_from=datetime(1957, 1, 1),
-            )
-        ],
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
         decay_date=None,
+        has_current_sat_number=True,
     )
 
     tle = TLEFactory(
@@ -154,19 +146,15 @@ def test_satellite_in_fov(test_location, test_time, test_date):
     )
 
 
-def test_satellite_outside_fov(test_location, test_time, test_date):
+def test_satellite_outside_fov(test_location, test_time):
     """Test when satellite never enters FOV"""
     # Set up with FOV pointing away from orbit - RA changed to 48.797270
 
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="FENGYUN 1C DEB",
-                sat_number=31746,
-                valid_from=test_date - timedelta(days=1),
-            )
-        ],
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
         decay_date=None,
+        has_current_sat_number=True,
     )
 
     tle = TLEFactory(
@@ -227,17 +215,13 @@ def test_empty_tle_list(test_location, test_time):
     assert result["data"]["total_position_results"] == 0
 
 
-def test_satellites_above_horizon(test_location, test_time, test_date):
+def test_satellites_above_horizon(test_location, test_time):
     # Test for satellite above horizon
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="FENGYUN 1C DEB",
-                sat_number=31746,
-                valid_from=test_date - timedelta(days=1),
-            )
-        ],
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
         decay_date=None,
+        has_current_sat_number=True,
         constellation="starlink",
     )
 
@@ -567,25 +551,3 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
 
     # Every variation should generate a unique key
     assert len(cache_keys) == len(param_variations) + 1
-
-
-def test_get_satellites_above_horizon_exception_handling(test_location, test_time):
-    """Test exception handling in get_satellites_above_horizon when
-    satellite processing fails."""
-    from unittest.mock import patch
-
-    satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="TEST SATELLITE")]
-    )
-    tle = TLEFactory(satellite=satellite)
-    tle_repo = FakeTLERepository([tle])
-
-    with patch("api.services.fov_service.EarthSatellite") as mock_earth_satellite:
-        mock_earth_satellite.side_effect = Exception("Test error")
-        result = get_satellites_above_horizon(
-            tle_repo, test_location, [test_time], 0, 0, 1500000
-        )
-
-    assert len(result["data"]) == 0
-    assert result["performance"]["satellites_processed"] == 1
-    assert result["performance"]["visible_satellites"] == 0

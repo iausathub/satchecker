@@ -46,9 +46,6 @@ def generate_ephemeris_data(
         raise DataError(500, error_messages.TLE_DATE_OUT_OF_RANGE)
 
     # get the list of position data for each date/time in the requested range
-    designation = tle.satellite.get_designation_at_date(tle.epoch)
-    if designation is None:
-        raise DataError(500, error_messages.NO_DESIGNATION_FOUND)
     result_list_task = generate_position_data.apply(
         args=[
             location,
@@ -57,13 +54,13 @@ def generate_ephemeris_data(
             tle.tle_line2,
             tle.date_collected,
             tle.epoch,
-            designation.sat_name,
+            tle.satellite.sat_name,
             tle.satellite.object_id,
             min_altitude,
             max_altitude,
             api_source,
             api_version,
-            designation.sat_number,
+            tle.satellite.sat_number,
             tle.data_source,
             propagation_method,
         ]
@@ -82,9 +79,6 @@ def generate_ephemeris_data_user(
     api_version: str,
 ) -> Union[dict[str, Any], list[dict[str, Any]]]:
 
-    designation = tle.satellite.get_designation_at_date(tle.epoch)
-    if designation is None:
-        raise DataError(500, error_messages.NO_DESIGNATION_FOUND)  # pragma: no cover
     result_list_task = generate_position_data.apply(
         args=[
             location,
@@ -93,13 +87,13 @@ def generate_ephemeris_data_user(
             tle.tle_line2,
             tle.date_collected,
             tle.epoch,
-            designation.sat_name,
+            tle.satellite.sat_name,
             tle.satellite.object_id,
             min_altitude,
             max_altitude,
             api_source,
             api_version,
-            designation.sat_number,
+            tle.satellite.sat_number,
             tle.data_source,
         ]
     )

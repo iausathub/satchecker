@@ -4,10 +4,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from astropy.time import Time
-from tests.factories.satellite_factory import (
-    SatelliteDesignationFactory,
-    SatelliteFactory,
-)
+from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories import satellite_repository, tle_repository
@@ -15,10 +12,7 @@ from api.entrypoints.extensions import db
 
 
 def test_get_tle_data(client, session, services_available):
-    designation = SatelliteDesignationFactory(
-        sat_name="ISS", valid_from=datetime(1957, 1, 1), valid_to=None
-    )
-    satellite = SatelliteFactory(designations=[designation])
+    satellite = SatelliteFactory(sat_name="ISS")
 
     tle = TLEFactory(satellite=satellite)
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
@@ -37,8 +31,7 @@ def test_get_tle_data_no_match(client, services_available):
 
 
 def test_get_names_from_norad_id(client, services_available):
-    designation = SatelliteDesignationFactory(sat_name="ISS", sat_number=25544)
-    satellite = SatelliteFactory(designations=[designation])
+    satellite = SatelliteFactory(sat_number="25544")
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
     sat_repo.add(satellite)
     db.session.commit()
@@ -55,8 +48,7 @@ def test_get_names_from_norad_id_no_match(client, services_available):
 
 
 def test_get_norad_ids_from_name(client, services_available):
-    designation = SatelliteDesignationFactory(sat_name="ISS")
-    satellite = SatelliteFactory(designations=[designation])
+    satellite = SatelliteFactory(sat_name="ISS")
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
     sat_repo.add(satellite)
     db.session.commit()
@@ -73,8 +65,7 @@ def test_get_norad_ids_from_name_no_match(client, services_available):
 
 
 def test_get_satellite_data(client, services_available):
-    designation = SatelliteDesignationFactory(sat_name="ISS")
-    satellite = SatelliteFactory(designations=[designation])
+    satellite = SatelliteFactory(sat_name="ISS")
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
     sat_repo.add(satellite)
     db.session.commit()
@@ -91,14 +82,11 @@ def test_get_satellite_data_no_match(client, services_available):
 
 
 def test_get_tles_at_epoch(client, session, services_available):
-    test_epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
-
     satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="ISS")],
-        decay_date=None,
-        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
-    tle = TLEFactory(satellite=satellite, epoch=test_epoch_date)
+    epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
+    tle = TLEFactory(satellite=satellite, epoch=epoch_date)
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
@@ -117,24 +105,15 @@ def test_get_tles_at_epoch(client, session, services_available):
 
 
 def test_get_tles_at_epoch_pagination(client, session, services_available):
-    test_epoch_date = datetime.strptime("2024-10-22", "%Y-%m-%d")
-
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="ISS", valid_from=datetime.strptime("2024-10-21", "%Y-%m-%d")
-            )
-        ],
-        decay_date=None,
-        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
-
-    tle = TLEFactory(satellite=satellite, epoch=test_epoch_date)
-
+    epoch_date = datetime.strptime("2024-10-22", "%Y-%m-%d")
+    tle = TLEFactory(satellite=satellite, epoch=epoch_date)
+    print(tle.epoch)
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
-
     epoch_date = 2460606
     response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}&page=1&per_page=1")
     tles = response.json[0]["data"]
@@ -144,17 +123,11 @@ def test_get_tles_at_epoch_pagination(client, session, services_available):
 
 
 def test_get_tles_at_epoch_optional_epoch_date(client, session, services_available):
-    epoch_date = datetime.now()
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="ISS", valid_from=epoch_date - timedelta(days=1)
-            )
-        ],
-        decay_date=None,
-        launch_date=datetime.now() - timedelta(days=365),
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
     # get current date for TLE epoch
+    epoch_date = datetime.now()
     tle = TLEFactory(
         satellite=satellite,
         epoch=epoch_date,
@@ -170,18 +143,11 @@ def test_get_tles_at_epoch_optional_epoch_date(client, session, services_availab
 
 
 def test_get_tles_at_epoch_zipped(client, session, services_available):
-    epoch_date = datetime.now()
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="ISS", valid_from=epoch_date - timedelta(days=1)
-            )
-        ],
-        decay_date=None,
-        launch_date=epoch_date - timedelta(days=365),
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
     # get current date for TLE epoch
-
+    epoch_date = datetime.now()
     tle = TLEFactory(
         satellite=satellite,
         epoch=epoch_date,
@@ -198,16 +164,10 @@ def test_get_tles_at_epoch_zipped(client, session, services_available):
 
 
 def test_get_adjacent_tles(client, session, services_available):
-    epoch = datetime.now()
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_number="25544", valid_from=epoch - timedelta(days=1)
-            )
-        ],
-        decay_date=None,
-        launch_date=epoch - timedelta(days=365),
+        sat_number="25544", decay_date=None, has_current_sat_number=True
     )
+    epoch = datetime.now()
     tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
     tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
@@ -276,16 +236,10 @@ def test_get_adjacent_tles_errors(client, session, services_available):
 
 
 def test_get_nearest_tle(client, session, services_available):
-    epoch = datetime.now()
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_number="25544", valid_from=epoch - timedelta(days=1)
-            )
-        ],
-        decay_date=None,
+        sat_number="25544", decay_date=None, has_current_sat_number=True
     )
-
+    epoch = datetime.now()
     tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
     tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
@@ -378,16 +332,10 @@ def test_get_nearest_tle_errors(
 def test_get_nearest_tle_name_id_type(client, session, services_available):
     """Test get_nearest_tle with id_type=name."""
     # Create a satellite with a specific name
-    epoch = datetime.now()
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_name="TEST_SAT", valid_from=epoch - timedelta(days=1)
-            )
-        ],
-        decay_date=None,
+        sat_name="TEST_SAT", decay_date=None, has_current_sat_number=True
     )
-
+    epoch = datetime.now()
     tle = TLEFactory(satellite=satellite, epoch=epoch)
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -404,16 +352,10 @@ def test_get_nearest_tle_name_id_type(client, session, services_available):
 
 
 def test_get_tles_around_epoch(client, session, services_available):
-    epoch = datetime.now()
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_number="25544", valid_from=epoch - timedelta(days=2)
-            )
-        ],
-        decay_date=None,
+        sat_number="25544", decay_date=None, has_current_sat_number=True
     )
-
+    epoch = datetime.now()
     tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
     tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
@@ -506,12 +448,7 @@ def test_get_tles_around_epoch_errors(
 def test_get_tles_around_epoch_custom_counts(client, session, services_available):
     """Test get_tles_around_epoch with custom count_before and count_after parameters."""
     satellite = SatelliteFactory(
-        designations=[
-            SatelliteDesignationFactory(
-                sat_number="25544", valid_from=datetime.now() - timedelta(days=7)
-            )
-        ],
-        decay_date=None,
+        sat_number="25544", decay_date=None, has_current_sat_number=True
     )
     epoch = datetime.now()
 
@@ -563,7 +500,8 @@ def test_get_tles_around_epoch_custom_counts(client, session, services_available
 
 def test_get_active_satellites(client, services_available):
     satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="ISS")],
+        sat_name="ISS",
+        has_current_sat_number=True,
         decay_date=None,
         object_type="PAYLOAD",
     )
@@ -582,12 +520,14 @@ def test_get_active_satellites(client, services_available):
 
 def test_get_starlink_generations(client, services_available):
     satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="starlink1")],
+        sat_name="starlink1",
+        has_current_sat_number=True,
         launch_date=datetime(2019, 5, 10),
         generation="gen1",
     )
     satellite2 = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="starlink2")],
+        sat_name="starlink2",
+        has_current_sat_number=True,
         launch_date=datetime(2019, 5, 20),
         generation="gen1",
     )
@@ -616,7 +556,8 @@ def test_get_starlink_generations_invalid_data(client, session, services_availab
     """Test get_starlink_generations with invalid satellite data."""
     # Create a satellite with invalid generation data
     satellite = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="invalid_starlink")],
+        sat_name="invalid_starlink",
+        has_current_sat_number=True,
         launch_date=datetime(2019, 5, 10),
         generation=None,  # Invalid generation
     )
@@ -637,12 +578,14 @@ def test_get_starlink_generations_multiple_generations(
     """Test get_starlink_generations with multiple generations."""
     # Create satellites from different generations
     gen1_sat = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="starlink_gen1")],
+        sat_name="starlink_gen1",
+        has_current_sat_number=True,
         launch_date=datetime(2019, 5, 10),
         generation="gen1",
     )
     gen2_sat = SatelliteFactory(
-        designations=[SatelliteDesignationFactory(sat_name="starlink_gen2")],
+        sat_name="starlink_gen2",
+        has_current_sat_number=True,
         launch_date=datetime(2020, 5, 10),
         generation="gen2",
     )

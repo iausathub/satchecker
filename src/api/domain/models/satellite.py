@@ -1,24 +1,23 @@
-from __future__ import annotations
-
 from datetime import datetime
-
-from api.utils.time_utils import ensure_datetime
-
-from .satellite_designation import SatelliteDesignation
+from typing import Optional
 
 
 class Satellite:
     def __init__(
         self,
-        constellation: str | None = None,
-        generation: str | None = None,
-        rcs_size: str | None = None,
-        launch_date: datetime | None = None,
-        decay_date: datetime | None = None,
-        object_id: str | None = None,
-        object_type: str | None = None,
-        designations: list[SatelliteDesignation] | None = None,
+        sat_number: int,
+        sat_name: str,
+        constellation: Optional[str] = None,
+        generation: Optional[str] = None,
+        rcs_size: Optional[str] = None,
+        launch_date: Optional[datetime] = None,
+        decay_date: Optional[datetime] = None,
+        object_id: Optional[str] = None,
+        object_type: Optional[str] = None,
+        has_current_sat_number: bool = False,
     ):
+        self.sat_number = sat_number
+        self.sat_name = sat_name
         self.constellation = constellation
         self.generation = generation
         self.rcs_size = rcs_size
@@ -26,59 +25,13 @@ class Satellite:
         self.decay_date = decay_date
         self.object_id = object_id
         self.object_type = object_type
-        self.designations = designations or []
-
-    def add_designation(self, designation: SatelliteDesignation) -> None:
-        """Add a designation to this satellite."""
-        self.designations.append(designation)  # pragma: no cover
-
-    def get_current_designation(self) -> SatelliteDesignation | None:
-        """Get the currently active designation (where valid_to is None)."""
-        for designation in self.designations:
-            if designation.valid_to is None:
-                return designation
-        return None  # pragma: no cover
-
-    def get_designation_at_date(self, date: datetime) -> SatelliteDesignation | None:
-        """Get the designation that was active at a specific date."""
-        # Ensure all datetime objects have timezone info for proper comparison
-        date = ensure_datetime(date)
-
-        for designation in self.designations:
-            valid_from = ensure_datetime(designation.valid_from)
-            valid_to = (
-                ensure_datetime(designation.valid_to)
-                if designation.valid_to is not None
-                else None
-            )
-
-            if valid_from <= date and (valid_to is None or valid_to >= date):
-                return designation
-        return None  # pragma: no cover
+        self.has_current_sat_number = has_current_sat_number
 
     def __repr__(self):
-        return f"<Satellite {self.object_id}>"
+        return f"<Satellite {self.sat_name}>"
 
     def __eq__(self, other):
-        return (
-            self.object_id == other.object_id
-            and self.constellation == other.constellation
-            and self.generation == other.generation
-            and self.rcs_size == other.rcs_size
-            and self.launch_date == other.launch_date
-            and self.decay_date == other.decay_date
-            and self.object_type == other.object_type
-        )
+        return self.sat_number == other.sat_number and self.sat_name == other.sat_name
 
     def __hash__(self):
-        return hash(
-            (
-                self.object_id,
-                self.constellation,
-                self.generation,
-                self.rcs_size,
-                self.launch_date,
-                self.decay_date,
-                self.object_type,
-            )
-        )
+        return hash((self.sat_number, self.sat_name))
