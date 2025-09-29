@@ -475,6 +475,7 @@ def get_satellite_passes_in_fov(
                         updated_pos = satellite_position_fov(
                             ra=pos.ra,
                             dec=pos.dec,
+                            covariance=pos.covariance.tolist(),
                             angle=angular_distance,
                             altitude=pos.altitude,
                             azimuth=pos.azimuth,

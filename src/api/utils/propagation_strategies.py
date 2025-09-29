@@ -119,6 +119,7 @@ satellite_position_fov = namedtuple(
     [
         "ra",
         "dec",
+        "covariance",
         "angle",
         "altitude",
         "azimuth",
@@ -984,6 +985,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                 satellite_position_fov(
                     ra=ra,
                     dec=dec,
+                    covariance=covariance,
                     angle=None,
                     altitude=altitude,
                     azimuth=azimuth,

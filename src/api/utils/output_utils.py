@@ -237,6 +237,7 @@ def fov_data_to_json(
             pass_data = {
                 "ra": result["ra"],
                 "dec": result["dec"],
+                "covariance": result["covariance"],
                 "altitude": result["altitude"],
                 "azimuth": result["azimuth"],
                 "julian_date": result["julian_date"],
