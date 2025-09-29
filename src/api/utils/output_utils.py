@@ -234,10 +234,14 @@ def fov_data_to_json(
 
                 satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info
+            covariance = result.get("covariance")
+            if covariance is not None and hasattr(covariance, "tolist"):
+                covariance = covariance.tolist()
+
             pass_data = {
                 "ra": result["ra"],
                 "dec": result["dec"],
-                "covariance": result.get["covariance"],
+                "covariance": covariance,
                 "altitude": result["altitude"],
                 "azimuth": result["azimuth"],
                 "julian_date": result["julian_date"],
