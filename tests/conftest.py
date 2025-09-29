@@ -1,6 +1,7 @@
 # noqa: I001
 import os
 from datetime import datetime
+from typing import Optional
 from urllib.parse import urlparse
 
 import psycopg2
@@ -20,6 +21,8 @@ from api.adapters.repositories.satellite_repository import (
 )
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
+from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
+from api.domain.models.interpolator_splines import InterpolatorSplines
 from api.domain.models.satellite import Satellite
 from api.entrypoints.extensions import db as database
 
@@ -509,6 +512,49 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
         self, start_time: datetime, end_time: datetime
     ) -> list[Satellite]:
         return [ephemeris.satellite for ephemeris in self._ephemeris]
+
+    def _add_interpolator_splines(self, interpolator_splines: InterpolatorSplines):
+
+        if not hasattr(self, "_interpolator_splines"):
+            self._interpolator_splines = []
+        self._interpolator_splines.append(interpolator_splines)
+
+    def _get_interpolator_splines(
+        self, ephemeris_id: int
+    ) -> Optional[InterpolatorSplines]:
+        if not hasattr(self, "_interpolator_splines"):
+            return None
+        for splines in self._interpolator_splines:
+            if splines.ephemeris_id == ephemeris_id:
+                return splines
+        return None
+
+    def _get_all_interpolator_splines_at_epoch(
+        self, epoch_date: datetime
+    ) -> list[InterpolatorSplines]:
+        if not hasattr(self, "_interpolator_splines"):
+            return []
+        return [
+            splines
+            for splines in self._interpolator_splines
+            if splines.time_range_start <= epoch_date <= splines.time_range_end
+        ]
+
+    def _get_closest_by_satellite_numbers(
+        self,
+        satellite_numbers: list[str],
+        epoch: datetime,
+        data_source: Optional[str] = None,
+    ) -> dict[int, InterpolableEphemeris]:
+        results = {}
+        for satellite_number in satellite_numbers:
+            closest_ephemeris = self._get_closest_by_satellite_number(
+                satellite_number, epoch
+            )
+            if closest_ephemeris:
+                if data_source is None or closest_ephemeris.data_source == data_source:
+                    results[satellite_number] = closest_ephemeris
+        return results
 
 
 class FakeSession:

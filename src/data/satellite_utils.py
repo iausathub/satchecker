@@ -16,6 +16,7 @@ from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
+from api.domain.models.satellite import Satellite
 from api.utils.interpolation_utils import (
     generate_and_propagate_sigma_points,
     interpolate_sigma_pointsKI,
@@ -353,9 +354,11 @@ def insert_ephemeris_data(
     """
     try:
         # TODO: fix usage of has_current_sat_number
-        # Get the satellite ID first to avoid duplicate queries
+        # Get the satellite data to create a proper Satellite object
         cursor.execute(
-            "SELECT id FROM satellites "
+            "SELECT id, sat_number, sat_name, constellation, generation, "
+            "rcs_size, launch_date, decay_date, object_id, object_type, "
+            "has_current_sat_number FROM satellites "
             "WHERE sat_name = %s "
             "AND has_current_sat_number = true",
             (parsed_data["satellite_name"],),
@@ -364,6 +367,7 @@ def insert_ephemeris_data(
         if satellite_result is None:
             logging.error(f"Satellite not found: {parsed_data['satellite_name']}")
             return None
+
         satellite_id = satellite_result[0]
 
         date_collected = datetime.now(timezone.utc)
@@ -465,9 +469,22 @@ def insert_ephemeris_data(
             )
             ephemeris_points.append(point)
 
+        # Create Satellite object from database result
+        satellite = Satellite(
+            sat_number=satellite_result[1],
+            sat_name=satellite_result[2],
+            constellation=satellite_result[3],
+            generation=satellite_result[4],
+            rcs_size=satellite_result[5],
+            launch_date=satellite_result[6],
+            decay_date=satellite_result[7],
+            object_id=satellite_result[8],
+            object_type=satellite_result[9],
+            has_current_sat_number=satellite_result[10],
+        )
         # Create and return the InterpolableEphemeris object
         ephemeris = InterpolableEphemeris(
-            satellite=satellite_id,
+            satellite=satellite,
             generated_at=parsed_data["generated_at"],
             data_source=data_source,
             frame=parsed_data["frame"],

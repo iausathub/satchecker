@@ -6,7 +6,51 @@ from scipy.interpolate import KroghInterpolator
 from scipy.linalg import sqrtm
 
 from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
-from api.domain.models.interpolator_splines import InterpolatorChunk
+
+
+class InterpolatorChunk(TypedDict):
+    interpolator: KroghInterpolator
+    range: tuple[float, float]
+
+
+def serialize_interpolator_chunk(chunk: InterpolatorChunk) -> dict:
+    """
+    Serialize an InterpolatorChunk to a compact format storing only coefficients.
+
+    Args:
+        chunk: InterpolatorChunk containing KroghInterpolator and range
+
+    Returns:
+        dict: Compact representation with coefficients instead of full interpolator
+    """
+    return {
+        "coefficients": chunk["interpolator"].c.tolist(),  # Extract coefficients
+        "x_points": chunk[
+            "interpolator"
+        ].xi.tolist(),  # Store x points for reconstruction
+        "range": chunk["range"],
+        "degree": len(chunk["interpolator"].c) - 1,
+    }
+
+
+def deserialize_interpolator_chunk(data: dict) -> InterpolatorChunk:
+    """
+    Deserialize a compact InterpolatorChunk back to full format.
+
+    Args:
+        data: Compact representation with coefficients
+
+    Returns:
+        InterpolatorChunk: Full InterpolatorChunk with reconstructed KroghInterpolator
+    """
+    # Reconstruct the KroghInterpolator from coefficients
+    x_points = np.array(data["x_points"])
+    coefficients = np.array(data["coefficients"])
+
+    interpolator = KroghInterpolator(x_points, np.zeros_like(x_points))
+    interpolator.c = coefficients
+
+    return {"interpolator": interpolator, "range": data["range"]}
 
 
 class InterpolatedSplinesDict(TypedDict):
@@ -57,11 +101,11 @@ def generate_and_propagate_sigma_points(ephemeris: InterpolableEphemeris) -> dic
         - 6 points from negative Cholesky decomposition
     """
     try:
-        # Use high precision for Julian date conversion
-        julian_dates = np.array(
-            [float(julian.to_jd(point.timestamp)) for point in ephemeris.points],
-            dtype=np.float64,
-        )
+        # Use high precision for Julian date conversion with pre-allocation
+        n_points = len(ephemeris.points)
+        julian_dates = np.empty(n_points, dtype=np.float64)
+        for i, point in enumerate(ephemeris.points):
+            julian_dates[i] = float(julian.to_jd(point.timestamp))
 
         # Stack positions and velocities into state vectors
         state_vectors = np.hstack(

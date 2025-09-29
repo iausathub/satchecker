@@ -19,13 +19,20 @@ def test_add_ephemeris(session):
     db_satellite = SatelliteDb(
         sat_number=satellite.sat_number,
         sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
         has_current_sat_number=satellite.has_current_sat_number,
     )
     session.add(db_satellite)
     session.commit()
 
-    # Create ephemeris with the satellite's ID
-    ephemeris = InterpolableEphemerisFactory(satellite=db_satellite.id)
+    # Create ephemeris with the satellite object
+    ephemeris = InterpolableEphemerisFactory(satellite=satellite)
     ephemeris_repository = SqlAlchemyEphemerisRepository(session)
 
     ephemeris_repository.add(ephemeris)
@@ -47,6 +54,13 @@ def test_get_closest_by_satellite_number(session):
     db_satellite = SatelliteDb(
         sat_number=satellite.sat_number,
         sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
         has_current_sat_number=satellite.has_current_sat_number,
     )
     session.add(db_satellite)
@@ -55,19 +69,22 @@ def test_get_closest_by_satellite_number(session):
     ephemeris_repository = SqlAlchemyEphemerisRepository(session)
 
     ephemeris1 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=1,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),
     )
     ephemeris2 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=2,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=2),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=2),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=2),
     )
     ephemeris3 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=3,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=3),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=3),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=3),
@@ -103,6 +120,13 @@ def test_get_closest_by_satellite_name(session):
     db_satellite = SatelliteDb(
         sat_number=satellite.sat_number,
         sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
         has_current_sat_number=satellite.has_current_sat_number,
     )
     session.add(db_satellite)
@@ -111,19 +135,22 @@ def test_get_closest_by_satellite_name(session):
     ephemeris_repository = SqlAlchemyEphemerisRepository(session)
 
     ephemeris1 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=1,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),
     )
     ephemeris2 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=2,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=2),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=2),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=2),
     )
     ephemeris3 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=3,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=3),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=3),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=3),
@@ -159,6 +186,13 @@ def test_get_latest_by_satellite_number(session):
     db_satellite = SatelliteDb(
         sat_number=satellite.sat_number,
         sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
         has_current_sat_number=satellite.has_current_sat_number,
     )
     session.add(db_satellite)
@@ -167,11 +201,13 @@ def test_get_latest_by_satellite_number(session):
     ephemeris_repository = SqlAlchemyEphemerisRepository(session)
 
     ephemeris1 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=1,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
     )
     ephemeris2 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=2,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=2),
     )
     ephemeris_repository.add(ephemeris1)
@@ -195,6 +231,13 @@ def test_get_latest_by_satellite_name(session):
     db_satellite = SatelliteDb(
         sat_number=satellite.sat_number,
         sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
         has_current_sat_number=satellite.has_current_sat_number,
     )
     session.add(db_satellite)
@@ -203,11 +246,13 @@ def test_get_latest_by_satellite_name(session):
     ephemeris_repository = SqlAlchemyEphemerisRepository(session)
 
     ephemeris1 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=1,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
     )
     ephemeris2 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=2,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=2),
     )
     ephemeris_repository.add(ephemeris1)
@@ -255,6 +300,13 @@ def test_get_closest_by_satellite_number_with_data_source(session):
     db_satellite = SatelliteDb(
         sat_number=satellite.sat_number,
         sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
         has_current_sat_number=satellite.has_current_sat_number,
     )
     session.add(db_satellite)
@@ -264,14 +316,16 @@ def test_get_closest_by_satellite_number_with_data_source(session):
 
     # Create ephemeris with different data sources
     ephemeris1 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=1,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),
         data_source="source1",
     )
     ephemeris2 = InterpolableEphemerisFactory(
-        satellite=db_satellite.id,
+        id=2,
+        satellite=satellite,
         generated_at=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_start=datetime.now(timezone.utc) - timedelta(days=1),
         ephemeris_stop=datetime.now(timezone.utc) + timedelta(days=1),

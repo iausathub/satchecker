@@ -118,6 +118,7 @@ satellite_position_fov = namedtuple(
     [
         "ra",
         "dec",
+        "angle",
         "altitude",
         "azimuth",
         "range_km",
@@ -882,15 +883,29 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             epoch: Epoch time for the ephemeris
         """
         self.ephemeris_data = ephemeris
+
+        # Generate sigma points for this specific ephemeris
+        import time
+
+        start_time = time.time()
+        print(f"Generating sigma points for ephemeris {ephemeris.id}")
         self.sigma_points_dict = generate_and_propagate_sigma_points(
             self.ephemeris_data
         )
+        sigma_time = time.time() - start_time
+        print(f"Sigma points generation took {sigma_time:.2f} seconds")
+
+        # Generate splines on-demand since we disabled database storage
+        start_time = time.time()
+        print(f"Generating interpolated splines for ephemeris {ephemeris.id}")
         interpolated_splines_obj = ephem_repo.get_interpolator_splines(ephemeris.id)
         if interpolated_splines_obj is None:
             interpolated_splines = interpolate_sigma_pointsKI(self.sigma_points_dict)
         else:
             interpolated_splines = interpolated_splines_obj.get_interpolated_splines()
         self.interpolated_splines = interpolated_splines
+        spline_time = time.time() - start_time
+        print(f"Spline generation took {spline_time:.2f} seconds")
 
     def propagate(
         self,
@@ -937,7 +952,24 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             # Extract position from mean state (first 3 components)
             satellite_position_gcrs = mean_state[:3]
 
-            # Calculate observer-relative coordinates
+            # Calculate observer position in GCRS
+            observer_location = EarthLocation(
+                lat=latitude * u.deg, lon=longitude * u.deg, height=elevation * u.m
+            )
+            obs_gcrs = (
+                observer_location.get_gcrs(
+                    obstime=Time(jd, format="jd")
+                ).cartesian.xyz.value
+                / 1000
+            )  # Convert to km
+
+            # Calculate topocentric position (satellite - observer) in GCRS
+            topocentric_gcrs = satellite_position_gcrs - obs_gcrs
+
+            # Convert topocentric GCRS position to RA/Dec
+            ra, dec = icrf2radec(topocentric_gcrs)
+
+            # Calculate observer-relative coordinates for altitude/azimuth
             altitude, azimuth, range_km = calculate_satellite_observer_relative(
                 satellite_position_gcrs, latitude, longitude, elevation, jd
             )
@@ -945,8 +977,9 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             # Convert to satellite position format
             results.append(
                 satellite_position_fov(
-                    ra=mean_state[0],
-                    dec=mean_state[1],
+                    ra=ra,
+                    dec=dec,
+                    angle=None,
                     altitude=altitude,
                     azimuth=azimuth,
                     range_km=range_km,

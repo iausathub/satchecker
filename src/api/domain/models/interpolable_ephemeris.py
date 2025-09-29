@@ -3,6 +3,8 @@ from typing import Optional
 
 import numpy as np
 
+from api.domain.models.satellite import Satellite
+
 
 class EphemerisPoint:
     def __init__(
@@ -38,7 +40,7 @@ class EphemerisPoint:
 class InterpolableEphemeris:
     def __init__(
         self,
-        satellite: int,
+        satellite: Satellite,
         generated_at: datetime,
         data_source: str,
         frame: str,
@@ -69,8 +71,7 @@ class InterpolableEphemeris:
     def __eq__(self, other):
         try:
             return (
-                self.id == other.id
-                and self.satellite == other.satellite
+                self.satellite == other.satellite
                 and self.generated_at == other.generated_at
                 and self.data_source == other.data_source
                 and self.file_reference == other.file_reference

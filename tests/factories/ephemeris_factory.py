@@ -4,7 +4,8 @@ from datetime import timezone
 import factory
 import numpy as np
 from faker import Faker
-from src.api.domain.models.interpolable_ephemeris import (
+
+from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
@@ -47,6 +48,7 @@ class InterpolableEphemerisFactory(factory.Factory):
     class Meta:
         model = InterpolableEphemeris
 
+    id = factory.LazyFunction(lambda: faker.random_int(min=1, max=10000))
     satellite = factory.LazyFunction(lambda: faker.random_int(min=1, max=10000))
     generated_at = factory.LazyFunction(
         lambda: faker.date_time_between(

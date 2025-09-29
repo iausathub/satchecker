@@ -1,18 +1,16 @@
 # pragma: no cover
+import gzip
 import pickle
 from datetime import datetime
-from typing import Any, Optional, TypedDict
+from typing import Any, Optional
 
 from attr import dataclass
-from scipy.interpolate import KroghInterpolator
 
-from api.utils.interpolation_utils import InterpolatedSplinesDict
-
-
-class InterpolatorChunk(TypedDict):
-    interpolator: KroghInterpolator
-    range: tuple[float, float]
-
+from api.utils.interpolation_utils import (
+    InterpolatedSplinesDict,
+    deserialize_interpolator_chunk,
+    serialize_interpolator_chunk,
+)
 
 """
 class InterpolatorChunk:
@@ -159,9 +157,90 @@ class InterpolatorSplines:
         Serialize the interpolated_splines for database storage.
 
         Returns:
-            Pickled bytes ready for LargeBinary storage
+            Compressed pickled bytes ready for LargeBinary storage
         """
-        return pickle.dumps(self.interpolated_splines)
+        # Create optimized serialization of the interpolated_splines
+        optimized_data = {
+            "positions": self._serialize_splines_list(
+                self.interpolated_splines["positions"]
+            ),
+            "velocities": self._serialize_splines_list(
+                self.interpolated_splines["velocities"]
+            ),
+            "time_range": self.interpolated_splines["time_range"],
+        }
+
+        pickled_data = pickle.dumps(optimized_data)
+        return gzip.compress(pickled_data)
+
+    def _serialize_splines_list(self, splines_list):
+        """Serialize a list of splines to optimized format"""
+        return [
+            [
+                (
+                    [serialize_interpolator_chunk(chunk) for chunk in component_chunks]
+                    if component_chunks is not None
+                    else None
+                )
+                for component_chunks in sigma_point_chunks
+            ]
+            for sigma_point_chunks in splines_list
+        ]
+
+    @classmethod
+    def deserialize_from_storage(cls, compressed_data: bytes, **kwargs):
+        """
+        Deserialize optimized data from database storage.
+
+        Args:
+            compressed_data: Compressed pickled data from database
+            **kwargs: Additional fields needed to reconstruct the object
+
+        Returns:
+            InterpolatorSplines: Reconstructed object with full interpolators
+        """
+        # Decompress and unpickle
+        decompressed_data = gzip.decompress(compressed_data)
+        data = pickle.loads(decompressed_data)  # noqa: S301
+
+        # Reconstruct the interpolated_splines structure
+        interpolated_splines = {
+            "positions": cls._deserialize_splines_list(data["positions"]),
+            "velocities": cls._deserialize_splines_list(data["velocities"]),
+            "time_range": data["time_range"],
+        }
+
+        return cls(
+            sat_id=kwargs["sat_id"],
+            ephemeris_id=kwargs["ephemeris_id"],
+            time_range_start=kwargs["time_range_start"],
+            time_range_end=kwargs["time_range_end"],
+            generated_at=kwargs["generated_at"],
+            data_source=kwargs["data_source"],
+            interpolated_splines=interpolated_splines,
+            method=kwargs.get("method", "krogh_chunked"),
+            chunk_size=kwargs.get("chunk_size", 14),
+            overlap=kwargs.get("overlap", 8),
+            n_sigma_points=kwargs.get("n_sigma_points", 13),
+        )
+
+    @classmethod
+    def _deserialize_splines_list(cls, serialized_splines_list):
+        """Deserialize a list of splines from optimized format"""
+        return [
+            [
+                (
+                    [
+                        deserialize_interpolator_chunk(chunk_data)
+                        for chunk_data in component_chunks
+                    ]
+                    if component_chunks is not None
+                    else None
+                )
+                for component_chunks in sigma_point_chunks
+            ]
+            for sigma_point_chunks in serialized_splines_list
+        ]
 
     def __eq__(self, other):
         """Check equality of InterpolatorSplines objects."""

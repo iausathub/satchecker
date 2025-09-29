@@ -1,6 +1,5 @@
 import abc
 import logging
-import pickle
 from datetime import datetime
 from typing import Optional
 
@@ -13,12 +12,12 @@ from api.adapters.database_orm import (
     InterpolatedSplineDb,
     SatelliteDb,
 )
+from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
 from api.domain.models.interpolator_splines import InterpolatorSplines
-from api.domain.models.satellite import Satellite
 from api.utils.time_utils import ensure_datetime
 
 logger = logging.getLogger(__name__)
@@ -71,7 +70,7 @@ class AbstractEphemerisRepository(abc.ABC):
 
     def get_satellites_with_ephemeris(
         self, start_time: datetime, end_time: datetime
-    ) -> list[Satellite]:
+    ) -> list[int]:
         return self._get_satellites_with_ephemeris(start_time, end_time)
 
     def add_interpolator_splines(self, interpolator_splines: InterpolatorSplines):
@@ -87,6 +86,16 @@ class AbstractEphemerisRepository(abc.ABC):
         self, epoch_date: datetime
     ) -> list[InterpolatorSplines]:
         return self._get_all_interpolator_splines_at_epoch(epoch_date)
+
+    def get_closest_by_satellite_numbers(
+        self,
+        satellite_numbers: list[str],
+        epoch: datetime,
+        data_source: Optional[str] = None,
+    ) -> dict[int, InterpolableEphemeris]:
+        return self._get_closest_by_satellite_numbers(
+            satellite_numbers, epoch, data_source
+        )
 
     @abc.abstractmethod
     def _add(self, ephemeris: InterpolableEphemeris):
@@ -125,7 +134,7 @@ class AbstractEphemerisRepository(abc.ABC):
     @abc.abstractmethod
     def _get_satellites_with_ephemeris(
         self, start_time: datetime, end_time: datetime
-    ) -> list[Satellite]:
+    ) -> list[int]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -144,6 +153,15 @@ class AbstractEphemerisRepository(abc.ABC):
     ) -> list[InterpolatorSplines]:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def _get_closest_by_satellite_numbers(
+        self,
+        satellite_numbers: list[str],
+        epoch: datetime,
+        data_source: Optional[str] = None,
+    ) -> dict[int, InterpolableEphemeris]:
+        raise NotImplementedError
+
 
 class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
     def __init__(self, session):
@@ -155,9 +173,25 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         self.session.add(orm_ephemeris)
 
     def _to_orm(self, ephemeris: InterpolableEphemeris) -> InterpolableEphemerisDb:
+        # Get satellite ID from database using satellite number
+
+        satellite_id = (
+            self.session.query(SatelliteDb.id)
+            .filter(
+                SatelliteDb.sat_number == ephemeris.satellite.sat_number,
+                SatelliteDb.sat_name == ephemeris.satellite.sat_name,
+            )
+            .scalar()
+        )
+        if satellite_id is None:
+            raise ValueError(
+                f"Satellite with number {ephemeris.satellite.sat_number} "
+                "not found in database"
+            )
+
         # Create the main ephemeris record
         orm_ephemeris = InterpolableEphemerisDb(
-            satellite=ephemeris.satellite,
+            satellite=satellite_id,
             date_collected=ephemeris.date_collected,
             generated_at=ephemeris.generated_at,
             data_source=ephemeris.data_source,
@@ -193,9 +227,14 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
                 )
             )
 
+        # Convert satellite ORM to domain object
+        satellite_domain = SqlAlchemySatelliteRepository._to_domain(
+            orm_ephemeris.satellite_ref
+        )
+
         return InterpolableEphemeris(
             id=orm_ephemeris.id,
-            satellite=int(orm_ephemeris.satellite),
+            satellite=satellite_domain,
             date_collected=ensure_datetime(orm_ephemeris.date_collected),
             generated_at=ensure_datetime(orm_ephemeris.generated_at),
             data_source=str(orm_ephemeris.data_source),
@@ -270,18 +309,15 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
     def _to_domain_interpolator_splines(
         orm_interpolator_splines: InterpolatedSplineDb,
     ) -> InterpolatorSplines:
-        # Safe to use pickle.loads here as data comes from our own database
-        interpolated_splines = pickle.loads(  # noqa: S301
-            orm_interpolator_splines.interpolator_data
-        )
-        return InterpolatorSplines(
+        # Deserialize using optimized format
+        return InterpolatorSplines.deserialize_from_storage(
+            orm_interpolator_splines.interpolator_data,
             sat_id=orm_interpolator_splines.satellite,
             ephemeris_id=orm_interpolator_splines.ephemeris,
             time_range_start=orm_interpolator_splines.time_range_start,
             time_range_end=orm_interpolator_splines.time_range_end,
             generated_at=orm_interpolator_splines.created_at,
             data_source=orm_interpolator_splines.data_source,
-            interpolated_splines=interpolated_splines,
             method=orm_interpolator_splines.method,
             chunk_size=orm_interpolator_splines.chunk_size,
             overlap=orm_interpolator_splines.overlap,
@@ -397,15 +433,11 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
     def _get_latest_by_satellite_number(
         self, satellite_number: str, data_source: Optional[str] = None
     ) -> Optional[InterpolableEphemeris]:
-        logger.error(f"Satellite number: {satellite_number}")
-        logger.error(f"Data source: {data_source}")
         query = (
             self.session.query(InterpolableEphemerisDb)
             .join(InterpolableEphemerisDb.satellite_ref)
             .filter(SatelliteDb.sat_number == satellite_number)
         )
-        logger.error(f"Query: {query}")
-        logger.error(f"Data source: {data_source}")
 
         if data_source:
             query = query.filter(InterpolableEphemerisDb.data_source == data_source)
@@ -414,7 +446,6 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             desc(InterpolableEphemerisDb.generated_at)
         ).first()
 
-        logger.info(f"ORM ephemeris: {orm_ephemeris}")
         if orm_ephemeris:
             return self._to_domain(orm_ephemeris)
         return None
@@ -441,7 +472,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
 
     def _get_satellites_with_ephemeris(
         self, start_time: datetime, end_time: datetime
-    ) -> list[Satellite]:
+    ) -> list[int]:
         try:
             # Ensure epoch is a datetime object with timezone info
             start_time = ensure_datetime(start_time)
@@ -471,3 +502,47 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         except Exception as e:
             logger.error(f"Error getting satellites with ephemeris: {e}")
             return []
+
+    def _get_closest_by_satellite_numbers(
+        self,
+        satellite_numbers: list[str],
+        epoch: datetime,
+        data_source: Optional[str] = None,
+    ) -> dict[int, InterpolableEphemeris]:
+        """Get closest ephemeris for multiple satellite numbers at once."""
+        if not satellite_numbers:
+            return {}
+
+        # Ensure epoch is a datetime object with timezone info
+        epoch = ensure_datetime(epoch)
+        epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
+
+        # Simple query to get all matching ephemeris records
+        query = (
+            self.session.query(InterpolableEphemerisDb)
+            .join(InterpolableEphemerisDb.satellite_ref)
+            .filter(
+                SatelliteDb.sat_number.in_(satellite_numbers),
+                InterpolableEphemerisDb.ephemeris_start <= epoch,
+                InterpolableEphemerisDb.ephemeris_stop >= epoch,
+            )
+            .order_by(
+                SatelliteDb.sat_number,
+                func.abs(
+                    func.extract("epoch", InterpolableEphemerisDb.generated_at)
+                    - func.extract("epoch", epoch_param)
+                ),
+            )
+        )
+
+        if data_source:
+            query = query.filter(InterpolableEphemerisDb.data_source == data_source)
+
+        # Process results and keep only the closest for each satellite
+        results = {}
+        for orm_ephemeris in query.all():
+            sat_number = orm_ephemeris.satellite_ref.sat_number
+            if sat_number not in results:  # First (closest) record for this satellite
+                results[sat_number] = self._to_domain(orm_ephemeris)
+
+        return results
