@@ -706,7 +706,9 @@ def process_satellite_batch(args):
 
             # Vectorized angle calculation
             sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
-            in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
+            in_fov_mask = (
+                np.degrees(sat_fov_angles) < fov_radius * 1.2
+            )  # add 20% margin
             if illuminated_only:
                 # only show points that are illuminated
                 sat_gcrs = [
