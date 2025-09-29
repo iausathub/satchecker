@@ -33,6 +33,7 @@ from api.utils.coordinate_systems import (
     teme_to_ecef,
 )
 from api.utils.interpolation_utils import (
+    InterpolatedSplinesDict,
     generate_and_propagate_sigma_points,
     get_interpolated_sigma_points_KI,
     interpolate_sigma_pointsKI,
@@ -870,7 +871,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         """Initialize the Krogh propagation strategy."""
         self.ephemeris_data: Optional[InterpolableEphemeris] = None
         self.sigma_points_dict: Optional[dict] = None
-        self.interpolated_splines: Optional[dict[str, Any]] = None
+        self.interpolated_splines: Optional[InterpolatedSplinesDict] = None
 
     def load_ephemeris(
         self, ephemeris: InterpolableEphemeris, ephem_repo: AbstractEphemerisRepository
@@ -898,6 +899,10 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         # Generate splines on-demand since we disabled database storage
         start_time = time.time()
         print(f"Generating interpolated splines for ephemeris {ephemeris.id}")
+        if ephemeris.id is None:
+            raise ValueError(
+                "Ephemeris ID is None, cannot retrieve interpolator splines"
+            )
         interpolated_splines_obj = ephem_repo.get_interpolator_splines(ephemeris.id)
         if interpolated_splines_obj is None:
             interpolated_splines = interpolate_sigma_pointsKI(self.sigma_points_dict)

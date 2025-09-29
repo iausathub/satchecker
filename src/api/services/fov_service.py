@@ -1,3 +1,4 @@
+# mypy: disable-error-code=unreachable
 import logging
 import time as python_time
 from datetime import datetime
@@ -108,32 +109,34 @@ def get_satellite_passes_in_fov(
     cached_data = None  # get_cached_data(cache_key)
 
     if cached_data:  # pragma: no cover
-        logger.info(
-            f"Cached data found with {len(cached_data.get('results', []))} results and "  # type: ignore[attr-defined]
-            f"{cached_data.get('points_in_fov', 0)} points in FOV"  # type: ignore[attr-defined]
+        logger.info(  # type: ignore[unreachable]
+            f"Cached data found with {len(cached_data.get('results', []))} results and "
+            f"{cached_data.get('points_in_fov', 0)} points in FOV"
         )
         # Log structure details for debugging
-        for key in cached_data:  # type: ignore[attr-defined]
-            if isinstance(cached_data[key], (list, dict)):  # type: ignore[index]
+        for key in cached_data:
+            if isinstance(cached_data[key], (list, dict)):
                 logger.debug(
-                    f"Cached {key}: {type(cached_data[key])} with length {len(cached_data[key])}"  # type: ignore[index] # noqa: E501
-                )  # noqa: E501
+                    f"Cached {key}: {type(cached_data[key])} "
+                    f"with length {len(cached_data[key])}"
+                )
             else:
                 logger.debug(
-                    f"Cached {key}: {type(cached_data[key])} = {cached_data[key]}"  # type: ignore[index]
+                    f"Cached {key}: {type(cached_data[key])} = {cached_data[key]}"
                 )  # noqa: E501
     else:
         logger.info("No cached data found")
     logger.info(f"Cached data: {cached_data}")
 
+    # TODO: Re-enable caching - this block is intentionally unreachable for now
     if cached_data and not skip_cache:  # pragma: no cover
         cache_time = python_time.time() - start_time
         logger.info(
-            f"Cache hit: Found {len(cached_data['results'])} results with "  # type: ignore[index]
+            f"Cache hit: Found {len(cached_data['results'])} results with "
             f"{cached_data['points_in_fov']} points in FOV"
         )
         # Log any None values in the cached results
-        for idx, result in enumerate(cached_data.get("results", [])):  # type: ignore[attr-defined]
+        for idx, result in enumerate(cached_data.get("results", [])):
             for key, value in result.items():
                 if value is None:
                     logger.warning(
@@ -141,11 +144,11 @@ def get_satellite_passes_in_fov(
                     )
         # Return cached results using the same formatting function
         return output_utils.fov_data_to_json(
-            cached_data["results"],  # type: ignore[index]
-            cached_data["points_in_fov"],  # type: ignore[index]
+            cached_data["results"],
+            cached_data["points_in_fov"],
             {
                 "total_time": round(cache_time, 3),
-                "points_in_fov": cached_data["points_in_fov"],  # type: ignore[index]
+                "points_in_fov": cached_data["points_in_fov"],
                 "from_cache": True,
             },
             api_source,

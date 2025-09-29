@@ -2,7 +2,7 @@
 import gzip
 import pickle
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 from attr import dataclass
 
@@ -143,7 +143,7 @@ class InterpolatorSplines:
                     f"got {len(vel_splines)}"
                 )
 
-    def get_interpolated_splines(self) -> dict[str, Any]:
+    def get_interpolated_splines(self) -> InterpolatedSplinesDict:
         """
         Get the interpolated splines structure for direct use with interpolation_utils.
 
@@ -188,7 +188,9 @@ class InterpolatorSplines:
         ]
 
     @classmethod
-    def deserialize_from_storage(cls, compressed_data: bytes, **kwargs):
+    def deserialize_from_storage(
+        cls, compressed_data: bytes, **kwargs
+    ) -> "InterpolatorSplines":
         """
         Deserialize optimized data from database storage.
 
@@ -204,7 +206,7 @@ class InterpolatorSplines:
         data = pickle.loads(decompressed_data)  # noqa: S301
 
         # Reconstruct the interpolated_splines structure
-        interpolated_splines = {
+        interpolated_splines: InterpolatedSplinesDict = {
             "positions": cls._deserialize_splines_list(data["positions"]),
             "velocities": cls._deserialize_splines_list(data["velocities"]),
             "time_range": data["time_range"],

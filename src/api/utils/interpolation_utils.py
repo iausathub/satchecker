@@ -1,4 +1,4 @@
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import julian
 import numpy as np
@@ -387,7 +387,7 @@ def interpolate_sigma_pointsKI(  # noqa: N802
 
 
 def get_interpolated_sigma_points_KI(  # noqa: N802
-    interpolated_splines: dict[str, Any], julian_date: float
+    interpolated_splines: InterpolatedSplinesDict, julian_date: float
 ) -> np.ndarray:
     """
     Get interpolated sigma points at a specific Julian date using optimal
@@ -441,8 +441,8 @@ def get_interpolated_sigma_points_KI(  # noqa: N802
     for i in range(n_sigma_points):
         # Interpolate positions
         for j in range(3):
-            if interpolated_splines["positions"][i][j] is not None:
-                splines = interpolated_splines["positions"][i][j]
+            splines = interpolated_splines["positions"][i][j]
+            if splines is not None:
                 applicable_splines = []
                 for idx, spline_info in enumerate(splines):
                     pos_lower: float
@@ -477,8 +477,8 @@ def get_interpolated_sigma_points_KI(  # noqa: N802
 
         # Interpolate velocities
         for j in range(3):
-            if interpolated_splines["velocities"][i][j] is not None:
-                splines = interpolated_splines["velocities"][i][j]
+            splines = interpolated_splines["velocities"][i][j]
+            if splines is not None:
                 applicable_splines = []
 
                 for idx, spline_info in enumerate(splines):

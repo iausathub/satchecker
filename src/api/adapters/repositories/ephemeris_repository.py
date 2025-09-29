@@ -232,8 +232,11 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
             orm_ephemeris.satellite_ref
         )
 
+        if satellite_domain is None:
+            raise ValueError("No satellite found for ephemeris satellite reference")
+
         return InterpolableEphemeris(
-            id=orm_ephemeris.id,
+            id=int(orm_ephemeris.id),
             satellite=satellite_domain,
             date_collected=ensure_datetime(orm_ephemeris.date_collected),
             generated_at=ensure_datetime(orm_ephemeris.generated_at),
@@ -311,7 +314,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
     ) -> InterpolatorSplines:
         # Deserialize using optimized format
         return InterpolatorSplines.deserialize_from_storage(
-            orm_interpolator_splines.interpolator_data,
+            bytes(orm_interpolator_splines.interpolator_data),
             sat_id=orm_interpolator_splines.satellite,
             ephemeris_id=orm_interpolator_splines.ephemeris,
             time_range_start=orm_interpolator_splines.time_range_start,
