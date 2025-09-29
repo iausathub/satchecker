@@ -237,7 +237,7 @@ def fov_data_to_json(
             pass_data = {
                 "ra": result["ra"],
                 "dec": result["dec"],
-                "covariance": result["covariance"],
+                "covariance": result.get["covariance"],
                 "altitude": result["altitude"],
                 "azimuth": result["azimuth"],
                 "julian_date": result["julian_date"],
@@ -261,9 +261,10 @@ def fov_data_to_json(
             "version": api_version,
         }
     else:
-        # Original chronological format
+        sorted_results = sorted(results, key=lambda x: x.get("julian_date", 0))
+
         formatted_results = {
-            "data": results,
+            "data": sorted_results,
             "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,
