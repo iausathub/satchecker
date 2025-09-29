@@ -5,7 +5,7 @@ cd /usr/src/app/api
 export PYTHONPATH="/usr/src/app"
 
 # Run database migrations
-alembic -c migrations/alembic.ini upgrade head
+flask db upgrade head
 
 # Start the Celery worker in the background
 celery -A api.satchecker.celery worker --loglevel INFO &
