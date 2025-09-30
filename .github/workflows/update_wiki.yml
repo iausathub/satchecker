@@ -24,15 +24,11 @@ jobs:
         path: wiki-repo
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Copy wiki files
+    - name: Sync wiki files
       run: |
         cd wiki-repo
-        # Remove all existing files except .git
-        find . -name '.git' -prune -o -type f -delete
-        find . -name '.git' -prune -o -type d -empty -delete
-
-        # Copy wiki files from dev/wiki
-        cp -r ../dev/wiki/* .
+        # Sync files from dev/wiki to wiki repo
+        rsync -av --delete ../dev/wiki/ ./
 
         # Fail if no wiki files are found
         if [ ! -f "Home.md" ] && [ -z "$(find . -name "*.md" -type f)" ]; then
