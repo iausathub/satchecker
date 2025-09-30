@@ -11,4 +11,4 @@ flask db upgrade head
 celery -A api.satchecker.celery worker --loglevel INFO &
 
 # Start the Flask server in the foreground
-exec gunicorn --workers=4 --threads=4 --worker-class=gthread --timeout 300 -b 0.0.0.0:5000 --access-logfile - --keep-alive 120 api.satchecker:app
+exec gunicorn --workers=8 --threads=2 --worker-class=gthread --timeout 300 -b 0.0.0.0:5000 --access-logfile - --keep-alive 120 api.satchecker:app
