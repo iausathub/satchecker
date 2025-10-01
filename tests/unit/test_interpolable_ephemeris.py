@@ -46,7 +46,7 @@ def test_interpolable_ephemeris_equality():
     date_collected = datetime(2024, 1, 1, tzinfo=timezone.utc)
 
     ephemeris1 = InterpolableEphemeris(
-        sat_id=sat_id,
+        satellite=sat_id,
         generated_at=generated_at,
         data_source=data_source,
         frame=frame,
@@ -57,7 +57,7 @@ def test_interpolable_ephemeris_equality():
     )
 
     ephemeris2 = InterpolableEphemeris(
-        sat_id=sat_id,
+        satellite=sat_id,
         generated_at=generated_at,
         data_source=data_source,
         frame=frame,
@@ -68,7 +68,7 @@ def test_interpolable_ephemeris_equality():
     )
 
     ephemeris3 = InterpolableEphemeris(
-        sat_id=54321,  # Different sat_id
+        satellite=54321,  # Different sat_id
         generated_at=generated_at,
         data_source=data_source,
         frame=frame,
@@ -101,7 +101,7 @@ def test_interpolable_ephemeris_repr():
     ephemeris_stop = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
     ephemeris = InterpolableEphemeris(
-        sat_id=sat_id,
+        satellite=sat_id,
         generated_at=generated_at,
         data_source=data_source,
         frame=frame,
@@ -111,7 +111,7 @@ def test_interpolable_ephemeris_repr():
     )
 
     expected_repr = (
-        f"<InterpolableEphemeris sat_id={sat_id} generated_at={generated_at}>"
+        f"<InterpolableEphemeris satellite={sat_id} generated_at={generated_at}>"
     )
     assert repr(ephemeris) == expected_repr
 
@@ -134,7 +134,7 @@ def test_interpolable_ephemeris_default_date_collected():
     ephemeris_stop = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
     ephemeris = InterpolableEphemeris(
-        sat_id=sat_id,
+        satellite=sat_id,
         generated_at=generated_at,
         data_source=data_source,
         frame=frame,

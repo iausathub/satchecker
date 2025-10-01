@@ -31,7 +31,20 @@ class Satellite:
         return f"<Satellite {self.sat_name}>"
 
     def __eq__(self, other):
-        return self.sat_number == other.sat_number and self.sat_name == other.sat_name
+        if not isinstance(other, Satellite):
+            return False
+        return (
+            self.sat_number == other.sat_number
+            and self.sat_name == other.sat_name
+            and self.constellation == other.constellation
+            and self.generation == other.generation
+            and self.rcs_size == other.rcs_size
+            and self.launch_date == other.launch_date
+            and self.decay_date == other.decay_date
+            and self.object_id == other.object_id
+            and self.object_type == other.object_type
+            and self.has_current_sat_number == other.has_current_sat_number
+        )
 
     def __hash__(self):
         return hash((self.sat_number, self.sat_name))

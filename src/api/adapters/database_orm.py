@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Text,
     UniqueConstraint,
     func,
@@ -102,8 +103,8 @@ class EphemerisPointDb(Base):
         Integer, ForeignKey("interpolable_ephemeris.id"), nullable=False
     )
     timestamp = Column(TIMESTAMP(timezone=True), nullable=False)
-    position: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
-    velocity: Column[Any] = Column(PG_ARRAY(Float, dimensions=3), nullable=False)
+    position: Column[Any] = Column(PG_ARRAY(Float), nullable=False)
+    velocity: Column[Any] = Column(PG_ARRAY(Float), nullable=False)
     covariance: Column[Any] = Column(PG_ARRAY(Float), nullable=False)
 
     __table_args__ = (
@@ -134,7 +135,9 @@ class InterpolableEphemerisDb(Base):
         cascade="all, delete-orphan",
     )
 
-    satellite_ref = relationship("SatelliteDb", backref="interpolable_ephemeris")
+    satellite_ref = relationship(
+        "SatelliteDb", foreign_keys=[satellite], backref="interpolable_ephemeris"
+    )
 
     __table_args__ = (
         UniqueConstraint("satellite", "generated_at", "data_source"),
@@ -152,15 +155,13 @@ class InterpolatedSplineDb(Base):
     time_range_end = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
 
-    position_splines: Column[Any] = Column(
-        PG_ARRAY(Float, dimensions=3), nullable=False
-    )
-    velocity_splines: Column[Any] = Column(
-        PG_ARRAY(Float, dimensions=3), nullable=False
-    )
+    interpolator_data = Column(LargeBinary, nullable=False)
 
+    method = Column(Text, nullable=False, default="krogh_chunked")
     chunk_size = Column(Integer, nullable=False)
     overlap = Column(Integer, nullable=False)
+    n_sigma_points = Column(Integer, nullable=False, default=13)
+    data_source = Column(Text, nullable=False)
 
     satellite_ref = relationship("SatelliteDb", backref="interpolated_splines")
     ephemeris_ref = relationship(

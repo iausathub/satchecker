@@ -123,7 +123,8 @@ def ensure_datetime(date_value: Any) -> datetime:
     Ensure that the input is a datetime object with timezone info.
 
     Args:
-        date_value: A datetime object or a string representing a date/time
+        date_value: A datetime object, string representing a date/time, or
+        Julian date float
 
     Returns:
         A datetime object with timezone info
@@ -131,7 +132,11 @@ def ensure_datetime(date_value: Any) -> datetime:
     Raises:
         TypeError: If the input cannot be converted to a datetime object
     """
-    if isinstance(date_value, str):
+    if isinstance(date_value, (float, np.floating)):
+        # Convert Julian date to datetime
+        time_obj = Time(date_value, format="jd", scale="utc")
+        return astropy_time_to_datetime_utc(time_obj)
+    elif isinstance(date_value, str):
         try:
             # Try to parse the string as a datetime in ISO format
             date_value = datetime.fromisoformat(date_value.replace("Z", "+00:00"))

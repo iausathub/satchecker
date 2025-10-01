@@ -234,9 +234,14 @@ def fov_data_to_json(
 
                 satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info
+            covariance = result.get("covariance")
+            if covariance is not None and hasattr(covariance, "tolist"):
+                covariance = covariance.tolist()
+
             pass_data = {
                 "ra": result["ra"],
                 "dec": result["dec"],
+                "covariance": covariance,
                 "altitude": result["altitude"],
                 "azimuth": result["azimuth"],
                 "julian_date": result["julian_date"],
@@ -244,6 +249,8 @@ def fov_data_to_json(
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
                 "tle_epoch": result.get("tle_epoch"),
+                "propagation_epoch": result.get("propagation_epoch"),
+                "propagation_source": result.get("propagation_source"),
             }
             satellites[sat_key]["positions"].append(pass_data)
 
@@ -258,9 +265,10 @@ def fov_data_to_json(
             "version": api_version,
         }
     else:
-        # Original chronological format
+        sorted_results = sorted(results, key=lambda x: x.get("julian_date", 0))
+
         formatted_results = {
-            "data": results,
+            "data": sorted_results,
             "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,
