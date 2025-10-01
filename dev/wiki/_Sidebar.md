@@ -5,6 +5,7 @@
   * [Local Database](Setup#local-database)
 * [Development Workflow](development-workflow)
   * [Generating Documentation](development-workflow#generating-documentation-from-docstrings)
+  * [Tests](tests)
 
 ***
 
