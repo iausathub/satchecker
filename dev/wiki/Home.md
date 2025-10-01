@@ -6,6 +6,9 @@ Steps to get the API, database, Redis, and Celery set up locally for development
 #### [Development Workflow](development-workflow)
 Notes related to building documentation, todos, etc.
 
+#### [Tests](tests)
+Notes related to test structure and running tests.
+
 #### [Contribution Guide](https://github.com/iausathub/satchecker/blob/main/setup/CONTRIBUTING.md)
 Additional notes for anyone interested in contributing to this project.
 
