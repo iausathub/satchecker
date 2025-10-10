@@ -633,7 +633,7 @@ def calculate_satellite_observer_relative(
     topocentric_ecef[2] = satellite_position_gcrs[2]
 
     relative_position_enu = ecef_to_enu(
-        topocentric_ecef, observer_latitude, observer_longitude
+        topocentric_ecef.tolist(), observer_latitude, observer_longitude
     )
 
     azimuth_deg, altitude_deg = enu_to_az_el(relative_position_enu)
