@@ -1,7 +1,6 @@
 # noqa: I001
 import os
 from datetime import datetime
-from typing import Optional
 from urllib.parse import urlparse
 
 import psycopg2
@@ -521,7 +520,7 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
 
     def _get_interpolator_splines(
         self, ephemeris_id: int
-    ) -> Optional[InterpolatorSplines]:
+    ) -> InterpolatorSplines | None:
         if not hasattr(self, "_interpolator_splines"):
             return None
         for splines in self._interpolator_splines:

@@ -2,7 +2,6 @@ import logging
 import re
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -339,7 +338,7 @@ def get_starlink_generations(cursor, connection):
 
 def insert_ephemeris_data(
     parsed_data, cursor, connection
-) -> Optional[tuple[InterpolableEphemeris, int]]:
+) -> tuple[InterpolableEphemeris, int] | None:
     """
     Insert ephemeris data into the database efficiently using batch inserts.
 
