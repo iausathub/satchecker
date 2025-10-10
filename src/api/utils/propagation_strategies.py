@@ -948,22 +948,17 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             julian_dates = [julian_dates]
 
         results = []
+        # Calculate observer position in GCRS
+        observer_location = EarthLocation(
+            lat=latitude * u.deg, lon=longitude * u.deg, height=elevation * u.m
+        )
         for jd in julian_dates:
             # Get interpolated sigma points
             interpolated_points = get_interpolated_sigma_points_KI(
                 self.interpolated_splines, jd
             )
 
-            # Reconstruct mean state and covariance
-            mean_state, covariance = reconstruct_covariance_at_time(interpolated_points)
-
-            # Extract position from mean state (first 3 components)
-            satellite_position_gcrs = mean_state[:3]
-
-            # Calculate observer position in GCRS
-            observer_location = EarthLocation(
-                lat=latitude * u.deg, lon=longitude * u.deg, height=elevation * u.m
-            )
+            # Get observer position in GCRS for this time
             obs_gcrs = (
                 observer_location.get_gcrs(
                     obstime=Time(jd, format="jd")
@@ -971,15 +966,28 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                 / 1000
             )  # Convert to km
 
-            # Calculate topocentric position (satellite - observer) in GCRS
-            topocentric_gcrs = satellite_position_gcrs - obs_gcrs
+            # Transform from satellite GCRS positions to topocentric GCRS positions
+            transformed_points = np.zeros_like(interpolated_points)
+            for i in range(len(interpolated_points)):
+                # position
+                satellite_position_gcrs = interpolated_points[i][:3]
 
-            # Convert topocentric GCRS position to RA/Dec
+                # Calculate topocentric position (satellite - observer) in GCRS
+                topocentric_gcrs = satellite_position_gcrs - obs_gcrs
+
+                transformed_points[i][:3] = topocentric_gcrs
+                # keep original velocity components?
+                transformed_points[i][3:] = interpolated_points[i][3:]
+
+            # Reconstruct mean state and covariance from transformed points
+            mean_state, covariance = reconstruct_covariance_at_time(transformed_points)
+
+            topocentric_gcrs = mean_state[:3]
             ra, dec = icrf2radec(topocentric_gcrs)
 
             # Calculate observer-relative coordinates for altitude/azimuth
             altitude, azimuth, range_km = calculate_satellite_observer_relative(
-                satellite_position_gcrs, latitude, longitude, elevation, jd
+                topocentric_gcrs, latitude, longitude, jd
             )
 
             # Convert to satellite position format

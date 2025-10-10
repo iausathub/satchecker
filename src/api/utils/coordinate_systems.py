@@ -600,7 +600,6 @@ def calculate_satellite_observer_relative(
     satellite_position_gcrs: np.ndarray,
     observer_latitude: float,
     observer_longitude: float,
-    observer_elevation: float,
     julian_date: float,
 ) -> tuple[float, float, float]:
     """
@@ -608,63 +607,35 @@ def calculate_satellite_observer_relative(
     without using Skyfield.
 
     Args:
-        satellite_position_gcrs: Satellite position in GCRS coordinates (km)
+        satellite_position_gcrs: Topocentric position in GCRS coordinates (km)
         observer_latitude: Observer latitude in degrees
         observer_longitude: Observer longitude in degrees
-        observer_elevation: Observer elevation in meters
         julian_date: Julian date
 
     Returns:
         tuple: (altitude_deg, azimuth_deg, range_km)
     """
-    # WGS84 ellipsoid parameters for observer position calculation
-    a = 6378.137  # Semi-major axis in km
-    f = 1 / 298.257223563  # Flattening
-    e2 = 2 * f - f * f  # First eccentricity squared
-
-    # Convert to radians
-    lat_rad = np.deg2rad(observer_latitude)
-    lon_rad = np.deg2rad(observer_longitude)
-    h = observer_elevation / 1000.0  # Convert to km
-
-    # Calculate N (radius of curvature in the prime vertical)
-    N = a / np.sqrt(1 - e2 * np.sin(lat_rad) ** 2)  # noqa: N806
-
-    # Calculate observer position in ECEF
-    observer_ecef = np.array(
-        [
-            (N + h) * np.cos(lat_rad) * np.cos(lon_rad),
-            (N + h) * np.cos(lat_rad) * np.sin(lon_rad),
-            (N * (1 - e2) + h) * np.sin(lat_rad),
-        ]
-    )
-
-    # Convert satellite position from GCRS to ECEF using reverse of itrs_to_gcrs
-    # This includes nutation corrections for better accuracy
+    # Since satellite_position_gcrs is already topocentric (satellite - observer),
+    # we need to convert it to ECEF coordinates and then to ENU
     dpsi, deps = iau2000b(julian_date)
     nutation_arcsec = dpsi / 10000000  # Convert from arcseconds to degrees
     nutation = nutation_arcsec / 3600
     theta_gst = jd_to_gst(julian_date, nutation)
 
-    # Reverse the itrs_to_gcrs transformation
-    satellite_ecef = np.zeros_like(satellite_position_gcrs)
-    satellite_ecef[0] = satellite_position_gcrs[0] * np.cos(
+    # Convert topocentric GCRS to ECEF (reverse of itrs_to_gcrs transformation)
+    topocentric_ecef = np.zeros_like(satellite_position_gcrs)
+    topocentric_ecef[0] = satellite_position_gcrs[0] * np.cos(
         theta_gst
     ) + satellite_position_gcrs[1] * np.sin(theta_gst)
-    satellite_ecef[1] = -satellite_position_gcrs[0] * np.sin(
+    topocentric_ecef[1] = -satellite_position_gcrs[0] * np.sin(
         theta_gst
     ) + satellite_position_gcrs[1] * np.cos(theta_gst)
-    satellite_ecef[2] = satellite_position_gcrs[2]
+    topocentric_ecef[2] = satellite_position_gcrs[2]
 
-    # Calculate relative position (satellite - observer)
-    relative_position_ecef = satellite_ecef - observer_ecef
-
-    # Use the existing ecef_to_enu function
     relative_position_enu = ecef_to_enu(
-        relative_position_ecef, observer_latitude, observer_longitude
+        topocentric_ecef, observer_latitude, observer_longitude
     )
 
-    # Use the existing enu_to_az_el function
     azimuth_deg, altitude_deg = enu_to_az_el(relative_position_enu)
 
     # Calculate range
