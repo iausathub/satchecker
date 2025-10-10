@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 
 class Satellite:
@@ -7,13 +6,13 @@ class Satellite:
         self,
         sat_number: int,
         sat_name: str,
-        constellation: Optional[str] = None,
-        generation: Optional[str] = None,
-        rcs_size: Optional[str] = None,
-        launch_date: Optional[datetime] = None,
-        decay_date: Optional[datetime] = None,
-        object_id: Optional[str] = None,
-        object_type: Optional[str] = None,
+        constellation: str | None = None,
+        generation: str | None = None,
+        rcs_size: str | None = None,
+        launch_date: datetime | None = None,
+        decay_date: datetime | None = None,
+        object_id: str | None = None,
+        object_type: str | None = None,
         has_current_sat_number: bool = False,
     ):
         self.sat_number = sat_number

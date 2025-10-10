@@ -544,7 +544,7 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
         self,
         satellite_numbers: list[str],
         epoch: datetime,
-        data_source: Optional[str] = None,
+        data_source: str | None = None,
     ) -> dict[int, InterpolableEphemeris]:
         results = {}
         for satellite_number in satellite_numbers:

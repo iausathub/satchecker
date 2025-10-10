@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Union
+from typing import Any
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
@@ -101,7 +101,7 @@ def generate_position_data(
     catalog_id: str = "",
     data_source: str = "",
     propagation_strategy: str = "skyfield",
-) -> Union[dict[str, Any], list[dict[str, Any]]]:
+) -> dict[str, Any] | list[dict[str, Any]]:
     """
     Create a list of results for a given satellite and date range.
 

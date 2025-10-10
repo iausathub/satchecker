@@ -91,7 +91,7 @@ def get_starlink_satellites(cursor: psycopg2.extensions.cursor) -> list[tuple]:
     return cursor.fetchall()
 
 
-def extract_launch_number(launch_id: Optional[str]) -> str:
+def extract_launch_number(launch_id: str | None) -> str:
     """
     Extract and clean the launch number.
 

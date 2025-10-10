@@ -142,7 +142,9 @@ def generate_and_propagate_sigma_points(ephemeris: InterpolableEphemeris) -> dic
             "covariance": {"w0": w0_c, "wn": wn_c},
         }
 
-        for idx, (jd, point) in enumerate(zip(julian_dates, ephemeris.points)):
+        for idx, (jd, point) in enumerate(
+            zip(julian_dates, ephemeris.points, strict=True)
+        ):
             try:
                 state_vector = state_vectors[idx]
                 covariance = covariances[idx]

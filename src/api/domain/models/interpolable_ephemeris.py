@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Optional
 
 import numpy as np
 
@@ -47,9 +46,9 @@ class InterpolableEphemeris:
         points: list[EphemerisPoint],
         ephemeris_start: datetime,
         ephemeris_stop: datetime,
-        file_reference: Optional[str] = None,
-        date_collected: Optional[datetime] = None,
-        id: Optional[int] = None,
+        file_reference: str | None = None,
+        date_collected: datetime | None = None,
+        id: int | None = None,
     ):
         self.id = id
         self.satellite = satellite
@@ -80,7 +79,9 @@ class InterpolableEphemeris:
                 and self.ephemeris_start == other.ephemeris_start
                 and self.ephemeris_stop == other.ephemeris_stop
                 and len(self.points) == len(other.points)
-                and all(p1 == p2 for p1, p2 in zip(self.points, other.points))
+                and all(
+                    p1 == p2 for p1, p2 in zip(self.points, other.points, strict=True)
+                )
             )
         except AttributeError:
             return False

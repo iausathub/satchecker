@@ -2,7 +2,6 @@
 import gzip
 import pickle
 from datetime import datetime
-from typing import Optional
 
 from attr import dataclass
 
@@ -98,7 +97,7 @@ class InterpolatorSplines:
     chunk_size: int = 14
     overlap: int = 8
     n_sigma_points: int = 13
-    date_collected: Optional[datetime] = None
+    date_collected: datetime | None = None
 
     def __post_init__(self):
         """Validate the interpolated_splines structure."""
