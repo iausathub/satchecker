@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
@@ -24,7 +24,7 @@ def generate_ephemeris_data(
     api_version: str,
     data_source: str = "",
     propagation_method: str = "skyfield",
-) -> Union[dict[str, Any], list[dict[str, Any]]]:
+) -> dict[str, Any] | list[dict[str, Any]]:
 
     #  get TLE from repository
     tle = (
@@ -65,7 +65,7 @@ def generate_ephemeris_data(
             propagation_method,
         ]
     )
-    result_list: Union[dict[str, Any], list[dict[str, Any]]] = result_list_task.get()
+    result_list: dict[str, Any] | list[dict[str, Any]] = result_list_task.get()
     return result_list
 
 
@@ -77,7 +77,7 @@ def generate_ephemeris_data_user(
     max_altitude: float,
     api_source: str,
     api_version: str,
-) -> Union[dict[str, Any], list[dict[str, Any]]]:
+) -> dict[str, Any] | list[dict[str, Any]]:
 
     result_list_task = generate_position_data.apply(
         args=[
@@ -97,5 +97,5 @@ def generate_ephemeris_data_user(
             tle.data_source,
         ]
     )
-    result_list: Union[dict[str, Any], list[dict[str, Any]]] = result_list_task.get()
+    result_list: dict[str, Any] | list[dict[str, Any]] = result_list_task.get()
     return result_list

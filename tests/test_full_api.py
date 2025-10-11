@@ -131,7 +131,7 @@ def disabled_test_get_ephemeris_by_name(client):
         "data_source",
         "observer_gcrs_km",
     ]
-    data = [dict(zip(fields_ordered, data_point)) for data_point in data]
+    data = [dict(zip(fields_ordered, data_point, strict=True)) for data_point in data]
     for field in fields_ordered:
         print(f"{field}: {data[0][field]}")
     assert data[0]["altitude_deg"] == pytest.approx(-8.16564726, assert_precision)

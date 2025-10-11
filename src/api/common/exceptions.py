@@ -1,6 +1,3 @@
-from typing import Optional
-
-
 class ValidationError(Exception):
     """Exception raised for validation errors."""
 
@@ -8,7 +5,7 @@ class ValidationError(Exception):
         self,
         status_code: int,
         message: str,
-        original_exception: Optional[Exception] = None,
+        original_exception: Exception | None = None,
     ):
         self.message = message
         self.status_code = status_code
@@ -23,7 +20,7 @@ class DataError(Exception):
         self,
         status_code: int,
         message: str,
-        original_exception: Optional[Exception] = None,
+        original_exception: Exception | None = None,
     ):
         self.message = message
         self.status_code = status_code

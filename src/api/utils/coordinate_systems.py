@@ -594,3 +594,51 @@ def get_phase_angle(
 
     phase_angle = float(np.rad2deg(np.arccos(np.dot(satsunn, topocentric_gcrs_norm))))
     return phase_angle
+
+
+def calculate_satellite_observer_relative(
+    satellite_position_gcrs: np.ndarray,
+    observer_latitude: float,
+    observer_longitude: float,
+    julian_date: float,
+) -> tuple[float, float, float]:
+    """
+    Calculate satellite altitude, azimuth, and range relative to observer
+    without using Skyfield.
+
+    Args:
+        satellite_position_gcrs: Topocentric position in GCRS coordinates (km)
+        observer_latitude: Observer latitude in degrees
+        observer_longitude: Observer longitude in degrees
+        julian_date: Julian date
+
+    Returns:
+        tuple: (altitude_deg, azimuth_deg, range_km)
+    """
+    # Since satellite_position_gcrs is already topocentric (satellite - observer),
+    # we need to convert it to ECEF coordinates and then to ENU
+    dpsi, deps = iau2000b(julian_date)
+    nutation_arcsec = dpsi / 10000000  # Convert from arcseconds to degrees
+    nutation = nutation_arcsec / 3600
+    theta_gst = jd_to_gst(julian_date, nutation)
+
+    # Convert topocentric GCRS to ECEF (reverse of itrs_to_gcrs transformation)
+    topocentric_ecef = np.zeros_like(satellite_position_gcrs)
+    topocentric_ecef[0] = satellite_position_gcrs[0] * np.cos(
+        theta_gst
+    ) + satellite_position_gcrs[1] * np.sin(theta_gst)
+    topocentric_ecef[1] = -satellite_position_gcrs[0] * np.sin(
+        theta_gst
+    ) + satellite_position_gcrs[1] * np.cos(theta_gst)
+    topocentric_ecef[2] = satellite_position_gcrs[2]
+
+    relative_position_enu = ecef_to_enu(
+        topocentric_ecef.tolist(), observer_latitude, observer_longitude
+    )
+
+    azimuth_deg, altitude_deg = enu_to_az_el(relative_position_enu)
+
+    # Calculate range
+    range_km = np.linalg.norm(relative_position_enu)
+
+    return float(altitude_deg), float(azimuth_deg), float(range_km)

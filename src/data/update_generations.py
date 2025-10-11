@@ -4,7 +4,6 @@ import os
 import re
 import sys
 from datetime import datetime, timezone
-from typing import Optional
 
 import pandas as pd
 import psycopg2
@@ -210,7 +209,7 @@ def get_starlink_satellites(cursor: psycopg2.extensions.cursor) -> list[tuple]:
     return cursor.fetchall()
 
 
-def extract_launch_number(launch_id: Optional[str]) -> str:
+def extract_launch_number(launch_id: str | None) -> str:
     """
     Extract and clean the launch number.
 
