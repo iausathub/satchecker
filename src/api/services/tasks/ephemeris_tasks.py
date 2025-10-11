@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Union
+from typing import Any
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
@@ -101,7 +101,7 @@ def generate_position_data(
     catalog_id: str = "",
     data_source: str = "",
     propagation_strategy: str = "skyfield",
-) -> Union[dict[str, Any], list[dict[str, Any]]]:
+) -> dict[str, Any] | list[dict[str, Any]]:
     """
     Create a list of results for a given satellite and date range.
 
@@ -122,7 +122,7 @@ def generate_position_data(
         data_source (str, optional): The data source of the TLE data. Defaults to "".
 
     Returns:
-        Union[dict[str, Any], list[dict[str, Any]]]: Either a dictionary with results
+        dict[str, Any] | list[dict[str, Any]]: Either a dictionary with results
         or a list of results for the given satellite and date range.
     """
     # Create a chord that will propagate the satellite for
@@ -184,7 +184,7 @@ def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
         long (float): The longitude of the observer's location, in degrees.
         height (float): The height of the observer's location, in meters above the
         WGS84 ellipsoid.
-        jd (Union[float, list[float]]): The Julian Date(s) at which to propagate
+        jd (float | list[float]): The Julian Date(s) at which to propagate
         the satellite.
 
     Returns:
@@ -213,7 +213,7 @@ def propagate_satellite_sgp4(
         long (float): The longitude of the observer's location, in degrees.
         height (float): The height of the observer's location, in meters above the
         WGS84 ellipsoid.
-        jd (Union[float, list[float]]): The Julian Date(s) at which to propagate
+        jd (float | list[float]): The Julian Date(s) at which to propagate
         the satellite.
 
     Returns:
