@@ -4,24 +4,23 @@ import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
-from datetime import datetime, timedelta
 from typing import Any
 
-import julian
 import numpy as np
 from astropy import units as u
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
-from scipy.interpolate import KroghInterpolator
-from scipy.linalg import sqrtm
 from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load, wgs84
 from skyfield.nutationlib import iau2000b
 
+from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
+from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
 from api.utils import coordinate_systems, output_utils
 from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
     calculate_current_position,
+    calculate_satellite_observer_relative,
     ecef_to_enu,
     ecef_to_itrs,
     enu_to_az_el,
@@ -32,6 +31,13 @@ from api.utils.coordinate_systems import (
     itrs_to_gcrs,
     load_earth_sun,
     teme_to_ecef,
+)
+from api.utils.interpolation_utils import (
+    InterpolatedSplinesDict,
+    generate_and_propagate_sigma_points,
+    get_interpolated_sigma_points_KI,
+    interpolate_sigma_pointsKI,
+    reconstruct_covariance_at_time,
 )
 from api.utils.time_utils import jd_to_gst
 
@@ -108,6 +114,25 @@ satellite_position = namedtuple(
 )
 
 
+satellite_position_fov = namedtuple(
+    "satellite_position_fov",
+    [
+        "ra",
+        "dec",
+        "covariance",
+        "angle",
+        "altitude",
+        "azimuth",
+        "range_km",
+        "julian_date",
+        "name",
+        "norad_id",
+        "propagation_epoch",
+        "propagation_source",
+    ],
+)
+
+
 class BasePropagationStrategy(ABC):
     """Base class for all propagation strategies."""
 
@@ -121,7 +146,12 @@ class BasePropagationStrategy(ABC):
         longitude: float,
         elevation: float,
         **kwargs,
-    ) -> satellite_position | list[satellite_position] | list[dict[str, Any]]:
+    ) -> (
+        satellite_position
+        | list[satellite_position]
+        | list[satellite_position_fov]
+        | list[dict[str, Any]]
+    ):
         """
         Propagate satellite positions.
 
@@ -676,7 +706,9 @@ def process_satellite_batch(args):
 
             # Vectorized angle calculation
             sat_fov_angles = np.arccos(np.sum(topocentricn * icrf, axis=0))
-            in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
+            in_fov_mask = (
+                np.degrees(sat_fov_angles) < fov_radius * 1.2
+            )  # add 20% margin
             if illuminated_only:
                 # only show points that are illuminated
                 sat_gcrs = [
@@ -840,24 +872,48 @@ class FOVParallelPropagationStrategy:
 class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def __init__(self):
         """Initialize the Krogh propagation strategy."""
-        self.ephemeris_data = None
-        self.sigma_points_dict = None
-        self.interpolated_splines = None
+        self.ephemeris_data: InterpolableEphemeris | None = None
+        self.sigma_points_dict: dict | None = None
+        self.interpolated_splines: InterpolatedSplinesDict | None = None
 
-    def load_ephemeris(self, ephemeris_file: str) -> None:
+    def load_ephemeris(
+        self, ephemeris: InterpolableEphemeris, ephem_repo: AbstractEphemerisRepository
+    ) -> None:
         """
         Load and parse ephemeris data from a file.
 
         Args:
-            ephemeris_file: Path to the ephemeris file
+            sat_number: Satellite NORAD number
+            epoch: Epoch time for the ephemeris
         """
-        self.ephemeris_data = self._parse_ephemeris_file(ephemeris_file)
-        self.sigma_points_dict = self._generate_and_propagate_sigma_points(
+        self.ephemeris_data = ephemeris
+
+        # Generate sigma points for this specific ephemeris
+        import time
+
+        start_time = time.time()
+        print(f"Generating sigma points for ephemeris {ephemeris.id}")
+        self.sigma_points_dict = generate_and_propagate_sigma_points(
             self.ephemeris_data
         )
-        self.interpolated_splines = self._interpolate_sigma_pointsKI(
-            self.sigma_points_dict
-        )
+        sigma_time = time.time() - start_time
+        print(f"Sigma points generation took {sigma_time:.2f} seconds")
+
+        # Generate splines on-demand since we disabled database storage
+        start_time = time.time()
+        print(f"Generating interpolated splines for ephemeris {ephemeris.id}")
+        if ephemeris.id is None:
+            raise ValueError(
+                "Ephemeris ID is None, cannot retrieve interpolator splines"
+            )
+        interpolated_splines_obj = ephem_repo.get_interpolator_splines(ephemeris.id)
+        if interpolated_splines_obj is None:
+            interpolated_splines = interpolate_sigma_pointsKI(self.sigma_points_dict)
+        else:
+            interpolated_splines = interpolated_splines_obj.get_interpolated_splines()
+        self.interpolated_splines = interpolated_splines
+        spline_time = time.time() - start_time
+        print(f"Spline generation took {spline_time:.2f} seconds")
 
     def propagate(
         self,
@@ -868,7 +924,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         longitude: float,
         elevation: float,
         **kwargs,
-    ) -> list[satellite_position]:
+    ) -> list[satellite_position_fov]:
         """
         Propagate satellite positions using Krogh interpolation.
 
@@ -892,640 +948,66 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             julian_dates = [julian_dates]
 
         results = []
+        # Calculate observer position in GCRS
+        observer_location = EarthLocation(
+            lat=latitude * u.deg, lon=longitude * u.deg, height=elevation * u.m
+        )
         for jd in julian_dates:
             # Get interpolated sigma points
-            interpolated_points = self._get_interpolated_sigma_points_KI(
+            interpolated_points = get_interpolated_sigma_points_KI(
                 self.interpolated_splines, jd
             )
 
-            # Reconstruct mean state and covariance
-            mean_state, covariance = self._reconstruct_covariance_at_time(
-                interpolated_points
+            # Get observer position in GCRS for this time
+            obs_gcrs = (
+                observer_location.get_gcrs(
+                    obstime=Time(jd, format="jd")
+                ).cartesian.xyz.value
+                / 1000
+            )  # Convert to km
+
+            # Transform from satellite GCRS positions to topocentric GCRS positions
+            transformed_points = np.zeros_like(interpolated_points)
+            for i in range(len(interpolated_points)):
+                # position
+                satellite_position_gcrs = interpolated_points[i][:3]
+
+                topocentric_gcrs = satellite_position_gcrs - obs_gcrs
+
+                transformed_points[i][:3] = topocentric_gcrs
+                # keep original velocity components?
+                transformed_points[i][3:] = interpolated_points[i][3:]
+
+            # Reconstruct mean state and covariance from transformed points
+            mean_state, covariance = reconstruct_covariance_at_time(transformed_points)
+
+            topocentric_gcrs = mean_state[:3]
+            ra, dec = icrf2radec(topocentric_gcrs)
+
+            # Calculate observer-relative coordinates for altitude/azimuth
+            altitude, azimuth, range_km = calculate_satellite_observer_relative(
+                topocentric_gcrs, latitude, longitude, jd
             )
 
             # Convert to satellite position format
-            # Note: Some fields may be None as they're not available from
-            # Krogh interpolation
             results.append(
-                satellite_position(
-                    ra=mean_state[0],  # Assuming first component is RA
-                    dec=mean_state[1],  # Assuming second component is Dec
-                    dracosdec=None,  # Not available from Krogh interpolation
-                    ddec=None,  # Not available from Krogh interpolation
-                    alt=None,  # Not available from Krogh interpolation
-                    az=None,  # Not available from Krogh interpolation
-                    distance=None,  # Not available from Krogh interpolation
-                    ddistance=None,  # Not available from Krogh interpolation
-                    phase_angle=None,  # Not available from Krogh interpolation
-                    sat_altitude_km=None,  # Not available from Krogh interpolation
-                    solar_elevation_deg=None,  # Not available from Krogh interpolation
-                    solar_azimuth_deg=None,  # Not available from Krogh interpolation
-                    illuminated=None,  # Not available from Krogh interpolation
-                    satellite_gcrs=mean_state[:3].tolist(),  # Position components
-                    observer_gcrs=None,  # Not available from Krogh interpolation
-                    julian_date=jd,
+                satellite_position_fov(
+                    ra=ra,
+                    dec=dec,
+                    covariance=covariance,
+                    angle=None,
+                    altitude=altitude,
+                    azimuth=azimuth,
+                    range_km=range_km,
+                    julian_date=float(jd),  # Ensure jd is a float
+                    name=None,  # added in fov_service
+                    norad_id=None,  # added in fov_service
+                    propagation_epoch=None,  # added in fov_service
+                    propagation_source=None,  # added in fov_service
                 )
             )
 
         return results
-
-    def _parse_ephemeris_file(self, filename: str) -> dict:
-        """
-        Parse a satellite ephemeris file in UVW frame format.
-
-        The file format is expected to be:
-        - First 3 lines: Header information in key:value format
-        - Line 4: Must contain 'UVW' to specify the coordinate frame
-        - Remaining lines: State vectors and covariance matrices in blocks of 4 lines:
-          * Line 1: Timestamp (YYYYDDDHHMMSSmmm) and state vector
-          (position and velocity)
-          * Lines 2-4: Lower triangular portion of 6x6 covariance matrix
-
-        Args:
-            filename (str): Path to the ephemeris file
-
-        Returns:
-            dict: A dictionary containing:
-                - headers (dict): Key-value pairs from the file header
-                - timestamps (np.ndarray): Array of datetime objects
-                - positions (np.ndarray): Array of position vectors in UVW frame
-                - velocities (np.ndarray): Array of velocity vectors in UVW frame
-                - covariances (np.ndarray): Array of 6x6 covariance matrices
-
-        Raises:
-            ValueError: If the file doesn't specify UVW frame or has invalid format
-            FileNotFoundError: If the file doesn't exist
-            IndexError: If the file has an invalid format or is truncated
-        """
-        with open(filename) as f:
-            lines = f.readlines()
-
-        headers = {}
-        for i in range(3):
-            line = lines[i].strip()
-            if ":" in line:
-                key, value = line.split(":", 1)
-                headers[key] = value.strip()
-            if " " in line:
-                parts = line.split()
-                for part in parts:
-                    if ":" in part:
-                        key, value = part.split(":", 1)
-                        headers[key] = value.strip()
-
-        if lines[3].strip() != "UVW":
-            raise ValueError("Expected UVW frame specification")
-
-        timestamps = []
-        positions = []
-        velocities = []
-        covariances_uwv = []
-
-        i = 4
-        while i < len(lines):
-            state_parts = lines[i].strip().split()
-
-            # Parse timestamp
-            timestamp_str = state_parts[0]
-            year = int(timestamp_str[:4])
-            day_of_year = int(timestamp_str[4:7])
-            hour = int(timestamp_str[7:9])
-            minute = int(timestamp_str[9:11])
-            second = int(timestamp_str[11:13])
-            millisec = int(timestamp_str[14:17])
-
-            timestamp = datetime(year, 1, 1).replace(
-                hour=hour, minute=minute, second=second, microsecond=millisec * 1000
-            ) + timedelta(days=day_of_year - 1)
-
-            # Parse position and velocity
-            pos = np.array([np.float64(x) for x in state_parts[1:4]])
-            vel = np.array([np.float64(x) for x in state_parts[4:7]])
-
-            # Parse covariance
-            cov_values = []
-            for j in range(3):
-                cov_values.extend(
-                    [np.float64(x) for x in lines[i + 1 + j].strip().split()]
-                )
-
-            cov_matrix_uwv = np.zeros((6, 6), dtype=np.float64)
-            idx = 0
-            for row in range(6):
-                for col in range(row + 1):
-                    cov_matrix_uwv[row, col] = cov_values[idx]
-                    cov_matrix_uwv[col, row] = cov_values[idx]
-                    idx += 1
-
-            timestamps.append(timestamp)
-            positions.append(pos)
-            velocities.append(vel)
-            covariances_uwv.append(cov_matrix_uwv)
-
-            i += 4
-
-        return {
-            "headers": headers,
-            "timestamps": np.array(timestamps),
-            "positions": np.array(positions, dtype=np.float64),
-            "velocities": np.array(velocities, dtype=np.float64),
-            "covariances": np.array(covariances_uwv, dtype=np.float64),
-        }
-
-    def _generate_and_propagate_sigma_points(self, data: dict) -> dict:
-        """
-        Generate and propagate sigma points using the Unscented Transform for improved
-        numerical stability.
-
-        This method implements the Unscented Transform to generate sigma points from
-        the state vectors and covariance matrices in the ephemeris data. The sigma
-        points are used to capture the mean and covariance of the state distribution
-        more accurately than linearization methods.
-
-        The method uses optimized parameters for the Unscented Transform:
-        - alpha = 0.001 (reduced for better numerical stability)
-        - beta = 2.0 (optimal for Gaussian distributions)
-        - kappa = 3-n (modified for better stability)
-
-        Args:
-            data (dict): Dictionary containing ephemeris data with keys:
-                - timestamps (np.ndarray): Array of datetime objects
-                - positions (np.ndarray): Array of position vectors
-                - velocities (np.ndarray): Array of velocity vectors
-                - covariances (np.ndarray): Array of 6x6 covariance matrices
-
-        Returns:
-            dict: A dictionary mapping Julian dates to sigma point information:
-                - sigma_points (np.ndarray): Array of 13 sigma points
-                (6D state vectors)
-                - weights (dict): Dictionary containing mean and covariance weights
-                - epoch (datetime): Timestamp for these sigma points
-                - state_vector (np.ndarray): Original state vector
-                - covariance (np.ndarray): Original covariance matrix
-
-        Raises:
-            ValueError: If no sigma points could be generated successfully
-            np.linalg.LinAlgError: If covariance matrix is not positive definite
-
-        Note:
-            The method uses Cholesky decomposition for numerical stability,
-            falling back to matrix square root if Cholesky fails. Each sigma
-            point set contains 13 points:
-            - 1 mean state point
-            - 6 points from positive Cholesky decomposition
-            - 6 points from negative Cholesky decomposition
-        """
-        try:
-            # Use high precision for Julian date conversion
-            julian_dates = np.array(
-                [julian.to_jd(ts) for ts in data["timestamps"]], dtype=np.float64
-            )
-
-            state_vectors = np.hstack((data["positions"], data["velocities"]))
-            covariances = data["covariances"]
-
-            sigma_points_dict = {}
-
-            # Optimized Unscented Transform parameters
-            n = 6
-            alpha = np.float64(0.001)  # Reduced alpha for better numerical stability
-            beta = np.float64(2.0)  # Optimal for Gaussian
-            kappa = np.float64(3 - n)  # Modified for better stability
-            lambda_param = alpha * alpha * (n + kappa) - n
-
-            # Precompute weights for efficiency and precision
-            w0_m = lambda_param / (n + lambda_param)
-            wn_m = np.float64(0.5) / (n + lambda_param)
-            w0_c = w0_m + (1 - alpha * alpha + beta)
-            wn_c = wn_m
-
-            weights = {
-                "mean": {"w0": w0_m, "wn": wn_m},
-                "covariance": {"w0": w0_c, "wn": wn_c},
-            }
-
-            for idx, (jd, timestamp) in enumerate(
-                zip(julian_dates, data["timestamps"], strict=True)
-            ):
-                try:
-                    state_vector = state_vectors[idx]
-                    covariance = covariances[idx]
-
-                    # Ensure symmetry of covariance matrix
-                    covariance = (covariance + covariance.T) / 2
-
-                    # Scale covariance with improved numerical stability
-                    scaled_cov = (n + lambda_param) * covariance
-
-                    # Try Cholesky first, fall back to modified sqrtm if needed
-                    try:
-                        L = np.linalg.cholesky(scaled_cov)  # noqa: N806
-                    except np.linalg.LinAlgError:
-                        L = sqrtm(scaled_cov)  # noqa: N806
-
-                    sigma_0 = state_vector
-                    sigma_n = sigma_0[:, np.newaxis] + L
-                    sigma_2n = sigma_0[:, np.newaxis] - L
-
-                    all_sigma_points = np.vstack([sigma_0, sigma_n.T, sigma_2n.T])
-
-                    sigma_points_dict[jd] = {
-                        "sigma_points": all_sigma_points,
-                        "weights": weights,
-                        "epoch": timestamp,
-                        "state_vector": state_vector,
-                        "covariance": covariance,
-                    }
-
-                except Exception as e:
-                    print(f"Warning: Failed to process timestamp {timestamp}: {str(e)}")
-                    continue
-
-            if not sigma_points_dict:
-                raise ValueError("No sigma points were successfully generated")
-
-            return sigma_points_dict
-
-        except Exception as e:
-            print(f"Error in generate_and_propagate_sigma_points: {str(e)}")
-            raise
-
-    def _create_chunked_krogh_interpolator(
-        self, x: np.ndarray, y: np.ndarray, chunk_size: int = 14, overlap: int = 8
-    ) -> list:
-        """
-        Create a series of overlapping Krogh interpolators to handle large datasets
-        with improved stability.
-
-        This method splits the input data into overlapping chunks and creates a Krogh
-        interpolator for each chunk. This approach helps avoid numerical instability
-        that can occur when interpolating over many points using a single interpolator.
-
-        The method uses a sliding window approach with overlap to ensure smooth
-        transitions between chunks. For each chunk:
-        - First chunk: Valid from start to just before end
-        - Middle chunks: Valid in middle portion, leaving overlap areas for
-        adjacent chunks
-        - Last chunk: Valid from just after start to end
-
-        Args:
-            x (np.ndarray): Independent variable values (e.g., times)
-            y (np.ndarray): Dependent variable values to interpolate
-            chunk_size (int, optional): Number of points to use in each interpolation
-            chunk. Defaults to 14.
-            overlap (int, optional): Number of points to overlap between chunks.
-                Defaults to 8.
-
-        Returns:
-            list: List of dictionaries, each containing:
-                - interpolator (KroghInterpolator): The interpolator for this chunk
-                - range (tuple): Valid range for this interpolator (lower, upper)
-
-        Note:
-            - If input data length is less than chunk_size, returns a single
-            interpolator
-            - Overlap should be less than chunk_size to ensure progress
-            - The valid ranges are slightly narrower than the actual chunks to ensure
-              smooth transitions between interpolators
-        """
-        if len(x) <= chunk_size:
-            interp = KroghInterpolator(x, y)
-            return [{"interpolator": interp, "range": (x[0], x[-1])}]
-
-        # Split data into overlapping chunks
-        interpolators = []
-        i = 0
-        while i < len(x):
-            end_idx = min(i + chunk_size, len(x))
-            chunk_x = x[i:end_idx]
-            chunk_y = y[i:end_idx]
-
-            # Create interpolator for this chunk
-            interp = KroghInterpolator(chunk_x, chunk_y)
-
-            # Record the valid range for this chunk (slightly narrower than the
-            # actual chunk) to ensure smooth transitions between chunks
-            if i == 0:
-                # First chunk - use from beginning to just before end
-                valid_range = (
-                    chunk_x[0],
-                    chunk_x[-2] if len(chunk_x) > 2 else chunk_x[-1],
-                )
-            elif end_idx == len(x):
-                # Last chunk - use from just after start to end
-                valid_range = (
-                    chunk_x[1] if len(chunk_x) > 1 else chunk_x[0],
-                    chunk_x[-1],
-                )
-            else:
-                # Middle chunks - use middle portion, leaving overlap areas
-                # for adjacent chunks
-                valid_range = (
-                    chunk_x[1] if len(chunk_x) > 1 else chunk_x[0],
-                    chunk_x[-2] if len(chunk_x) > 2 else chunk_x[-1],
-                )
-
-            interpolators.append({"interpolator": interp, "range": valid_range})
-
-            # Move to next chunk with overlap, ensuring we make progress
-            i = max(end_idx - overlap, i + 1)
-
-        return interpolators
-
-    def _interpolate_sigma_pointsKI(  # noqa: N802
-        self, sigma_points_dict: dict
-    ) -> dict:
-        """
-        Create high-precision interpolation splines for sigma point trajectories using
-        chunked Krogh interpolation.
-
-        This method processes the sigma points dictionary to create interpolators for
-        each component of the position and velocity vectors. It handles 13 sigma
-        points (1 mean + 6 positive + 6 negative Cholesky points) and creates separate
-        interpolators for each component (x, y, z) of both position and velocity.
-
-        The method uses chunked Krogh interpolation to maintain numerical stability when
-        dealing with long time series. Each component is interpolated independently, and
-        invalid or non-finite values are handled gracefully.
-
-        Args:
-            sigma_points_dict (dict): Dictionary mapping Julian dates to sigma point
-                information:
-                - sigma_points (np.ndarray): Array of 13 sigma points (6D state vectors)
-                - weights (dict): Dictionary containing mean and covariance weights
-                - epoch (datetime): Timestamp for these sigma points
-                - state_vector (np.ndarray): Original state vector
-                - covariance (np.ndarray): Original covariance matrix
-
-        Returns:
-            dict: Dictionary containing interpolation splines and time range:
-                - positions (list): List of lists of position interpolators:
-                    - Outer list: One entry per sigma point (13 total)
-                    - Inner list: One entry per component (x, y, z)
-                    - Each entry: List of chunked Krogh interpolators
-                - velocities (list): List of lists of velocity interpolators:
-                    - Outer list: One entry per sigma point (13 total)
-                    - Inner list: One entry per component (x, y, z)
-                    - Each entry: List of chunked Krogh interpolators
-                - time_range (tuple): (start_time, end_time) in Julian dates
-
-        Note:
-            - Each component (x, y, z) of position and velocity has its own set of
-              interpolators
-            - Interpolators are created only for valid (finite) data points
-            - The chunking parameters (chunk_size=14, overlap=8) are optimized
-            for stability
-            - None is returned for components with no valid data points
-        """
-        julian_dates = np.array(sorted(sigma_points_dict.keys()), dtype=np.float64)
-        n_sigma_points = 13
-
-        positions_by_point: list[list[np.ndarray]] = [[] for _ in range(n_sigma_points)]
-        velocities_by_point: list[list[np.ndarray]] = [
-            [] for _ in range(n_sigma_points)
-        ]
-
-        for jd in julian_dates:
-            sigma_points = sigma_points_dict[jd]["sigma_points"].astype(np.float64)
-            for i in range(n_sigma_points):
-                positions_by_point[i].append(sigma_points[i][:3])
-                velocities_by_point[i].append(sigma_points[i][3:])
-
-        # Convert lists to numpy arrays
-        positions_array: list[np.ndarray] = [
-            np.array(pos, dtype=np.float64) for pos in positions_by_point
-        ]
-        velocities_array: list[np.ndarray] = [
-            np.array(vel, dtype=np.float64) for vel in velocities_by_point
-        ]
-
-        position_splines = []
-        velocity_splines = []
-
-        for i in range(n_sigma_points):
-            # Position splines
-            pos_splines_i: list[list[dict[str, Any]] | None] = []
-            for j in range(3):
-                pos_data = positions_array[i][:, j]
-                valid_mask = np.isfinite(pos_data)
-                if np.any(valid_mask):
-                    # Use not-a-knot cubic splines for better accuracy
-                    spline = self._create_chunked_krogh_interpolator(
-                        julian_dates[valid_mask],
-                        pos_data[valid_mask],
-                        chunk_size=14,
-                        overlap=8,
-                    )
-                    pos_splines_i.append(spline)
-                else:
-                    pos_splines_i.append(None)
-            position_splines.append(pos_splines_i)
-
-            vel_splines_i: list[list[dict[str, Any]] | None] = []
-            for j in range(3):
-                vel_data = velocities_array[i][:, j]
-                valid_mask = np.isfinite(vel_data)
-                if np.any(valid_mask):
-                    spline = self._create_chunked_krogh_interpolator(
-                        julian_dates[valid_mask],
-                        vel_data[valid_mask],
-                        chunk_size=14,
-                        overlap=8,
-                    )
-                    vel_splines_i.append(spline)
-                else:
-                    vel_splines_i.append(None)
-            velocity_splines.append(vel_splines_i)
-
-        return {
-            "positions": position_splines,
-            "velocities": velocity_splines,
-            "time_range": (julian_dates[0], julian_dates[-1]),
-        }
-
-    def _get_interpolated_sigma_points_KI(  # noqa: N802
-        self, interpolated_splines: dict, julian_date: float
-    ) -> np.ndarray:
-        """
-        Get interpolated sigma points at a specific Julian date using optimal
-        chunk selection.
-
-        This method interpolates the position and velocity components of all
-        13 sigma points at the requested Julian date. It uses a sophisticated
-        chunk selection algorithm that prefers interpolators where the requested
-        time is in the middle of their valid range, rather than at the edges,
-        to minimize interpolation errors.
-
-        The method handles both position and velocity components (x, y, z) for each
-        sigma point, selecting the most appropriate interpolator chunk for each
-        component based on the requested time's position within the chunk's valid range.
-
-        Args:
-            interpolated_splines (dict): Dictionary containing interpolation splines:
-                - positions (list): List of lists of position interpolators
-                - velocities (list): List of lists of velocity interpolators
-                - time_range (tuple): (start_time, end_time) in Julian dates
-            julian_date (float): The Julian date at which to interpolate the sigma
-            points
-
-        Returns:
-            np.ndarray: Array of shape (13, 6) containing the interpolated sigma points:
-                - First 13 rows: One row per sigma point
-                - 6 columns: [x, y, z, vx, vy, vz] for each point
-                - dtype: np.float64 for high precision
-
-        Raises:
-            ValueError: If the requested Julian date is outside the interpolation range
-
-        Note:
-            - The method uses a centrality score to select the best interpolator chunk
-            - For times outside any chunk's range, the nearest chunk is used
-            - All calculations are performed in double precision (np.float64)
-            - The method assumes the input splines are valid and properly structured
-        """
-        start_time, end_time = interpolated_splines["time_range"]
-        if not (start_time <= julian_date <= end_time):
-            raise ValueError(
-                f"Requested time {julian_date} is outside the interpolation range "
-                f"[{start_time}, {end_time}]"
-            )
-
-        n_sigma_points = 13
-        interpolated_points = np.zeros((n_sigma_points, 6), dtype=np.float64)
-
-        for i in range(n_sigma_points):
-            # Interpolate positions
-            for j in range(3):
-                if interpolated_splines["positions"][i][j] is not None:
-                    splines = interpolated_splines["positions"][i][j]
-                    applicable_splines = []
-                    for idx, spline_info in enumerate(splines):
-                        lower, upper = spline_info["range"]
-                        if lower <= julian_date <= upper:
-                            # Calculate how central the point is within this
-                            # spline's range (0.5 means it's in the middle, 0
-                            # or 1 means it's at an edge)
-                            centrality = (julian_date - lower) / (upper - lower)
-
-                            # Prefer points that are more central (closer to 0.5)
-                            # Converts to 0-1 scale where 1 is most central
-                            score = 1 - abs(centrality - 0.5) * 2
-                            applicable_splines.append((idx, score, spline_info))
-
-                    # If we found applicable splines, use the most central one
-                    if applicable_splines:
-                        applicable_splines.sort(key=lambda x: x[1], reverse=True)
-                        best_spline = applicable_splines[0][2]
-                        interpolated_points[i, j] = best_spline["interpolator"](
-                            julian_date
-                        )
-                    else:
-                        # If no spline's range contains this point, use the closest one
-                        if julian_date < start_time:
-                            interpolated_points[i, j] = splines[0]["interpolator"](
-                                julian_date
-                            )
-                        else:
-                            interpolated_points[i, j] = splines[-1]["interpolator"](
-                                julian_date
-                            )
-
-            # Interpolate velocities
-            for j in range(3):
-                if interpolated_splines["velocities"][i][j] is not None:
-                    splines = interpolated_splines["velocities"][i][j]
-                    applicable_splines = []
-
-                    for idx, spline_info in enumerate(splines):
-                        lower, upper = spline_info["range"]
-                        if lower <= julian_date <= upper:
-                            centrality = (julian_date - lower) / (upper - lower)
-                            # Prefer points that are more central
-                            score = 1 - abs(centrality - 0.5) * 2
-                            applicable_splines.append((idx, score, spline_info))
-
-                    # If we found applicable splines, use the most central one
-                    if applicable_splines:
-                        applicable_splines.sort(key=lambda x: x[1], reverse=True)
-                        best_spline = applicable_splines[0][2]
-                        interpolated_points[i, j + 3] = best_spline["interpolator"](
-                            julian_date
-                        )
-                    else:
-                        # If no spline's range contains this point, use the closest one
-                        if julian_date < start_time:
-                            interpolated_points[i, j + 3] = splines[0]["interpolator"](
-                                julian_date
-                            )
-                        else:
-                            interpolated_points[i, j + 3] = splines[-1]["interpolator"](
-                                julian_date
-                            )
-
-        return interpolated_points
-
-    def _reconstruct_covariance_at_time(self, interpolated_points: np.ndarray) -> tuple:
-        """
-        Reconstruct the mean state and covariance matrix from interpolated
-        sigma points using the Unscented Transform.
-
-        This method implements the Unscented Transform to reconstruct the mean state
-        and covariance matrix from a set of interpolated sigma points. It uses
-        optimized parameters for numerical stability and accuracy in the presence
-        of non-linear transformations.
-
-        The method uses the following Unscented Transform parameters:
-        - alpha = 0.001: Reduced for better numerical stability
-        - beta = 2.0: Optimal for Gaussian distributions
-        - kappa = 3-n: Modified for better stability
-        - lambda = alpha²(n+kappa) - n: Scaling parameter
-
-        Args:
-            interpolated_points (np.ndarray): Array of shape (13, 6) containing
-            the interpolated sigma points, where:
-                - 13 rows: One row per sigma point (1 mean + 6 positive + 6
-                negative Cholesky points)
-                - 6 columns: [x, y, z, vx, vy, vz] state components
-                - dtype: np.float64 for high precision
-
-        Returns:
-            tuple: (mean_state, covariance) where:
-                - mean_state (np.ndarray): Array of shape (6,) containing the
-                mean state vector
-                - covariance (np.ndarray): Array of shape (6, 6) containing the
-                symmetric covariance matrix
-
-        Note:
-            - The mean state is taken directly from the first sigma point for stability
-            - The covariance matrix is computed using weighted outer products
-            - The final covariance matrix is symmetrized to ensure numerical stability
-            - All calculations are performed in double precision (np.float64)
-        """
-        # Optimized Unscented Transform parameters
-        n = 6
-        alpha = np.float64(0.001)  # Reduced alpha for better numerical stability
-        beta = np.float64(2.0)  # Optimal for Gaussian
-        kappa = np.float64(3 - n)  # Modified for better stability
-        lambda_param = alpha * alpha * (n + kappa) - n
-
-        w0_m = lambda_param / (n + lambda_param)
-        wn_m = np.float64(0.5) / (n + lambda_param)
-        w0_c = w0_m + (1 - alpha * alpha + beta)
-        wn_c = wn_m
-
-        mean_state = interpolated_points[0].copy()  # Copy to ensure it's a new array
-
-        # Calculate covariance with improved numerical stability
-        diff_0 = interpolated_points[0] - mean_state
-        covariance = w0_c * np.outer(diff_0, diff_0)
-
-        for i in range(1, len(interpolated_points)):
-            diff = interpolated_points[i] - mean_state
-            covariance += wn_c * np.outer(diff, diff)
-
-        covariance = (covariance + covariance.T) / 2
-
-        return mean_state, covariance
 
 
 class PropagationInfo:

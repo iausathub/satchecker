@@ -154,7 +154,6 @@ def add_tle_list_to_db(
                 )
                 counter += 3
                 tle_count += 1
-                logging.info(f"TLE count before batch size check: {tle_count}")
                 # Commit periodically
                 if tle_count % commit_batch_size == 0:
                     try:
@@ -177,7 +176,6 @@ def add_tle_list_to_db(
             tle_json = tle.json()
             ts = load.timescale()
             for record in tle_json:
-                logging.info(f"TLE count before insert_record: {tle_count}")
                 insert_record(
                     record,
                     ts,

@@ -4,7 +4,7 @@ from datetime import timezone
 
 import pytest
 from astropy.time import Time
-from tests.conftest import FakeTLERepository
+from tests.conftest import FakeEphemerisRepository, FakeTLERepository
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
@@ -34,17 +34,19 @@ def test_satellite_in_fov(test_location, test_time):
     )
 
     tle_repo = FakeTLERepository([tle])
+    ephemeris_repo = FakeEphemerisRepository([])
 
     # Test with group_by=satellite
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
         duration=30,
         ra=24.797270,
         dec=75.774139,
-        fov_radius=2.0,
+        fov_radius=1.66,
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
@@ -61,13 +63,14 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=time
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
         duration=30,
         ra=24.797270,
         dec=75.774139,
-        fov_radius=2.0,
+        fov_radius=1.66,
         group_by="time",
         include_tles=False,
         skip_cache=False,
@@ -95,6 +98,7 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=time and include_tles=True
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -118,6 +122,7 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=satellite and include_tles=True
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -164,9 +169,11 @@ def test_satellite_outside_fov(test_location, test_time):
     )
 
     tle_repo = FakeTLERepository([tle])
+    ephemeris_repo = FakeEphemerisRepository([])
 
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -191,9 +198,11 @@ def test_satellite_outside_fov(test_location, test_time):
 def test_empty_tle_list(test_location, test_time):
     """Test behavior with no TLEs available"""
     tle_repo = FakeTLERepository([])
+    ephemeris_repo = FakeEphemerisRepository([])
 
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -350,10 +359,11 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
     mock_redis_client.setex.side_effect = mock_setex
 
     tle_repo = FakeTLERepository([])
-
+    ephemeris_repo = FakeEphemerisRepository([])
     # First call - should compute and cache (cache miss)
     first_result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -385,6 +395,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
 
     second_result = get_satellite_passes_in_fov(  # noqa: F841
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -420,6 +431,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
 
     third_result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -452,11 +464,12 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])
-
+    ephemeris_repo = FakeEphemerisRepository([])
     # Make multiple identical calls and collect cache keys
     for _ in range(3):
         get_satellite_passes_in_fov(
             tle_repo,
+            ephemeris_repo,
             test_location,
             None,
             test_time,
@@ -486,7 +499,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])
-
+    ephemeris_repo = FakeEphemerisRepository([])
     # Parameter variations to test
     param_variations = [
         {"duration": 1800},  # Different duration
@@ -502,6 +515,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
     # First call with base parameters
     get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -525,6 +539,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         # Start with base parameters
         params = {
             "tle_repo": tle_repo,
+            "ephemeris_repo": ephemeris_repo,
             "location": test_location,
             "start_time_jd": None,
             "mid_obs_time_jd": test_time,

@@ -262,7 +262,7 @@ def get_adjacent_tle_results(
         api_version (str): The version of the API request.
         format (str): The format of the response, either "json" or "txt".
     Returns:
-        list[dict[str, list[dict[str, Any]] | str]] | io.BytesIO:
+        Union[list[dict[str, list[dict[str, Any]] | str]], io.BytesIO]:
             - For JSON format: A list containing a dictionary with TLE data
             - For TXT format: A BytesIO object containing the formatted TLE text
     """

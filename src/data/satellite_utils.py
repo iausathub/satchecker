@@ -11,6 +11,16 @@ from bs4 import BeautifulSoup
 from connections import get_spacetrack_login
 from psycopg2.extras import execute_values
 
+from api.domain.models.interpolable_ephemeris import (
+    EphemerisPoint,
+    InterpolableEphemeris,
+)
+from api.domain.models.satellite import Satellite
+from api.utils.interpolation_utils import (
+    generate_and_propagate_sigma_points,
+    interpolate_sigma_pointsKI,
+)
+
 
 def get_decayed_satellites(cursor, connection):
     with requests.Session() as session:
@@ -326,7 +336,9 @@ def get_starlink_generations(cursor, connection):
     )
 
 
-def insert_ephemeris_data(parsed_data, cursor, connection):
+def insert_ephemeris_data(
+    parsed_data, cursor, connection
+) -> tuple[InterpolableEphemeris, int] | None:
     """
     Insert ephemeris data into the database efficiently using batch inserts.
 
@@ -334,8 +346,32 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         parsed_data (dict): Dictionary containing parsed ephemeris data
         cursor: Database cursor
         connection: Database connection
+
+    Returns:
+        InterpolableEphemeris: The created ephemeris object if successful,
+        None if duplicate
     """
     try:
+        # TODO: fix usage of has_current_sat_number
+        # Get the satellite data to create a proper Satellite object
+        cursor.execute(
+            "SELECT id, sat_number, sat_name, constellation, generation, "
+            "rcs_size, launch_date, decay_date, object_id, object_type, "
+            "has_current_sat_number FROM satellites "
+            "WHERE sat_name = %s "
+            "AND has_current_sat_number = true",
+            (parsed_data["satellite_name"],),
+        )
+        satellite_result = cursor.fetchone()
+        if satellite_result is None:
+            logging.error(f"Satellite not found: {parsed_data['satellite_name']}")
+            return None
+
+        satellite_id = satellite_result[0]
+
+        date_collected = datetime.now(timezone.utc)
+        data_source = "starlink"
+
         ephemeris_insert = """
             INSERT INTO interpolable_ephemeris (
                 satellite,
@@ -347,9 +383,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 ephemeris_stop,
                 frame
             ) VALUES (
-                (SELECT id FROM satellites
-                 WHERE sat_name = %s
-                 AND has_current_sat_number = true),
+                %s,
                 %s,
                 %s,
                 %s,
@@ -365,17 +399,23 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         cursor.execute(
             ephemeris_insert,
             (
-                parsed_data["satellite_name"],
-                datetime.now(timezone.utc),  # date_collected
+                satellite_id,
+                date_collected,
                 parsed_data["generated_at"],
-                "starlink",
+                data_source,
                 parsed_data["filename"],
                 parsed_data["ephemeris_start"],
                 parsed_data["ephemeris_stop"],
                 parsed_data["frame"],
             ),
         )
-        ephemeris_id = cursor.fetchone()[0]
+        ephemeris_result = cursor.fetchone()
+        if ephemeris_result is None:
+            logging.error(
+                f"Likely duplicate ephemeris data for {parsed_data['satellite_name']}"
+            )
+            return None
+        ephemeris_id = ephemeris_result[0]
 
         # Prepare the points data for batch insert
         timestamps = parsed_data["timestamps"]
@@ -416,6 +456,45 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
             f"Successfully inserted {len(points)} "
             f"points for ephemeris_id {ephemeris_id}"
         )
+
+        # Create EphemerisPoint objects from the data
+        ephemeris_points = []
+        for i in range(len(timestamps)):
+            point = EphemerisPoint(
+                timestamp=timestamps[i],
+                position=np.array(positions[i]),
+                velocity=np.array(velocities[i]),
+                covariance=np.array(covariances[i]),
+            )
+            ephemeris_points.append(point)
+
+        # Create Satellite object from database result
+        satellite = Satellite(
+            sat_number=satellite_result[1],
+            sat_name=satellite_result[2],
+            constellation=satellite_result[3],
+            generation=satellite_result[4],
+            rcs_size=satellite_result[5],
+            launch_date=satellite_result[6],
+            decay_date=satellite_result[7],
+            object_id=satellite_result[8],
+            object_type=satellite_result[9],
+            has_current_sat_number=satellite_result[10],
+        )
+        # Create and return the InterpolableEphemeris object
+        ephemeris = InterpolableEphemeris(
+            satellite=satellite,
+            generated_at=parsed_data["generated_at"],
+            data_source=data_source,
+            frame=parsed_data["frame"],
+            points=ephemeris_points,
+            ephemeris_start=parsed_data["ephemeris_start"],
+            ephemeris_stop=parsed_data["ephemeris_stop"],
+            file_reference=parsed_data["filename"],
+            date_collected=date_collected,
+        )
+
+        return ephemeris, ephemeris_id
 
     except Exception as e:
         connection.rollback()
@@ -641,6 +720,12 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     }
 
 
+def insert_interpolated_splines(interpolated_splines, cursor, connection):
+    """
+    Insert interpolated splines into the database.
+    """
+
+
 def get_starlink_ephemeris_data(cursor, connection):
     """
     Fetch and process ephemeris data for Starlink satellites.
@@ -716,8 +801,30 @@ def get_starlink_ephemeris_data(cursor, connection):
                     try:
                         file_content = response.content.decode("utf-8")
                         parsed_data = parse_ephemeris_file(file_content, file_name)
-                        insert_ephemeris_data(parsed_data, cursor, connection)
-                        num_points = len(parsed_data["timestamps"])
+                        ephemeris, ephemeris_id = insert_ephemeris_data(
+                            parsed_data, cursor, connection
+                        )
+                        # calculate splines and store in database
+                        # ephemeris_data = parse_ephemeris_file(ephemeris_file)
+                        sigma_points_dict = generate_and_propagate_sigma_points(
+                            ephemeris
+                        )
+                        interpolated_splines = interpolate_sigma_pointsKI(  # noqa: F841
+                            sigma_points_dict
+                        )
+
+                        insert_interpolated_splines(
+                            ephemeris_id,
+                            ephemeris.generated_at,
+                            ephemeris.data_source,
+                            ephemeris.frame,
+                            ephemeris.ephemeris_start,
+                            ephemeris.ephemeris_stop,
+                            interpolated_splines,
+                            cursor,
+                            connection,
+                        )
+                        num_points = len(parsed_data["timestamps"]) if ephemeris else 0
 
                     except Exception as e:
                         logging.error(
