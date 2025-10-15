@@ -543,7 +543,7 @@ def get_all_tles_at_epoch_formatted(
         api_version (str): The version of the API request.
 
     Returns:
-        Union[list[dict[str, Any]], io.BytesIO]: Either a list containing TLE data
+        list[dict[str, Any]] | io.BytesIO: Either a list containing TLE data
         and pagination info (JSON) or a BytesIO object containing formatted TLE data
         (TXT/ZIP).
     """

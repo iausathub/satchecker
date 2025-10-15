@@ -529,12 +529,31 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     headers = {}
     for i in range(3):
         line = lines[i].strip()
-        # Split by spaces to handle multiple key-value pairs on one line
-        parts = line.split()
-        for part in parts:
-            if ":" in part:
-                key, value = part.split(":", 1)
-                headers[key] = value.strip()
+
+        if "ephemeris_start:" in line and "ephemeris_stop:" in line:
+
+            # everything after "ephemeris_start:" until "ephemeris_stop:"
+            start_match = re.search(
+                r"ephemeris_start:([^e]+?)(?=ephemeris_stop:)", line
+            )
+            if start_match:
+                headers["ephemeris_start"] = start_match.group(1).strip()
+
+            # everything after "ephemeris_stop:" until "step_size:"
+            stop_match = re.search(r"ephemeris_stop:([^s]+?)(?=step_size:)", line)
+            if stop_match:
+                headers["ephemeris_stop"] = stop_match.group(1).strip()
+
+            # everything after "step_size:"
+            step_match = re.search(r"step_size:(.+)", line)
+            if step_match:
+                headers["step_size"] = step_match.group(1).strip()
+        else:
+            if ":" in line:
+                colon_pos = line.find(":")
+                key = line[:colon_pos]
+                value = line[colon_pos + 1 :].strip()
+                headers[key] = value
 
     if lines[3].strip() != "UVW":
         raise ValueError("Expected UVW frame specification")
