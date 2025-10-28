@@ -453,7 +453,7 @@ def _get_tle_data(
 
 def _check_cache_for_results(
     cache_key: str, start_time: float, api_source: str, api_version: str, group_by: str
-) -> dict[str, Any]:
+) -> dict[str, Any] | None:
     """
     Check cache for FOV calculation results and return formatted data if found.
 
@@ -465,7 +465,7 @@ def _check_cache_for_results(
         group_by: Grouping strategy for results
 
     Returns:
-        dict[str, Any]: Formatted cached results if found, None otherwise
+        dict[str, Any] | None: Formatted cached results if found, None otherwise
     """
     skip_cache = True
 
@@ -499,6 +499,7 @@ def _check_cache_for_results(
         )
 
     logger.info("Cache miss - calculating FOV results")
+    return None
 
 
 def _cache_results(
@@ -535,7 +536,7 @@ def _create_jd_list(
     mid_obs_time_jd: Time,
     start_time_jd: Time,
     duration: float,
-) -> list[float]:
+) -> np.ndarray:
     """
     Create a list of Julian day times for FOV calculations.
 
@@ -545,7 +546,7 @@ def _create_jd_list(
         duration: Duration in seconds
 
     Returns:
-        list[float]: Array of Julian day times for propagation calculations
+        np.ndarray: Array of Julian day times for propagation calculations
     """
     # Pre-compute time arrays and constants
     time_step = 1 / 86400  # 1 second

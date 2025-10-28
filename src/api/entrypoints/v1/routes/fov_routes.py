@@ -25,8 +25,7 @@ def get_satellite_passes():
     tags:
       - Field of View
     summary: Get satellite passes in a field of view
-    description: Get satellites that pass through a specified field of view during an observation period.
-    Supports both synchronous and asynchronous processing modes.
+    description: Get satellites that pass through a specified field of view during an observation period. Supports both synchronous and asynchronous processing modes.
     parameters:
       - name: latitude
         in: query

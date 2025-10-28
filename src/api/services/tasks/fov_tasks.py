@@ -37,7 +37,7 @@ def calculate_satellite_passes_async(
     illuminated_only: bool,
     group_by: str,
     tle_time: float,
-) -> tuple[list[dict[str, Any]], int, None]:
+) -> tuple[list[dict[str, Any]], int, str, dict[str, object]]:
     """
     Asynchronously calculate satellite passes within a specified field of view (FOV).
 
@@ -62,7 +62,7 @@ def calculate_satellite_passes_async(
         tle_time (float): Time spent on TLE processing for performance metrics
 
     Returns:
-        tuple[list[dict[str, Any]], int, None]: A tuple containing:
+        tuple[list[dict[str, Any]], int, str, dict[str, object]]: A tuple containing:
             - List of satellite pass results with position and timing data
             - Number of points found within the FOV
             - Grouping method (group_by parameter)
