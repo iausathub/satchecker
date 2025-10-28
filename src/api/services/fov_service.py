@@ -606,7 +606,7 @@ def _calculate_performance_metrics(
     prop_time: float,
     satellites_processed: int,
     points_in_fov: int,
-    jd_times: list[float],
+    jd_times: np.ndarray,
     count: int,
     execution_time: float,
 ) -> dict[str, Any]:
