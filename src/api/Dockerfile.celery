@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 python:3.11
+FROM --platform=linux/amd64 docker.io/python:3.11-slim
 
 WORKDIR /usr/src/app
 
