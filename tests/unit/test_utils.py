@@ -1,18 +1,20 @@
 # ruff: noqa: S101
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
 from astropy.time import Time
 from skyfield.api import wgs84
+from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.tle_factory import TLEFactory
 
 from api.common.exceptions import ValidationError
 from api.utils import coordinate_systems, time_utils
 from api.utils.output_utils import position_data_to_json
 from api.utils.propagation_strategies import (
-    PropagationInfo,
     SkyfieldPropagationStrategy,
+    process_satellite_batch,
 )
 
 
@@ -166,6 +168,66 @@ def test_tle_to_icrf_state_invalid_tle():
         coordinate_systems.tle_to_icrf_state(tle_line_1, tle_line_2, jd)
 
 
+def test_process_satellite_batch():
+    # Use the same TLE values from the passing FOV tests (FENGYUN 1C DEB)
+    # Create proper satellite and TLE objects like in the FOV tests
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
+        tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+    )
+
+    tle_batch = [tle]
+    julian_dates = [Time("2024-10-01T18:19:13", format="isot", scale="utc").jd]
+    latitude = 43.1929
+    longitude = -81.3256
+    elevation = 300
+    fov_center = (24.797270, 75.774139)
+    fov_radius = 2.0
+    include_tles = True
+    illuminated_only = False
+
+    args = (
+        tle_batch,
+        julian_dates,
+        latitude,
+        longitude,
+        elevation,
+        fov_center,
+        fov_radius,
+        include_tles,
+        illuminated_only,
+    )
+    result = process_satellite_batch(args)
+
+    assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
+    assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
+
+    illuminated_only = True
+    args = (
+        tle_batch,
+        julian_dates,
+        latitude,
+        longitude,
+        elevation,
+        fov_center,
+        fov_radius,
+        include_tles,
+        illuminated_only,
+    )
+    result = process_satellite_batch(args)
+
+    assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
+    assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
+
+
 def test_skyfield_propagation_strategy():
     julian_date = 2459000.5
     tle_line_1 = "1 25544U 98067A   20333.54791667  .00016717  00000-0  10270-3 0  9000"
@@ -174,19 +236,36 @@ def test_skyfield_propagation_strategy():
     longitude = -118.2437
     elevation = 100
 
-    propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(),
-        tle_line_1,
-        tle_line_2,
-        [julian_date],
-        latitude,
-        longitude,
-        elevation,
+    strategy = SkyfieldPropagationStrategy()
+    result = strategy.propagate(
+        julian_dates=[julian_date],
+        tle_line_1=tle_line_1,
+        tle_line_2=tle_line_2,
+        latitude=latitude,
+        longitude=longitude,
+        elevation=elevation,
     )
-    result = propagation_info.propagate()
 
     assert result[0].ra == pytest.approx(234.01865005681205, rel=1e-9)
     assert result[0].dec == pytest.approx(-51.424189307650366, rel=1e-9)
+    assert result[0].alt == pytest.approx(-34.06892428236129, rel=1e-9)
+    assert result[0].az == pytest.approx(133.08510694319676, rel=1e-9)
+    assert result[0].ddec == pytest.approx(0.052750501583968656, rel=1e-9)
+    assert result[0].ddistance == pytest.approx(-0.9569424023839184, rel=1e-9)
+    assert result[0].distance == pytest.approx(7847.70289113159, rel=1e-9)
+    assert result[0].dracosdec == pytest.approx(0.009594649342782794, rel=1e-9)
+    assert result[0].illuminated is False
+    assert result[0].julian_date == 2459000.5
+    assert result[0].observer_gcrs == pytest.approx(
+        [-3425.160358112812, 4025.640233578061, 3558.0063252620484], rel=1e-9
+    )
+    assert result[0].phase_angle == pytest.approx(31.472683052741548, rel=1e-9)
+    assert result[0].sat_altitude_km == pytest.approx(432.19358087422665, rel=1e-9)
+    assert result[0].solar_elevation_deg == pytest.approx(34.48609291068308, rel=1e-9)
+    assert result[0].solar_azimuth_deg == pytest.approx(274.7653770807215, rel=1e-9)
+    assert result[0].satellite_gcrs == pytest.approx(
+        [-6300.1587196871105, 65.83457279009582, -2577.2006164157906], rel=1e-9
+    )
 
 
 def test_skyfield_propagation_strategy_error():
@@ -197,16 +276,15 @@ def test_skyfield_propagation_strategy_error():
     longitude = 0
     elevation = 0
 
-    propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(),
-        tle_line_1,
-        tle_line_2,
-        [julian_date],
-        latitude,
-        longitude,
-        elevation,
+    strategy = SkyfieldPropagationStrategy()
+    result = strategy.propagate(
+        julian_dates=[julian_date],
+        tle_line_1=tle_line_1,
+        tle_line_2=tle_line_2,
+        latitude=latitude,
+        longitude=longitude,
+        elevation=elevation,
     )
-    result = propagation_info.propagate()
     # Weird lat/long./elevation values will not cause errors -
     # they will be normalized to a valid range; invalid TLE data
     # will cause a NaN result, but not throw an exception
@@ -233,6 +311,9 @@ def test_position_data_to_json():
             5942.835544462139,
             25.903436713068203,
             51.95659698598527,
+            100.0,
+            0.0,
+            0.0,
             True,
             [-643.0446467211723, -0.01912640597469738, 166.51906642428338],
             [-3554.7354993588046, 3998.2681386590784, 3460.9157688886103],
@@ -564,3 +645,91 @@ def test_is_illuminated():
     sat_gcrs = np.array([1.0, 0.0])
     with pytest.raises(ValueError):
         is_illuminated = coordinate_systems.is_illuminated(sat_gcrs, julian_date)
+
+
+def test_is_illuminated_vectorized():
+    # should be illuminated
+    sat_gcrs = np.array([-1807.4145165806299, -5481.865083864486, 3817.782079208943])
+    julian_date = 2460546.599502
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    sat_gcrs = np.array([-1726.6525239983253, -5556.764988629915, 3732.6312069408664])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    sat_gcrs = np.array([-2788.9344500353254, -6082.063324305135, 1780.452113395069])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    sat_gcrs = np.array([-6285.693766146678, -2883.510160329265, 372.90511732453666])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert is_illuminated[0]
+
+    # should not be illuminated
+    sat_gcrs = np.array([2148.476260974862, -5720.341032518884, 3250.5047622565057])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert not is_illuminated[0]
+
+    sat_gcrs = np.array([1239.1815032279183, -6748.906100431373, 1012.4062279591224])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert not is_illuminated[0]
+
+    sat_gcrs = np.array([-145.69690994172956, -6807.470474898967, 877.3659084400132])
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [sat_gcrs], [julian_date]
+    )
+    assert not is_illuminated[0]
+
+    # with error
+    sat_gcrs = [1, 2, 3, 4]
+    with pytest.raises(ValueError):
+        is_illuminated = coordinate_systems.is_illuminated_vectorized(
+            sat_gcrs, [julian_date]
+        )
+
+    is_illuminated = coordinate_systems.is_illuminated_vectorized(
+        [], [julian_date, julian_date]
+    )
+    assert is_illuminated == []
+
+
+def test_ensure_datetime():
+    # Test date string in YYYY-MM-DD format
+    date_str = "2025-01-01"
+    result = time_utils.ensure_datetime(date_str)
+    assert result == datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    # Test date string in YYYY-MM-DD HH:MM:SS format
+    date_str = "2025-01-01 12:00:00"
+    result = time_utils.ensure_datetime(date_str)
+    assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Test timezone-aware datetime
+    dt = datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    result = time_utils.ensure_datetime(dt)
+    assert result == dt
+
+    # Test naive datetime
+    dt = datetime(2025, 1, 1, 12, 0, 0)
+    result = time_utils.ensure_datetime(dt)
+    assert result == datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    # Test invalid input types
+    with pytest.raises(TypeError):
+        time_utils.ensure_datetime(123)
+
+    with pytest.raises(ValueError):
+        time_utils.ensure_datetime("invalid-date")

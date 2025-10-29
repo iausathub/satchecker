@@ -1,5 +1,5 @@
 import re
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import astropy.units as u
@@ -11,6 +11,7 @@ import api.common.error_messages as error_messages
 from api.common.exceptions import ValidationError
 from api.domain.models.satellite import Satellite
 from api.domain.models.tle import TLE
+from api.utils.location_utils import get_location_from_astropy_site
 
 
 def extract_parameters(request, parameter_list):
@@ -42,7 +43,7 @@ def extract_parameters(request, parameter_list):
 
 def validate_parameters(
     request: Any, parameter_list: list[str], required_parameters: list[str]
-) -> list[str]:
+) -> dict[str, Any]:
     """
     Validates and sanitizes parameters for satellite tracking.
 
@@ -68,11 +69,33 @@ def validate_parameters(
         if param not in parameters.keys() or parameters[param] is None:
             raise ValidationError(400, f"Missing parameter: {param}")
 
+    # Check if site is provide first, so that if it and other location parameters
+    # are provided, an error can be thrown
+    if "site" in parameters.keys() and parameters["site"] is not None:
+        if (
+            ("latitude" in parameters.keys() and parameters["latitude"] is not None)
+            or (
+                "longitude" in parameters.keys() and parameters["longitude"] is not None
+            )
+            or (
+                "elevation" in parameters.keys() and parameters["elevation"] is not None
+            )
+        ):
+            raise ValidationError(400, error_messages.SITE_AND_LOCATION_ERROR)
+        try:
+            site_location = get_location_from_astropy_site(parameters["site"])
+            parameters["location"] = site_location
+        except Exception as e:
+            raise ValidationError(500, error_messages.INVALID_SITE, e) from e
+
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
     if (
         "latitude" in parameters.keys()
+        and parameters["latitude"] is not None
         and "longitude" in parameters.keys()
+        and parameters["longitude"] is not None
         and "elevation" in parameters.keys()
+        and parameters["elevation"] is not None
     ):
         try:
             parameters["location"] = EarthLocation(
@@ -110,7 +133,9 @@ def validate_parameters(
             ]
 
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'julian_date'"
+            ) from e
 
     if "startjd" in parameters.keys() and "stopjd" in parameters.keys():
         try:
@@ -136,7 +161,9 @@ def validate_parameters(
             if isinstance(e, ValidationError):
                 raise e
             else:
-                raise ValidationError(500, error_messages.INVALID_JD, e) from e
+                raise ValidationError(
+                    500, error_messages.INVALID_JD + " - 'startjd' or 'stopjd'", e
+                ) from e
 
     if "data_source" in parameters.keys():
         parameters["data_source"] = (
@@ -145,7 +172,11 @@ def validate_parameters(
             else "any"
         )
         if parameters["data_source"] not in ["celestrak", "spacetrack", "any"]:
-            raise ValidationError(500, error_messages.INVALID_SOURCE)
+            raise ValidationError(
+                500,
+                error_messages.INVALID_SOURCE
+                + " - data_source must be 'celestrak', 'spacetrack', or 'any'",
+            )
 
     if "tle" in parameters.keys():
         parameters["tle"] = parse_tle(parameters["tle"])
@@ -156,7 +187,30 @@ def validate_parameters(
 
     if "id_type" in parameters.keys():
         if parameters["id_type"] not in ["catalog", "name"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " id_type must be 'catalog' or 'name'",
+            )
+
+        # Special case for get-adjacent-tles endpoint
+        if (
+            request.path.endswith("/get-adjacent-tles/")
+            and parameters["id_type"] != "catalog"
+        ):
+            raise ValidationError(
+                400,
+                "For get-adjacent-tles, only id_type='catalog' is currently supported",
+            )
+
+        if (
+            request.path.endswith("/get-tles-around-epoch/")
+            and parameters["id_type"] != "catalog"
+        ):
+            raise ValidationError(
+                400,
+                "For get-tles-around-epoch, only id_type='catalog' is currently supported",  # noqa: E501
+            )
 
     if "end_date_jd" in parameters.keys() and parameters["end_date_jd"] is not None:
         try:
@@ -166,7 +220,9 @@ def validate_parameters(
                 .replace(tzinfo=timezone.utc)
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'end_date_jd'", e
+            ) from e
 
     if "start_date_jd" in parameters.keys() and parameters["start_date_jd"] is not None:
         try:
@@ -176,7 +232,9 @@ def validate_parameters(
                 .replace(tzinfo=timezone.utc)
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'start_date_jd'", e
+            ) from e
 
     # If either mid_obs_time_jd or start_time_jd is provided, use the appropriate one
 
@@ -209,7 +267,11 @@ def validate_parameters(
                 parameters[time_param], format="jd", scale="ut1"
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500,
+                error_messages.INVALID_JD + " - 'mid_obs_time_jd' or 'start_time_jd'",
+                e,
+            ) from e
 
     if "epoch" in parameters.keys() and parameters["epoch"] is not None:
         try:
@@ -219,19 +281,71 @@ def validate_parameters(
                 .replace(tzinfo=timezone.utc)
             )
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_JD, e) from e
+            raise ValidationError(
+                500, error_messages.INVALID_JD + " - 'epoch'", e
+            ) from e
 
     if "ra" in parameters.keys() and parameters["ra"] is not None:
-        parameters["ra"] = float(parameters["ra"])
+        try:
+            parameters["ra"] = float(parameters["ra"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - ra", e
+            ) from e
 
     if "dec" in parameters.keys() and parameters["dec"] is not None:
-        parameters["dec"] = float(parameters["dec"])
+        try:
+            parameters["dec"] = float(parameters["dec"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - dec", e
+            ) from e
 
     if "fov_radius" in parameters.keys() and parameters["fov_radius"] is not None:
-        parameters["fov_radius"] = float(parameters["fov_radius"])
+        try:
+            parameters["fov_radius"] = float(parameters["fov_radius"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - fov_radius", e
+            ) from e
 
     if "duration" in parameters.keys() and parameters["duration"] is not None:
-        parameters["duration"] = float(parameters["duration"])
+        try:
+            parameters["duration"] = float(parameters["duration"])
+        except Exception as e:
+            raise ValidationError(
+                500, error_messages.INVALID_PARAMETER + " - duration", e
+            ) from e
+
+    if "count_before" in parameters.keys():
+        if parameters["count_before"] is not None:
+            try:
+                if int(parameters["count_before"]) < 0:
+                    raise ValidationError(
+                        500,
+                        error_messages.INVALID_PARAMETER
+                        + " count_before must be greater than 0",
+                    )
+                parameters["count_before"] = int(parameters["count_before"])
+            except Exception as e:
+                raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
+        else:
+            parameters["count_before"] = 2
+
+    if "count_after" in parameters.keys():
+        if parameters["count_after"] is not None:
+            try:
+                if int(parameters["count_after"]) < 0:
+                    raise ValidationError(
+                        500,
+                        error_messages.INVALID_PARAMETER
+                        + " count_after must be greater than 0",
+                    )
+                parameters["count_after"] = int(parameters["count_after"])
+            except Exception as e:
+                raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
+        else:
+            parameters["count_after"] = 2
 
     if "format" in parameters.keys() and parameters["format"] is not None:
         parameters["format"] = parameters["format"].lower()
@@ -247,14 +361,42 @@ def validate_parameters(
         )
 
         if parameters["group_by"] not in ["satellite", "time"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " group_by must be 'satellite' or 'time'",
+            )
+
+    if "include_tles" in parameters.keys() and parameters["include_tles"] is not None:
+        if parameters["include_tles"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " include_tles must be 'true' or 'false'",
+            )
+
+        parameters["include_tles"] = parameters["include_tles"].lower() == "true"
+
+    if "skip_cache" in parameters.keys() and parameters["skip_cache"] is not None:
+        if parameters["skip_cache"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " skip_cache must be 'true' or 'false'",
+            )
+
+        parameters["skip_cache"] = parameters["skip_cache"].lower() == "true"
 
     if (
         "illuminated_only" in parameters.keys()
         and parameters["illuminated_only"] is not None
     ):
-        if parameters["illuminated_only"] not in ["true", "false"]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+        if parameters["illuminated_only"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " illuminated_only must be 'true' or 'false'",
+            )
 
         parameters["illuminated_only"] = (
             parameters["illuminated_only"].lower() == "true"
@@ -269,7 +411,28 @@ def validate_parameters(
             "tba",
             "unknown",
         ]:
-            raise ValidationError(400, error_messages.INVALID_PARAMETER)
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " object_type must be 'payload', 'debris', 'rocket body', "
+                "'tba', or 'unknown'",
+            )
+
+    if "constellation" in parameters.keys() and parameters["constellation"] is not None:
+        parameters["constellation"] = parameters["constellation"].lower()
+        if parameters["constellation"] not in [
+            "starlink",
+            "oneweb",
+            "kuiper",
+            "planet",
+            "ast",
+        ]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " constellation must be 'starlink', 'oneweb', "
+                + "'kuiper', 'planet', or 'ast'",
+            )
 
     try:
         if "min_range" in parameters:
@@ -287,6 +450,14 @@ def validate_parameters(
             )
     except Exception as e:
         raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
+
+    if "async" in parameters.keys() and parameters["async"] is not None:
+        if parameters["async"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER + " async must be 'true' or 'false'",
+            )
+        parameters["async"] = parameters["async"].lower() == "true"
 
     try:
         if (
@@ -340,7 +511,7 @@ def validate_parameters(
     if "launch_id" in parameters.keys() and parameters["launch_id"] is not None:
         parameters["launch_id"] = str(parameters["launch_id"]).upper()
 
-    return parameters
+    return dict(parameters)
 
 
 def jd_arange(a, b, dr, decimals=11):
@@ -428,7 +599,7 @@ def parse_tle(tle):
             tle_line_1 = tle_data[1].strip()
             tle_line_2 = tle_data[2].strip()
         else:
-            name = None
+            name = ""
             tle_line_1 = tle_data[0].strip()
             tle_line_2 = tle_data[1].strip()
 
@@ -442,13 +613,25 @@ def parse_tle(tle):
     except Exception as e:
         raise ValidationError(500, error_messages.INVALID_TLE, e) from e
 
-    catalog = tle_line_1[2:7]
+    # Parse the epoch from the TLE line 1
+    # TLE epoch is in the format YYDDD.FRACTION at positions 18-32
+    epoch_year = int(tle_line_1[18:20])
+    epoch_year = epoch_year + (
+        1900 if epoch_year >= 57 else 2000
+    )  # Convert 2-digit year
+    epoch_day = float(tle_line_1[20:32])
+
+    # Day of year to date
+    epoch_date = datetime(epoch_year, 1, 1, tzinfo=timezone.utc)
+    epoch_date = epoch_date + timedelta(days=epoch_day - 1)
+
+    catalog = int(tle_line_1[2:7])
     satellite = Satellite(sat_number=catalog, sat_name=name)
     tle = TLE(
         tle_line1=tle_line_1,
         tle_line2=tle_line_2,
-        date_collected=None,
-        epoch=None,
+        date_collected=datetime.now(timezone.utc),
+        epoch=epoch_date,
         is_supplemental=False,
         satellite=satellite,
         data_source="user",

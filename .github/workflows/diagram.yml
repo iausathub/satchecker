@@ -1,0 +1,21 @@
+name: Create diagram
+on:
+  workflow_dispatch:
+
+jobs:
+  get_data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Update diagram
+        uses: githubocto/repo-visualizer@main
+        with:
+          output_file: "./output-diagram.svg"
+          excluded_paths: "ignore,.github"
+          should_push: false
+      - name: Upload diagram artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "output-diagram"
+          path: "./output-diagram.svg"

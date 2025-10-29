@@ -6,17 +6,19 @@ class Satellite:
         self,
         sat_number: int,
         sat_name: str,
-        constellation: str = None,
-        rcs_size: str = None,
-        launch_date: datetime = None,
-        decay_date: datetime = None,
-        object_id: str = None,
-        object_type: str = None,
+        constellation: str | None = None,
+        generation: str | None = None,
+        rcs_size: str | None = None,
+        launch_date: datetime | None = None,
+        decay_date: datetime | None = None,
+        object_id: str | None = None,
+        object_type: str | None = None,
         has_current_sat_number: bool = False,
     ):
         self.sat_number = sat_number
         self.sat_name = sat_name
         self.constellation = constellation
+        self.generation = generation
         self.rcs_size = rcs_size
         self.launch_date = launch_date
         self.decay_date = decay_date

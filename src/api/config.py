@@ -38,11 +38,11 @@ def get_db_login():
 
     if os.environ.get("DB_HOST") is not None:
         username, password, host, port, dbname = (
-            os.environ.get("DB_USERNAME"),
-            os.environ.get("DB_PASSWORD"),
-            os.environ.get("DB_HOST"),
-            os.environ.get("DB_PORT"),
-            os.environ.get("DB_NAME"),
+            os.environ.get("DB_USERNAME", ""),
+            os.environ.get("DB_PASSWORD", ""),
+            os.environ.get("DB_HOST", ""),
+            os.environ.get("DB_PORT", ""),
+            os.environ.get("DB_NAME", ""),
         )
         return [username, password, host, port, dbname]
 

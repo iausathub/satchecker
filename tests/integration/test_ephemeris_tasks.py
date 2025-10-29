@@ -17,6 +17,9 @@ def test_process_results_within_altitude_range():
             7000.0,
             0.1,
             45.0,
+            100.0,
+            0.0,
+            0.0,
             True,
             # satellite_gcrs, observer_gcrs, julian_date
             [1, 2, 3],
@@ -34,6 +37,9 @@ def test_process_results_within_altitude_range():
             7100.0,
             0.2,
             50.0,
+            110.0,
+            0.0,
+            0.0,
             False,
             # satellite_gcrs, observer_gcrs, julian_date
             [7, 8, 9],
@@ -69,6 +75,9 @@ def test_process_results_within_altitude_range():
             "range_km",
             "range_rate_km_per_sec",
             "phase_angle_deg",
+            "sat_altitude_km",
+            "solar_elevation_deg",
+            "solar_azimuth_deg",
             "illuminated",
             "data_source",
             "observer_gcrs_km",
@@ -83,7 +92,7 @@ def test_process_results_within_altitude_range():
                 [1, 2, 3],
                 1.0,
                 2.0,
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
                 3.0,
                 4.0,
                 50.0,
@@ -91,11 +100,14 @@ def test_process_results_within_altitude_range():
                 7000.0,
                 0.1,
                 45.0,
+                100.0,
+                0.0,
+                0.0,
                 True,
                 "Source",
                 [4, 5, 6],
                 "2024-test",
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
             ],  # noqa: E501
             [
                 "Satellite",
@@ -104,7 +116,7 @@ def test_process_results_within_altitude_range():
                 [7, 8, 9],
                 5.0,
                 6.0,
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
                 7.0,
                 8.0,
                 60.0,
@@ -112,11 +124,14 @@ def test_process_results_within_altitude_range():
                 7100.0,
                 0.2,
                 50.0,
+                110.0,
+                0.0,
+                0.0,
                 False,
                 "Source",
                 [10, 11, 12],
                 "2024-test",
-                "2023-01-01 00:00:00 ",  # noqa: E501
+                "2023-01-01 00:00:00 UTC",  # noqa: E501
             ],
         ],  # noqa: E501
         "source": "API",
@@ -152,6 +167,9 @@ def test_process_results_outside_altitude_range():
             7000.0,
             0.1,
             45.0,
+            100.0,
+            0.0,
+            0.0,
             True,
             # satellite_gcrs, observer_gcrs, julian_date
             [1, 2, 3],
@@ -169,6 +187,9 @@ def test_process_results_outside_altitude_range():
             7100.0,
             0.2,
             50.0,
+            110.0,
+            0.0,
+            0.0,
             False,
             # satellite_gcrs, observer_gcrs, julian_date
             [7, 8, 9],

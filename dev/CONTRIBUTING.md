@@ -4,7 +4,7 @@ Welcome to the SatChecker contributing guide! SatChecker is a tool for predictin
 
 Bug report/fixes, feature requests, and other contributions are welcome, and all issues and pull requests will be reviewed by a repo maintainer to ensure consistency with the project's scope and other guidelines.
 
-For any questions not answered here please email sathub@cps.iau.org or open an issue. We are in the process of creating additional issues for the GitHub repo based off of known issues and changes to make, so that section is a work in progress.
+For any questions not answered here please open a GitHub issue. We are in the process of creating additional issues for the GitHub repo based off of known bugs and planned issues, so that section is a work in progress.
 
 ## Getting Started
 1. Fork and clone the repository ([instructions](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo))
@@ -14,6 +14,8 @@ For any questions not answered here please email sathub@cps.iau.org or open an i
 5. Open a pull request when you're done - if this was for a new feature, only features approved by a project maintainer will be considered for merging into the project.
 
 ## Code Quality
+* Please review the IAU CPS SatHub general guidelines [here](https://github.com/iausathub/.github/blob/main/CONTRIBUTING.md).
+
 * The project has Ruff and Black set up to run as part of pull requests and commits to branches in this repository, and info on the rules used for those can be found in the wiki [here](https://github.com/iausathub/satchecker/wiki/Development-Workflow).
 
 * The wiki also has instructions for how to update the .rst documentation files, which is required for any changes to either add functions/modules or change parameters.

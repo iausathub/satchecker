@@ -1,20 +1,11 @@
 import logging
-import sys
 import traceback
 from datetime import datetime, timezone
 
 from flask import jsonify, request
-from werkzeug.exceptions import HTTPException
 
-# Basic stdout logging
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
-
-logger = logging.getLogger("error_handler")
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+# Use the application's centralized logging configuration
+logger = logging.getLogger(__name__)
 
 
 def handle_error(error):
@@ -31,7 +22,10 @@ def handle_error(error):
         message = getattr(error, "description", str(error))
     elif hasattr(error, "status_code"):
         code = error.status_code
-        message = str(error)
+        if hasattr(error, "message"):
+            message = error.message
+        else:
+            message = str(error)
     else:
         code = 500
         message = "Internal server error"
@@ -63,10 +57,6 @@ def handle_error(error):
 def init_error_handler(app):
     """Register error handlers with Flask app"""
     logger.info("Registering error handler")
-    # Register for all HTTP exceptions
-    app.register_error_handler(HTTPException, handle_error)
-    # Register for validation errors
+
+    # Register for all exceptions
     app.register_error_handler(Exception, handle_error)
-    # Register specific error codes
-    for code in [400, 404, 429, 500]:
-        app.register_error_handler(code, handle_error)

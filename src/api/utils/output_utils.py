@@ -1,3 +1,6 @@
+from datetime import timezone
+from typing import Any
+
 import numpy as np
 from astropy.time import Time
 
@@ -58,17 +61,9 @@ def position_data_to_json(
     # makes things a little faster
     my_round = np.round
 
-    tle_date = (
-        date_collected.strftime("%Y-%m-%d %H:%M:%S %Z")
-        if date_collected is not None
-        else date_collected
-    )
+    tle_date = format_date(date_collected)
 
-    tle_epoch = (
-        tle_epoch_date.strftime("%Y-%m-%d %H:%M:%S %Z")
-        if tle_epoch_date is not None
-        else tle_epoch_date
-    )
+    tle_epoch = format_date(tle_epoch_date)
 
     fields = [
         "name",
@@ -85,6 +80,9 @@ def position_data_to_json(
         "range_km",
         "range_rate_km_per_sec",
         "phase_angle_deg",
+        "sat_altitude_km",
+        "solar_elevation_deg",
+        "solar_azimuth_deg",
         "illuminated",
         "data_source",
         "observer_gcrs_km",
@@ -103,6 +101,9 @@ def position_data_to_json(
             r,
             dr,
             phaseangle,
+            sat_altitude_km,
+            solar_elevation_deg,
+            solar_azimuth_deg,
             illuminated,
             satellite_gcrs,
             observer_gcrs,
@@ -132,6 +133,21 @@ def position_data_to_json(
                     if phaseangle is not None
                     else None
                 ),
+                (
+                    my_round(sat_altitude_km, precision_range)
+                    if sat_altitude_km is not None
+                    else None
+                ),
+                (
+                    my_round(solar_elevation_deg, precision_angles)
+                    if solar_elevation_deg is not None
+                    else None
+                ),
+                (
+                    my_round(solar_azimuth_deg, precision_angles)
+                    if solar_azimuth_deg is not None
+                    else None
+                ),
                 illuminated,
                 data_source,
                 observer_gcrs,
@@ -150,15 +166,15 @@ def position_data_to_json(
 
 
 def fov_data_to_json(
-    results: list,
+    results: list[dict[str, Any]],
     points_in_fov: int,
-    performance_metrics: dict,
+    performance_metrics: dict[str, Any],
     api_source: str,
     api_version: str,
     group_by: str,
     precision_angles=8,
     precision_date=8,
-) -> dict:
+) -> dict[str, Any]:
     """Convert FOV results to JSON format with optional grouping by satellite.
 
     Args:
@@ -188,9 +204,10 @@ def fov_data_to_json(
                 result[field] = my_round(value, precision_angles)
             elif field == "julian_date":
                 result[field] = my_round(value, precision_date)
-                result["date_time"] = (
-                    Time(value, format="jd").iso if value is not None else None
+                result["date_time"] = format_date(
+                    Time(value, format="jd").to_datetime()
                 )
+    formatted_results: dict[str, Any]
 
     if group_by == "satellite":
         # Group passes by satellite
@@ -203,11 +220,19 @@ def fov_data_to_json(
             sat_key = f"{sat_name} ({sat_norad_id})"
 
             if sat_key not in satellites:
-                satellites[sat_key] = {
+                # Create base satellite dictionary
+                satellite_dict = {
                     "name": sat_name,
                     "norad_id": sat_norad_id,
                     "positions": [],
                 }
+
+                # Only add tle_data if it's not null/empty
+                tle_data = result.get("tle_data")
+                if tle_data is not None and tle_data != {}:
+                    satellite_dict["tle_data"] = tle_data
+
+                satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info
             pass_data = {
                 "ra": result["ra"],
@@ -215,9 +240,10 @@ def fov_data_to_json(
                 "altitude": result["altitude"],
                 "azimuth": result["azimuth"],
                 "julian_date": result["julian_date"],
-                "date_time": result.get("date_time"),
+                "date_time": format_date(result.get("date_time")),
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
+                "tle_epoch": result.get("tle_epoch"),
             }
             satellites[sat_key]["positions"].append(pass_data)
 
@@ -235,13 +261,42 @@ def fov_data_to_json(
         # Original chronological format
         formatted_results = {
             "data": results,
-            "count": len(results),
+            "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,
             "version": api_version,
         }
 
     return formatted_results
+
+
+def format_date(date):
+    """
+    Format a datetime object into a standardized string format.
+
+    Args:
+        date: A datetime object to format, or None
+
+    Returns:
+        A formatted date string in the format 'YYYY-MM-DD HH:MM:SS TZ' if date is
+        provided, otherwise returns None
+
+    Example:
+        >>> format_date(datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc))
+        '2024-01-01 12:00:00 UTC'
+    """
+    if date is None:
+        return None
+
+    if isinstance(date, str):
+        return date
+
+    if date.tzinfo is None:
+        date = date.replace(tzinfo=timezone.utc)
+
+    formatted_date = date.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    return formatted_date
 
 
 def satellite_data_to_json(satellites: list, api_source: str, api_version: str) -> dict:

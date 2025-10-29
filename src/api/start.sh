@@ -5,10 +5,10 @@ cd /usr/src/app/api
 export PYTHONPATH="/usr/src/app"
 
 # Run database migrations
-alembic -c migrations/alembic.ini upgrade head
+flask db upgrade head
 
 # Start the Celery worker in the background
 celery -A api.satchecker.celery worker --loglevel INFO &
 
 # Start the Flask server in the foreground
-exec gunicorn --workers=3 --timeout 120 -b 0.0.0.0:5000 --access-logfile - api.satchecker:app
+exec gunicorn --workers=4 --threads=4 --worker-class=gthread --timeout 300 -b 0.0.0.0:5000 --access-logfile - --keep-alive 120 api.satchecker:app

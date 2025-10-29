@@ -1,0 +1,51 @@
+name: Load Testing with Artillery
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Artillery
+        run: npm install -g artillery
+
+      - name: Run Artillery load test
+        run: artillery run tests/load_tests.yml -o artillery-results.json
+
+      - name: Generate HTML report from results
+        run: |
+          artillery report ./artillery-results.json --output ./artillery-report.html
+          ls -la  # List files in the directory to confirm the file paths
+
+      - name: Upload load test results as artifact (JSON)
+        uses: actions/upload-artifact@v4
+        with:
+          name: artillery-results
+          path: ./artillery-results.json
+
+      - name: Upload Artillery HTML report as artifact
+        uses: actions/upload-artifact@v4
+        id: upload-artillery-report
+        with:
+          name: artillery-report
+          path: ./artillery-report.html
+
+      - name: Append Report Link to Summary
+        run: echo "[Download Artillery Report HTML](https://github.com/${{ github.repository }}/actions/artifacts/${{ steps.upload-artillery-report.outputs.artifact_id }})" >> $GITHUB_STEP_SUMMARY

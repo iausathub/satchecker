@@ -1,11 +1,11 @@
 import logging
+from typing import Any
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from flask import current_app, has_app_context
 
-from api import celery
-from api.common.position_data_point import position_data_point
+from api.celery_app import celery
 
 # from core import celery, utils
 from api.utils.output_utils import position_data_to_json
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @celery.task
 def process_results(
-    data_points: list[tuple[float, float]],
+    data_points: list[tuple[float, ...]],
     min_altitude: float,
     max_altitude: float,
     date_collected: str,
@@ -32,7 +32,7 @@ def process_results(
     data_source: str,
     api_source: str,
     api_version: str,
-) -> list[position_data_point]:
+) -> dict[str, Any]:
     """
     Process the results of the satellite propagation.
 
@@ -50,7 +50,8 @@ def process_results(
         data_source (str): The data source.
 
     Returns:
-        list[position_data_point]: The processed results.
+        dict[str, Any]: Either the processed results dictionary or an
+        info message dictionary.
     """
     if has_app_context():
         current_app.logger.info("process results started")
@@ -67,7 +68,7 @@ def process_results(
         }
 
     # Add remaining metadata to results
-    data_set = position_data_to_json(
+    data_set: dict[str, Any] = position_data_to_json(
         name,
         intl_designator,
         catalog_id,
@@ -100,7 +101,7 @@ def generate_position_data(
     catalog_id: str = "",
     data_source: str = "",
     propagation_strategy: str = "skyfield",
-) -> list[dict]:
+) -> dict[str, Any] | list[dict[str, Any]]:
     """
     Create a list of results for a given satellite and date range.
 
@@ -121,7 +122,8 @@ def generate_position_data(
         data_source (str, optional): The data source of the TLE data. Defaults to "".
 
     Returns:
-        list[dict]: A list of results for the given satellite and date range.
+        dict[str, Any] | list[dict[str, Any]]: Either a dictionary with results
+        or a list of results for the given satellite and date range.
     """
     # Create a chord that will propagate the satellite for
     # each date and then process the results
@@ -161,10 +163,11 @@ def generate_position_data(
             api_version,
         ]
     )
-    results = processed_results.get()
-    if not results:
-        return {"info": "No position information found with this criteria"}
-    return results
+    result_dict: dict[str, Any] = processed_results.get()
+    if not result_dict:
+        return [{"info": "No position information found with this criteria"}]
+
+    return result_dict
 
 
 @celery.task
@@ -173,17 +176,21 @@ def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
     Propagates satellite and observer states using the Skyfield library.
 
     Args:
-        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
-        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
+        tle_line_1 (str): The first line of the Two-Line Element set representing
+        the satellite.
+        tle_line_2 (str): The second line of the Two-Line Element set representing
+        the satellite.
         lat (float): The latitude of the observer's location, in degrees.
         long (float): The longitude of the observer's location, in degrees.
-        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
-        jd (Time): The Julian Date at which to propagate the satellite.
+        height (float): The height of the observer's location, in meters above the
+        WGS84 ellipsoid.
+        jd (float | list[float]): The Julian Date(s) at which to propagate
+        the satellite.
 
     Returns:
-        dict: A dictionary containing the propagated state of the satellite and the
-        observer.
-    """  # noqa: E501
+        list[tuple]: A list of tuples containing the propagated state of the
+        satellite and the observer.
+    """
     propagation_info = PropagationInfo(
         SkyfieldPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
     )
@@ -195,20 +202,24 @@ def propagate_satellite_sgp4(
     tle_line_1, tle_line_2, lat, long, height, jd
 ):  # pragma: no cover
     """
-    Propagates satellite and observer states using the SGP4 propagation library.
+    Propagates satellite and observer states using the SGP4 model.
 
     Args:
-        tle_line_1 (str): The first line of the Two-Line Element set representing the satellite.
-        tle_line_2 (str): The second line of the Two-Line Element set representing the satellite.
+        tle_line_1 (str): The first line of the Two-Line Element set representing
+        the satellite.
+        tle_line_2 (str): The second line of the Two-Line Element set representing
+        the satellite.
         lat (float): The latitude of the observer's location, in degrees.
         long (float): The longitude of the observer's location, in degrees.
-        height (float): The height of the observer's location, in meters above the WGS84 ellipsoid.
-        jd (Time): The Julian Date at which to propagate the satellite.
+        height (float): The height of the observer's location, in meters above the
+        WGS84 ellipsoid.
+        jd (float | list[float]): The Julian Date(s) at which to propagate
+        the satellite.
 
     Returns:
-        dict: A dictionary containing the propagated state of the satellite and the
-        observer.
-    """  # noqa: E501
+        list[tuple]: A list of tuples containing the propagated state of the satellite
+        and the observer.
+    """
     propagation_info = PropagationInfo(
         SGP4PropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
     )

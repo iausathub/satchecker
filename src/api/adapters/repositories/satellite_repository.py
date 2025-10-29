@@ -14,7 +14,7 @@ class AbstractSatelliteRepository(abc.ABC):
         self._add(satellite)
         self.seen.add(satellite)
 
-    def get(self, satellite_id: str) -> Satellite:
+    def get(self, satellite_id: str) -> Satellite | None:
         satellite = self._get(satellite_id)
         if satellite:
             self.seen.add(satellite)
@@ -32,14 +32,17 @@ class AbstractSatelliteRepository(abc.ABC):
     def get_satellite_data_by_name(self, name):
         return self._get_satellite_data_by_name(name)
 
-    def get_active_satellites(self, object_type: str = None):
+    def get_starlink_generations(self):
+        return self._get_starlink_generations()
+
+    def get_active_satellites(self, object_type: str | None = None):
         return self._get_active_satellites(object_type)
 
     def search_all_satellites(self, parameters: dict):
         return self._search_all_satellites(parameters)
 
     @abc.abstractmethod
-    def _get(self, satellite_id: str) -> Satellite:
+    def _get(self, satellite_id: str) -> Satellite | None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -63,7 +66,11 @@ class AbstractSatelliteRepository(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_active_satellites(self, object_type: str = None):
+    def _get_starlink_generations(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_active_satellites(self, object_type: str | None = None):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -76,7 +83,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
         super().__init__()
         self.session = session
 
-    def _get(self, satellite_id: str) -> Satellite:
+    def _get(self, satellite_id: str) -> Satellite | None:
         orm_satellite = (
             self.session.query(SatelliteDb)
             .filter(SatelliteDb.sat_number == satellite_id)
@@ -184,7 +191,35 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
         return satellite
 
-    def _get_active_satellites(self, object_type: str = None):
+    def _get_starlink_generations(self):
+        """
+        Retrieves unique Starlink generations with their earliest and most recent
+        launch dates.
+
+        Args:
+            None
+
+        Returns:
+            List[tuple]: A list of tuples containing (generation, earliest_launch_date,
+            latest_launch_date)
+        """
+        query = (
+            self.session.query(
+                SatelliteDb.generation,
+                func.min(SatelliteDb.launch_date).label("earliest_launch"),
+                func.max(SatelliteDb.launch_date).label("latest_launch"),
+            )
+            .filter(
+                func.lower(SatelliteDb.sat_name).like("%starlink%"),
+                SatelliteDb.generation.isnot(None),
+            )
+            .group_by(SatelliteDb.generation)
+            .order_by(SatelliteDb.generation)
+        )
+
+        return query.all()
+
+    def _get_active_satellites(self, object_type: str | None = None):
         """
         Retrieves active satellites based on the provided object type (optional).
         Only returns satellites that are active (no decay date) and have current
@@ -263,13 +298,14 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
 
     # SQLAlchemyRepository-specific methods
     @staticmethod
-    def _to_domain(orm_satellite):
+    def _to_domain(orm_satellite) -> Satellite | None:
         if orm_satellite is None:
             return None
         return Satellite(
             sat_number=orm_satellite.sat_number,
             sat_name=orm_satellite.sat_name,
             constellation=orm_satellite.constellation,
+            generation=orm_satellite.generation,
             rcs_size=orm_satellite.rcs_size,
             launch_date=orm_satellite.launch_date,
             decay_date=orm_satellite.decay_date,
@@ -284,6 +320,7 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
             sat_number=domain_satellite.sat_number,
             sat_name=domain_satellite.sat_name,
             constellation=domain_satellite.constellation,
+            generation=domain_satellite.generation,
             rcs_size=domain_satellite.rcs_size,
             launch_date=domain_satellite.launch_date,
             decay_date=domain_satellite.decay_date,
