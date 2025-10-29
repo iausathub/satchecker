@@ -3,11 +3,16 @@
 import time
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from src.api.adapters.database_orm import TLEDb
 from src.api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
 from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from src.api.services.cache_service import (
+    RECENT_TLES_CACHE_KEY,
+    set_cached_data,
+)
 from tests.factories import SatelliteFactory, TLEFactory
 
 
@@ -559,14 +564,8 @@ def test_get_all_tles_at_epoch_cache(session, app, services_available):
     tle_repository.add(tle2)
     session.commit()
 
-    # Import and use cache functions directly
-    from api.services.cache_service import (
-        RECENT_TLES_CACHE_KEY,
-        batch_serialize_tles,
-        set_cached_data,
-    )
-
     # Explicitly initialize the cache with our test data for consistent testing
+    batch_serialize_tles = SqlAlchemyTLERepository.batch_serialize_tles
     with app.app_context():
         print("DEBUG - Manually initializing Redis cache with test data")
         cache_data = {
@@ -847,3 +846,90 @@ def test_get_all_tles_at_epoch_with_data_source(session, services_available):
     assert len(all_tles) == 2
     assert all_tles[0].data_source == "spacetrack"
     assert all_tles[1].data_source == "celestrak"
+
+
+def test_batch_serialize_tles_with_factory_data():
+    """Test batch_serialize_tles with actual TLE factory data."""
+    satellite = SatelliteFactory()
+    tle = TLEFactory(satellite=satellite)
+
+    result = SqlAlchemyTLERepository.batch_serialize_tles([tle])
+
+    assert len(result) == 1
+    assert "tle_line1" in result[0]
+    assert "satellite" in result[0]
+    assert "sat_name" in result[0]["satellite"]
+
+
+def test_batch_serialize_tles_missing_satellite_attribute(mocker):
+    """Test handling of TLE with missing satellite attribute."""
+    mock_tle = mocker.Mock()
+    mock_tle.satellite = None
+    mock_tle.tle_line1 = (
+        "1 25544U 98067A   24001.00000000  .00000000  00000-0  00000-0 0  9990"
+    )
+    mock_tle.tle_line2 = (
+        "2 25544  51.6400 000.0000 0000000   0.0000   0.0000 15.50000000000000"
+    )
+    mock_tle.epoch = datetime.now(timezone.utc)
+    mock_tle.date_collected = datetime.now(timezone.utc)
+    mock_tle.is_supplemental = False
+    mock_tle.data_source = "test"
+
+    with pytest.raises(AttributeError):
+        SqlAlchemyTLERepository.batch_serialize_tles([mock_tle])
+
+
+def test_batch_serialize_tles_satellite_missing_attributes(mocker):
+    """Test batch_serialize_tles with satellite missing has_current_sat_number."""
+    mock_satellite = mocker.Mock()
+    mock_satellite.sat_name = "TEST SAT"
+    mock_satellite.sat_number = 12345
+    mock_satellite.decay_date = None
+
+    # Missing has_current_sat_number attribute
+    del mock_satellite.has_current_sat_number
+
+    mock_tle = mocker.Mock()
+    mock_tle.satellite = mock_satellite
+    mock_tle.tle_line1 = (
+        "1 25544U 98067A   24001.00000000  .00000000  00000-0  00000-0 0  9990"
+    )
+    mock_tle.tle_line2 = (
+        "2 25544  51.6400 000.0000 0000000   0.0000   0.0000 15.50000000000000"
+    )
+    mock_tle.epoch = datetime.now(timezone.utc)
+    mock_tle.date_collected = datetime.now(timezone.utc)
+    mock_tle.is_supplemental = False
+    mock_tle.data_source = "test"
+
+    result = SqlAlchemyTLERepository.batch_serialize_tles([mock_tle])
+
+    assert len(result) == 1
+    assert result[0]["satellite"]["has_current_sat_number"] is True
+
+
+def test_batch_serialize_tles_datetime_serialization_error(mocker):
+    """Test batch_serialize_tles with invalid datetime."""
+    mock_satellite = mocker.Mock()
+    mock_satellite.sat_name = "TEST SAT"
+    mock_satellite.sat_number = 12345
+    mock_satellite.decay_date = None
+    mock_satellite.has_current_sat_number = True
+
+    mock_tle = mocker.Mock()
+    mock_tle.satellite = mock_satellite
+    mock_tle.tle_line1 = (
+        "1 25544U 98067A   24001.00000000  .00000000  00000-0  00000-0 0  9990"
+    )
+    mock_tle.tle_line2 = (
+        "2 25544  51.6400 000.0000 0000000   0.0000   0.0000 15.50000000000000"
+    )
+    mock_tle.epoch = mocker.Mock()
+    mock_tle.epoch.isoformat.side_effect = AttributeError("Invalid datetime")
+    mock_tle.date_collected = datetime.now(timezone.utc)
+    mock_tle.is_supplemental = False
+    mock_tle.data_source = "test"
+
+    with pytest.raises(AttributeError):
+        SqlAlchemyTLERepository.batch_serialize_tles([mock_tle])

@@ -11,4 +11,4 @@ RUN pip install -r requirements.txt
 
 COPY . .
 RUN celery --version
-CMD ["celery", "-A", "score", "worker", "--loglevel=info", "--concurrency=5"]
+CMD ["celery", "-A", "satchecker.celery", "worker", "--loglevel=info", "--concurrency=5"]

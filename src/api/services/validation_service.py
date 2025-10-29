@@ -451,6 +451,14 @@ def validate_parameters(
     except Exception as e:
         raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
 
+    if "async" in parameters.keys() and parameters["async"] is not None:
+        if parameters["async"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER + " async must be 'true' or 'false'",
+            )
+        parameters["async"] = parameters["async"].lower() == "true"
+
     return dict(parameters)
 
 
