@@ -657,6 +657,7 @@ def test_search_satellites(client, services_available):
         object_type="PAYLOAD",
         rcs_size="LARGE",
         object_id="2024-001A",
+        sat_number=25544,
     )
     sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
     sat_repo.add(satellite)
@@ -675,6 +676,16 @@ def test_search_satellites(client, services_available):
     response = client.get("/tools/search-satellites/?name=invalid")
     assert response.status_code == 200
     assert response.json["count"] == 0
+
+    response = client.get("/tools/search-satellites/?norad_id=25544")
+    assert response.status_code == 200
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["satellite_name"] == "ISS"
+
+    response = client.get("/tools/search-satellites/?object_id=2024-001A")
+    assert response.status_code == 200
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["satellite_name"] == "ISS"
 
     response = client.get("/tools/search-satellites/?decay_date_start=2451571.517396")
     assert response.status_code == 200
@@ -709,6 +720,11 @@ def test_search_satellites(client, services_available):
     assert response.json["count"] == 1
     assert response.json["data"][0]["satellite_name"] == "ISS"
 
+    response = client.get("/tools/search-satellites/?launch_date_end=2460544.517396")
+    assert response.status_code == 200
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["satellite_name"] == "ISS"
+
     response = client.get("/tools/search-satellites/?launch_id=2024-001")
     assert response.status_code == 200
     assert response.json["count"] == 1
@@ -717,3 +733,10 @@ def test_search_satellites(client, services_available):
     response = client.get("/tools/search-satellites/?launch_id=2024-002")
     assert response.status_code == 200
     assert response.json["count"] == 0
+
+
+def test_search_satellites_validation_error(client, services_available):
+    response = client.get("/tools/search-satellites/?launch_date_start=invalid-date")
+    assert response.status_code != 200
+    assert "message" in response.json
+    assert "Invalid Julian Date" in response.json["message"]
