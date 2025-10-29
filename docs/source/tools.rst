@@ -51,7 +51,7 @@ Retrieve any NORAD ID(s) associated with a satellite name
             }
         ],
         "source": "IAU CPS SatChecker",
-        "version": "1.2.0"
+        "version": "1.X.x"
     }
 
 Retrieve any satellite names associated with a NORAD ID
@@ -111,7 +111,7 @@ Retrieve any satellite names associated with a NORAD ID
             }
         ],
         "source": "IAU CPS SatChecker",
-        "version": "1.2.0"
+        "version": "1.X.x"
     }
 
 
@@ -181,7 +181,7 @@ Retrieve raw TLE data for a satellite over a given time period
             }
         ],
         "source": "IAU CPS SatChecker",
-        "version": "1.2.0"
+        "version": "1.X.x"
     }
 
 
@@ -245,7 +245,7 @@ Retrieve satellite metadata
             }
         ],
         "source": "IAU CPS SatChecker",
-        "version": "1.2.0"
+        "version": "1.X.x"
     }
 
 
@@ -366,7 +366,7 @@ in the database (no decay date and current NORAD ID).
                 "per_page": 5,
                 "source": "IAU CPS SatChecker",
                 "total_results": 385,
-                "version": "1.2.0"
+                "version": "1.X.x"
             }
         ]
 
@@ -439,7 +439,7 @@ by object type - "PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", or "UNKNOWN".
                 }
             ],
             "source": "IAU CPS SatChecker",
-            "version": "1.2.0"
+            "version": "1.X.x"
     }
 
 
@@ -524,5 +524,5 @@ object type.
                 }
             ],
             "source": "IAU CPS SatChecker",
-            "version": "1.2.0"
+            "version": "1.X.x"
         }
