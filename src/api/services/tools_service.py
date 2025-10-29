@@ -7,7 +7,7 @@ from typing import Any
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
-from api.utils.output_utils import format_date
+from api.utils.output_utils import format_date, satellite_data_to_json
 
 logger = logging.getLogger(__name__)
 
@@ -79,10 +79,18 @@ def get_tle_data(
             for tle in tles
         ]
         logger.info(f"Successfully formatted {len(tle_data)} TLE records")
-        return tle_data
     except Exception as e:
         logger.error(f"Failed to format TLE data: {str(e)}", exc_info=True)
         raise
+
+    results = {
+        "count": len(tle_data),
+        "data": tle_data,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results
 
 
 def get_tles_around_epoch_results(
@@ -384,7 +392,14 @@ def get_satellite_data(
         logger.error(f"Failed to format satellite data: {str(e)}", exc_info=True)
         raise
 
-    return satellite_data
+    results = {
+        "count": len(satellite_data),
+        "data": satellite_data,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results
 
 
 def get_starlink_generations(
@@ -487,38 +502,22 @@ def get_active_satellites(
         logger.error(f"Failed to retrieve active satellites: {str(e)}", exc_info=True)
         raise
 
-    try:
-        satellite_list = [
-            {
-                "satellite_name": satellite.sat_name,
-                "satellite_id": satellite.sat_number,
-                "international_designator": satellite.object_id,
-                "rcs_size": satellite.rcs_size,
-                "launch_date": (
-                    satellite.launch_date.strftime("%Y-%m-%d")
-                    if satellite.launch_date
-                    else None
-                ),
-                "decay_date": (
-                    satellite.decay_date.strftime("%Y-%m-%d")
-                    if satellite.decay_date
-                    else None
-                ),
-                "object_type": satellite.object_type,
-            }
-            for satellite in satellites
-        ]
-        logger.info("Successfully formatted satellite list")
-    except Exception as e:
-        logger.error(f"Failed to format satellite list: {str(e)}", exc_info=True)
-        raise
+    satellite_json = satellite_data_to_json(satellites, api_source, api_version)
 
-    return {
-        "count": len(satellite_list),
-        "data": satellite_list,
-        "source": api_source,
-        "version": api_version,
-    }
+    return satellite_json
+
+
+def search_all_satellites(
+    sat_repo: AbstractSatelliteRepository,
+    parameters: dict,
+    api_source: str,
+    api_version: str,
+):
+    satellites = sat_repo.search_all_satellites(parameters)
+
+    satellite_json = satellite_data_to_json(satellites, api_source, api_version)
+
+    return satellite_json
 
 
 def get_all_tles_at_epoch_formatted(
@@ -697,7 +696,14 @@ def get_ids_for_satellite_name(
         logger.error(f"Failed to format NORAD ID data: {str(e)}", exc_info=True)
         raise
 
-    return ids_and_dates
+    results = {
+        "count": len(ids_and_dates),
+        "data": ids_and_dates,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results
 
 
 def get_names_for_satellite_id(
@@ -752,4 +758,11 @@ def get_names_for_satellite_id(
         logger.error(f"Failed to format satellite name data: {str(e)}", exc_info=True)
         raise
 
-    return names_and_dates
+    results = {
+        "count": len(names_and_dates),
+        "data": names_and_dates,
+        "source": api_source,
+        "version": api_version,
+    }
+
+    return results
