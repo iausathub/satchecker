@@ -28,7 +28,7 @@ include:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: postgres
     SQLALCHEMY_DATABASE_URI: "postgresql://postgres:postgres@postgres:5432/test_satchecker"
-    REDIS_URL: "redis://redis:6379/0"
+    REDIS_URL: "redis://localhost"
     LOCAL_DB: "1"
   before_script:
     - apt-get update && apt-get install -y postgresql-client
