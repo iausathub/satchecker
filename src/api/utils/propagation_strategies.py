@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta
-from typing import Any, Union
+from typing import Any
 
 import julian
 import numpy as np
@@ -114,14 +114,14 @@ class BasePropagationStrategy(ABC):
     @abstractmethod
     def propagate(
         self,
-        julian_dates: Union[float, list[float], np.ndarray],
+        julian_dates: float | list[float] | np.ndarray,
         tle_line_1: str,
         tle_line_2: str,
         latitude: float,
         longitude: float,
         elevation: float,
         **kwargs,
-    ) -> Union[satellite_position, list[satellite_position], list[dict[str, Any]]]:
+    ) -> satellite_position | list[satellite_position] | list[dict[str, Any]]:
         """
         Propagate satellite positions.
 
@@ -143,7 +143,7 @@ class BasePropagationStrategy(ABC):
 class SkyfieldPropagationStrategy(BasePropagationStrategy):
     def propagate(
         self,
-        julian_dates: Union[float, list[float], np.ndarray],
+        julian_dates: float | list[float] | np.ndarray,
         tle_line_1: str,
         tle_line_2: str,
         latitude: float,
@@ -309,14 +309,14 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
 class SGP4PropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def propagate(
         self,
-        julian_dates: Union[float, list[float], np.ndarray],
+        julian_dates: float | list[float] | np.ndarray,
         tle_line_1: str,
         tle_line_2: str,
         latitude: float,
         longitude: float,
         elevation: float,
         **kwargs,
-    ) -> Union[satellite_position, list[satellite_position]]:
+    ) -> satellite_position | list[satellite_position]:
         """
         Propagates satellite and observer states using the SGP4 propagation model.
 
@@ -425,14 +425,14 @@ class SGP4PropagationStrategy(BasePropagationStrategy):  # pragma: no cover
 class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def propagate(
         self,
-        julian_dates: Union[float, list[float], np.ndarray],
+        julian_dates: float | list[float] | np.ndarray,
         tle_line_1: str,
         tle_line_2: str,
         latitude: float,
         longitude: float,
         elevation: float,
         **kwargs,
-    ) -> Union[satellite_position, list[satellite_position]]:
+    ) -> satellite_position | list[satellite_position]:
         """
         Test propagation strategy that uses Skyfield implementation.
 
@@ -544,7 +544,7 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
 class FOVPropagationStrategy(BasePropagationStrategy):
     def propagate(
         self,
-        julian_dates: Union[float, list[float], np.ndarray],
+        julian_dates: float | list[float] | np.ndarray,
         tle_line_1: str,
         tle_line_2: str,
         latitude: float,
@@ -628,7 +628,7 @@ class FOVPropagationStrategy(BasePropagationStrategy):
                     "julian_date": julian_dates[idx],
                     "angle": np.degrees(sat_fov_angles[idx]),
                 }
-                for idx, ra_dec in zip(fov_indices, ra_decs)
+                for idx, ra_dec in zip(fov_indices, ra_decs, strict=True)
             ]
 
         except Exception as e:
@@ -703,7 +703,7 @@ def process_satellite_batch(args):
 
             # Prepare results with conditional TLE data
             result_entries = []
-            for idx, ra_dec in zip(fov_indices, ra_decs):
+            for idx, ra_dec in zip(fov_indices, ra_decs, strict=True):
                 result = {
                     "ra": ra_dec[0],
                     "dec": ra_dec[1],
@@ -861,7 +861,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
 
     def propagate(
         self,
-        julian_dates: Union[float, list[float], np.ndarray],
+        julian_dates: float | list[float] | np.ndarray,
         tle_line_1: str,
         tle_line_2: str,
         latitude: float,
@@ -1105,7 +1105,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             }
 
             for idx, (jd, timestamp) in enumerate(
-                zip(julian_dates, data["timestamps"])
+                zip(julian_dates, data["timestamps"], strict=True)
             ):
                 try:
                     state_vector = state_vectors[idx]

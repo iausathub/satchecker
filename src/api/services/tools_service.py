@@ -3,7 +3,7 @@ import io
 import logging
 import zipfile
 from datetime import datetime
-from typing import Any, Optional, Union
+from typing import Any
 
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
@@ -172,7 +172,7 @@ def get_nearest_tle_result(
     epoch: datetime,
     api_source: str,
     api_version: str,
-) -> list[dict[str, Union[list[dict[str, Any]], str]]]:
+) -> list[dict[str, list[dict[str, Any]] | str]]:
     """
     Fetches the nearest TLE to a specific epoch date.
 
@@ -188,7 +188,7 @@ def get_nearest_tle_result(
         api_version (str): The version of the API request.
 
     Returns:
-        list[dict[str, Union[list[dict[str, Any]], str]]]: A single-item list
+        list[dict[str, list[dict[str, Any]] | str]]: A single-item list
         containing a dictionary with:
         - tle_data: List of dictionaries, each containing:
             - satellite_name (str): Name of the satellite
@@ -249,7 +249,7 @@ def get_adjacent_tle_results(
     api_source: str,
     api_version: str,
     format: str = "json",
-) -> Union[list[dict[str, Union[list[dict[str, Any]], str]]], io.BytesIO]:
+) -> list[dict[str, list[dict[str, Any]] | str]] | io.BytesIO:
     """
     Fetches the adjacent TLEs to a specific epoch date - one TLE before and one after.
 
@@ -262,7 +262,7 @@ def get_adjacent_tle_results(
         api_version (str): The version of the API request.
         format (str): The format of the response, either "json" or "txt".
     Returns:
-        Union[list[dict[str, Union[list[dict[str, Any]], str]]], io.BytesIO]:
+        list[dict[str, list[dict[str, Any]] | str]] | io.BytesIO:
             - For JSON format: A list containing a dictionary with TLE data
             - For TXT format: A BytesIO object containing the formatted TLE text
     """
@@ -456,7 +456,7 @@ def get_starlink_generations(
 
 def get_active_satellites(
     sat_repo: AbstractSatelliteRepository,
-    object_type: Optional[str],
+    object_type: str | None,
     api_source: str,
     api_version: str,
 ):
@@ -529,7 +529,7 @@ def get_all_tles_at_epoch_formatted(
     per_page: int = 100,
     api_source: str = "",
     api_version: str = "",
-) -> Union[list[dict[str, Any]], io.BytesIO]:
+) -> list[dict[str, Any]] | io.BytesIO:
     """
     Fetches all TLEs at a specific epoch date with support for different output formats.
 
@@ -543,7 +543,7 @@ def get_all_tles_at_epoch_formatted(
         api_version (str): The version of the API request.
 
     Returns:
-        Union[list[dict[str, Any]], io.BytesIO]: Either a list containing TLE data
+        list[dict[str, Any]] | io.BytesIO: Either a list containing TLE data
         and pagination info (JSON) or a BytesIO object containing formatted TLE data
         (TXT/ZIP).
     """

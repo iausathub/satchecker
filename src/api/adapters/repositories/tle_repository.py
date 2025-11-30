@@ -2,7 +2,7 @@ import abc
 import logging
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import DateTime, String, and_, bindparam, func, text
 from sqlalchemy.orm.exc import NoResultFound
@@ -28,7 +28,7 @@ class AbstractTLERepository(abc.ABC):
 
     def get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
-    ) -> Optional[TLE]:
+    ) -> TLE | None:
         tle = self._get_closest_by_satellite_number(
             satellite_number, epoch, data_source
         )
@@ -38,7 +38,7 @@ class AbstractTLERepository(abc.ABC):
 
     def get_closest_by_satellite_name(
         self, satellite_name: str, epoch: datetime, data_source: str
-    ) -> Optional[TLE]:
+    ) -> TLE | None:
         tle = self._get_closest_by_satellite_name(satellite_name, epoch, data_source)
         if tle:
             self.seen.add(tle)
@@ -47,8 +47,8 @@ class AbstractTLERepository(abc.ABC):
     def get_all_for_date_range_by_satellite_number(
         self,
         satellite_number: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: datetime | None,
+        end_date: datetime | None,
     ) -> list[TLE]:
         return self._get_all_for_date_range_by_satellite_number(
             satellite_number, start_date, end_date
@@ -57,8 +57,8 @@ class AbstractTLERepository(abc.ABC):
     def get_all_for_date_range_by_satellite_name(
         self,
         satellite_name: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: datetime | None,
+        end_date: datetime | None,
     ) -> list[TLE]:
         return self._get_all_for_date_range_by_satellite_name(
             satellite_name, start_date, end_date
@@ -70,14 +70,14 @@ class AbstractTLERepository(abc.ABC):
         page: int,
         per_page: int,
         format: str,
-        constellation: Optional[str] = None,
-        data_source_limit: Optional[str] = None,
+        constellation: str | None = None,
+        data_source_limit: str | None = None,
     ) -> tuple[list[TLE], int, str]:
         return self._get_all_tles_at_epoch(
             epoch_date, page, per_page, format, constellation, data_source_limit
         )
 
-    def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
+    def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE | None:
         return self._get_nearest_tle(id, id_type, epoch)
 
     def get_adjacent_tles(self, id: str, id_type: str, epoch: datetime) -> list[TLE]:
@@ -98,21 +98,21 @@ class AbstractTLERepository(abc.ABC):
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
-    ) -> Optional[TLE]:
+    ) -> TLE | None:
         raise NotImplementedError
 
     @abc.abstractmethod
     def _get_closest_by_satellite_name(
         self, satellite_name: str, epoch: datetime, data_source: str
-    ) -> Optional[TLE]:
+    ) -> TLE | None:
         raise NotImplementedError
 
     @abc.abstractmethod
     def _get_all_for_date_range_by_satellite_number(
         self,
         satellite_number: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: datetime | None,
+        end_date: datetime | None,
     ) -> list[TLE]:
         raise NotImplementedError
 
@@ -120,8 +120,8 @@ class AbstractTLERepository(abc.ABC):
     def _get_all_for_date_range_by_satellite_name(
         self,
         satellite_name: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: datetime | None,
+        end_date: datetime | None,
     ) -> list[TLE]:
         raise NotImplementedError
 
@@ -132,8 +132,8 @@ class AbstractTLERepository(abc.ABC):
         page: int,
         per_page: int,
         format: str,
-        constellation: Optional[str] = None,
-        data_source: Optional[str] = None,
+        constellation: str | None = None,
+        data_source: str | None = None,
     ) -> tuple[list[TLE], int, str]:
         raise NotImplementedError
 
@@ -149,7 +149,7 @@ class AbstractTLERepository(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
+    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE | None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -170,7 +170,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         self.cache_enabled = True
 
     @staticmethod
-    def _to_domain(orm_tle) -> Optional[TLE]:
+    def _to_domain(orm_tle) -> TLE | None:
         # Return None if orm_tle is None
         if orm_tle is None:
             return None
@@ -289,7 +289,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
     def _get_closest_by_satellite_number(
         self, satellite_number: str, epoch: datetime, data_source: str
-    ) -> Optional[TLE]:
+    ) -> TLE | None:
         filter_conditions = [SatelliteDb.sat_number == satellite_number]
         if data_source != "any":
             filter_conditions.append(TLEDb.data_source == data_source)
@@ -321,7 +321,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         satellite_name: str,
         epoch: datetime,
         data_source: str,
-    ) -> Optional[TLE]:
+    ) -> TLE | None:
         filter_conditions = [SatelliteDb.sat_name == satellite_name]
         if data_source != "any":
             filter_conditions.append(TLEDb.data_source == data_source)
@@ -351,8 +351,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     def _get_all_for_date_range_by_satellite_number(
         self,
         satellite_number: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: datetime | None,
+        end_date: datetime | None,
     ) -> list[TLE]:
         query = (
             self.session.query(TLEDb)
@@ -377,8 +377,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
     def _get_all_for_date_range_by_satellite_name(
         self,
         satellite_name: str,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
+        start_date: datetime | None,
+        end_date: datetime | None,
     ) -> list[TLE]:
         query = (
             self.session.query(TLEDb)
@@ -405,8 +405,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         page: int,
         per_page: int,
         format: str,
-        constellation: Optional[str] = None,
-        data_source_limit: Optional[str] = None,
+        constellation: str | None = None,
+        data_source_limit: str | None = None,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -583,8 +583,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         page: int,
         per_page: int,
         format: str,
-        constellation: Optional[str] = None,
-        data_source: Optional[str] = None,
+        constellation: str | None = None,
+        data_source: str | None = None,
     ) -> tuple[list[TLE], int, str]:  # pragma: no cover
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -749,7 +749,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             logger.error("Database query failed, rolling back transaction")
             raise
 
-    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> Optional[TLE]:
+    def _get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE | None:
         try:
             if id_type == "catalog":
                 nearest_sat_id = self._get_correct_satellite_id_at_tle_epoch(
@@ -903,7 +903,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
     def _get_correct_satellite_id_at_tle_epoch(
         self, id: str, id_type: str, epoch: datetime
-    ) -> Optional[int]:
+    ) -> int | None:
         if id_type == "catalog":
             satellites_with_this_identifier = (
                 self.session.query(SatelliteDb)
