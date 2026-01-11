@@ -146,7 +146,7 @@ def setup_logging(app):
 
     if is_gunicorn:  # pragma: no cover
         # JSON log format for better use in Grafana
-        formatter = JSONFormatter()
+        formatter: logging.Formatter = JSONFormatter()
 
         gunicorn_logger = logging.getLogger("gunicorn.error")
         for handler in gunicorn_logger.handlers:

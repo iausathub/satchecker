@@ -86,7 +86,10 @@ def test_get_satellite_data_no_match(client, services_available):
 
 def test_get_tles_at_epoch(client, session, services_available):
     satellite = SatelliteFactory(
-        sat_name="ISS", decay_date=None, has_current_sat_number=True
+        sat_name="ISS",
+        decay_date=None,
+        has_current_sat_number=True,
+        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
     )
     epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
     tle = TLEFactory(satellite=satellite, epoch=epoch_date)
@@ -109,7 +112,10 @@ def test_get_tles_at_epoch(client, session, services_available):
 
 def test_get_tles_at_epoch_pagination(client, session, services_available):
     satellite = SatelliteFactory(
-        sat_name="ISS", decay_date=None, has_current_sat_number=True
+        sat_name="ISS",
+        decay_date=None,
+        has_current_sat_number=True,
+        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
     )
     epoch_date = datetime.strptime("2024-10-22", "%Y-%m-%d")
     tle = TLEFactory(satellite=satellite, epoch=epoch_date)
