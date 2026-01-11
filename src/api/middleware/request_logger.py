@@ -25,16 +25,6 @@ def init_request_logging(app):  # pragma: no cover
             (time.time() - getattr(g, "start_time", time.time())) * 1000, 2
         )
 
-        xff = request.headers.get("X-Forwarded-For", "")
-        ip = xff.split(",")[0].strip() if xff else request.remote_addr
-
-        # DEBUG: Log all request headers
-        all_headers = {k: v for k, v in request.headers}
-        app.logger.info(
-            f"DEBUG ALL HEADERS: remote_addr='{request.remote_addr}', "
-            f"headers={all_headers}"
-        )
-
         level = logging.ERROR if response.status_code >= 500 else logging.INFO
 
         app.logger.log(
@@ -47,10 +37,7 @@ def init_request_logging(app):  # pragma: no cover
                 "query": request.query_string.decode("utf-8")[:500],
                 "status": response.status_code,
                 "duration_ms": duration_ms,
-                "ip": ip,
-                "user_agent": (
-                    request.user_agent.string[:500] if request.user_agent else None
-                ),
+                "user_agent": request.headers.get("User-Agent", "")[:500] or None,
             },
         )
         return response

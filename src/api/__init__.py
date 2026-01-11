@@ -178,7 +178,12 @@ app = create_app()
 
 # Initialize cache
 with app.app_context():
+    import time
+
     from api.services.cache_service import initialize_cache_refresh_scheduler
+
+    # Brief delay to allow Redis to start
+    time.sleep(3)
 
     try:
         app.logger.info("Setting up cache refresh scheduler")
