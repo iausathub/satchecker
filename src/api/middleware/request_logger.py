@@ -30,7 +30,7 @@ def init_request_logging(app):  # pragma: no cover
 
         # DEBUG: Log all request headers
         all_headers = {k: v for k, v in request.headers}
-        app.logger.debug(
+        app.logger.info(
             f"DEBUG ALL HEADERS: remote_addr='{request.remote_addr}', "
             f"headers={all_headers}"
         )
