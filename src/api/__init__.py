@@ -1,12 +1,52 @@
 """API package initialization."""
 
+import json
 import logging
 import os
+import re
 import sys
+from datetime import datetime, timezone
 
 from flask import Flask
 
 from api.celery_app import celery
+
+
+class JSONFormatter(logging.Formatter):
+    # Regex to strip ANSI color codes
+    ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+    def format(self, record):
+        timestamp = datetime.fromtimestamp(record.created, tz=timezone.utc)
+
+        # Strip ANSI color codes from message
+        message = self.ANSI_ESCAPE.sub("", record.getMessage())
+
+        log_data = {
+            "timestamp": timestamp.isoformat().replace("+00:00", "Z"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": message,
+        }
+        # Add extra fields if present (from our request logging)
+        for key in [
+            "endpoint",
+            "method",
+            "path",
+            "status",
+            "duration_ms",
+            "ip",
+            "query",
+            "user_agent",
+        ]:
+            if hasattr(record, key):
+                log_data[key] = getattr(record, key)
+
+        # Include exception traceback if present
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+
+        return json.dumps(log_data, ensure_ascii=False)
 
 
 def create_app(test_config=None):
@@ -23,6 +63,11 @@ def create_app(test_config=None):
     from api.middleware.error_handler import init_error_handler
 
     init_error_handler(app)
+
+    # Initialize request logger
+    from api.middleware.request_logger import init_request_logging
+
+    init_request_logging(app)
 
     # Configure database
     from api.config import get_db_login
@@ -87,30 +132,45 @@ def create_app(test_config=None):
 
 def setup_logging(app):
     """Set up logging based on the running environment."""
-    # First, clear any existing handlers to avoid duplicates
-    if app.logger.handlers:
-        app.logger.handlers = []
-
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
     is_gunicorn = "gunicorn" in sys.modules
 
+    # Configure root logger - all other loggers inherit from this
+    root_logger = logging.getLogger()
+
+    # Clear existing handlers to avoid duplicates
+    root_logger.handlers = []
+    app.logger.handlers = []
+
+    # Prevent app.logger from propagating to root (avoid duplicates)
+    app.logger.propagate = False
+
     if is_gunicorn:  # pragma: no cover
-        # Use Gunicorn's logger for production
+        # JSON log format for better use in Grafana
+        formatter: logging.Formatter = JSONFormatter()
+
         gunicorn_logger = logging.getLogger("gunicorn.error")
         for handler in gunicorn_logger.handlers:
             handler.setFormatter(formatter)
+            root_logger.addHandler(handler)
             app.logger.addHandler(handler)
+
+        root_logger.setLevel(logging.INFO)
         app.logger.setLevel(logging.INFO)
-        app.logger.info("Production logging configured (using Gunicorn logger)")
+        app.logger.info("Production logging configured (JSON)")
     else:
-        # Create a handler that writes to stdout
+        # Text format for local development
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
+
+        root_logger.addHandler(console_handler)
         app.logger.addHandler(console_handler)
-        app.logger.setLevel(logging.DEBUG if app.debug else logging.INFO)
+
+        log_level = logging.DEBUG if app.debug else logging.INFO
+        root_logger.setLevel(log_level)
+        app.logger.setLevel(log_level)
         app.logger.info("Development logging configured")
 
 

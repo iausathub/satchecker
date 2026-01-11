@@ -28,11 +28,15 @@ class SatelliteFactory(factory.Factory):
         lambda: random.choice(CONSTELLATIONS)  # noqa: S311
     )
     rcs_size = faker.word()
-    launch_date = faker.date_time_between(
-        start_date="-10y", end_date=datetime.datetime.now()
+    launch_date = factory.LazyFunction(
+        lambda: faker.date_time_between(
+            start_date="-10y", end_date=datetime.datetime.now()
+        )
     )
-    decay_date = faker.date_time_between(
-        start_date="-10y", end_date=datetime.datetime.now()
+    decay_date = factory.LazyFunction(
+        lambda: faker.date_time_between(
+            start_date="-10y", end_date=datetime.datetime.now()
+        )
     )
 
     object_id = factory.LazyFunction(generate_object_id)
