@@ -5,7 +5,7 @@ RUN useradd api
 WORKDIR /usr/src/app
 
 COPY requirements.txt .
-RUN apt-get update && apt-get install -y gcc python3-dev openssl libssl-dev redis-server
+RUN apt-get update && apt-get install -y gcc python3-dev openssl libssl-dev
 RUN apt-get install -y gosu
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -19,4 +19,4 @@ EXPOSE 5000
 
 RUN chmod +x /usr/src/app/api/start.sh
 
-CMD redis-server & ./api/start.sh
+CMD ./api/start.sh
