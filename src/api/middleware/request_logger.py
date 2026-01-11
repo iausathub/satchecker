@@ -28,6 +28,13 @@ def init_request_logging(app):  # pragma: no cover
         xff = request.headers.get("X-Forwarded-For", "")
         ip = xff.split(",")[0].strip() if xff else request.remote_addr
 
+        # DEBUG: Log all request headers
+        all_headers = {k: v for k, v in request.headers}
+        app.logger.debug(
+            f"DEBUG ALL HEADERS: remote_addr='{request.remote_addr}', "
+            f"headers={all_headers}"
+        )
+
         level = logging.ERROR if response.status_code >= 500 else logging.INFO
 
         app.logger.log(
