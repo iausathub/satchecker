@@ -1,23 +1,25 @@
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.2.0
+    rev: v6.0.0
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
     -   id: check-yaml
 
 -   repo: https://github.com/psf/black
-    rev: 24.10.0
+    rev: 25.12.0
     hooks:
     -   id: black
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.11.1
+  rev: v0.14.11
   hooks:
     - id: ruff
 
 - repo: https://github.com/twisted/towncrier
-  rev: 24.8.0
+  rev: 25.8.0
   hooks:
     - id: towncrier-check
+      files: ^src/.*\.py$
+      args: ["--version", "1.6.0"]

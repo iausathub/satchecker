@@ -89,12 +89,18 @@ def create_app(test_config=None):
             "use_native_hstore": False,
         }
 
+    # Get Redis URL from environment variables
+    from api.utils.redis_config import get_redis_url
+
+    redis_url = get_redis_url()
+
     app.config.from_mapping(
         CELERY=dict(
-            broker_url="redis://localhost",
-            result_backend="redis://localhost",
+            broker_url=redis_url,
+            result_backend=redis_url,
             task_ignore_result=False,
             task_track_started=True,
+            broker_connection_retry_on_startup=True,
         ),
     )
 
@@ -121,7 +127,6 @@ def create_app(test_config=None):
     migrate = Migrate(app, db)  # noqa: F841
 
     # Initialize celery
-
     celery.conf.update(app.config)
     app.extensions["celery"] = celery
 
