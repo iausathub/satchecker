@@ -27,7 +27,7 @@ if on_rtd:
 # -- Project information -----------------------------------------------------
 
 project = "SatChecker"
-copyright = "2025, IAU Centre for the Protection of Dark and Quiet Sky from \
+copyright = "2026, IAU Centre for the Protection of Dark and Quiet Sky from \
     Satellite Constellation Interference"
 author = "IAU CPS"
 
