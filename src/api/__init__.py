@@ -84,18 +84,10 @@ def create_app(test_config=None):
             f"{db_login[2]}:{db_login[3]}/{db_login[4]}"
             "?options=-c%20timezone=utc"
         )
-
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "use_native_hstore": False,
-        "pool_size": 10,
-        "max_overflow": 20,
-        "pool_pre_ping": True,
-        "pool_recycle": 3600,
-        "connect_args": {
-            "connect_timeout": 10,
-            "application_name": "satchecker_api",
-        },
-    }
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "echo": True,
+            "use_native_hstore": False,
+        }
 
     # Get Redis URL from environment variables
     from api.utils.redis_config import get_redis_url

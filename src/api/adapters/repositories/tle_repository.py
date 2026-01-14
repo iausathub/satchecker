@@ -583,8 +583,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 )
             )
 
-            self.session.execute(text(f"ANALYZE {temp_table_name}"))
-
             # Query using JOIN instead of ANY() (original approach)
             # for better query planning when there is a cache miss
             tles_sql = text(
@@ -615,26 +613,16 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "data_source_limit": data_source_limit,
                 },
             )
-            # Try to improve network performance by streaming results)
-            tles_result = tles_result.yield_per(1000)
             tles_query_time = time.time() - tles_query_start
             logger.info(
-                f"TLE query executed in {tles_query_time:.2f} seconds "
+                f"TLE query completed in {tles_query_time:.2f} seconds "
                 f"(querying {len(valid_satellites)} satellites)"
             )
-
-            # Fetch all rows in chunks and map to domain objects
-            fetch_start = time.time()
-            rows = []
-            for row in tles_result:
-                rows.append(row)
-            fetch_time = time.time() - fetch_start
-            logger.info(f"Rows fetched in {fetch_time:.2f} seconds ({len(rows)} rows)")
 
             # Map results to domain objects
             mapping_start = time.time()
             tles = []
-            for row in rows:
+            for row in tles_result:
                 sat_data = valid_satellites[row.sat_id]
                 satellite = Satellite(
                     sat_name=sat_data.sat_name,
@@ -656,12 +644,8 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 tles.append(tle)
             mapping_time = time.time() - mapping_start
             logger.info(
-                f"Object mapping completed in {mapping_time:.2f} seconds "
+                f"Result mapping completed in {mapping_time:.2f} seconds "
                 f"({len(tles)} TLEs mapped)"
-            )
-            logger.info(
-                f"Total TLE processing: query={tles_query_time:.2f}s, "
-                f"fetch={fetch_time:.2f}s, mapping={mapping_time:.2f}s"
             )
 
             # Handle pagination
