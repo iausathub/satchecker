@@ -1,14 +1,15 @@
-FROM --platform=linux/amd64 python:3.11
+FROM --platform=linux/amd64 docker.io/python:3.11-slim
 
 WORKDIR /usr/src/app
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONPATH /usr/src/app
 
 RUN pip install --upgrade pip
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY . .
+COPY . ./api
 RUN celery --version
-CMD ["celery", "-A", "score", "worker", "--loglevel=info", "--concurrency=5"]
+CMD ["celery", "-A", "api.satchecker.celery", "worker", "--loglevel=info", "--concurrency=5"]
