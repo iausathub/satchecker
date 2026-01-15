@@ -125,6 +125,34 @@ Prod API Push Tag:
         paths:
           - "src/api/**/*"
 
+###### Production Celery Image ######
+Prod Celery Build:
+  extends: .build_image
+  stage: build
+  variables:
+    REGISTRY_SUBPATH: "celery-prod"
+    CONTAINERFILE: "Dockerfile.celery"
+    CONTAINER_CONTEXT: "src/api"
+    ENVIRONMENT: "prod"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        paths:
+          - "src/api/**/*"
+
+Prod Celery Push Tag:
+  extends: .push_tag
+  stage: push
+  variables:
+    APP_NAME: "itops-cps-satchecker"
+  dependencies:
+    - Prod Celery Build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        paths:
+          - "src/api/**/*"
+
 ####### DEVELOPMENT DATA #######
 
 Dev Data Build:
