@@ -353,7 +353,7 @@ def get_tdm_data(
     try:
         # Setup S3 client
         s3_client = get_s3_client()
-        bucket_name = "bucket-name"
+        bucket_name = "cps-aerospace-data"
 
         # Get list of zip files
         zip_files = list_zip_files_in_bucket(s3_client, bucket_name)
