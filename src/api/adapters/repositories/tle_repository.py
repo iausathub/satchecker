@@ -518,8 +518,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         logger.info("Querying database for TLEs")
         try:
             # First get valid satellites
-            satellites_sql = text(
-                """
+            satellites_sql = text("""
                 SELECT id, sat_name, sat_number, decay_date, has_current_sat_number,
                 constellation, launch_date
                 FROM satellites s
@@ -531,8 +530,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     OR (s.constellation IS NOT NULL AND s.constellation
                     ILIKE :constellation || '%')
                 )
-            """
-            )
+            """)
 
             if data_source_limit == "any":
                 data_source_limit = None
@@ -585,8 +583,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
             # Query using JOIN instead of ANY() (original approach)
             # for better query planning when there is a cache miss
-            tles_sql = text(
-                f"""
+            tles_sql = text(f"""
                 WITH latest_tles AS (
                     SELECT DISTINCT ON (t.sat_id)
                         t.id, t.sat_id, t.date_collected, t.tle_line1, t.tle_line2,
@@ -602,8 +599,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 )
                 SELECT * FROM latest_tles
                 ORDER BY epoch DESC
-                """  # noqa: S608
-            )
+                """)  # noqa: S608
 
             tles_result = self.session.execute(
                 tles_sql,
@@ -748,8 +744,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             data_source = None
 
         try:
-            tles_sql = text(
-                """
+            tles_sql = text("""
                 WITH RECURSIVE latest_per_sat AS (
                     SELECT
                         s.id AS sat_id,
@@ -758,7 +753,9 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                             FROM tle t
                             WHERE t.sat_id = s.id
                                 AND t.epoch BETWEEN :start_date AND :end_date
-                                AND (:data_source IS NULL OR t.data_source = :data_source)
+                                AND (
+                                :data_source IS NULL OR t.data_source = :data_source
+                                )
                             ORDER BY t.epoch DESC
                             LIMIT 1
                         ) AS tle_id
@@ -777,8 +774,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 JOIN tle t ON t.id = l.tle_id
                 JOIN satellites s ON s.id = l.sat_id
                 ORDER BY t.epoch DESC
-                """  # noqa: E501
-            ).bindparams(
+                """).bindparams(  # noqa: E501
                 start_date=bindparam("start_date", type_=DateTime(timezone=True)),
                 end_date=bindparam("end_date", type_=DateTime(timezone=True)),
                 epoch_date=bindparam("epoch_date", type_=DateTime(timezone=True)),

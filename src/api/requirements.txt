@@ -14,7 +14,7 @@ Babel==2.12.1
 backcall==0.2.0
 beautifulsoup4==4.12.2
 billiard==4.2.0
-black==25.1.0
+black==26.1.0
 bleach==6.0.0
 blinker==1.6.2
 boto3==1.28.42
