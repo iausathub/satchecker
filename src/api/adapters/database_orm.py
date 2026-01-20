@@ -179,3 +179,60 @@ class InterpolatedSplineDb(Base):
             f"<InterpolatedSplineDb(id={self.id}, satellite={self.satellite}, "
             f"time_range=[{self.time_range_start}, {self.time_range_end}])>"
         )
+
+
+class TdmPredictionDb(Base):
+    """
+    To store predictions from a TDM format of RA/Dec/Mag for a given observing
+    location
+    """
+
+    __tablename__ = "tdm_predictions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    creation_date = Column(DateTime(timezone=True), nullable=False)
+    time_range_start = Column(DateTime(timezone=True), nullable=False)
+    time_range_end = Column(DateTime(timezone=True), nullable=False)
+    site_name = Column(Text, nullable=False)
+    norad_id = Column(Integer, nullable=False)
+    reference_frame = Column(Text, nullable=False)
+    date_added = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    folder_name = Column(Text, nullable=True)
+    track_id = Column(Text, nullable=False)
+
+    predicted_points = relationship(
+        "TdmPredictionPointDb",
+        backref="tdm_prediction",
+        order_by="TdmPredictionPointDb.timestamp",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("idx_tdm_predictions_norad_id", norad_id),
+        Index("idx_tdm_predictions_site_name", site_name),
+    )
+
+
+class TdmPredictionPointDb(Base):
+    """
+    To store individual prediction points from a TDM format of RA/Dec/Mag for a
+    given observing location
+    """
+
+    __tablename__ = "tdm_prediction_points"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tdm_prediction_id = Column(
+        Integer, ForeignKey("tdm_predictions.id"), nullable=False
+    )
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+    right_ascension = Column(Float, nullable=False)
+    declination = Column(Float, nullable=False)
+    apparent_magnitude = Column(Float)
+
+    __table_args__ = (
+        UniqueConstraint("tdm_prediction_id", "timestamp"),
+        Index("idx_tdm_prediction_points_timestamp", timestamp),
+        Index("idx_tdm_prediction_points_prediction_id", tdm_prediction_id),
+        Index("idx_tdm_prediction_points_ra_dec", right_ascension, declination),
+    )

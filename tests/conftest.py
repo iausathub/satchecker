@@ -31,45 +31,29 @@ os.environ["LOCAL_DB"] = "1"
 def create_partitions(engine):
     """Create partitions for test data"""
     with engine.connect() as conn:
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_historical
             PARTITION OF tle_partitioned
             FOR VALUES FROM (TIMESTAMP '-infinity') TO ('2020-01-01 00:00:00+00')
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_2020_2023
             PARTITION OF tle_partitioned
             FOR VALUES FROM ('2020-01-01 00:00:00+00') TO ('2024-01-01 00:00:00+00')
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_2024
             PARTITION OF tle_partitioned
             FOR VALUES FROM ('2024-01-01 00:00:00+00') TO ('2025-01-01 00:00:00+00')
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_future
             PARTITION OF tle_partitioned
             FOR VALUES FROM ('2025-01-01 00:00:00+00') TO (TIMESTAMP 'infinity')
-        """
-            )
-        )
+        """))
 
         conn.execute(text("commit"))
 

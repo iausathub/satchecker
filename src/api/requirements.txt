@@ -14,7 +14,7 @@ Babel==2.12.1
 backcall==0.2.0
 beautifulsoup4==4.12.2
 billiard==4.2.0
-black==25.1.0
+black==26.1.0
 bleach==6.0.0
 blinker==1.6.2
 boto3==1.28.42
@@ -109,7 +109,7 @@ packaging==23.1
 pandas==2.2.3
 pandocfilters==1.5.0
 parso==0.8.3
-pathspec==0.11.2
+pathspec==1.0.3
 pexpect==4.8.0
 pickleshare==0.7.5
 pillow==11.0.0
@@ -177,7 +177,7 @@ tenacity==9.0.0
 tinycss2==1.1.1
 tomlkit==0.12.1
 tornado==6.5
-towncrier==24.8.0
+towncrier==25.8.0
 traitlets==5.14.3
 types-setuptools==80.3.0.20250505
 typing_extensions==4.7.1
