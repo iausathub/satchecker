@@ -198,6 +198,10 @@ def get_satellite_passes():
                                     tle_epoch:
                                       type: string
                                       description: Epoch date of the TLE used for calculation
+                                    range_km:
+                                      type: number
+                                      format: float
+                                      description: Distance to the satellite in kilometers
                                     tle_data:
                                       type: object
                                       description: TLE data for this satellite (only included when include_tles=true)
