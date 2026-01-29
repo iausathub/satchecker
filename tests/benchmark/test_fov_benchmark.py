@@ -658,7 +658,7 @@ def test_benchmark_fov_endpoint_response_time(
 
     def make_request():
         logger.debug(f"Making request for FOV case: {fov_case['name']}")
-        url = "https://dev.satchecker.cps.iau.noirlab.edu/fov/satellite-passes/"
+        url = "https://satchecker.cps.iau.org/fov/satellite-passes/"
         params = {
             "latitude": test_location.lat.value,
             "longitude": test_location.lon.value,
@@ -669,6 +669,7 @@ def test_benchmark_fov_endpoint_response_time(
             "dec": fov_case["dec"],
             "fov_radius": fov_case["fov_radius"],
             "skip_cache": "true",
+            "async": "false",
         }
         logger.debug(f"Request URL: {url}")
         logger.debug(f"Request parameters: {params}")
@@ -711,7 +712,7 @@ def test_benchmark_horizon_endpoint_response_time(
     """Benchmark the response time of the horizon endpoint with different parameters."""
 
     def make_request():
-        url = "https://dev.satchecker.cps.iau.noirlab.edu/fov/satellites-above-horizon/"
+        url = "https://satchecker.cps.iau.org/fov/satellites-above-horizon/"
         params = {
             "latitude": test_location.lat.value,
             "longitude": test_location.lon.value,
