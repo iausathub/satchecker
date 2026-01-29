@@ -6,6 +6,7 @@ from typing import Any
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
+from api.domain.models.tle import TLE
 from api.entrypoints.extensions import db, redis_client, scheduler
 
 # Use the application's centralized logging configuration
@@ -146,6 +147,47 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
         return False
 
 
+def batch_serialize_tles(tles: list[TLE]) -> list[dict[str, Any]]:
+    """
+    Efficiently serialize a batch of TLEs for caching.
+    Much faster than serializing one by one, especially for large datasets.
+
+    Args:
+        tles: List of TLE objects to serialize
+
+    Returns:
+        List of serialized TLE dictionaries
+    """
+    result: list[dict[str, Any]] = []
+    result_append = result.append
+
+    for tle in tles:
+        # Get satellite information once to avoid repeated attribute access
+        satellite = tle.satellite
+        decay_date = satellite.decay_date
+
+        # Create efficient TLE dictionary with direct attribute access
+        tle_dict = {
+            "tle_line1": tle.tle_line1,
+            "tle_line2": tle.tle_line2,
+            "epoch": tle.epoch.isoformat(),
+            "date_collected": tle.date_collected.isoformat(),
+            "is_supplemental": tle.is_supplemental,
+            "data_source": tle.data_source,
+            "satellite": {
+                "sat_name": satellite.sat_name,
+                "sat_number": satellite.sat_number,
+                "decay_date": decay_date.isoformat() if decay_date else None,
+                "has_current_sat_number": getattr(
+                    satellite, "has_current_sat_number", True
+                ),
+            },
+        }
+        result_append(tle_dict)
+
+    return result
+
+
 def refresh_tle_cache(session=None):
     """
     Refresh the TLE cache with current data from the database.
@@ -184,7 +226,7 @@ def refresh_tle_cache(session=None):
         logger.info(f"Serializing {len(tles)} TLEs for caching")
         try:
             # Use the batch serialization for all TLEs
-            serialized_tles = SqlAlchemyTLERepository.batch_serialize_tles(tles)
+            serialized_tles = batch_serialize_tles(tles)
             logger.info(f"Successfully serialized {len(serialized_tles)} TLEs")
         except Exception as e:
             logger.error(f"Batch serialization failed: {e}", exc_info=True)

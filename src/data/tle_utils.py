@@ -229,7 +229,7 @@ def get_celestrak_general_tles(cursor, connection):
         tle = requests.get(
             "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"  # noqa: UP031
             % group,
-            timeout=120,
+            timeout=10,
         )
         tle.raise_for_status()
         try:
@@ -251,7 +251,7 @@ def get_celestrak_supplemental_tles(cursor, connection):
         tle = requests.get(
             "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"  # noqa: UP031
             "?FILE=%s&FORMAT=tle" % constellation,
-            timeout=120,
+            timeout=10,
         )
         tle.raise_for_status()
         try:

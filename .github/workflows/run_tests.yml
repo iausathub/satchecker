@@ -95,13 +95,13 @@ jobs:
       run: |
         celery -A api.satchecker.celery worker --loglevel INFO &
       env:
-        REDIS_URL: redis://localhost
+        REDIS_URL: redis://localhost:6379/0
       working-directory: src
     - name: Test with pytest
       run: |
         pytest -v --durations=10 --ignore=tests/benchmark
       env:
-        REDIS_URL: redis://localhost
+        REDIS_URL: redis://localhost:6379/0
         PYTHONPATH: src
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
         LOCAL_DB: 1

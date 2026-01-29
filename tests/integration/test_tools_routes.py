@@ -27,7 +27,7 @@ def test_get_tle_data_no_match(client, services_available):
     response = client.get("/tools/get-tle-data/?id=ISS&id_type=name")
 
     assert response.status_code == 200
-    assert response.json["count"] == 0
+    assert response.json == []
 
 
 def test_get_names_from_norad_id(client, services_available):
@@ -38,14 +38,13 @@ def test_get_names_from_norad_id(client, services_available):
 
     response = client.get("/tools/names-from-norad-id/?id=25544")
     assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["norad_id"] == "25544"
+    assert response.json[0]["norad_id"] == "25544"
 
 
 def test_get_names_from_norad_id_no_match(client, services_available):
     response = client.get("/tools/names-from-norad-id/?id=25544")
     assert response.status_code == 200
-    assert response.json["count"] == 0
+    assert response.json == []
 
 
 def test_get_norad_ids_from_name(client, services_available):
@@ -56,14 +55,13 @@ def test_get_norad_ids_from_name(client, services_available):
 
     response = client.get("/tools/norad-ids-from-name/?name=ISS")
     assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["name"] == "ISS"
+    assert response.json[0]["name"] == "ISS"
 
 
 def test_get_norad_ids_from_name_no_match(client, services_available):
     response = client.get("/tools/norad-ids-from-name/?name=ISS")
     assert response.status_code == 200
-    assert response.json["count"] == 0
+    assert response.json == []
 
 
 def test_get_satellite_data(client, services_available):
@@ -74,8 +72,7 @@ def test_get_satellite_data(client, services_available):
 
     response = client.get("/tools/get-satellite-data/?id=ISS&id_type=name")
     assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
+    assert response.json[0]["satellite_name"] == "ISS"
 
 
 def test_get_satellite_data_no_match(client, services_available):
@@ -86,10 +83,7 @@ def test_get_satellite_data_no_match(client, services_available):
 
 def test_get_tles_at_epoch(client, session, services_available):
     satellite = SatelliteFactory(
-        sat_name="ISS",
-        decay_date=None,
-        has_current_sat_number=True,
-        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
     epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
     tle = TLEFactory(satellite=satellite, epoch=epoch_date)
@@ -112,10 +106,7 @@ def test_get_tles_at_epoch(client, session, services_available):
 
 def test_get_tles_at_epoch_pagination(client, session, services_available):
     satellite = SatelliteFactory(
-        sat_name="ISS",
-        decay_date=None,
-        has_current_sat_number=True,
-        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
     epoch_date = datetime.strptime("2024-10-22", "%Y-%m-%d")
     tle = TLEFactory(satellite=satellite, epoch=epoch_date)
@@ -652,97 +643,3 @@ def test_get_starlink_generations_db_error(client, session, mocker, services_ava
     assert response.status_code == 500
     assert response.json["error"] == "Internal server error"
     assert "message" in response.json
-
-
-def test_search_satellites(client, services_available):
-    satellite = SatelliteFactory(
-        sat_name="ISS",
-        has_current_sat_number=True,
-        decay_date=datetime.strptime("2024-10-21", "%Y-%m-%d"),
-        launch_date=datetime.strptime("2024-08-21", "%Y-%m-%d"),
-        object_type="PAYLOAD",
-        rcs_size="LARGE",
-        object_id="2024-001A",
-        sat_number=25544,
-    )
-    sat_repo = satellite_repository.SqlAlchemySatelliteRepository(db.session)
-    sat_repo.add(satellite)
-    db.session.commit()
-
-    response = client.get("/tools/search-satellites/?name=ISS")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?name=IS")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?name=invalid")
-    assert response.status_code == 200
-    assert response.json["count"] == 0
-
-    response = client.get("/tools/search-satellites/?norad_id=25544")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?object_id=2024-001A")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?decay_date_start=2451571.517396")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get(
-        "/tools/search-satellites/?decay_date_start=2451571.517396&decay_date_end=2451573.517396"
-    )
-    assert response.status_code == 200
-    assert response.json["count"] == 0
-
-    response = client.get("/tools/search-satellites/?object_type=payload")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-
-    response = client.get("/tools/search-satellites/?object_type=debris")
-    assert response.status_code == 200
-    assert response.json["count"] == 0
-
-    response = client.get("/tools/search-satellites/?rcs_size=large")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?rcs_size=small")
-    assert response.status_code == 200
-    assert response.json["count"] == 0
-
-    response = client.get("/tools/search-satellites/?launch_date_start=2451571.517396")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?launch_date_end=2460544.517396")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?launch_id=2024-001")
-    assert response.status_code == 200
-    assert response.json["count"] == 1
-    assert response.json["data"][0]["satellite_name"] == "ISS"
-
-    response = client.get("/tools/search-satellites/?launch_id=2024-002")
-    assert response.status_code == 200
-    assert response.json["count"] == 0
-
-
-def test_search_satellites_validation_error(client, services_available):
-    response = client.get("/tools/search-satellites/?launch_date_start=invalid-date")
-    assert response.status_code != 200
-    assert "message" in response.json
-    assert "Invalid Julian Date" in response.json["message"]

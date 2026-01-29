@@ -22,7 +22,6 @@ from satellite_utils import (
     get_starlink_ephemeris_data,
     get_starlink_generations,
 )
-from tdm_utils import get_tdm_data
 from tle_utils import (
     get_celestrak_general_tles,
     get_celestrak_supplemental_tles,
@@ -108,9 +107,6 @@ def main():
         get_decayed_satellites(cursor, connection)
         get_starlink_generations(cursor, connection)
         get_starlink_ephemeris_data(cursor, connection)
-
-        # For now, add in the TDM/position data from S3 here
-        get_tdm_data(cursor, connection)
 
         connection.commit()
         cursor.close()

@@ -60,7 +60,6 @@ Dev API Test:
         paths:
           - "src/api/**/*"
 
-###### Development API Image ######
 Dev API Build:
   extends: .build_image
   stage: build
@@ -82,34 +81,6 @@ Dev API Push Tag:
     APP_NAME: "itops-cps-satchecker-dev"
   dependencies:
     - Dev API Build
-  rules:
-    - if: $CI_COMMIT_BRANCH == "develop"
-      changes:
-        paths:
-          - "src/api/**/*"
-
-###### Development Celery Image ######
-Dev Celery Build:
-  extends: .build_image
-  stage: build
-  variables:
-    REGISTRY_SUBPATH: "celery-dev"
-    CONTAINERFILE: "Dockerfile.celery"
-    CONTAINER_CONTEXT: "src/api"
-    ENVIRONMENT: "dev"
-  rules:
-    - if: $CI_COMMIT_BRANCH == "develop"
-      changes:
-        paths:
-          - "src/api/**/*"
-
-Dev Celery Push Tag:
-  extends: .push_tag
-  stage: push
-  variables:
-    APP_NAME: "itops-cps-satchecker-dev"
-  dependencies:
-    - Dev Celery Build
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
       changes:

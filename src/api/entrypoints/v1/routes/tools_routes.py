@@ -4,11 +4,9 @@ from datetime import datetime, timezone
 
 from flask import current_app as app
 from flask import jsonify, request, send_file
-from werkzeug.exceptions import abort
 
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
     get_active_satellites,
@@ -21,7 +19,6 @@ from api.services.tools_service import (
     get_starlink_generations,
     get_tle_data,
     get_tles_around_epoch_results,
-    search_all_satellites,
 )
 from api.services.validation_service import validate_parameters
 
@@ -655,37 +652,6 @@ def get_tles_at_epoch():
         )
     else:
         return jsonify(result)
-
-
-@api_v1.route("/tools/search-satellites/")
-@api_main.route("/tools/search-satellites/")
-@limiter.limit("100 per second, 2000 per minute")
-def search_satellites():
-    session = db.session
-    sat_repo = SqlAlchemySatelliteRepository(session)
-
-    parameter_list = [
-        "name",
-        "norad_id",
-        "launch_date_start",
-        "launch_date_end",
-        "decay_date_start",
-        "decay_date_end",
-        "object_type",
-        "rcs_size",
-        "object_id",
-        "launch_id",
-    ]
-    try:
-        parameters = validate_parameters(request, parameter_list, [])
-    except ValidationError as e:
-        abort(e.status_code, e.message)
-
-    search_results = search_all_satellites(
-        sat_repo, parameters, api_source, api_version
-    )
-
-    return jsonify(search_results)
 
 
 @api_v1.route("/tools/get-nearest-tle/")

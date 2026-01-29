@@ -451,66 +451,6 @@ def validate_parameters(
     except Exception as e:
         raise ValidationError(500, error_messages.INVALID_PARAMETER, e) from e
 
-    if "async" in parameters.keys() and parameters["async"] is not None:
-        if parameters["async"].lower() not in ["true", "false"]:
-            raise ValidationError(
-                400,
-                error_messages.INVALID_PARAMETER + " async must be 'true' or 'false'",
-            )
-        parameters["async"] = parameters["async"].lower() == "true"
-
-    try:
-        if (
-            "launch_date_start" in parameters.keys()
-            and parameters["launch_date_start"] is not None
-        ):
-            parameters["launch_date_start"] = (
-                Time(parameters["launch_date_start"], format="jd", scale="ut1")
-                .to_datetime()
-                .replace(tzinfo=timezone.utc)
-            )
-        if (
-            "launch_date_end" in parameters.keys()
-            and parameters["launch_date_end"] is not None
-        ):
-            parameters["launch_date_end"] = (
-                Time(parameters["launch_date_end"], format="jd", scale="ut1")
-                .to_datetime()
-                .replace(tzinfo=timezone.utc)
-            )
-        if (
-            "decay_date_start" in parameters.keys()
-            and parameters["decay_date_start"] is not None
-        ):
-            parameters["decay_date_start"] = (
-                Time(parameters["decay_date_start"], format="jd", scale="ut1")
-                .to_datetime()
-                .replace(tzinfo=timezone.utc)
-            )
-        if (
-            "decay_date_end" in parameters.keys()
-            and parameters["decay_date_end"] is not None
-        ):
-            parameters["decay_date_end"] = (
-                Time(parameters["decay_date_end"], format="jd", scale="ut1")
-                .to_datetime()
-                .replace(tzinfo=timezone.utc)
-            )
-    except Exception as e:
-        raise ValidationError(500, error_messages.INVALID_JD, e) from e
-
-    if "norad_id" in parameters.keys() and parameters["norad_id"] is not None:
-        parameters["norad_id"] = int(parameters["norad_id"])
-
-    if "object_id" in parameters.keys() and parameters["object_id"] is not None:
-        parameters["object_id"] = str(parameters["object_id"]).upper()
-
-    if "rcs_size" in parameters.keys() and parameters["rcs_size"] is not None:
-        parameters["rcs_size"] = str(parameters["rcs_size"]).upper()
-
-    if "launch_id" in parameters.keys() and parameters["launch_id"] is not None:
-        parameters["launch_id"] = str(parameters["launch_id"]).upper()
-
     return dict(parameters)
 
 

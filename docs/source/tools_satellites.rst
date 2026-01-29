@@ -42,19 +42,15 @@ Retrieve any NORAD ID(s) associated with a satellite name
 **Example Response**
 
 .. sourcecode:: json
-    {
-        "count": 1,
-        "data": [
-            {
-                "date_added": "2024-02-06 00:12:42 UTC",
-                "is_current_version": true,
-                "norad_id": 46161,
-                "name": "STARLINK-1600"
-            }
-        ],
-        "source": "IAU CPS SatChecker",
-        "version": "1.X.x"
-    }
+
+    [
+        {
+            "date_added": "2024-02-06 00:12:42 UTC",
+            "is_current_version": true,
+            "norad_id": 46161,
+            "name": "STARLINK-1600"
+        }
+    ]
 
 Retrieve any satellite names associated with a NORAD ID
 -----------------------------------------------------------
@@ -96,25 +92,20 @@ Retrieve any satellite names associated with a NORAD ID
 
 .. sourcecode:: json
 
-    {
-        "count": 2,
-        "data": [
-            {
-                "date_added": "2024-05-01 16:30:20 UTC",
-                "is_current_version": true,
-                "name": "STARLINK-31701",
-                "norad_id": 59582
+    [
+        {
+            "date_added": "2024-05-01 16:30:20 UTC",
+            "is_current_version": true,
+            "name": "STARLINK-31701",
+            "norad_id": 59582
         },
         {
             "date_added": "2024-04-29 23:12:07 UTC",
             "is_current_version": false,
             "name": "TBA - TO BE ASSIGNED",
             "norad_id": 59582
-            }
-        ],
-        "source": "IAU CPS SatChecker",
-        "version": "1.X.x"
-    }
+        }
+    ]
 
 Retrieve satellite metadata
 ---------------------------------------------------------------
@@ -162,22 +153,17 @@ Retrieve satellite metadata
 
 .. sourcecode:: json
 
-    {
-        "count": 1,
-        "data": [
-            {
-                "decay_date": null,
+    [
+        {
+            "decay_date": null,
             "international_designator": "1998-067A",
             "launch_date": "1998-11-20",
             "object_type": "PAYLOAD",
             "rcs_size": "LARGE",
             "satellite_id": 25544,
             "satellite_name": "ISS (ZARYA)"
-            }
-        ],
-        "source": "IAU CPS SatChecker",
-        "version": "1.X.x"
-    }
+        }
+    ]
 
 Retrieve active satellites
 ---------------------------------------------------------------
@@ -249,93 +235,7 @@ by object type - "PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", or "UNKNOWN".
             ],
             "source": "IAU CPS SatChecker",
             "version": "1.X.x"
-    }
-
-
-Search all satellites
----------------------------------------------------------------
-
-This endpoint allows for searching all satellites/objects in the database. Search parameters
-include the satellite name, NORAD ID, international designator, launch date, decay date, and
-object type.
-
-**Endpoint**
-
-.. http:get:: /tools/search-satellites/
-
-    **Parameters**
-
-    :query name: (*optional*) -- The name of the satellite (partial matches supported)
-    :query norad_id: (*optional*) -- The NORAD ID/catalog number of the satellite
-    :query object_id: (*optional*) -- The international designator/COSPAR ID (e.g., "1998-067A")
-    :query rcs_size: (*optional*) -- The radar cross-section size ("SMALL", "MEDIUM", "LARGE")
-    :query launch_id: (*optional*) -- Search by launch ID (partial international designator, e.g., "1998-067")
-    :query object_type: (*optional*) -- The type of object ("PAYLOAD", "DEBRIS", "ROCKET BODY", "TBA", "UNKNOWN")
-    :query launch_date_start: (*optional*) -- Filter objects launched after this date (Julian Date)
-    :query launch_date_end: (*optional*) -- Filter objects launched before this date (Julian Date)
-    :query decay_date_start: (*optional*) -- Filter objects that decayed after this date (Julian Date)
-    :query decay_date_end: (*optional*) -- Filter objects that decayed before this date (Julian Date)
-
-    **Example Request**
-
-    .. tabs::
-
-        .. tab:: Browser
-
-            https://satchecker.cps.iau.org/tools/search-satellites/?object_type=payload&launch_date_start=2024-01-01
-
-        .. code-tab:: Python
-
-            import requests
-            import json
-
-            url = 'https://satchecker.cps.iau.org/tools/search-satellites/'
-            params = {
-                'object_type': 'payload',
-                'launch_date_start': '2460311.5'
-            }
-
-            r = requests.get(url, params=params)
-            print(json.dumps(r.json(), indent=4))
-
-        .. code-tab:: Bash
-
-            curl -X GET "https://satchecker.cps.iau.org/tools/search-satellites/?object_type=payload&launch_date_start=2024-01-01" -H "accept: application/json"
-
-        .. code-tab:: Powershell
-
-            curl.exe -X GET "https://satchecker.cps.iau.org/tools/search-satellites/?object_type=payload&launch_date_start=2024-01-01" -H "accept: application/json"
-
-    **Example Response**
-
-    .. sourcecode:: json
-
-        {
-            "count": 2,
-            "data": [
-                {
-                    "decay_date": null,
-                    "international_designator": "2024-110D",
-                    "launch_date": "2024-06-06",
-                    "object_type": "PAYLOAD",
-                    "rcs_size": "SMALL",
-                    "satellite_id": 60015,
-                    "satellite_name": "STARLINK-5234"
-                },
-                {
-                    "decay_date": null,
-                    "international_designator": "2024-128A",
-                    "launch_date": "2024-07-09",
-                    "object_type": "PAYLOAD",
-                    "rcs_size": "SMALL",
-                    "satellite_id": 60235,
-                    "satellite_name": "STARLINK-5678"
-                }
-            ],
-            "source": "IAU CPS SatChecker",
-            "version": "1.X.x"
         }
-
 
 Retrieve Starlink generations
 ---------------------------------------------------------------

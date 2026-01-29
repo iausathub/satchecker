@@ -13,7 +13,7 @@ def test_benchmark_tools_get_active_satellites_response_time(benchmark):
 
     def make_request():
         logger.debug("Making request for get-active-satellites")
-        url = "https://satchecker.cps.iau.org/tools/get-active-satellites/"
+        url = "https://dev.satchecker.cps.iau.noirlab.edu/tools/get-active-satellites/"
         logger.debug(f"Request URL: {url}")
         response = requests.get(url)  # noqa: S113
         logger.debug(f"Response status: {response.status_code}")
@@ -34,7 +34,7 @@ def test_benchmark_tools_get_tle_data_response_time(benchmark):
 
     def make_request():
         logger.debug("Making request for get-tle-data")
-        url = "https://satchecker.cps.iau.org/tools/get-tle-data/"
+        url = "https://dev.satchecker.cps.iau.noirlab.edu/tools/get-tle-data/"
         params = {
             "id": "25544",
             "id_type": "catalog",
@@ -61,7 +61,7 @@ def test_benchmark_tools_tles_at_epoch_response_time(benchmark):
 
     def make_request():
         logger.debug("Making request for tles-at-epoch")
-        url = "https://satchecker.cps.iau.org/tools/tles-at-epoch/"
+        url = "https://dev.satchecker.cps.iau.noirlab.edu/tools/tles-at-epoch/"
         params = {
             "epoch": "2459448.5",
             "page": 1,

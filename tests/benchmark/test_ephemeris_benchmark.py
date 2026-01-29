@@ -173,7 +173,7 @@ def test_benchmark_ephemeris_endpoint_response_time(
 
     def make_request():
         logger.debug(f"Making request for EPHEMERIS case: {ephemeris_case['name']}")
-        url = "https://satchecker.cps.iau.org/ephemeris/catalog-number-jdstep/"
+        url = "https://dev.satchecker.cps.iau.noirlab.edu/ephemeris/catalog-number-jdstep/"
         params = {
             "latitude": test_location.lat.value,
             "longitude": test_location.lon.value,

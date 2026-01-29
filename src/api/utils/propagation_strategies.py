@@ -3,7 +3,7 @@ import multiprocessing
 import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -679,11 +679,10 @@ def process_satellite_batch(args):
             in_fov_mask = np.degrees(sat_fov_angles) < fov_radius
             if illuminated_only:
                 # only show points that are illuminated
-                sat_gcrs = satellite.at(t).position.km
-
-                # positions for each julian date
-                sat_gcrs_list = [sat_gcrs[:, i] for i in range(len(julian_dates))]
-                illuminated = is_illuminated_vectorized(sat_gcrs_list, julian_dates)
+                sat_gcrs = [
+                    satellite.at(ts.ut1_jd(jd)).position.km for jd in julian_dates
+                ]
+                illuminated = is_illuminated_vectorized(sat_gcrs, julian_dates)
                 visible_mask = np.logical_and(in_fov_mask, illuminated)
             else:
                 visible_mask = in_fov_mask
@@ -750,7 +749,6 @@ class FOVParallelPropagationStrategy:
         max_workers=None,
         include_tles=True,
         illuminated_only=False,
-        progress_callback=None,
     ) -> tuple[list[dict[str, Any]], float, int]:
         """
         Propagate satellite positions and check if they fall within FOV.
@@ -764,8 +762,7 @@ class FOVParallelPropagationStrategy:
             batch_size: Number of satellites to process in each batch
             max_workers: Maximum number of worker processes to use
             include_tles: Whether to include TLE data in results
-            illuminated_only: Whether to only include illuminated satellites
-            progress_callback: Optional callback function for progress updates
+            **kwargs: Additional parameters (not used in this strategy)
 
         Returns:
             tuple: (
@@ -815,7 +812,7 @@ class FOVParallelPropagationStrategy:
         )
 
         # Process batches in parallel
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             completed = 0
             futures = []
 
@@ -830,19 +827,6 @@ class FOVParallelPropagationStrategy:
                     satellites_processed += batch_satellites
                     completed += 1
                     print(f"Batch {completed}/{len(satellite_batches)} complete")
-
-                    # Call progress callback if provided
-                    if progress_callback:
-                        progress_percent = int(
-                            (completed / len(satellite_batches)) * 100
-                        )
-                        progress_callback(
-                            progress_percent,
-                            completed,
-                            len(satellite_batches),
-                            satellites_processed,
-                        )
-
                 except Exception as e:
                     print(f"Error processing batch: {e}")
 

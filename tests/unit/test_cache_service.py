@@ -1,8 +1,14 @@
 # ruff: noqa: S101
+from datetime import datetime, timezone
+
 import astropy.units as u
+import pytest
 from astropy.coordinates import EarthLocation
+from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.tle_factory import TLEFactory
 
 from api.services.cache_service import (
+    batch_serialize_tles,
     check_redis_memory,
     create_fov_cache_key,
     get_cached_data,
@@ -109,6 +115,79 @@ def test_set_cached_data_data_too_large(mocker):
     mock_redis.setex.assert_not_called()
 
 
+def test_batch_serialize_tles_missing_satellite_attribute(mocker):
+    # Missing satellite attribute
+    mock_tle = mocker.Mock()
+    mock_tle.satellite = None
+    mock_tle.tle_line1 = (
+        "1 25544U 98067A   24001.00000000  .00000000  00000-0  00000-0 0  9990"
+    )
+    mock_tle.tle_line2 = (
+        "2 25544  51.6400 000.0000 0000000   0.0000   0.0000 15.50000000000000"
+    )
+    mock_tle.epoch = datetime.now(timezone.utc)
+    mock_tle.date_collected = datetime.now(timezone.utc)
+    mock_tle.is_supplemental = False
+    mock_tle.data_source = "test"
+
+    with pytest.raises(AttributeError):
+        batch_serialize_tles([mock_tle])
+
+
+def test_batch_serialize_tles_satellite_missing_attributes(mocker):
+    mock_satellite = mocker.Mock()
+    mock_satellite.sat_name = "TEST SAT"
+    mock_satellite.sat_number = 12345
+    mock_satellite.decay_date = None
+
+    # Missing has_current_sat_number attribute
+    del mock_satellite.has_current_sat_number
+
+    mock_tle = mocker.Mock()
+    mock_tle.satellite = mock_satellite
+    mock_tle.tle_line1 = (
+        "1 25544U 98067A   24001.00000000  .00000000  00000-0  00000-0 0  9990"
+    )
+    mock_tle.tle_line2 = (
+        "2 25544  51.6400 000.0000 0000000   0.0000   0.0000 15.50000000000000"
+    )
+    mock_tle.epoch = datetime.now(timezone.utc)
+    mock_tle.date_collected = datetime.now(timezone.utc)
+    mock_tle.is_supplemental = False
+    mock_tle.data_source = "test"
+
+    result = batch_serialize_tles([mock_tle])
+
+    assert len(result) == 1
+    assert result[0]["satellite"]["has_current_sat_number"] is True
+
+
+def test_batch_serialize_tles_datetime_serialization_error(mocker):
+    # Invalid datetime
+    mock_satellite = mocker.Mock()
+    mock_satellite.sat_name = "TEST SAT"
+    mock_satellite.sat_number = 12345
+    mock_satellite.decay_date = None
+    mock_satellite.has_current_sat_number = True
+
+    mock_tle = mocker.Mock()
+    mock_tle.satellite = mock_satellite
+    mock_tle.tle_line1 = (
+        "1 25544U 98067A   24001.00000000  .00000000  00000-0  00000-0 0  9990"
+    )
+    mock_tle.tle_line2 = (
+        "2 25544  51.6400 000.0000 0000000   0.0000   0.0000 15.50000000000000"
+    )
+    mock_tle.epoch = mocker.Mock()
+    mock_tle.epoch.isoformat.side_effect = AttributeError("Invalid datetime")
+    mock_tle.date_collected = datetime.now(timezone.utc)
+    mock_tle.is_supplemental = False
+    mock_tle.data_source = "test"
+
+    with pytest.raises(AttributeError):
+        batch_serialize_tles([mock_tle])
+
+
 def test_refresh_tle_cache_no_flask_context(mocker):
     mock_logger = mocker.patch("api.services.cache_service.logger")
     mocker.patch("flask.current_app", None)
@@ -145,7 +224,7 @@ def test_refresh_tle_cache_serialization_error(mocker):
         "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository"
     )
     mock_batch_serialize = mocker.patch(
-        "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository.batch_serialize_tles"
+        "api.services.cache_service.batch_serialize_tles"
     )
     mock_db = mocker.patch("api.services.cache_service.db")
     mock_current_app = mocker.MagicMock()
@@ -171,7 +250,7 @@ def test_refresh_tle_cache_cache_set_failure(mocker):
     )
     mock_set_cached = mocker.patch("api.services.cache_service.set_cached_data")
     mock_batch_serialize = mocker.patch(
-        "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository.batch_serialize_tles"
+        "api.services.cache_service.batch_serialize_tles"
     )
     mock_db = mocker.patch("api.services.cache_service.db")
     mock_current_app = mocker.MagicMock()
@@ -271,3 +350,15 @@ def test_cache_roundtrip_with_redis_failure(mocker):
 
     result = set_cached_data("test_key", {"data": "test"})
     assert result is False
+
+
+def test_batch_serialize_with_factory_data():
+    satellite = SatelliteFactory()
+    tle = TLEFactory(satellite=satellite)
+
+    result = batch_serialize_tles([tle])
+
+    assert len(result) == 1
+    assert "tle_line1" in result[0]
+    assert "satellite" in result[0]
+    assert "sat_name" in result[0]["satellite"]

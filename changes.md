@@ -4,20 +4,6 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
-# 1.6.0 (2026-01-14)
-
-## Features
-
-- Update FOV endpoint to calculate results asynchronously. The original FOV endpoint will return a task ID and status of the task. The task will be completed in the background and the results will be available via the new task status endpoint.
-
-  Backwards compatibility will be maintained by returning the results immediately if the async parameter is set to false (also usable for FOV requests with shorter durations and smaller FOV radii since those are faster to calculate). ([#175](https://github.com/iausathub/satchecker/pull/175))
-- Add endpoint to search satellites by metadata (NORAD ID, name, international designator, launch date, decay date, object type, rcs size, etc.). ([#178](https://github.com/iausathub/satchecker/pull/178))
-
-## Changes
-
-- Added API version to remaining tools endpoints and standardized output format. ([#178](https://github.com/iausathub/satchecker/pull/178))
-
-
 # 1.5.0 (2025-08-28)
 
 ### Features

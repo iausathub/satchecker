@@ -1,23 +1,18 @@
 Field of View (FOV) Endpoints
 ==============================
 
-The FOV API provides two main features for checking satellite positions relative to a field of view or above the horizon.
-
+The FOV API provides two main endpoints for checking satellite positions relative to a field of view or horizon.
 
 Satellite passes Through FOV
 -----------------------------
 
-.. http:get:: /fov/satellite-passes/
+.. http:get:: /satellite-passes/
    :noindex:
 
     Get satellites that pass through a specified field of view during a time period. The field of view is
     defined by a center RA and Dec and a radius, both in degrees.
 
     Either a start time or observation mid point time can be provided, but one must be specified.
-
-    .. important::
-        This endpoint does asynchronous processing by default. For smaller requests (shorter duration, smaller FOV, not using illuminated_only), you
-        can still set the async parameter to False to get the results immediately. This option may be deprecated in the future.
 
    :query latitude: (*required*) -- Observer's latitude in degrees
    :query longitude: (*required*) -- Observer's longitude in degrees
@@ -34,7 +29,6 @@ Satellite passes Through FOV
    :query constellation: (*optional*) -- Constellation name (e.g. 'starlink') - if provided, only satellites from this constellation will be returned.
    :query data_source: (*optional*) -- Data source to use for TLEs ("celestrak", "spacetrack", or "any"). Default is "any".
    :query illuminated_only: (*optional*) -- If True, only return satellites that are illuminated. Default is False.
-   :query async: (*optional*) -- If True (or omitted), return a task ID for polling status and retrieving results. If False, return immediate results. Default is True.
 
 **Example Request**
     .. tabs::
@@ -63,259 +57,103 @@ Satellite passes Through FOV
 
 **Example Response**
 
-.. tabs::
+.. sourcecode:: json
 
-    .. tab:: Asynchronous
-
-        .. sourcecode:: json
-
-            [
-                {
-                    "api_source": "IAU CPS SatChecker",
-                    "api_version": "1.X.x",
-                    "message": "FOV calculation started. Use the task_id to check status and retrieve results.",
-                    "status": "PENDING",
-                    "task_id": "779f24dc-e5c5-4a4c-9294-c4dc96da969c"
-                }
-            ]
-
-    .. tab:: Synchronous
-
-        .. sourcecode:: json
-
-            [
-                {
-                    "data": {
-                        "satellites": {
-                            "ATLAS 2AS CENTAUR R/B (26636)": {
-                                "name": "ATLAS 2AS CENTAUR R/B",
-                                "norad_id": 26636,
-                                "positions": [
-                                    {
-                                        "altitude": 3.82923609,
-                                        "angle": 2.77084316,
-                                        "azimuth": 288.11992936,
-                                        "date_time": "2024-11-08 21:28:28 UTC",
-                                        "dec": 17.38072389,
-                                        "julian_date": 2460623.39478,
-                                        "ra": 156.5457069,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
-                                        "range_km": 120182.57514042286
-                                    },
-                                    {
-                                        "altitude": 3.8301086,
-                                        "angle": 2.7698136,
-                                        "azimuth": 288.11836715,
-                                        "date_time": "2024-11-08 21:28:29 UTC",
-                                        "dec": 17.37990928,
-                                        "julian_date": 2460623.39479157,
-                                        "ra": 156.55155138,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
-                                        "range_km": 120182.57514042286
-                                    }
-                                ]
+    [
+        {
+            "data": {
+                "satellites": {
+                    "ATLAS 2AS CENTAUR R/B (26636)": {
+                        "name": "ATLAS 2AS CENTAUR R/B",
+                        "norad_id": 26636,
+                        "positions": [
+                            {
+                                "altitude": 3.82923609,
+                                "angle": 2.77084316,
+                                "azimuth": 288.11992936,
+                                "date_time": "2024-11-08 21:28:28 UTC",
+                                "dec": 17.38072389,
+                                "julian_date": 2460623.39478,
+                                "ra": 156.5457069,
+                                "tle_epoch": "2024-11-08 14:22:35 UTC"
                             },
-                            "STARLINK-30904 (58364)": {
-                                "name": "STARLINK-30904",
-                                "norad_id": 58364,
-                                "positions": [
-                                    {
-                                        "altitude": 8.10566642,
-                                        "angle": 2.95246402,
-                                        "azimuth": 291.92818711,
-                                        "date_time": "2024-11-08 21:28:28 UTC",
-                                        "dec": 22.88675663,
-                                        "julian_date": 2460623.39478,
-                                        "ra": 158.16558783,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
-                                        "range_km": 37871.88385502476
-                                    },
-                                    {
-                                        "altitude": 8.18998929,
-                                        "angle": 2.97995215,
-                                        "azimuth": 291.87936333,
-                                        "date_time": "2024-11-08 21:28:29 UTC",
-                                        "dec": 22.89132111,
-                                        "julian_date": 2460623.39479157,
-                                        "ra": 158.27515227,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
-                                        "range_km": 37871.88385502476
-                                    }
-                                ]
-                            },
-                            "STARLINK-30925 (58406)": {
-                                "name": "STARLINK-30925",
-                                "norad_id": 58406,
-                                "positions": [
-                                    {
-                                        "altitude": 3.8560731,
-                                        "angle": 2.30309691,
-                                        "azimuth": 289.0338456,
-                                        "date_time": "2024-11-08 21:28:28 UTC",
-                                        "dec": 18.15569881,
-                                        "julian_date": 2460623.39478,
-                                        "ra": 156.04031939,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
-                                        "range_km": 1868.7413807374958
-                                    },
-                                    {
-                                        "altitude": 3.91713221,
-                                        "angle": 2.21383004,
-                                        "azimuth": 289.12315208,
-                                        "date_time": "2024-11-08 21:28:29 UTC",
-                                        "dec": 18.26370601,
-                                        "julian_date": 2460623.39479157,
-                                        "ra": 156.04618993,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
-                                        "range_km": 1868.7413807374958
-                                    }
-                                ]
+                            {
+                                "altitude": 3.8301086,
+                                "angle": 2.7698136,
+                                "azimuth": 288.11836715,
+                                "date_time": "2024-11-08 21:28:29 UTC",
+                                "dec": 17.37990928,
+                                "julian_date": 2460623.39479157,
+                                "ra": 156.55155138,
+                                "tle_epoch": "2024-11-08 14:22:35 UTC"
                             }
-                        "total_position_results": 6,
-                        "total_satellites": 3
+                        ]
                     },
-                    "source": "IAU CPS SatChecker",
-                    "version": "1.X.x"
-                }
-            ]
-
-FOV Task Status
----------------
-
-.. http:get:: /fov/task-status/
-   :noindex:
-
-    Get the status of a FOV calculation task.
-
-    :query task_id: (*required*) -- Task ID returned from the asynchronous FOV endpoint
-
-    **Example Request**
-    .. tabs::
-
-        .. tab:: Browser
-
-            https://satchecker.cps.iau.org/fov/task-status/779f24dc-e5c5-4a4c-9294-c4dc96da969c
-
-        .. code-tab:: Python
-
-            import requests
-            import json
-
-            url = 'https://satchecker.cps.iau.org/fov/task-status/779f24dc-e5c5-4a4c-9294-c4dc96da969c'
-            r = requests.get(url)
-            print(json.dumps(r.json(), indent=4))
-
-        .. code-tab:: Bash
-
-            curl -X GET "https://satchecker.cps.iau.org/fov/task-status/779f24dc-e5c5-4a4c-9294-c4dc96da969c" -H "accept: application/json"
-
-        .. code-tab:: Powershell
-
-            curl.exe -X GET "https://satchecker.cps.iau.org/fov/task-status/779f24dc-e5c5-4a4c-9294-c4dc96da969c" -H "accept: application/json"
-
-
-    **Example Response**
-
-    .. sourcecode:: json
-
-        [
-            {
-                "data": {
-                    "satellites": {
-                        "ATLAS 2AS CENTAUR R/B (26636)": {
-                            "name": "ATLAS 2AS CENTAUR R/B",
-                            "norad_id": 26636,
-                            "positions": [
-                                {
-                                    "altitude": 3.82923609,
-                                    "angle": 2.77084316,
-                                    "azimuth": 288.11992936,
-                                    "date_time": "2024-11-08 21:28:28 UTC",
-                                    "dec": 17.38072389,
-                                    "julian_date": 2460623.39478,
-                                    "ra": 156.5457069,
-                                    "tle_epoch": "2024-11-08 14:22:35 UTC"
-                                },
-                                {
-                                    "altitude": 3.8301086,
-                                    "angle": 2.7698136,
-                                    "azimuth": 288.11836715,
-                                    "date_time": "2024-11-08 21:28:29 UTC",
-                                    "dec": 17.37990928,
-                                    "julian_date": 2460623.39479157,
-                                    "ra": 156.55155138,
-                                    "tle_epoch": "2024-11-08 14:22:35 UTC"
-                                }
-                            ]
-                        },
-                        "STARLINK-30904 (58364)": {
-                            "name": "STARLINK-30904",
-                            "norad_id": 58364,
-                            "positions": [
-                                {
-                                    "altitude": 8.10566642,
-                                    "angle": 2.95246402,
-                                    "azimuth": 291.92818711,
-                                    "date_time": "2024-11-08 21:28:28 UTC",
-                                    "dec": 22.88675663,
-                                    "julian_date": 2460623.39478,
-                                    "ra": 158.16558783,
-                                    "tle_epoch": "2024-11-08 14:22:35 UTC"
-                                },
-                                {
-                                    "altitude": 8.18998929,
-                                    "angle": 2.97995215,
-                                    "azimuth": 291.87936333,
-                                    "date_time": "2024-11-08 21:28:29 UTC",
-                                    "dec": 22.89132111,
-                                    "julian_date": 2460623.39479157,
-                                    "ra": 158.27515227,
-                                    "tle_epoch": "2024-11-08 14:22:35 UTC"
-                                }
-                            ]
-                        },
-                        "STARLINK-30925 (58406)": {
-                            "name": "STARLINK-30925",
-                            "norad_id": 58406,
-                            "positions": [
-                                {
-                                    "altitude": 3.8560731,
-                                    "angle": 2.30309691,
-                                    "azimuth": 289.0338456,
-                                    "date_time": "2024-11-08 21:28:28 UTC",
-                                    "dec": 18.15569881,
-                                    "julian_date": 2460623.39478,
-                                    "ra": 156.04031939,
-                                    "tle_epoch": "2024-11-08 14:22:35 UTC"
-                                },
-                                {
-                                    "altitude": 3.91713221,
-                                    "angle": 2.21383004,
-                                    "azimuth": 289.12315208,
-                                    "date_time": "2024-11-08 21:28:29 UTC",
-                                    "dec": 18.26370601,
-                                    "julian_date": 2460623.39479157,
-                                    "ra": 156.04618993,
-                                    "tle_epoch": "2024-11-08 14:22:35 UTC"
-                                }
-                            ]
-                        }
+                    "STARLINK-30904 (58364)": {
+                        "name": "STARLINK-30904",
+                        "norad_id": 58364,
+                        "positions": [
+                            {
+                                "altitude": 8.10566642,
+                                "angle": 2.95246402,
+                                "azimuth": 291.92818711,
+                                "date_time": "2024-11-08 21:28:28 UTC",
+                                "dec": 22.88675663,
+                                "julian_date": 2460623.39478,
+                                "ra": 158.16558783,
+                                "tle_epoch": "2024-11-08 14:22:35 UTC"
+                            },
+                            {
+                                "altitude": 8.18998929,
+                                "angle": 2.97995215,
+                                "azimuth": 291.87936333,
+                                "date_time": "2024-11-08 21:28:29 UTC",
+                                "dec": 22.89132111,
+                                "julian_date": 2460623.39479157,
+                                "ra": 158.27515227,
+                                "tle_epoch": "2024-11-08 14:22:35 UTC"
+                            }
+                        ]
                     },
-                    "total_position_results": 6,
-                    "total_satellites": 3
-                },
-                "message": "FOV calculation completed successfully",
-                "status": "SUCCESS",
-                "task_id": "779f24dc-e5c5-4a4c-9294-c4dc96da969c",
-                "source": "IAU CPS SatChecker",
-                "version": "1.X.x"
-            }
-        ]
+                    "STARLINK-30925 (58406)": {
+                        "name": "STARLINK-30925",
+                        "norad_id": 58406,
+                        "positions": [
+                            {
+                                "altitude": 3.8560731,
+                                "angle": 2.30309691,
+                                "azimuth": 289.0338456,
+                                "date_time": "2024-11-08 21:28:28 UTC",
+                                "dec": 18.15569881,
+                                "julian_date": 2460623.39478,
+                                "ra": 156.04031939,
+                                "tle_epoch": "2024-11-08 14:22:35 UTC"
+                            },
+                            {
+                                "altitude": 3.91713221,
+                                "angle": 2.21383004,
+                                "azimuth": 289.12315208,
+                                "date_time": "2024-11-08 21:28:29 UTC",
+                                "dec": 18.26370601,
+                                "julian_date": 2460623.39479157,
+                                "ra": 156.04618993,
+                                "tle_epoch": "2024-11-08 14:22:35 UTC"
+                            }
+                        ]
+                    }
+                "total_position_results": 6,
+                "total_satellites": 3
+            },
+            "source": "IAU CPS SatChecker",
+            "version": "1.X.x"
+        }
+    ]
+
 
 Satellites above the horizon
 -----------------------------
 
-.. http:get:: /fov/satellites-above-horizon/
+.. http:get:: /satellites-above-horizon/
    :noindex:
 
     Get satellites that are above the horizon at a given time. A minimum altitude can be specified to filter results.

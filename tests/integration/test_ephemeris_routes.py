@@ -92,8 +92,10 @@ def test_get_ephemeris_data_from_tle(client, services_available):
     tle = "ISS (ZARYA) \\n \
             1 25544U 98067A   23248.54842295  .00012769  00000+0  22936-3 0  9997\\n\
             2 25544  51.6416 290.4299 0005730  30.7454 132.9751 15.50238117414255"
-    response = client.get(f"/ephemeris/tle/?elevation=150&latitude=32&longitude=-110\
-            &julian_date=2459000.5&tle={tle}")
+    response = client.get(
+        f"/ephemeris/tle/?elevation=150&latitude=32&longitude=-110\
+            &julian_date=2459000.5&tle={tle}"
+    )
     assert response.status_code == 200
 
 
@@ -148,8 +150,10 @@ def test_get_ephemeris_missing_parameter(client):
     assert response.status_code == 400
     assert "Missing parameter" in response.text
 
-    response = client.get(f"/ephemeris/tle-jdstep/?elevation=150&longitude=-110\
-            &startjd=2460193.1&startjd=2459000.5&stopjd=2459001.5&stepjd=.5&tle={tle}")
+    response = client.get(
+        f"/ephemeris/tle-jdstep/?elevation=150&longitude=-110\
+            &startjd=2460193.1&startjd=2459000.5&stopjd=2459001.5&stepjd=.5&tle={tle}"
+    )
     # Check that the correct error code was returned
     assert response.status_code == 400
     assert "Missing parameter" in response.text
