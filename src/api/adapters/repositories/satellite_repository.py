@@ -38,6 +38,9 @@ class AbstractSatelliteRepository(abc.ABC):
     def get_active_satellites(self, object_type: str | None = None):
         return self._get_active_satellites(object_type)
 
+    def search_all_satellites(self, parameters: dict):
+        return self._search_all_satellites(parameters)
+
     @abc.abstractmethod
     def _get(self, satellite_id: str) -> Satellite | None:
         raise NotImplementedError
@@ -68,6 +71,10 @@ class AbstractSatelliteRepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_active_satellites(self, object_type: str | None = None):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _search_all_satellites(self, parameters: dict):
         raise NotImplementedError
 
 
@@ -236,6 +243,54 @@ class SqlAlchemySatelliteRepository(AbstractSatelliteRepository):
             )
 
         return query.all()
+
+    def _search_all_satellites(self, parameters: dict):
+        # get all existing parameters
+        query = self.session.query(SatelliteDb)
+
+        if parameters["name"]:
+            query = query.filter(SatelliteDb.sat_name.contains(parameters["name"]))
+
+        if parameters["norad_id"]:
+            query = query.filter(SatelliteDb.sat_number == parameters["norad_id"])
+
+        if parameters["object_id"]:
+            query = query.filter(SatelliteDb.object_id == parameters["object_id"])
+
+        if parameters["rcs_size"]:
+            query = query.filter(SatelliteDb.rcs_size == parameters["rcs_size"])
+
+        if parameters["launch_id"]:
+            query = query.filter(
+                SatelliteDb.object_id.contains(parameters["launch_id"])
+            )
+
+        if parameters["object_type"]:
+            query = query.filter(
+                SatelliteDb.object_type == parameters["object_type"].upper()
+            )
+
+        if parameters["launch_date_start"]:
+            query = query.filter(
+                SatelliteDb.launch_date >= parameters["launch_date_start"]
+            )
+
+        if parameters["launch_date_end"]:
+            query = query.filter(
+                SatelliteDb.launch_date <= parameters["launch_date_end"]
+            )
+
+        if parameters["decay_date_start"]:
+            query = query.filter(
+                SatelliteDb.decay_date >= parameters["decay_date_start"]
+            )
+
+        if parameters["decay_date_end"]:
+            query = query.filter(SatelliteDb.decay_date <= parameters["decay_date_end"])
+
+        satellites = query.all()
+
+        return satellites
 
     def _add(self, satellite: Satellite):
         orm_satellite = self._to_orm(satellite)

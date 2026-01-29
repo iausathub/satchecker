@@ -218,6 +218,9 @@ def test_benchmark_full_satellite_position_calculation(
             distance.km,
             0.0,  # ddistance - dummy value for benchmark
             phase_angle,
+            0.0,  # sat_altitude_km - dummy value for benchmark
+            0.0,  # solar_elevation_deg - dummy value for benchmark
+            0.0,  # solar_azimuth_deg - dummy value for benchmark
             illuminated,
             sat_gcrs.tolist(),
             obs_gcrs.tolist(),
