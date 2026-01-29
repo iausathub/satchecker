@@ -101,7 +101,7 @@ swagger = Swagger(
             {
                 "endpoint": "apispec",
                 "route": "/apispec.json",
-                "rule_filter": lambda rule: True,  # Include all endpoints
+                "rule_filter": lambda rule: not rule.rule.startswith("/v1"),
                 "model_filter": lambda tag: True,  # Include all models
             }
         ],
