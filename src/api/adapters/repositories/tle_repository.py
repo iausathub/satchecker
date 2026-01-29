@@ -1,7 +1,6 @@
 import abc
 import logging
 import time
-import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -535,88 +534,44 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             if data_source_limit == "any":
                 data_source_limit = None
 
-            # Use temporary table for the satellites to
-            # optimize the query performance when there is a cache miss
+            # Then get their latest TLEs
+            tles_sql = text("""
+                WITH latest_tles AS (
+                    SELECT DISTINCT ON (sat_id)
+                        id, sat_id, date_collected, tle_line1, tle_line2,
+                        epoch, is_supplemental, data_source
+                    FROM tle
+                    WHERE epoch BETWEEN :start_date AND :end_date
+                    AND sat_id = ANY(:satellite_ids)
+                    AND (:data_source_limit IS NULL OR data_source = :data_source_limit)
+                    ORDER BY sat_id, epoch DESC
+                )
+                SELECT * FROM latest_tles
+                ORDER BY epoch DESC
+            """)
 
-            satellites_query_start = time.time()
+            # Get valid satellites first
             satellites_result = self.session.execute(
                 satellites_sql,
                 {"epoch_date": epoch_date, "constellation": constellation},
             )
             valid_satellites = {row.id: row for row in satellites_result}
-            satellites_query_time = time.time() - satellites_query_start
-            num_satellites = len(valid_satellites)
-            logger.info(
-                f"Satellites query completed in {satellites_query_time:.2f} seconds "
-                f"({num_satellites} satellites found)"
-            )
 
             if not valid_satellites:
                 return [], 0, "database"
 
-            tles_query_start = time.time()
-            logger.info(f"Creating temporary table for {num_satellites} satellites")
-
-            temp_table_name = f"temp_valid_sat_ids_{uuid.uuid4().hex[:8]}"
-
-            self.session.execute(
-                text(
-                    f"CREATE TEMP TABLE {temp_table_name} (sat_id INTEGER PRIMARY KEY)"
-                )
-            )
-
-            satellite_ids_list = list(valid_satellites.keys())
-            self.session.execute(
-                text(
-                    f"INSERT INTO {temp_table_name} (sat_id) "
-                    f"SELECT unnest(:satellite_ids)"
-                ),
-                {"satellite_ids": satellite_ids_list},
-            )
-
-            # Create index on temp table
-            self.session.execute(
-                text(
-                    f"CREATE INDEX idx_{temp_table_name} ON {temp_table_name} (sat_id)"
-                )
-            )
-
-            # Query using JOIN instead of ANY() (original approach)
-            # for better query planning when there is a cache miss
-            tles_sql = text(f"""
-                WITH latest_tles AS (
-                    SELECT DISTINCT ON (t.sat_id)
-                        t.id, t.sat_id, t.date_collected, t.tle_line1, t.tle_line2,
-                        t.epoch, t.is_supplemental, t.data_source
-                    FROM tle t
-                    INNER JOIN {temp_table_name} ts ON t.sat_id = ts.sat_id
-                    WHERE t.epoch BETWEEN :start_date AND :end_date
-                    AND (
-                        :data_source_limit IS NULL
-                        OR t.data_source = :data_source_limit
-                    )
-                    ORDER BY t.sat_id, t.epoch DESC, t.id DESC
-                )
-                SELECT * FROM latest_tles
-                ORDER BY epoch DESC
-                """)  # noqa: S608
-
+            # Then get TLEs for those satellites
             tles_result = self.session.execute(
                 tles_sql,
                 {
                     "start_date": two_weeks_prior,
                     "end_date": epoch_date,
+                    "satellite_ids": list(valid_satellites.keys()),
                     "data_source_limit": data_source_limit,
                 },
             )
-            tles_query_time = time.time() - tles_query_start
-            logger.info(
-                f"TLE query completed in {tles_query_time:.2f} seconds "
-                f"(querying {len(valid_satellites)} satellites)"
-            )
 
             # Map results to domain objects
-            mapping_start = time.time()
             tles = []
             for row in tles_result:
                 sat_data = valid_satellites[row.sat_id]
@@ -638,11 +593,6 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     data_source=row.data_source,
                 )
                 tles.append(tle)
-            mapping_time = time.time() - mapping_start
-            logger.info(
-                f"Result mapping completed in {mapping_time:.2f} seconds "
-                f"({len(tles)} TLEs mapped)"
-            )
 
             # Handle pagination
             total_count = len(tles)
