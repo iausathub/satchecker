@@ -154,6 +154,7 @@ def get_satellite_passes():
                       properties:
                         satellites:
                           type: object
+                          description: "Map of satellite pass data. Keys are 'Name (norad_id)', e.g. 'CZ-6A DEB (55190)'."
                           additionalProperties:
                             type: object
                             properties:
