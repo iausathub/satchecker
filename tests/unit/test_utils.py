@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pytest
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from skyfield.api import wgs84
 from tests.factories.satellite_factory import SatelliteFactory
@@ -66,38 +67,20 @@ def test_icrf2radec_pos_ndim():
 
 
 def test_jd_to_gst():
-    jd = 2451545.0  # A known Julian Day
-    nutation = 17.20  # Example nutation in degrees
-    expected_gast = np.deg2rad(
-        (
-            280.46061837
-            + 360.98564736629 * (jd - 2451545.0)
-            + 0.000387933 * ((jd + 32.184 / (24 * 60 * 60) - 2451545.0) / 36525.0) ** 2
-            - ((jd + 32.184 / (24 * 60 * 60) - 2451545.0) / 36525.0) ** 3 / 38710000.0
-            + nutation
-        )
-        % 360
-    )
+    # Test against Astropy
+    greenwich = EarthLocation(lat=0, lon=0)
 
-    result = time_utils.jd_to_gst(jd, nutation)
-    assert np.isclose(result, expected_gast), f"Expected {expected_gast}, got {result}"
+    for jd in (2451545.0, 2451545.5):
+        t = Time(jd, format="jd", scale="utc")
+        gast_astropy = t.sidereal_time("apparent", greenwich)
+        gmst_astropy = t.sidereal_time("mean", greenwich)
+        equation_of_equinoxes_deg = (gast_astropy - gmst_astropy).to("deg").value
+        expected_rad = gast_astropy.to("rad").value
 
-    jd = 2451545.5
-    nutation = 12.34
-
-    expected_gast = np.deg2rad(
-        (
-            280.46061837
-            + 360.98564736629 * (jd - 2451545.0)
-            + 0.000387933 * ((jd + 32.184 / (24 * 60 * 60) - 2451545.0) / 36525.0) ** 2
-            - ((jd + 32.184 / (24 * 60 * 60) - 2451545.0) / 36525.0) ** 3 / 38710000.0
-            + nutation
-        )
-        % 360
-    )
-
-    result = time_utils.jd_to_gst(jd, nutation)
-    assert np.isclose(result, expected_gast), f"Expected {expected_gast}, got {result}"
+        result = time_utils.jd_to_gst(jd, equation_of_equinoxes_deg)
+        assert np.isclose(
+            result, expected_rad
+        ), f"jd={jd}: got {result}, expected {expected_rad}"
 
 
 def test_calculate_lst():
