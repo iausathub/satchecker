@@ -336,6 +336,26 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         connection: Database connection
     """
     try:
+        # First, verify that the satellite exists
+        cursor.execute(
+            """
+            SELECT id FROM satellites
+            WHERE sat_name = %s
+            AND has_current_sat_number = true
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (parsed_data["satellite_name"],),
+        )
+        satellite_result = cursor.fetchone()
+        if satellite_result is None:
+            logging.warning(
+                f"Satellite {parsed_data['satellite_name']} not found in database, "
+                f"skipping ephemeris insertion"
+            )
+            return
+        satellite_id = satellite_result[0]
+
         ephemeris_insert = """
             INSERT INTO interpolable_ephemeris (
                 satellite,
@@ -347,9 +367,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 ephemeris_stop,
                 frame
             ) VALUES (
-                (SELECT id FROM satellites
-                 WHERE sat_name = %s
-                 AND has_current_sat_number = true),
+                %s,
                 %s,
                 %s,
                 %s,
@@ -365,7 +383,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         cursor.execute(
             ephemeris_insert,
             (
-                parsed_data["satellite_name"],
+                satellite_id,
                 datetime.now(timezone.utc),  # date_collected
                 parsed_data["generated_at"],
                 "starlink",
@@ -375,7 +393,14 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 parsed_data["frame"],
             ),
         )
-        ephemeris_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if result is None:
+            logging.info(
+                f"Ephemeris data already exists for {parsed_data['satellite_name']} "
+                f"at {parsed_data['generated_at']}, skipping insertion"
+            )
+            return
+        ephemeris_id = result[0]
 
         # Prepare the points data for batch insert
         timestamps = parsed_data["timestamps"]
@@ -450,12 +475,31 @@ def parse_ephemeris_file(file_content: str, filename: str) -> dict:
     headers = {}
     for i in range(3):
         line = lines[i].strip()
-        # Split by spaces to handle multiple key-value pairs on one line
-        parts = line.split()
-        for part in parts:
-            if ":" in part:
-                key, value = part.split(":", 1)
-                headers[key] = value.strip()
+
+        if "ephemeris_start:" in line and "ephemeris_stop:" in line:
+
+            # everything after "ephemeris_start:" until "ephemeris_stop:"
+            start_match = re.search(
+                r"ephemeris_start:([^e]+?)(?=ephemeris_stop:)", line
+            )
+            if start_match:
+                headers["ephemeris_start"] = start_match.group(1).strip()
+
+            # everything after "ephemeris_stop:" until "step_size:"
+            stop_match = re.search(r"ephemeris_stop:([^s]+?)(?=step_size:)", line)
+            if stop_match:
+                headers["ephemeris_stop"] = stop_match.group(1).strip()
+
+            # everything after "step_size:"
+            step_match = re.search(r"step_size:(.+)", line)
+            if step_match:
+                headers["step_size"] = step_match.group(1).strip()
+        else:
+            if ":" in line:
+                colon_pos = line.find(":")
+                key = line[:colon_pos]
+                value = line[colon_pos + 1 :].strip()
+                headers[key] = value
 
     if lines[3].strip() != "UVW":
         raise ValueError("Expected UVW frame specification")

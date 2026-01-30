@@ -209,7 +209,48 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         )
 
     @staticmethod
-    def deserialize_cached_tles(serialized_tles: list[dict[str, Any]]) -> list[TLE]:
+    def batch_serialize_tles(tles: list[TLE]) -> list[dict[str, Any]]:
+        """
+        Efficiently serialize a batch of TLEs for caching.
+        Much faster than serializing one by one, especially for large datasets.
+
+        Args:
+            tles: List of TLE objects to serialize
+
+        Returns:
+            List of serialized TLE dictionaries
+        """
+        result: list[dict[str, Any]] = []
+        result_append = result.append
+
+        for tle in tles:
+            # Get satellite information once to avoid repeated attribute access
+            satellite = tle.satellite
+            decay_date = satellite.decay_date
+
+            # Create efficient TLE dictionary with direct attribute access
+            tle_dict = {
+                "tle_line1": tle.tle_line1,
+                "tle_line2": tle.tle_line2,
+                "epoch": tle.epoch.isoformat(),
+                "date_collected": tle.date_collected.isoformat(),
+                "is_supplemental": tle.is_supplemental,
+                "data_source": tle.data_source,
+                "satellite": {
+                    "sat_name": satellite.sat_name,
+                    "sat_number": satellite.sat_number,
+                    "decay_date": decay_date.isoformat() if decay_date else None,
+                    "has_current_sat_number": getattr(
+                        satellite, "has_current_sat_number", True
+                    ),
+                },
+            }
+            result_append(tle_dict)
+
+        return result
+
+    @staticmethod
+    def deserialize_tles(serialized_tles: list[dict[str, Any]]) -> list[TLE]:
         """
         Convert serialized TLE dictionaries from the cache back into domain TLE objects.
 
@@ -456,7 +497,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                         serialized_tles = cached_data.get("tles", [])
 
                         # Deserialize the TLEs
-                        tles = self.deserialize_cached_tles(serialized_tles)
+                        tles = self.deserialize_tles(serialized_tles)
 
                         logger.debug(f"Returning {len(tles)} TLEs from cache")
                         execution_time = time.time() - start_time
@@ -476,8 +517,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         logger.info("Querying database for TLEs")
         try:
             # First get valid satellites
-            satellites_sql = text(
-                """
+            satellites_sql = text("""
                 SELECT id, sat_name, sat_number, decay_date, has_current_sat_number,
                 constellation, launch_date
                 FROM satellites s
@@ -489,15 +529,13 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     OR (s.constellation IS NOT NULL AND s.constellation
                     ILIKE :constellation || '%')
                 )
-            """
-            )
+            """)
 
             if data_source_limit == "any":
                 data_source_limit = None
 
             # Then get their latest TLEs
-            tles_sql = text(
-                """
+            tles_sql = text("""
                 WITH latest_tles AS (
                     SELECT DISTINCT ON (sat_id)
                         id, sat_id, date_collected, tle_line1, tle_line2,
@@ -510,8 +548,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 )
                 SELECT * FROM latest_tles
                 ORDER BY epoch DESC
-            """
-            )
+            """)
 
             # Get valid satellites first
             satellites_result = self.session.execute(
@@ -634,7 +671,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                         serialized_tles = cached_data.get("tles", [])
 
                         # Deserialize the TLEs
-                        tles = self.deserialize_cached_tles(serialized_tles)
+                        tles = self.deserialize_tles(serialized_tles)
 
                         logger.debug(f"Returning {len(tles)} TLEs from cache")
                         execution_time = time.time() - start_time
@@ -657,8 +694,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             data_source = None
 
         try:
-            tles_sql = text(
-                """
+            tles_sql = text("""
                 WITH RECURSIVE latest_per_sat AS (
                     SELECT
                         s.id AS sat_id,
@@ -667,7 +703,9 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                             FROM tle t
                             WHERE t.sat_id = s.id
                                 AND t.epoch BETWEEN :start_date AND :end_date
-                                AND (:data_source IS NULL OR t.data_source = :data_source)
+                                AND (
+                                :data_source IS NULL OR t.data_source = :data_source
+                                )
                             ORDER BY t.epoch DESC
                             LIMIT 1
                         ) AS tle_id
@@ -686,8 +724,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 JOIN tle t ON t.id = l.tle_id
                 JOIN satellites s ON s.id = l.sat_id
                 ORDER BY t.epoch DESC
-                """  # noqa: E501
-            ).bindparams(
+                """).bindparams(  # noqa: E501
                 start_date=bindparam("start_date", type_=DateTime(timezone=True)),
                 end_date=bindparam("end_date", type_=DateTime(timezone=True)),
                 epoch_date=bindparam("epoch_date", type_=DateTime(timezone=True)),

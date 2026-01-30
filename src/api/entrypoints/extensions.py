@@ -1,5 +1,4 @@
 import os
-from urllib.parse import urlparse
 
 from flasgger import Swagger
 from flask import request
@@ -10,6 +9,8 @@ from flask_sqlalchemy import SQLAlchemy
 from redis import ConnectionPool, Redis
 from redis.backoff import ExponentialBackoff
 from redis.retry import Retry
+
+from api.utils.redis_config import get_redis_config
 
 
 def get_forwarded_address() -> str:
@@ -38,42 +39,30 @@ db = SQLAlchemy()
 
 scheduler = APScheduler()
 
-# Parse Redis URL if provided, otherwise use host/port
-redis_url = os.getenv("REDIS_PORT")
-if redis_url and "://" in redis_url:
-    # Handle tcp:// URLs specifically
-    if redis_url.startswith("tcp://"):
-        parts = redis_url.replace("tcp://", "").split(":")
-        redis_host = parts[0]
-        redis_port = int(parts[1]) if len(parts) > 1 else 6379
-    else:
-        # Parse standard URLs
-        parsed = urlparse(redis_url)
-        redis_host = parsed.hostname or "localhost"
-        redis_port = parsed.port or 6379
-else:
-    # Use separate host/port env vars
-    redis_host = os.getenv("REDIS_HOST", "localhost")
-    redis_port = int(os.getenv("REDIS_PORT", 6379))
+# Get Redis configuration
+redis_host, redis_port, _ = get_redis_config()
 
-# Use parsed values
-# Add connection pooling to avoid performance issues
+# Configure retry logic with exponential backoff for better resilience
+retry = Retry(ExponentialBackoff(cap=10, base=1.5), 3)  # Maximum number of retries
+
+# Connection pool for better performance
 redis_pool = ConnectionPool(
     host=redis_host,
     port=redis_port,
     db=int(os.getenv("REDIS_DB", 0)),
     max_connections=20,
     decode_responses=True,
+    retry_on_timeout=True,
+    socket_connect_timeout=5,
+    socket_timeout=5,
 )
-
-# Configure retry logic with exponential backoff
-retry = Retry(ExponentialBackoff(cap=10, base=1.5), 3)  # Maximum number of retries
 
 redis_client = Redis(
     connection_pool=redis_pool,
     retry=retry,
     retry_on_timeout=True,
-    socket_timeout=5,  # 5 second timeout
+    socket_timeout=5,
+    health_check_interval=30,  # Check connection health every 30 seconds
 )
 
 limiter = Limiter(
@@ -82,6 +71,7 @@ limiter = Limiter(
     storage_uri=(f"redis://{redis_host}:{redis_port}/0"),
     headers_enabled=True,
     strategy="moving-window",
+    swallow_errors=True,
 )
 
 # Initialize Swagger for documentation
@@ -111,7 +101,7 @@ swagger = Swagger(
             {
                 "endpoint": "apispec",
                 "route": "/apispec.json",
-                "rule_filter": lambda rule: True,  # Include all endpoints
+                "rule_filter": lambda rule: not rule.rule.startswith("/v1"),
                 "model_filter": lambda tag: True,  # Include all models
             }
         ],
