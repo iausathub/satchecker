@@ -1,13 +1,13 @@
 """
 Centralized Skyfield data loader.
 
-Uses a fixed directory (from SKYFIELD_DATA_DIR env, default /app/skyfield-data)
-so the DE430t.bsp file added to the Docker image at build time
+Uses SKYFIELD_DATA_DIR env when set (e.g. /app/skyfield-data in Docker).
+Otherwise uses current directory for CI/local dev where /app may not exist.
 """
 
 import os
 
 from skyfield.api import Loader
 
-_SKYFIELD_DATA_DIR = os.environ.get("SKYFIELD_DATA_DIR", "/app/skyfield-data")
+_SKYFIELD_DATA_DIR = os.environ.get("SKYFIELD_DATA_DIR", ".")
 load = Loader(_SKYFIELD_DATA_DIR, verbose=False)

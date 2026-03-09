@@ -514,7 +514,13 @@ def _check_cache_for_results(
     if cached_data and not skip_cache:  # pragma: no cover
         cache_time = python_time.time() - start_time
         points_in_fov = cached_data["points_in_fov"]
-        if all(v is not None for v in (ra, dec, fov_radius, duration, location)):
+        if (
+            location is not None
+            and ra is not None
+            and dec is not None
+            and fov_radius is not None
+            and duration is not None
+        ):
             logger.info(
                 f"FOV completed: RA={ra}° Dec={dec}° radius={fov_radius}° "
                 f"duration={duration}s "
