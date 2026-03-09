@@ -9,7 +9,9 @@ from astropy.coordinates import AltAz, EarthLocation, SkyCoord
 from astropy.time import Time
 from flask import current_app
 from sgp4.api import Satrec
-from skyfield.api import EarthSatellite, load
+from skyfield.api import EarthSatellite
+
+from api.utils.skyfield_loader import load
 from skyfield.framelib import itrs as sk_itrs
 from skyfield.nutationlib import iau2000b
 from skyfield.sgp4lib import TEME as sk_TEME  # noqa: N811

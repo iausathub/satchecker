@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
-from skyfield.api import EarthSatellite, load, wgs84
+from skyfield.api import EarthSatellite, wgs84
 
 from api.adapters.repositories.tle_repository import (
     AbstractTLERepository,
@@ -21,6 +21,7 @@ from api.services.cache_service import (
 from api.services.tasks.fov_tasks import calculate_satellite_passes_async
 from api.utils import coordinate_systems, output_utils
 from api.utils.propagation_strategies import FOVParallelPropagationStrategy
+from api.utils.skyfield_loader import load
 from api.utils.time_utils import astropy_time_to_datetime_utc
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,16 @@ def get_satellite_passes_in_fov_async(
 
     # TODO: resolve caching issue
     cached_data = _check_cache_for_results(
-        cache_key, start_time, api_source, api_version, group_by
+        cache_key,
+        start_time,
+        api_source,
+        api_version,
+        group_by,
+        ra=ra,
+        dec=dec,
+        fov_radius=fov_radius,
+        duration=duration,
+        location=location,
     )
     if cached_data:
         return cached_data
@@ -198,7 +208,16 @@ def get_satellite_passes_in_fov(
 
     # TODO: resolve caching issue
     cached_data = _check_cache_for_results(
-        cache_key, start_time, api_source, api_version, group_by
+        cache_key,
+        start_time,
+        api_source,
+        api_version,
+        group_by,
+        ra=ra,
+        dec=dec,
+        fov_radius=fov_radius,
+        duration=duration,
+        location=location,
     )
     if cached_data:
         return cached_data
@@ -222,7 +241,7 @@ def get_satellite_passes_in_fov(
     prop_strategy = FOVParallelPropagationStrategy()
 
     try:
-        logger.info("Starting parallel propagation with batch size 250")
+        logger.debug("Starting parallel propagation with batch size 250")
         results, execution_time, satellites_processed = prop_strategy.propagate(
             all_tles=tles,
             jd_times=jd_times,
@@ -238,7 +257,7 @@ def get_satellite_passes_in_fov(
         if results:
             all_results.extend(results)
             points_in_fov = len(results)
-            logger.info(
+            logger.debug(
                 f"Propagation completed successfully with {points_in_fov} points in FOV"
             )
         else:
@@ -282,7 +301,7 @@ def get_satellite_passes_in_fov(
             api_version,
             group_by,
         )
-        logger.info("Successfully formatted results to JSON")
+        logger.debug("Successfully formatted results to JSON")
     except Exception as e:
         logger.error(f"Failed to format results to JSON: {str(e)}", exc_info=True)
         raise
@@ -290,6 +309,12 @@ def get_satellite_passes_in_fov(
     # Cache only the raw results and points_in_fov
     _cache_results(cache_key, all_results, points_in_fov, performance_metrics)
 
+    logger.info(
+        f"FOV completed: RA={ra}° Dec={dec}° radius={fov_radius}° duration={duration}s "
+        f"lat={location.lat.value}° lon={location.lon.value}° "
+        f"height={location.height.value}m {satellites_processed} satellites, "
+        f"{points_in_fov} points in FOV, {total_time:.2f}s (calculated)"
+    )
     return json_result
 
 
@@ -429,7 +454,7 @@ def _get_tle_data(
 ) -> tuple[list[TLE], int, float]:
     tle_start = python_time.time()
 
-    logger.info(f"Fetching TLEs for epoch: {astropy_time_to_datetime_utc(time_jd)}")
+    logger.debug(f"Fetching TLEs for epoch: {astropy_time_to_datetime_utc(time_jd)}")
 
     try:
         tles, count, _ = tle_repo.get_all_tles_at_epoch(
@@ -440,19 +465,29 @@ def _get_tle_data(
             constellation,
             data_source,
         )
-        logger.info(f"Successfully retrieved {count} TLEs")
+        logger.debug(f"Successfully retrieved {count} TLEs")
     except Exception as e:
         logger.error(f"Failed to retrieve TLEs: {str(e)}", exc_info=True)
         raise
 
     tle_time = python_time.time() - tle_start
-    logger.info(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
+    logger.debug(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
 
     return tles, count, tle_time
 
 
 def _check_cache_for_results(
-    cache_key: str, start_time: float, api_source: str, api_version: str, group_by: str
+    cache_key: str,
+    start_time: float,
+    api_source: str,
+    api_version: str,
+    group_by: str,
+    *,
+    ra: float | None = None,
+    dec: float | None = None,
+    fov_radius: float | None = None,
+    duration: float | None = None,
+    location: EarthLocation | None = None,
 ) -> dict[str, Any] | None:
     """
     Check cache for FOV calculation results and return formatted data if found.
@@ -463,6 +498,11 @@ def _check_cache_for_results(
         api_source: Source of the API call
         api_version: Version of the API
         group_by: Grouping strategy for results
+        ra: RA in degrees (for logging)
+        dec: Dec in degrees (for logging)
+        fov_radius: FOV radius in degrees (for logging)
+        duration: Duration in seconds (for logging)
+        location: Observer location (for logging)
 
     Returns:
         dict[str, Any] | None: Formatted cached results if found, None otherwise
@@ -473,9 +513,23 @@ def _check_cache_for_results(
 
     if cached_data and not skip_cache:  # pragma: no cover
         cache_time = python_time.time() - start_time
-        logger.info(
+        points_in_fov = cached_data["points_in_fov"]
+        if all(v is not None for v in (ra, dec, fov_radius, duration, location)):
+            logger.info(
+                f"FOV completed: RA={ra}° Dec={dec}° radius={fov_radius}° "
+                f"duration={duration}s "
+                f"lat={location.lat.value}° lon={location.lon.value}° "
+                f"height={location.height.value}m {points_in_fov} points in FOV, "
+                f"{cache_time:.2f}s (cache hit)"
+            )
+        else:
+            logger.info(
+                f"FOV completed: {points_in_fov} points in FOV, "
+                f"{cache_time:.2f}s (cache hit)"
+            )
+        logger.debug(
             f"Cache hit: Found {len(cached_data['results'])} results with "
-            f"{cached_data['points_in_fov']} points in FOV"
+            f"{points_in_fov} points in FOV"
         )
         # Log any None values in the cached results
         for idx, result in enumerate(cached_data.get("results", [])):
@@ -498,7 +552,7 @@ def _check_cache_for_results(
             group_by,
         )
 
-    logger.info("Cache miss - calculating FOV results")
+    logger.debug("Cache miss - calculating FOV results")
     return None
 
 
@@ -521,12 +575,12 @@ def _cache_results(
         "results": all_results,
         "points_in_fov": points_in_fov,
     }
-    logger.info(
+    logger.debug(
         f"Caching {len(all_results)} results with {points_in_fov} points in FOV"
     )
     try:
         set_cached_data(cache_key, cache_data)
-        logger.info("Successfully cached results")
+        logger.debug("Successfully cached results")
     except Exception as e:
         logger.error(f"Failed to cache results: {str(e)}", exc_info=True)
         # Don't raise here as caching is not critical
@@ -564,7 +618,7 @@ def _create_jd_list(
             start_time_jd.jd + duration_jd,
             time_step,
         )
-    logger.info(f"Checking {len(jd_times)} time points")
+    logger.debug(f"Checking {len(jd_times)} time points")
     return jd_times
 
 
@@ -581,21 +635,21 @@ def _log_fov_parameters(
     include_tles: bool,
     skip_cache: bool,
 ):
-    logger.info(f"Starting FOV calculation at: {datetime.now().isoformat()}")
+    logger.debug(f"Starting FOV calculation at: {datetime.now().isoformat()}")
 
-    logger.info(f"FOV calculation mode: {'async' if async_mode else 'sync'}")
+    logger.debug(f"FOV calculation mode: {'async' if async_mode else 'sync'}")
 
-    logger.info(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
-    logger.info(f"Duration: {duration} seconds")
-    logger.info(
+    logger.debug(f"FOV Parameters: RA={ra}°, Dec={dec}°, Radius={fov_radius}°")
+    logger.debug(f"Duration: {duration} seconds")
+    logger.debug(
         f"Location: lat={location.lat.value}°, "
         f"lon={location.lon.value}°, "
         f"height={location.height.value}m"
     )
-    logger.info(
+    logger.debug(
         f"Time parameters: mid_obs_time={mid_obs_time_jd}, start_time={start_time_jd}"
     )
-    logger.info(
+    logger.debug(
         f"Group by: {group_by}, Include TLEs: {include_tles}, Skip cache: {skip_cache}"
     )
 
@@ -628,20 +682,20 @@ def _calculate_performance_metrics(
     """
     # Log performance metrics
     total_time = tle_time + prop_time + execution_time
-    logger.info("\nPerformance Metrics:")
-    logger.info(f"Total execution time: {total_time:.2f} seconds")
-    logger.info(
+    logger.debug("\nPerformance Metrics:")
+    logger.debug(f"Total execution time: {total_time:.2f} seconds")
+    logger.debug(
         f"TLE retrieval time: {tle_time:.2f} seconds "
         f"({(tle_time/total_time)*100:.1f}%)"
     )
-    logger.info(
+    logger.debug(
         f"Propagation time: {prop_time:.2f} seconds "
         f"({(prop_time/total_time)*100:.1f}%)"
     )
-    logger.info("\nResults Summary:")
-    logger.info(f"Satellites processed: {satellites_processed}/{count}")
-    logger.info(f"Points in FOV: {points_in_fov}")
-    logger.info(f"End time: {datetime.now().isoformat()}")
+    logger.debug("\nResults Summary:")
+    logger.debug(f"Satellites processed: {satellites_processed}/{count}")
+    logger.debug(f"Points in FOV: {points_in_fov}")
+    logger.debug(f"End time: {datetime.now().isoformat()}")
 
     performance_metrics = {
         "total_time": round(total_time, 3),

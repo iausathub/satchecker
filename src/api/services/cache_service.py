@@ -89,13 +89,13 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
         if isinstance(data, dict):
             if "results" in data:
                 results_count = len(data["results"]) if data["results"] else 0
-                logger.info(
+                logger.debug(
                     f"Caching {results_count} results in data structure "
                     f"for key {key}"
                 )
             if "tles" in data:
                 tles_count = len(data["tles"]) if data["tles"] else 0
-                logger.info(
+                logger.debug(
                     f"Caching {tles_count} TLEs in data structure for key {key}"
                 )
 
@@ -106,10 +106,8 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
             )
             return False
 
-        logger.info(f"Attempting to cache data for key {key}: {serialized_size} bytes")
+        logger.debug(f"Attempting to cache data for key {key}: {serialized_size} bytes")
         redis_client.setex(key, ttl, serialized)
-
-        check_redis_memory()
 
         # Immediately verify the data was cached successfully
         verification_data = redis_client.get(key)
@@ -120,7 +118,7 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
                     verified_count = (
                         len(verified_data["results"]) if verified_data["results"] else 0
                     )
-                    logger.info(
+                    logger.debug(
                         f"Verification: Retrieved {verified_count} results "
                         f"from cache for key {key}"
                     )
@@ -128,11 +126,11 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
                     verified_tles = (
                         len(verified_data["tles"]) if verified_data["tles"] else 0
                     )
-                    logger.info(
+                    logger.debug(
                         f"Verification: Retrieved {verified_tles} TLEs "
                         f"from cache for key {key}"
                     )
-            logger.info(f"Successfully cached and verified data for key {key}")
+            logger.debug(f"Successfully cached and verified data for key {key}")
         else:
             logger.warning(
                 "Cache verification failed - data not found immediately "
@@ -334,26 +332,28 @@ def check_redis_memory() -> None:
         evicted_keys = stats_info.get("evicted_keys", 0)
         expired_keys = stats_info.get("expired_keys", 0)
 
-        logger.info(
+        logger.debug(
             f"Redis memory usage: {used_memory/1024/1024:.2f}MB "
             f"(peak: {used_memory_peak/1024/1024:.2f}MB)"
         )
 
         if maxmemory > 0:
             memory_usage_pct = (used_memory / maxmemory) * 100
-            logger.info(
+            logger.debug(
                 f"Redis memory limit: {maxmemory/1024/1024:.2f}MB "
                 f"({memory_usage_pct:.1f}% used), policy: {maxmemory_policy}"
             )
         else:
-            logger.info(f"Redis memory limit: unlimited, policy: {maxmemory_policy}")
+            logger.debug(f"Redis memory limit: unlimited, policy: {maxmemory_policy}")
 
         if evicted_keys > 0:
             logger.warning(
                 f"Redis has evicted {evicted_keys} keys due to memory pressure"
             )
 
-        logger.info(f"Redis expired keys: {expired_keys}, evicted keys: {evicted_keys}")
+        logger.debug(
+            f"Redis expired keys: {expired_keys}, evicted keys: {evicted_keys}"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get Redis memory info: {e}")
