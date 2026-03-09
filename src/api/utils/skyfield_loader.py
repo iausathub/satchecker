@@ -2,7 +2,7 @@
 Centralized Skyfield data loader.
 
 Uses SKYFIELD_DATA_DIR env when set (e.g. /app/skyfield-data in Docker).
-Otherwise uses current directory for CI/local dev where /app may not exist.
+Otherwise uses current directory for CI/local dev
 """
 
 import os
