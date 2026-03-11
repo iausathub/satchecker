@@ -3,7 +3,7 @@ import multiprocessing
 import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -815,7 +815,7 @@ class FOVParallelPropagationStrategy:
         )
 
         # Process batches in parallel
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             completed = 0
             futures = []
 
