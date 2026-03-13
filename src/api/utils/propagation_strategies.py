@@ -638,7 +638,9 @@ class FOVPropagationStrategy(BasePropagationStrategy):
             raise RuntimeError(f"FOV propagation failed: {str(e)}") from e
 
 
-def process_satellite_batch(args):
+def process_satellite_batch(
+    args: tuple[Any, ...],
+) -> tuple[list[dict[str, Any]], int, float]:
     """Process a batch of satellites for FOV calculations.
 
     Returns:
