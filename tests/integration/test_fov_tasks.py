@@ -5,7 +5,7 @@ Celery for background task processing.
 """
 
 # ruff: noqa: S101
-from datetime import datetime
+from datetime import datetime, timezone
 
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
@@ -30,21 +30,27 @@ def test_get_fov_task_status_pending(app, mocker):
 
 def test_fov_endpoint_async_integration(client, session, services_available):
     """Test the async endpoint returns a task and the status endpoint is queryable."""
-    # Create test satellite and TLE
-    satellite = SatelliteFactory(sat_name="ISS", sat_number=25544)
+    # Satellite must have launch_date <= epoch and decay_date None or > epoch
+    # for get_all_tles_at_epoch to include it
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        sat_number=25544,
+        launch_date=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        decay_date=None,
+    )
     tle = TLEFactory(
         satellite=satellite,
-        epoch=datetime(2024, 10, 1, 0, 0, 0),
+        epoch=datetime(2024, 10, 1, 0, 0, 0, tzinfo=timezone.utc),
     )
 
     tle_repo = SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
 
-    # Make request with async=true
+    # mid_obs_time_jd=2460585.0 = 2024-10-01 12:00 UTC; ensures TLE epoch in query range
     response = client.get(
         "/fov/satellite-passes/?latitude=0&longitude=0&elevation=0"
-        "&mid_obs_time_jd=2460218.5&duration=30&ra=224.048903&dec=78.778084"
+        "&mid_obs_time_jd=2460585.0&duration=30&ra=224.048903&dec=78.778084"
         "&fov_radius=2&group_by=satellite&async=true"
     )
 
