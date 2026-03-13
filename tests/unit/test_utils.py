@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pytest
+from astropy import units as u
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from skyfield.api import wgs84
 from tests.factories.satellite_factory import SatelliteFactory
@@ -13,6 +15,7 @@ from api.common.exceptions import ValidationError
 from api.utils import coordinate_systems, time_utils
 from api.utils.output_utils import position_data_to_json
 from api.utils.propagation_strategies import (
+    FOVParallelPropagationStrategy,
     SkyfieldPropagationStrategy,
     process_satellite_batch,
 )
@@ -226,6 +229,96 @@ def test_process_satellite_batch():
 
     assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
     assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
+
+
+def test_batch_executor_raises_without_serializer():
+    strategy = FOVParallelPropagationStrategy()
+    satellite = SatelliteFactory()
+    tle = TLEFactory(satellite=satellite)
+    location = EarthLocation(lat=0 * u.deg, lon=0 * u.deg, height=0 * u.m)
+
+    with pytest.raises(ValueError, match="batch_serializer required"):
+        strategy.propagate(
+            all_tles=[tle],
+            jd_times=[2460218.5],
+            location=location,
+            fov_center=(0, 0),
+            fov_radius=2,
+            batch_executor=lambda batches, args: [],
+            batch_serializer=None,
+        )
+
+
+def test_batch_executor_serializes_and_aggregates(mocker):
+    strategy = FOVParallelPropagationStrategy()
+    satellite = SatelliteFactory()
+    tle = TLEFactory(satellite=satellite)
+    location = EarthLocation(lat=0 * u.deg, lon=0 * u.deg, height=0 * u.m)
+
+    mock_serializer = mocker.Mock(side_effect=lambda b: [f"serialized_{len(b)}"])
+    mock_executor = mocker.Mock(
+        return_value=[
+            ([{"ra": 100, "dec": 50}], 1),
+            ([{"ra": 200, "dec": 60}], 1),
+        ]
+    )
+
+    results, exec_time, sats = strategy.propagate(
+        all_tles=[tle, tle],
+        jd_times=[2460218.5],
+        location=location,
+        fov_center=(0, 0),
+        fov_radius=2,
+        batch_size=10,
+        batch_executor=mock_executor,
+        batch_serializer=mock_serializer,
+    )
+
+    mock_serializer.assert_called_once()
+    mock_executor.assert_called_once()
+    call_args = mock_executor.call_args
+
+    # serialized_batches is list of serializer outputs (each batch -> list)
+    assert call_args[0][0] == [["serialized_2"]]
+    assert call_args[0][1]["jd_times"] == [2460218.5]
+    assert call_args[0][1]["location_lat"] == 0
+    assert call_args[0][1]["fov_center"] == (0, 0)
+    assert len(results) == 2
+    assert results[0]["ra"] == 100
+    assert results[1]["ra"] == 200
+    assert sats == 2
+
+
+def test_batch_executor_serializer_per_batch(mocker):
+    strategy = FOVParallelPropagationStrategy()
+    satellite = SatelliteFactory()
+    tles = [TLEFactory(satellite=satellite) for _ in range(3)]
+    location = EarthLocation(lat=0 * u.deg, lon=0 * u.deg, height=0 * u.m)
+
+    mock_serializer = mocker.Mock(side_effect=lambda b: [f"serialized_{len(b)}"])
+    mock_executor = mocker.Mock(
+        return_value=[
+            ([{"ra": 1}], 2),
+            ([{"ra": 2}], 1),
+        ]
+    )
+
+    strategy.propagate(
+        all_tles=tles,
+        jd_times=[2460218.5],
+        location=location,
+        fov_center=(0, 0),
+        fov_radius=2,
+        batch_size=2,
+        batch_executor=mock_executor,
+        batch_serializer=mock_serializer,
+    )
+
+    assert mock_serializer.call_count == 2
+    assert mock_executor.call_count == 1
+
+    # serialized_batches is list of serializer outputs (each batch -> list)
+    assert mock_executor.call_args[0][0] == [["serialized_2"], ["serialized_1"]]
 
 
 def test_skyfield_propagation_strategy():
