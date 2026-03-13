@@ -11,10 +11,7 @@ from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.services.tasks.fov_tasks import (
-    calculate_satellite_passes_async,
-    get_fov_task_status,
-)
+from api.services.tasks.fov_tasks import get_fov_task_status
 
 
 def test_get_fov_task_status_pending(app, mocker):
@@ -121,7 +118,7 @@ def test_get_fov_task_status_progress(app, mocker):
         }
 
         mocker.patch(
-            "api.services.tasks.fov_tasks.calculate_satellite_passes_async.AsyncResult",
+            "api.services.tasks.fov_tasks.celery.AsyncResult",
             return_value=mock_task,
         )
         task_id = "test-progress-task-id"
@@ -142,7 +139,7 @@ def test_get_fov_task_status_failure(app, mocker):
         mock_task.info = Exception("Propagation error occurred")
 
         mocker.patch(
-            "api.services.tasks.fov_tasks.calculate_satellite_passes_async.AsyncResult",
+            "api.services.tasks.fov_tasks.celery.AsyncResult",
             return_value=mock_task,
         )
         task_id = "test-failure-task-id"
@@ -160,7 +157,7 @@ def test_get_fov_task_status_exception_handling(app, mocker):
     with app.app_context():
         # Mock AsyncResult to raise an exception
         mocker.patch(
-            "api.services.tasks.fov_tasks.calculate_satellite_passes_async.AsyncResult",
+            "api.services.tasks.fov_tasks.celery.AsyncResult",
             side_effect=Exception("Connection error"),
         )
         task_id = "test-exception-task-id"
@@ -181,7 +178,7 @@ def test_get_fov_task_status_unknown_state(app, mocker):
         mock_task.state = "REVOKED"
 
         mocker.patch(
-            "api.services.tasks.fov_tasks.calculate_satellite_passes_async.AsyncResult",
+            "api.services.tasks.fov_tasks.celery.AsyncResult",
             return_value=mock_task,
         )
         task_id = "test-unknown-task-id"
@@ -221,7 +218,7 @@ def test_get_fov_task_status_success_with_list_result(app, mocker):
         ]
 
         mocker.patch(
-            "api.services.tasks.fov_tasks.calculate_satellite_passes_async.AsyncResult",
+            "api.services.tasks.fov_tasks.celery.AsyncResult",
             return_value=mock_task,
         )
         task_id = "test-success-list-task-id"
@@ -242,7 +239,7 @@ def test_get_fov_task_status_success_non_list(app, mocker):
         mock_task.result = {"custom": "result", "data": "value"}
 
         mocker.patch(
-            "api.services.tasks.fov_tasks.calculate_satellite_passes_async.AsyncResult",
+            "api.services.tasks.fov_tasks.celery.AsyncResult",
             return_value=mock_task,
         )
         task_id = "test-success-non-list-task-id"
@@ -254,234 +251,25 @@ def test_get_fov_task_status_success_non_list(app, mocker):
         assert status["message"] == "FOV calculation completed successfully"
 
 
-def test_calculate_satellite_passes_async_empty_results(app, session, mocker):
-    """Test calculate_satellite_passes_async when propagation returns empty results."""
+def test_aggregate_fov_results_task(app):
+    """Test aggregate_fov_results_task combines batch results."""
+    from api.services.tasks.fov_tasks import aggregate_fov_results_task
+
     with app.app_context():
-        # Create test satellite and TLE
-        satellite = SatelliteFactory(sat_name="TEST SAT", sat_number=99999)
-        tle = TLEFactory(
-            satellite=satellite,
-            epoch=datetime(2024, 10, 1, 0, 0, 0),
-        )
-
-        tle_repo = SqlAlchemyTLERepository(session)
-        tle_repo.add(tle)
-        session.commit()
-
-        serialized_tles = tle_repo.batch_serialize_tles([tle])
-
-        mocker.patch(
-            "api.services.tasks.fov_tasks.FOVParallelPropagationStrategy.propagate",
-            # empty results, execution time, satellites processed
-            return_value=([], 0.5, 1),
-        )
-        # Mock update_state on the task itself
-        mock_update_state = mocker.patch.object(
-            calculate_satellite_passes_async, "update_state"
-        )
-        result = calculate_satellite_passes_async.apply(
-            kwargs={
-                "ra": 224.048903,
-                "dec": 78.778084,
-                "fov_radius": 2.0,
-                "serialized_tles": serialized_tles,
-                "jd_times": [2460218.5],
-                "location_lat": 0.0,
-                "location_lon": 0.0,
-                "location_height": 0.0,
-                "include_tles": False,
-                "batch_size": 250,
-                "illuminated_only": False,
-                "group_by": "satellite",
-                "tle_time": 0.1,
-            }
-        ).get()
-
-        # Should return empty results
-        all_results, points_in_fov, group_by, performance_metrics = result
-        assert all_results == []
-        assert points_in_fov == 0
-        assert group_by == "satellite"
-        assert performance_metrics["points_in_fov"] == 0
-        assert performance_metrics["propagation_time"] == 0.5
-        assert performance_metrics["tle_time"] == 0.1
-        assert mock_update_state.called
-
-
-def test_calculate_satellite_passes_async_error_handling(app, session, mocker):
-    """Test exception handling in calculate_satellite_passes_async."""
-    with app.app_context():
-        # Create test satellite and TLE
-        satellite = SatelliteFactory(sat_name="TEST SAT", sat_number=99999)
-        tle = TLEFactory(
-            satellite=satellite,
-            epoch=datetime(2024, 10, 1, 0, 0, 0),
-        )
-
-        tle_repo = SqlAlchemyTLERepository(session)
-        tle_repo.add(tle)
-        session.commit()
-
-        serialized_tles = tle_repo.batch_serialize_tles([tle])
-
-        # Mock the propagation strategy to raise an exception
-        mocker.patch(
-            "api.services.tasks.fov_tasks.FOVParallelPropagationStrategy.propagate",
-            side_effect=Exception("Propagation failed"),
-        )
-
-        mock_update_state = mocker.patch.object(
-            calculate_satellite_passes_async, "update_state"
-        )
-
-        try:
-            calculate_satellite_passes_async.apply(
-                kwargs={
-                    "ra": 224.048903,
-                    "dec": 78.778084,
-                    "fov_radius": 2.0,
-                    "serialized_tles": serialized_tles,
-                    "jd_times": [2460218.5],
-                    "location_lat": 0.0,
-                    "location_lon": 0.0,
-                    "location_height": 0.0,
-                    "include_tles": False,
-                    "batch_size": 250,
-                    "illuminated_only": False,
-                    "group_by": "satellite",
-                    "tle_time": 0.1,
-                }
-            ).get()
-            raise AssertionError("Should have raised an exception")
-        except Exception as e:
-            assert str(e) == "Propagation failed"
-            assert mock_update_state.called
-
-
-def test_calculate_satellite_passes_async_with_results(app, session, mocker):
-    """Test calculate_satellite_passes_async when propagation returns results."""
-    with app.app_context():
-        # Create test satellite and TLE
-        satellite = SatelliteFactory(sat_name="TEST SAT", sat_number=99999)
-        tle = TLEFactory(
-            satellite=satellite,
-            epoch=datetime(2024, 10, 1, 0, 0, 0),
-        )
-
-        tle_repo = SqlAlchemyTLERepository(session)
-        tle_repo.add(tle)
-        session.commit()
-
-        serialized_tles = tle_repo.batch_serialize_tles([tle])
-
-        # Mock results data
-        mock_results = [
-            {
-                "sat_number": 99999,
-                "sat_name": "TEST SAT",
-                "jd_time": 2460218.5,
-                "ra": 224.0,
-                "dec": 78.8,
-            },
-            {
-                "sat_number": 99999,
-                "sat_name": "TEST SAT",
-                "jd_time": 2460218.6,
-                "ra": 224.1,
-                "dec": 78.9,
-            },
+        # (batch_results, batch_sats, execution_time)
+        group_results = [
+            ([{"ra": 100, "dec": 50}], 1, 0.5),
+            ([{"ra": 200, "dec": 60}], 1, 0.3),
         ]
-
-        # Mock the propagation strategy to return results
-        mocker.patch(
-            "api.services.tasks.fov_tasks.FOVParallelPropagationStrategy.propagate",
-            # results, execution time, satellites processed
-            return_value=(mock_results, 1.5, 1),
+        result = aggregate_fov_results_task(
+            group_results,
+            group_by="satellite",
+            tle_time=0.1,
+            jd_times=[2460218.5],
         )
-        result = calculate_satellite_passes_async.apply(
-            kwargs={
-                "ra": 224.048903,
-                "dec": 78.778084,
-                "fov_radius": 2.0,
-                "serialized_tles": serialized_tles,
-                "jd_times": [2460218.5, 2460218.6],
-                "location_lat": 0.0,
-                "location_lon": 0.0,
-                "location_height": 0.0,
-                "include_tles": False,
-                "batch_size": 250,
-                "illuminated_only": False,
-                "group_by": "satellite",
-                "tle_time": 0.2,
-            }
-        ).get()
-
-        # Should return results
-        all_results, points_in_fov, group_by, performance_metrics = result
+        all_results, points_in_fov, group_by, metrics = result
         assert len(all_results) == 2
         assert points_in_fov == 2
         assert group_by == "satellite"
-        assert performance_metrics["points_in_fov"] == 2
-        assert performance_metrics["propagation_time"] == 1.5
-        assert performance_metrics["tle_time"] == 0.2
-        assert performance_metrics["total_time"] == 1.7
-        assert performance_metrics["satellites_processed"] == 1
-
-
-def test_calculate_satellite_passes_async_progress_callback(app, session, mocker):
-    """Test that progress callback is invoked during propagation."""
-    with app.app_context():
-        # Create test satellite and TLE
-        satellite = SatelliteFactory(sat_name="TEST SAT", sat_number=99999)
-        tle = TLEFactory(
-            satellite=satellite,
-            epoch=datetime(2024, 10, 1, 0, 0, 0),
-        )
-
-        tle_repo = SqlAlchemyTLERepository(session)
-        tle_repo.add(tle)
-        session.commit()
-
-        serialized_tles = tle_repo.batch_serialize_tles([tle])
-
-        # Capture the progress callback that gets passed to propagate
-        captured_callback = None
-
-        def mock_propagate(*args, **kwargs):
-            nonlocal captured_callback
-            captured_callback = kwargs.get("progress_callback")
-            # Call the callback to simulate progress updates
-            if captured_callback:
-                captured_callback(50, 1, 2, 100)
-            return ([], 0.5, 1)
-
-        mocker.patch(
-            "api.services.tasks.fov_tasks.FOVParallelPropagationStrategy.propagate",
-            side_effect=mock_propagate,
-        )
-        mock_update_state = mocker.patch.object(
-            calculate_satellite_passes_async, "update_state"
-        )
-        calculate_satellite_passes_async.apply(
-            kwargs={
-                "ra": 224.048903,
-                "dec": 78.778084,
-                "fov_radius": 2.0,
-                "serialized_tles": serialized_tles,
-                "jd_times": [2460218.5],
-                "location_lat": 0.0,
-                "location_lon": 0.0,
-                "location_height": 0.0,
-                "include_tles": False,
-                "batch_size": 250,
-                "illuminated_only": False,
-                "group_by": "satellite",
-                "tle_time": 0.1,
-            }
-        ).get()
-
-        # Verify callback was captured and used
-        assert captured_callback is not None
-        # Verify update_state was called multiple times
-        # (initial + progress callback)
-        assert mock_update_state.call_count >= 2
+        assert metrics["satellites_processed"] == 2
+        assert metrics["propagation_time"] == 0.8  # 0.5 + 0.3

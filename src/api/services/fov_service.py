@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
+from celery import chord, group
 from skyfield.api import EarthSatellite, load, wgs84
 
 from api.adapters.repositories.tle_repository import (
@@ -18,7 +19,10 @@ from api.services.cache_service import (
     get_cached_data,
     set_cached_data,
 )
-from api.services.tasks.fov_tasks import calculate_satellite_passes_async
+from api.services.tasks.fov_tasks import (
+    aggregate_fov_results_task,
+    process_satellite_batch_task,
+)
 from api.utils import coordinate_systems, output_utils
 from api.utils.propagation_strategies import FOVParallelPropagationStrategy
 from api.utils.time_utils import astropy_time_to_datetime_utc
@@ -89,31 +93,60 @@ def get_satellite_passes_in_fov_async(
     )
 
     jd_times = _create_jd_list(mid_obs_time_jd, start_time_jd, duration)
+    jd_times_list = jd_times.tolist()
 
-    # Serialize TLEs for Celery task
-    serialized_tles = SqlAlchemyTLERepository.batch_serialize_tles(tles)
+    if not tles:
+        # No TLEs: return empty result immediately, no task needed
+        performance_metrics = {
+            "total_time": round(tle_time, 3),
+            "tle_time": round(tle_time, 3),
+            "propagation_time": 0,
+            "satellites_processed": 0,
+            "points_in_fov": 0,
+            "jd_times": jd_times_list,
+        }
+        empty_result = output_utils.fov_data_to_json(
+            [], 0, performance_metrics, api_source, api_version, group_by
+        )
+        return {
+            **empty_result,
+            "task_id": None,
+            "status": "SUCCESS",
+            "message": "No TLEs available for the requested criteria",
+        }
 
-    result_list_task = calculate_satellite_passes_async.apply_async(
-        args=[
-            ra,
-            dec,
-            fov_radius,
-            serialized_tles,
-            jd_times.tolist(),
-            location.lat.value,
-            location.lon.value,
-            location.height.value,
-            include_tles,
-            250,
-            illuminated_only,
-            group_by,
-            tle_time,
-        ]
+    batch_size = 250
+    # Build batches and create chord for multi-CPU parallelism
+    common_args = {
+        "jd_times": jd_times_list,
+        "location_lat": float(location.lat.value),
+        "location_lon": float(location.lon.value),
+        "location_height": float(location.height.value),
+        "fov_center": (float(ra), float(dec)),
+        "fov_radius": float(fov_radius),
+        "include_tles": include_tles,
+        "illuminated_only": illuminated_only,
+    }
+
+    batch_tasks = []
+    for i in range(0, len(tles), batch_size):
+        batch = tles[i : i + batch_size]
+        serialized_batch = SqlAlchemyTLERepository.batch_serialize_tles(batch)
+        batch_tasks.append(
+            process_satellite_batch_task.s(serialized_batch, **common_args)
+        )
+
+    callback = aggregate_fov_results_task.s(
+        group_by=group_by,
+        tle_time=tle_time,
+        jd_times=jd_times_list,
     )
+    chord_primitive = chord(group(batch_tasks), callback)
+    chord_result = chord_primitive.apply_async()
+    task_id = chord_result.id
 
-    # Return task ID instead of waiting for result
     return {
-        "task_id": result_list_task.id,
+        "task_id": task_id,
         "status": "PENDING",
         "message": (
             "FOV calculation started. Use the task_id to check status and "

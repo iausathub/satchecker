@@ -1,8 +1,10 @@
 import concurrent.futures
+import logging
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
 from collections import namedtuple
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any
@@ -35,6 +37,7 @@ from api.utils.coordinate_systems import (
 )
 from api.utils.time_utils import jd_to_gst
 
+logger = logging.getLogger(__name__)
 _ts = load.timescale()
 
 
@@ -636,7 +639,12 @@ class FOVPropagationStrategy(BasePropagationStrategy):
 
 
 def process_satellite_batch(args):
-    """Process a batch of satellites for FOV calculations."""
+    """Process a batch of satellites for FOV calculations.
+
+    Returns:
+        tuple: (batch_results, satellites_processed, execution_time)
+    """
+    batch_start = time.time()
     (
         tle_batch,
         julian_dates,
@@ -652,6 +660,8 @@ def process_satellite_batch(args):
     # Convert single date to list for consistent handling
     if isinstance(julian_dates, (float, int)):
         julian_dates = [julian_dates]
+    if not isinstance(julian_dates, np.ndarray):
+        julian_dates = np.array(julian_dates)
 
     ts = get_timescale()
     t = ts.ut1_jd(julian_dates)
@@ -732,13 +742,58 @@ def process_satellite_batch(args):
             satellites_processed += 1
 
         except Exception as e:
-            print(f"Error processing satellite {tle.satellite.sat_name}: {e}")
+            logger.warning(
+                "Error processing satellite %s: %s", tle.satellite.sat_name, e
+            )
             satellites_processed += 1
 
-    return batch_results, satellites_processed
+    execution_time = time.time() - batch_start
+    return batch_results, satellites_processed, execution_time
+
+
+def _run_batches_threadpool(
+    args_list: list[tuple],
+    max_workers: int,
+    progress_callback: Callable[..., None] | None,
+) -> tuple[list[dict[str, Any]], int]:
+    """
+    Run batches using ThreadPoolExecutor (sync path).
+    """
+    all_results = []
+    satellites_processed = 0
+    total_batches = len(args_list)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        completed = 0
+        futures = [executor.submit(process_satellite_batch, args) for args in args_list]
+
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                batch_results, batch_sats, _ = future.result()
+                all_results.extend(batch_results)
+                satellites_processed += batch_sats
+                completed += 1
+                if progress_callback:
+                    progress_percent = int((completed / total_batches) * 100)
+                    progress_callback(
+                        progress_percent, completed, total_batches, satellites_processed
+                    )
+            except Exception as e:
+                logger.exception("Error processing batch: %s", e)
+
+    return all_results, satellites_processed
 
 
 class FOVParallelPropagationStrategy:
+    """
+    Propagate satellite positions and check if they fall within FOV.
+
+    Supports two execution modes:
+    - In-process: uses ThreadPoolExecutor (sync path; GIL-limited)
+    - Distributed: batch_executor runs batches (e.g. Celery chord in fov_service);
+      batch_serializer converts TLE batches to serializable form for the executor
+    """
+
     def propagate(
         self,
         all_tles,
@@ -751,6 +806,9 @@ class FOVParallelPropagationStrategy:
         include_tles=True,
         illuminated_only=False,
         progress_callback=None,
+        *,
+        batch_executor: Callable[..., list[tuple[list, int, float]]] | None = None,
+        batch_serializer: Callable[[list], list] | None = None,
     ) -> tuple[list[dict[str, Any]], float, int]:
         """
         Propagate satellite positions and check if they fall within FOV.
@@ -762,10 +820,14 @@ class FOVParallelPropagationStrategy:
             fov_center: Tuple of (RA, Dec) in degrees. Defaults to (0,0)
             fov_radius: FOV radius in degrees. Defaults to 0
             batch_size: Number of satellites to process in each batch
-            max_workers: Maximum number of worker processes to use
+            max_workers: Maximum number of workers (in-process mode only)
             include_tles: Whether to include TLE data in results
             illuminated_only: Whether to only include illuminated satellites
-            progress_callback: Optional callback function for progress updates
+            progress_callback: Optional callback for progress updates
+            batch_executor: Callable(serialized_batches, common_args) -> list of
+                (results, sats). When provided, runs distributed (e.g. Celery).
+            batch_serializer: Callable(batch) -> serialized_batch. Required when
+                batch_executor is provided; converts TLE batches for message passing.
 
         Returns:
             tuple: (
@@ -775,81 +837,71 @@ class FOVParallelPropagationStrategy:
                 satellites_processed: Number of satellites processed
             )
         """
-        """Process FOV calculations in parallel."""
         all_results = []
         start_time = time.time()
         satellites_processed = 0
-
-        # Default to number of CPU cores
-        if max_workers is None:
-            max_workers = min(multiprocessing.cpu_count(), 16)  # Cap at 16 workers
-
         lat = location.lat.value
         lon = location.lon.value
         elev = location.height.value
 
-        # Create batches of satellites
-        satellite_batches = []
-        for i in range(0, len(all_tles), batch_size):
-            batch = all_tles[i : i + batch_size]
-            satellite_batches.append(batch)
-
-        args_list = [
-            (
-                batch,
-                jd_times,
-                lat,
-                lon,
-                elev,
-                fov_center,
-                fov_radius,
-                include_tles,
-                illuminated_only,
-            )
-            for batch in satellite_batches
+        satellite_batches = [
+            all_tles[i : i + batch_size] for i in range(0, len(all_tles), batch_size)
         ]
 
-        print(
-            f"Processing {len(all_tles)} satellites in {len(satellite_batches)} batches"
-            f" ({max_workers} workers)"
-        )
+        if batch_executor is not None:
+            # Distributed mode
+            if batch_serializer is None:
+                raise ValueError("batch_serializer required when using batch_executor")
+            serialized_batches = [
+                batch_serializer(batch) for batch in satellite_batches
+            ]
+            common_args = {
+                "jd_times": jd_times,
+                "location_lat": lat,
+                "location_lon": lon,
+                "location_height": elev,
+                "fov_center": fov_center,
+                "fov_radius": fov_radius,
+                "include_tles": include_tles,
+                "illuminated_only": illuminated_only,
+            }
+            batch_results = batch_executor(serialized_batches, common_args)
+            for item in batch_results:
+                batch_result = item[0]
+                batch_sats = item[1]
+                all_results.extend(batch_result)
+                satellites_processed += batch_sats
+        else:
+            # In-process mode (sync)
+            if max_workers is None:
+                max_workers = min(multiprocessing.cpu_count(), 16)
+            args_list = [
+                (
+                    batch,
+                    jd_times,
+                    lat,
+                    lon,
+                    elev,
+                    fov_center,
+                    fov_radius,
+                    include_tles,
+                    illuminated_only,
+                )
+                for batch in satellite_batches
+            ]
 
-        # Process batches in parallel
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            completed = 0
-            futures = []
+            logger.debug(
+                "Processing %d satellites in %d batches (%d workers)",
+                len(all_tles),
+                len(satellite_batches),
+                max_workers,
+            )
+            all_results, satellites_processed = _run_batches_threadpool(
+                args_list, max_workers, progress_callback
+            )
 
-            for args in args_list:
-                futures.append(executor.submit(process_satellite_batch, args))
-
-            # Collect results as they complete
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    batch_results, batch_satellites = future.result()
-                    all_results.extend(batch_results)
-                    satellites_processed += batch_satellites
-                    completed += 1
-                    print(f"Batch {completed}/{len(satellite_batches)} complete")
-
-                    # Call progress callback if provided
-                    if progress_callback:
-                        progress_percent = int(
-                            (completed / len(satellite_batches)) * 100
-                        )
-                        progress_callback(
-                            progress_percent,
-                            completed,
-                            len(satellite_batches),
-                            satellites_processed,
-                        )
-
-                except Exception as e:
-                    print(f"Error processing batch: {e}")
-
-        end_time = time.time()
-        execution_time = end_time - start_time
-        print(f"Total execution time: {execution_time:.2f} seconds")
-
+        execution_time = time.time() - start_time
+        logger.debug("Total execution time: %.2f seconds", execution_time)
         return all_results, execution_time, satellites_processed
 
 
