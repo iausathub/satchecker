@@ -3,159 +3,88 @@ Celery tasks for FOV (Field of View) calculations.
 
 This module provides asynchronous FOV processing capabilities to handle
 long-running satellite propagation calculations without blocking the API.
+
+Parallelism is achieved via Celery chord: each batch runs as a separate task
+on its own worker, and a callback aggregates results.
 """
 
 import logging
 from typing import Any
 
-import astropy.units as u
-import numpy as np
-from astropy.coordinates import EarthLocation
-
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.celery_app import celery
 from api.entrypoints.v1.routes import api_source, api_version
 from api.utils.output_utils import fov_data_to_json
-from api.utils.propagation_strategies import FOVParallelPropagationStrategy
+from api.utils.propagation_strategies import process_satellite_batch
 
 logger = logging.getLogger(__name__)
 
 
-@celery.task(bind=True, name="fov.calculate_satellite_passes")
-def calculate_satellite_passes_async(
-    self,
-    ra: float,
-    dec: float,
-    fov_radius: float,
-    serialized_tles: list[dict[str, Any]],
+@celery.task(name="fov.process_satellite_batch")
+def process_satellite_batch_task(
+    serialized_batch_tles: list[dict[str, Any]],
     jd_times: list[float],
     location_lat: float,
     location_lon: float,
     location_height: float,
+    fov_center: tuple[float, float],
+    fov_radius: float,
     include_tles: bool,
-    batch_size: int,
     illuminated_only: bool,
+) -> tuple[list[dict[str, Any]], int, float]:
+    """
+    Process a single batch of satellites for FOV calculation.
+
+    Each batch runs on its own Celery worker.
+    Returns (batch_results, satellites_processed, execution_time).
+    """
+    batch_tles = SqlAlchemyTLERepository.deserialize_tles(serialized_batch_tles)
+    args = (
+        batch_tles,
+        jd_times,
+        location_lat,
+        location_lon,
+        location_height,
+        fov_center,
+        fov_radius,
+        include_tles,
+        illuminated_only,
+    )
+    return process_satellite_batch(args)
+
+
+@celery.task(name="fov.aggregate_fov_results")
+def aggregate_fov_results_task(
+    group_results: list[tuple[list[dict[str, Any]], int, float]],
     group_by: str,
     tle_time: float,
+    jd_times: list[float],
 ) -> tuple[list[dict[str, Any]], int, str, dict[str, object]]:
     """
-    Asynchronously calculate satellite passes within a specified field of view (FOV).
+    Aggregate batch results from chord group into final FOV response format.
 
-    This Celery task performs parallel satellite propagation to determine which
-    satellites pass through a given FOV during specified time periods and include
-    progress updates when the task is checked with the task status endpoint.
-
-    Args:
-        self: Celery task instance (bound=True)
-        ra (float): Right ascension of FOV center in degrees
-        dec (float): Declination of FOV center in degrees
-        fov_radius (float): Radius of the field of view in degrees
-        serialized_tles (list[dict[str, Any]]): Serialized TLE data for satellites
-        jd_times (list[float]): Julian day times for propagation calculations
-        location_lat (float): Observer latitude in degrees
-        location_lon (float): Observer longitude in degrees
-        location_height (float): Observer height above sea level in meters
-        include_tles (bool): Whether to include TLE data in results
-        batch_size (int): Number of satellites to process per batch
-        illuminated_only (bool): Filter for only illuminated satellites
-        group_by (str): Method for grouping results (e.g., 'satellite', 'time')
-        tle_time (float): Time spent on TLE processing for performance metrics
-
-    Returns:
-        tuple[list[dict[str, Any]], int, str, dict[str, object]]: A tuple containing:
-            - List of satellite pass results with position and timing data
-            - Number of points found within the FOV
-            - Grouping method (group_by parameter)
-            - Performance metrics including processing times and statistics
-
-    Raises:
-        Exception: If propagation fails or encounters errors during processing
-
-    Note:
-        This task provides real-time progress updates via Celery's task state mechanism.
-        Progress can be monitored using the task ID returned when the task is submitted.
+    propagation_time is the sum of batch execution times (CPU time across
+    workers; when batches run in parallel, wall clock < propagation_time).
     """
-    # Deserialize TLEs from the serialized format
-    all_tles = SqlAlchemyTLERepository.deserialize_tles(serialized_tles)
-
-    location = EarthLocation(
-        lat=location_lat * u.deg, lon=location_lon * u.deg, height=location_height * u.m
-    )
     all_results = []
-    points_in_fov = 0
     satellites_processed = 0
+    propagation_time = 0.0
+    for batch_results, batch_sats, batch_time in group_results:
+        all_results.extend(batch_results)
+        satellites_processed += batch_sats
+        propagation_time += batch_time
 
-    prop_strategy = FOVParallelPropagationStrategy()
-
-    try:
-        self.update_state(
-            state="PROGRESS",
-            meta={
-                "status": "Starting FOV calculation",
-                "progress": 0,
-                "total_satellites": len(all_tles),
-            },
-        )
-
-        logger.info("Starting parallel propagation with batch size 250")
-
-        # Allow multithreaded propagation to update task state
-        def progress_callback(
-            progress_percent, completed_batches, total_batches, satellites_processed
-        ):
-            self.update_state(
-                state="PROGRESS",
-                meta={
-                    "status": f"Processing batch {completed_batches}/{total_batches}",
-                    "progress": progress_percent,
-                    "satellites_processed": satellites_processed,
-                    "total_satellites": len(all_tles),
-                },
-            )
-
-        results, execution_time, satellites_processed = prop_strategy.propagate(
-            all_tles=all_tles,
-            jd_times=np.array(jd_times),
-            location=location,
-            fov_center=(ra, dec),
-            fov_radius=fov_radius,
-            batch_size=250,
-            include_tles=include_tles,
-            illuminated_only=illuminated_only,
-            progress_callback=progress_callback,
-        )
-
-        # Add all valid results to the final output
-        if results:
-            all_results.extend(results)
-            points_in_fov = len(results)
-            logger.info(
-                f"Propagation completed successfully with {points_in_fov} points in FOV"
-            )
-        else:
-            logger.warning("Propagation completed but returned no results")
-
-        logger.info(
-            f"Task completed: {points_in_fov} points in FOV, "
-            f"{satellites_processed} satellites processed"
-        )
-
-    except Exception as e:
-        logger.error(f"Error in parallel FOV processing: {str(e)}", exc_info=True)
-        logger.error(f"Failed after processing {satellites_processed} satellites")
-        satellites_processed = 0  # Set a default value in case of error
-        raise
+    points_in_fov = len(all_results)
 
     performance_metrics = {
-        "total_time": round(tle_time + execution_time, 3),
+        "total_time": round(tle_time + propagation_time, 3),
         "tle_time": round(tle_time, 3),
-        "propagation_time": round(execution_time, 3),
+        "propagation_time": round(propagation_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times,
     }
 
-    # Return the results
     return all_results, points_in_fov, group_by, performance_metrics
 
 
@@ -170,7 +99,7 @@ def get_fov_task_status(task_id: str) -> dict[str, Any]:
         dict: Task status and result if available
     """
     try:
-        task = calculate_satellite_passes_async.AsyncResult(task_id)
+        task = celery.AsyncResult(task_id)
 
         # Check if task exists
         if task.state == "PENDING":
@@ -190,7 +119,7 @@ def get_fov_task_status(task_id: str) -> dict[str, Any]:
             # Format the result properly for the API response
             result = task.result
 
-            if isinstance(result, list):
+            if isinstance(result, (list, tuple)) and len(result) >= 4:  # noqa: PLR2004
                 all_results = result[0]
                 points_in_fov = result[1]
                 group_by = result[2]
