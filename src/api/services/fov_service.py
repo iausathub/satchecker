@@ -115,7 +115,7 @@ def get_satellite_passes_in_fov_async(
             "message": "No TLEs available for the requested criteria",
         }
 
-    batch_size = 250
+    batch_size = 1000
     # Build batches and create chord for multi-CPU parallelism
     common_args = {
         "jd_times": jd_times_list,
