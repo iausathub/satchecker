@@ -99,7 +99,8 @@ Satellite passes Through FOV
                                         "dec": 17.38072389,
                                         "julian_date": 2460623.39478,
                                         "ra": 156.5457069,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC"
+                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
+                                        "range_km": 120182.57514042286
                                     },
                                     {
                                         "altitude": 3.8301086,
@@ -109,7 +110,8 @@ Satellite passes Through FOV
                                         "dec": 17.37990928,
                                         "julian_date": 2460623.39479157,
                                         "ra": 156.55155138,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC"
+                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
+                                        "range_km": 120182.57514042286
                                     }
                                 ]
                             },
@@ -125,7 +127,8 @@ Satellite passes Through FOV
                                         "dec": 22.88675663,
                                         "julian_date": 2460623.39478,
                                         "ra": 158.16558783,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC"
+                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
+                                        "range_km": 37871.88385502476
                                     },
                                     {
                                         "altitude": 8.18998929,
@@ -135,7 +138,8 @@ Satellite passes Through FOV
                                         "dec": 22.89132111,
                                         "julian_date": 2460623.39479157,
                                         "ra": 158.27515227,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC"
+                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
+                                        "range_km": 37871.88385502476
                                     }
                                 ]
                             },
@@ -151,7 +155,8 @@ Satellite passes Through FOV
                                         "dec": 18.15569881,
                                         "julian_date": 2460623.39478,
                                         "ra": 156.04031939,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC"
+                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
+                                        "range_km": 1868.7413807374958
                                     },
                                     {
                                         "altitude": 3.91713221,
@@ -161,7 +166,8 @@ Satellite passes Through FOV
                                         "dec": 18.26370601,
                                         "julian_date": 2460623.39479157,
                                         "ra": 156.04618993,
-                                        "tle_epoch": "2024-11-08 14:22:35 UTC"
+                                        "tle_epoch": "2024-11-08 14:22:35 UTC",
+                                        "range_km": 1868.7413807374958
                                     }
                                 ]
                             }

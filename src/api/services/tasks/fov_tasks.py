@@ -97,7 +97,7 @@ def calculate_satellite_passes_async(
             },
         )
 
-        logger.info("Starting parallel propagation with batch size 250")
+        logger.debug("Starting parallel propagation with batch size 250")
 
         # Allow multithreaded propagation to update task state
         def progress_callback(
@@ -129,15 +129,18 @@ def calculate_satellite_passes_async(
         if results:
             all_results.extend(results)
             points_in_fov = len(results)
-            logger.info(
+            logger.debug(
                 f"Propagation completed successfully with {points_in_fov} points in FOV"
             )
         else:
             logger.warning("Propagation completed but returned no results")
 
+        total_time = tle_time + execution_time
         logger.info(
-            f"Task completed: {points_in_fov} points in FOV, "
-            f"{satellites_processed} satellites processed"
+            f"FOV completed: RA={ra}° Dec={dec}° radius={fov_radius}° "
+            f"lat={location_lat}° lon={location_lon}° "
+            f"height={location_height}m {satellites_processed} satellites, "
+            f"{points_in_fov} points in FOV, {total_time:.2f}s (async)"
         )
 
     except Exception as e:

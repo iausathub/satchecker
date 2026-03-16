@@ -223,7 +223,7 @@ def test_check_redis_memory_missing_memory_info(mocker):
     check_redis_memory()
 
     # Should not raise exception
-    assert mock_logger.info.call_count >= 1
+    assert mock_logger.debug.call_count >= 1
 
 
 def test_check_redis_memory_missing_stats_info(mocker):
@@ -238,7 +238,7 @@ def test_check_redis_memory_missing_stats_info(mocker):
     check_redis_memory()
 
     # Should not raise exception
-    assert mock_logger.info.call_count >= 1
+    assert mock_logger.debug.call_count >= 1
 
 
 def test_create_fov_cache_key_none_time_values():

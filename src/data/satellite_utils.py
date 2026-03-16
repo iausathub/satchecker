@@ -336,6 +336,26 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         connection: Database connection
     """
     try:
+        # First, verify that the satellite exists
+        cursor.execute(
+            """
+            SELECT id FROM satellites
+            WHERE sat_name = %s
+            AND has_current_sat_number = true
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (parsed_data["satellite_name"],),
+        )
+        satellite_result = cursor.fetchone()
+        if satellite_result is None:
+            logging.warning(
+                f"Satellite {parsed_data['satellite_name']} not found in database, "
+                f"skipping ephemeris insertion"
+            )
+            return
+        satellite_id = satellite_result[0]
+
         ephemeris_insert = """
             INSERT INTO interpolable_ephemeris (
                 satellite,
@@ -347,9 +367,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 ephemeris_stop,
                 frame
             ) VALUES (
-                (SELECT id FROM satellites
-                 WHERE sat_name = %s
-                 AND has_current_sat_number = true),
+                %s,
                 %s,
                 %s,
                 %s,
@@ -365,7 +383,7 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
         cursor.execute(
             ephemeris_insert,
             (
-                parsed_data["satellite_name"],
+                satellite_id,
                 datetime.now(timezone.utc),  # date_collected
                 parsed_data["generated_at"],
                 "starlink",
@@ -375,7 +393,14 @@ def insert_ephemeris_data(parsed_data, cursor, connection):
                 parsed_data["frame"],
             ),
         )
-        ephemeris_id = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        if result is None:
+            logging.info(
+                f"Ephemeris data already exists for {parsed_data['satellite_name']} "
+                f"at {parsed_data['generated_at']}, skipping insertion"
+            )
+            return
+        ephemeris_id = result[0]
 
         # Prepare the points data for batch insert
         timestamps = parsed_data["timestamps"]
