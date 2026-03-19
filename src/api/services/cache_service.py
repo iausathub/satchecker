@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_TTL = 3600  # 1 hour in seconds
 RECENT_TLES_CACHE_KEY = "recent_tles"
+RECENT_TDM_PREDICTIONS_CACHE_KEY = "recent_tdm_predictions"
 
 
 def create_fov_cache_key(

@@ -171,11 +171,19 @@ def validate_parameters(
             if parameters["data_source"] is not None
             else "any"
         )
-        if parameters["data_source"] not in ["celestrak", "spacetrack", "any"]:
+        if parameters["data_source"] not in [
+            "celestrak",
+            "spacetrack",
+            "aerospace",
+            "any",
+        ]:
             raise ValidationError(
                 500,
                 error_messages.INVALID_SOURCE
-                + " - data_source must be 'celestrak', 'spacetrack', or 'any'",
+                + (
+                    " - data_source must be 'celestrak', 'spacetrack', "
+                    "'aerospace', or 'any'"
+                ),
             )
 
     if "tle" in parameters.keys():

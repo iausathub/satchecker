@@ -1,6 +1,6 @@
 import logging
 import time as python_time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import numpy as np
@@ -8,10 +8,12 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from skyfield.api import EarthSatellite, wgs84
 
+from api.adapters.repositories.tdm_repository import AbstractTdmPredictionRepository
 from api.adapters.repositories.tle_repository import (
     AbstractTLERepository,
     SqlAlchemyTLERepository,
 )
+from api.domain.models.tdm_prediction_point import TdmPredictionPoint
 from api.domain.models.tle import TLE
 from api.services.cache_service import (
     create_fov_cache_key,
@@ -318,6 +320,140 @@ def get_satellite_passes_in_fov(
     return json_result
 
 
+def get_satellite_passes_in_fov_tdm(
+    tdm_repo: AbstractTdmPredictionRepository,
+    site: str,
+    location: EarthLocation,
+    mid_obs_time_jd: Time,
+    start_time_jd: Time,
+    duration: float,
+    ra: float,
+    dec: float,
+    fov_radius: float,
+    group_by: str,
+    constellation: str,
+    api_source: str,
+    api_version: str,
+) -> dict[str, Any]:
+    start_time = python_time.time()
+
+    _log_fov_parameters(
+        False,
+        ra,
+        dec,
+        fov_radius,
+        duration,
+        location,
+        mid_obs_time_jd,
+        start_time_jd,
+        group_by,
+        False,
+        True,
+    )
+
+    base_time = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
+    base_datetime = astropy_time_to_datetime_utc(base_time)
+    time_param_datetime = base_datetime - timedelta(seconds=duration / 2)
+    time_param = Time(time_param_datetime)
+
+    # Get all current TLEs
+    tdm_prediction_points, count, tdm_prediction_time = _get_tdm_prediction_points(
+        tdm_repo, time_param, duration, site, constellation
+    )
+
+    calc_start = python_time.time()
+
+    jd_times = _create_jd_list(mid_obs_time_jd, start_time_jd, duration)
+
+    all_results = []
+    points_in_fov = 0
+    prediction_points_processed = 0
+    try:
+        # for each tdm prediction point, check if it is in the FOV during
+        # the duration of the observation
+        # if it is, add it to the results
+
+        ra_points = np.array([pt.right_ascension for pt in tdm_prediction_points])
+        dec_points = np.array([pt.declination for pt in tdm_prediction_points])
+        timestamps = np.array([pt.timestamp for pt in tdm_prediction_points])
+
+        in_fov = coordinate_systems.is_in_fov(
+            ra_points, dec_points, ra, dec, fov_radius
+        )
+        end_obs_time = time_param_datetime + timedelta(seconds=duration)
+        in_time = (timestamps >= time_param_datetime) & (timestamps <= end_obs_time)
+
+        fov_mask = in_fov & in_time
+
+        matched = [p for p, m in zip(tdm_prediction_points, fov_mask, strict=True) if m]
+
+        points_in_fov += len(matched)
+        prediction_points_processed += len(tdm_prediction_points)
+
+    except Exception as e:
+        logger.error(
+            f"Error in FOV processing with TDM predictions: {str(e)}",
+            exc_info=True,
+        )
+        logger.error(
+            f"Failed after processing {prediction_points_processed} prediction points"
+        )
+        prediction_points_processed = 0  # Set a default value in case of error
+        raise
+
+    end_time = python_time.time()
+    total_time = end_time - start_time
+    calc_time = end_time - calc_start
+
+    performance_metrics = _calculate_performance_metrics(
+        total_time,
+        tdm_prediction_time,
+        calc_time,
+        prediction_points_processed,
+        points_in_fov,
+        jd_times,
+        count,
+        calc_time,  # TODO: null? why is there prop time and execution time?
+    )
+
+    # convert tdm prediction points to dicts with info about points in fov
+    all_results = [
+        {
+            "date_time": pt.timestamp,
+            "ra": pt.right_ascension,
+            "dec": pt.declination,
+            "apparent_magnitude": pt.apparent_magnitude,
+            "norad_id": pt.satellite_number,
+            "name": pt.satellite_name,
+        }
+        for pt in matched
+    ]
+
+    # Before returning results, log any None values
+    for idx, result in enumerate(all_results):
+        for key, value in result.items():
+            if value is None:
+                logger.warning(
+                    f"Found None value in result {idx}, field {key} before returning"
+                )
+
+    try:
+        json_result: dict[str, Any] = output_utils.fov_data_to_json(
+            all_results,
+            points_in_fov,
+            performance_metrics,
+            api_source,
+            api_version,
+            group_by,
+        )
+        logger.info("Successfully formatted results to JSON")
+    except Exception as e:
+        logger.error(f"Failed to format results to JSON: {str(e)}", exc_info=True)
+        raise
+
+    return json_result
+
+
 def get_satellites_above_horizon(
     tle_repo: AbstractTLERepository,
     location: EarthLocation,
@@ -474,6 +610,62 @@ def _get_tle_data(
     logger.debug(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
 
     return tles, count, tle_time
+
+
+def _get_tdm_prediction_points(
+    tdm_repo: AbstractTdmPredictionRepository,
+    time_jd: Time,
+    duration: float,
+    site: str,
+    constellation: str,
+) -> tuple[list[TdmPredictionPoint], int, float]:
+    tdm_prediction_start = python_time.time()
+
+    epoch = astropy_time_to_datetime_utc(time_jd)
+    logger.info(
+        f"Fetching TDM prediction points for epoch: {epoch}, "
+        f"duration: {duration}s, site: {site!r}, constellation: {constellation!r}"
+    )
+
+    try:
+        tdm_predictions, count, _ = tdm_repo.get_all_tdm_predictions_at_epoch(
+            astropy_time_to_datetime_utc(time_jd),
+            duration,
+            1,
+            10000,
+            "zip",
+            site,
+            constellation,
+        )
+        logger.info(
+            f"get_all_tdm_predictions_at_epoch returned {len(tdm_predictions)} "
+            f"predictions (total_count={count})"
+        )
+
+        prediction_ids = [p.id for p in tdm_predictions if p.id is not None]
+        if prediction_ids:
+            logger.info(
+                f"Fetching prediction points for {len(prediction_ids)} "
+                f"TDM prediction ids: {prediction_ids[:20]}"
+            )
+        else:
+            logger.info("No TDM prediction ids — skipping point query")
+
+        tdm_prediction_points = tdm_repo.get_tdm_prediction_points(prediction_ids)
+        logger.info(
+            f"get_tdm_prediction_points returned {len(tdm_prediction_points)} points"
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Failed to retrieve TDM prediction points: {str(e)}",
+            exc_info=True,
+        )
+        raise
+
+    tdm_prediction_time = python_time.time() - tdm_prediction_start
+
+    return tdm_prediction_points, count, tdm_prediction_time
 
 
 def _check_cache_for_results(
@@ -664,7 +856,7 @@ def _calculate_performance_metrics(
     total_time: float,
     tle_time: float,
     prop_time: float,
-    satellites_processed: int,
+    satellites_processed: int,  # TODO change to objects processed or allow for both
     points_in_fov: int,
     jd_times: np.ndarray,
     count: int,
