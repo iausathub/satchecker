@@ -151,8 +151,8 @@ def calculate_satellite_passes_async(
 
     performance_metrics = {
         "total_time": round(tle_time + execution_time, 3),
-        "tle_time": round(tle_time, 3),
-        "propagation_time": round(execution_time, 3),
+        "data_retrieval_time": round(tle_time, 3),
+        "calculation_time": round(execution_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times,

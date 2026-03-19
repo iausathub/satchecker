@@ -403,17 +403,17 @@ def get_satellite_passes_in_fov_tdm(
 
     end_time = python_time.time()
     total_time = end_time - start_time
-    calc_time = end_time - calc_start
+    execution_time = end_time - calc_start
 
     performance_metrics = _calculate_performance_metrics(
         total_time,
         tdm_prediction_time,
-        calc_time,
+        execution_time,
         prediction_points_processed,
         points_in_fov,
         jd_times,
         count,
-        calc_time,  # TODO: null? why is there prop time and execution time?
+        execution_time,
     )
 
     # convert tdm prediction points to dicts with info about points in fov
@@ -854,8 +854,8 @@ def _log_fov_parameters(
 
 def _calculate_performance_metrics(
     total_time: float,
-    tle_time: float,
-    prop_time: float,
+    retrieval_time: float,
+    calc_time: float,
     satellites_processed: int,  # TODO change to objects processed or allow for both
     points_in_fov: int,
     jd_times: np.ndarray,
@@ -867,8 +867,9 @@ def _calculate_performance_metrics(
 
     Args:
         total_time: Total execution time in seconds
-        tle_time: Time spent retrieving TLE data in seconds
-        prop_time: Time spent on propagation calculations in seconds
+        retrieval_time: Time spent retrieving orbital data in seconds
+        calc_time: Time spent on propagation (or other FOV)
+        calculations in seconds
         satellites_processed: Number of satellites processed
         points_in_fov: Number of points found in field of view
         jd_times: List of Julian day times used in calculations
@@ -879,16 +880,15 @@ def _calculate_performance_metrics(
         dict[str, Any]: Performance metrics dictionary
     """
     # Log performance metrics
-    total_time = tle_time + prop_time + execution_time
     logger.debug("\nPerformance Metrics:")
     logger.debug(f"Total execution time: {total_time:.2f} seconds")
     logger.debug(
-        f"TLE retrieval time: {tle_time:.2f} seconds "
-        f"({(tle_time/total_time)*100:.1f}%)"
+        f"Data retrieval time: {retrieval_time:.2f} seconds "
+        f"({(retrieval_time/total_time)*100:.1f}%)"
     )
     logger.debug(
-        f"Propagation time: {prop_time:.2f} seconds "
-        f"({(prop_time/total_time)*100:.1f}%)"
+        f"Calculation time: {calc_time:.2f} seconds "
+        f"({(calc_time/total_time)*100:.1f}%)"
     )
     logger.debug("\nResults Summary:")
     logger.debug(f"Satellites processed: {satellites_processed}/{count}")
@@ -897,8 +897,8 @@ def _calculate_performance_metrics(
 
     performance_metrics = {
         "total_time": round(total_time, 3),
-        "tle_time": round(tle_time, 3),
-        "propagation_time": round(execution_time, 3),
+        "data_retrieval_time": round(retrieval_time, 3),
+        "calculation_time": round(execution_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),

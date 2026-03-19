@@ -303,8 +303,8 @@ def test_calculate_satellite_passes_async_empty_results(app, session, mocker):
         assert points_in_fov == 0
         assert group_by == "satellite"
         assert performance_metrics["points_in_fov"] == 0
-        assert performance_metrics["propagation_time"] == 0.5
-        assert performance_metrics["tle_time"] == 0.1
+        assert performance_metrics["calculation_time"] == 0.5
+        assert performance_metrics["data_retrieval_time"] == 0.1
         assert mock_update_state.called
 
 
@@ -412,7 +412,7 @@ def test_calculate_satellite_passes_async_with_results(app, session, mocker):
                 "batch_size": 250,
                 "illuminated_only": False,
                 "group_by": "satellite",
-                "tle_time": 0.2,
+                "data_retrieval_time": 0.2,
             }
         ).get()
 
@@ -422,8 +422,8 @@ def test_calculate_satellite_passes_async_with_results(app, session, mocker):
         assert points_in_fov == 2
         assert group_by == "satellite"
         assert performance_metrics["points_in_fov"] == 2
-        assert performance_metrics["propagation_time"] == 1.5
-        assert performance_metrics["tle_time"] == 0.2
+        assert performance_metrics["calculation_time"] == 1.5
+        assert performance_metrics["data_retrieval_time"] == 0.2
         assert performance_metrics["total_time"] == 1.7
         assert performance_metrics["satellites_processed"] == 1
 
