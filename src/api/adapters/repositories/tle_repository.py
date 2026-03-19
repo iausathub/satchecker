@@ -459,7 +459,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         current_time = datetime.now(timezone.utc)
         total_count = 0
 
-        logger.info(
+        logger.debug(
             f"Fetching TLEs for epoch {epoch_date} (page {page}, per_page {per_page})"
         )
         start_time = time.time()
@@ -501,12 +501,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
                         logger.debug(f"Returning {len(tles)} TLEs from cache")
                         execution_time = time.time() - start_time
-                        logger.info(
+                        logger.debug(
                             f"Cache retrieval completed in {execution_time:.2f} seconds"
                         )
                         return tles, total_count, "cache"
             else:
-                logger.info(f"Cache miss for epoch {epoch_date}")
+                logger.debug(f"Cache miss for epoch {epoch_date}")
 
         except Exception as e:
             logger.error(f"Error getting TLEs from cache: {e}")
@@ -514,7 +514,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             # continue with the database query in case of error
 
         # If we get here, we need to query the database
-        logger.info("Querying database for TLEs")
+        logger.debug("Querying database for TLEs")
         try:
             # First get valid satellites
             satellites_sql = text("""
@@ -600,12 +600,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 start_idx = (page - 1) * per_page
                 end_idx = start_idx + per_page
                 tles = tles[start_idx:end_idx]
-                logger.info(
+                logger.debug(
                     f"Pagination: returning {len(tles)} TLEs out of {total_count} total"
                 )
 
             execution_time = time.time() - start_time
-            logger.info(f"Database query completed in {execution_time:.2f} seconds")
+            logger.debug(f"Database query completed in {execution_time:.2f} seconds")
             return tles, total_count, "database"
 
         except Exception as e:
@@ -633,7 +633,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         current_time = datetime.now(timezone.utc)
         total_count = 0
 
-        logger.info(
+        logger.debug(
             f"Fetching TLEs for epoch {epoch_date} (page {page}, per_page {per_page})"
         )
         start_time = time.time()
@@ -675,12 +675,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
 
                         logger.debug(f"Returning {len(tles)} TLEs from cache")
                         execution_time = time.time() - start_time
-                        logger.info(
+                        logger.debug(
                             f"Cache retrieval completed in {execution_time:.2f} seconds"
                         )
                         return tles, total_count, "cache"
             else:
-                logger.info(f"Cache miss for epoch {epoch_date}")
+                logger.debug(f"Cache miss for epoch {epoch_date}")
 
         except Exception as e:
             logger.error(f"Error getting TLEs from cache: {e}")
@@ -688,7 +688,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
             # continue with the database query in case of error
 
         # If we get here, we need to query the database
-        logger.info("Querying database for TLEs")
+        logger.debug("Querying database for TLEs")
 
         if data_source == "any":
             data_source = None
@@ -772,12 +772,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 start_idx = (page - 1) * per_page
                 end_idx = start_idx + per_page
                 tles = tles[start_idx:end_idx]
-                logger.info(
+                logger.debug(
                     f"Pagination: returning {len(tles)} TLEs out of {total_count} total"
                 )
 
             execution_time = time.time() - start_time
-            logger.info(f"Database query completed in {execution_time:.2f} seconds")
+            logger.debug(f"Database query completed in {execution_time:.2f} seconds")
             return tles, total_count, "database"
 
         except Exception as e:

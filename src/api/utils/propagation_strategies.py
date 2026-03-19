@@ -17,7 +17,7 @@ from astropy.time import Time, TimeDelta
 from scipy.interpolate import KroghInterpolator
 from scipy.linalg import sqrtm
 from sgp4.api import Satrec
-from skyfield.api import EarthSatellite, load, wgs84
+from skyfield.api import EarthSatellite, wgs84
 from skyfield.nutationlib import iau2000b
 
 from api.utils import coordinate_systems, output_utils
@@ -35,6 +35,7 @@ from api.utils.coordinate_systems import (
     load_earth_sun,
     teme_to_ecef,
 )
+from api.utils.skyfield_loader import load
 from api.utils.time_utils import jd_to_gst
 
 logger = logging.getLogger(__name__)
