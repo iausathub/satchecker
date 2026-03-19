@@ -412,7 +412,7 @@ def test_calculate_satellite_passes_async_with_results(app, session, mocker):
                 "batch_size": 250,
                 "illuminated_only": False,
                 "group_by": "satellite",
-                "data_retrieval_time": 0.2,
+                "tle_time": 0.2,
             }
         ).get()
 
