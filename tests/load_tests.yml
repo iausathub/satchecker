@@ -79,11 +79,11 @@ scenarios:
   - name: High Volume Starlink
     flow:
       - get:
-          url: "/ephemeris/name/?name=STARLINK-1000&elevation=120&latitude=10&longitude=-70&julian_date=2460546.599502"
+          url: "/ephemeris/name/?name=STARLINK-31000&elevation=120&latitude=10&longitude=-70&julian_date=2460546.599502"
           expect:
             - statusCode: [200, 429]  # Accept both success and rate limit
       - get:
-          url: "/ephemeris/name/?name=STARLINK-1050&elevation=110&latitude=12&longitude=-75&julian_date=2460546.599502"
+          url: "/ephemeris/name/?name=STARLINK-31050&elevation=110&latitude=12&longitude=-75&julian_date=2460546.599502"
           expect:
             - statusCode: [200, 429]  # Accept both success and rate limit
   - name: FOV View Grid
