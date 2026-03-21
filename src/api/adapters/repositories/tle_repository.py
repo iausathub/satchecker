@@ -973,6 +973,12 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                 )
                 .first()
             )
+
+        # filter out satellites that have no TLEs in the database
+        closest_tles = [tle for tle in closest_tles if tle is not None]
+        if not closest_tles:
+            return None
+
         # get the TLE with the epoch closest to the specified epoch
         nearest_tle = min(closest_tles, key=lambda tle: abs(tle.epoch - epoch))
         nearest_sat_id = int(
