@@ -1,52 +1,13 @@
 """API package initialization."""
 
-import json
 import logging
 import os
-import re
 import sys
-from datetime import datetime, timezone
 
 from flask import Flask
 
 from api.celery_app import celery
-
-
-class JSONFormatter(logging.Formatter):
-    # Regex to strip ANSI color codes
-    ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
-
-    def format(self, record):
-        timestamp = datetime.fromtimestamp(record.created, tz=timezone.utc)
-
-        # Strip ANSI color codes from message
-        message = self.ANSI_ESCAPE.sub("", record.getMessage())
-
-        log_data = {
-            "timestamp": timestamp.isoformat().replace("+00:00", "Z"),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": message,
-        }
-        # Add extra fields if present (from our request logging)
-        for key in [
-            "endpoint",
-            "method",
-            "path",
-            "status",
-            "duration_ms",
-            "ip",
-            "query",
-            "user_agent",
-        ]:
-            if hasattr(record, key):
-                log_data[key] = getattr(record, key)
-
-        # Include exception traceback if present
-        if record.exc_info:
-            log_data["exception"] = self.formatException(record.exc_info)
-
-        return json.dumps(log_data, ensure_ascii=False)
+from api.utils.log_formatter import JSONFormatter
 
 
 def create_app(test_config=None):
@@ -137,7 +98,7 @@ def create_app(test_config=None):
 
 def setup_logging(app):
     """Set up logging based on the running environment."""
-    is_gunicorn = "gunicorn" in sys.modules
+    formatter: logging.Formatter = JSONFormatter()
 
     # Configure root logger - all other loggers inherit from this
     root_logger = logging.getLogger()
@@ -149,34 +110,25 @@ def setup_logging(app):
     # Prevent app.logger from propagating to root (avoid duplicates)
     app.logger.propagate = False
 
-    if is_gunicorn:  # pragma: no cover
-        # JSON log format for better use in Grafana
-        formatter: logging.Formatter = JSONFormatter()
+    # When running under gunicorn, reuse its handlers so logs go to the
+    # same stream gunicorn manages (stdout/stderr in the container).
+    gunicorn_logger = logging.getLogger("gunicorn.error")
 
-        gunicorn_logger = logging.getLogger("gunicorn.error")
+    if gunicorn_logger.handlers:  # pragma: no cover
         for handler in gunicorn_logger.handlers:
             handler.setFormatter(formatter)
             root_logger.addHandler(handler)
             app.logger.addHandler(handler)
-
-        root_logger.setLevel(logging.INFO)
-        app.logger.setLevel(logging.INFO)
-        app.logger.info("Production logging configured (JSON)")
     else:
-        # Text format for local development
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
-
         root_logger.addHandler(console_handler)
         app.logger.addHandler(console_handler)
 
-        log_level = logging.DEBUG if app.debug else logging.INFO
-        root_logger.setLevel(log_level)
-        app.logger.setLevel(log_level)
-        app.logger.info("Development logging configured")
+    log_level = logging.DEBUG if app.debug else logging.INFO
+    root_logger.setLevel(log_level)
+    app.logger.setLevel(log_level)
+    app.logger.info("Logging configured (JSON)")
 
 
 app = create_app()

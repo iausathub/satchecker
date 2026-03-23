@@ -466,7 +466,7 @@ def get_satellites_above_horizon(
 
     performance_metrics = {
         "total_time": round(total_time, 3),
-        "tle_time": round(tle_time, 3),
+        "data_retrieval_time": round(tle_time, 3),
         "satellites_processed": satellites_processed,
         "visible_satellites": visible_satellites,
     }
@@ -708,8 +708,9 @@ def _calculate_performance_metrics(
 
     Args:
         total_time: Total execution time in seconds
-        tle_time: Time spent retrieving TLE data in seconds
-        prop_time: Time spent on propagation calculations in seconds
+        retrieval_time: Time spent retrieving orbital data in seconds
+        calc_time: Time spent on propagation (or other FOV)
+        calculations in seconds
         satellites_processed: Number of satellites processed
         points_in_fov: Number of points found in field of view
         jd_times: List of Julian day times used in calculations

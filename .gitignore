@@ -4,6 +4,7 @@
 /postgres-docker
 /data/db.sql
 /data/AWSCLIv2.pkg
+/src/data/testing/*
 .vscode/*
 test.py
 *.pem

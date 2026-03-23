@@ -37,7 +37,6 @@ def test_error_response_structure(app):
         error = BadRequest("Bad request test")
         response, status_code = handle_error(error)
         assert set(response.json.keys()) == {
-            "timestamp",
             "path",
             "method",
             "error_type",
