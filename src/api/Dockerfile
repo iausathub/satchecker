@@ -21,6 +21,7 @@ COPY . ./api
 
 ENV FLASK_APP satchecker.py
 ENV SKYFIELD_DATA_DIR=/app/skyfield-data
+ENV SERVICE_NAME=api
 
 RUN chown -R api:api ./ /app/skyfield-data
 USER api

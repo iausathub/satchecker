@@ -16,6 +16,7 @@ import sys
 
 import psycopg2
 from connections import get_db_login
+from logging_utils import JSONFormatter
 from psycopg2 import OperationalError
 from satellite_utils import (
     get_decayed_satellites,
@@ -31,10 +32,13 @@ from tle_utils import (
 
 
 def main():
-    # define the logging info
-    logging.basicConfig(
-        level=logging.INFO,
-    )
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JSONFormatter())
+
+    root_logger = logging.getLogger()
+    root_logger.handlers = []
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(description="Retrieve TLEs from celestrak.com")
     parser.add_argument(
