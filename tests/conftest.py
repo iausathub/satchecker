@@ -135,8 +135,10 @@ def cleanup_database(session):
 
     yield
     try:
-        # Delete from tle first since it references satellites
+        # Delete child tables before parent tables to respect FK constraints
         session.execute(text("DELETE FROM tle"))
+        session.execute(text("DELETE FROM tdm_prediction_points"))
+        session.execute(text("DELETE FROM tdm_predictions"))
         session.execute(text("DELETE FROM satellites"))
         session.commit()
     except Exception as e:
@@ -448,7 +450,7 @@ class FakeTdmPredictionRepository(AbstractTdmPredictionRepository):
         self._tdm_predictions.add(tdm_prediction)
 
     def _get_all_tdm_predictions_at_epoch(
-        self, epoch_date, duration, page, per_page, format, site_name, constellation
+        self, epoch_date, duration, site_name, constellation
     ):
         if self.exception_to_raise:
             raise self.exception_to_raise

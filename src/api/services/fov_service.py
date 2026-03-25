@@ -664,9 +664,6 @@ def _get_tdm_prediction_points(
         tdm_predictions, count, _ = tdm_repo.get_all_tdm_predictions_at_epoch(
             astropy_time_to_datetime_utc(time_jd),
             duration,
-            1,
-            10000,
-            "zip",
             site,
             constellation,
         )

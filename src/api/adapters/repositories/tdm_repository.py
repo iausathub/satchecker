@@ -29,14 +29,11 @@ class AbstractTdmPredictionRepository(abc.ABC):
         self,
         epoch_date: datetime,
         duration: float,
-        page: int,
-        per_page: int,
-        format: str,
         site_name: str,
         constellation: str | None = None,
     ) -> tuple[list[TdmPrediction], int, str]:
         return self._get_all_tdm_predictions_at_epoch(
-            epoch_date, duration, page, per_page, format, site_name, constellation
+            epoch_date, duration, site_name, constellation
         )
 
     def get_tdm_prediction_points(
@@ -50,9 +47,6 @@ class AbstractTdmPredictionRepository(abc.ABC):
         self,
         epoch_date: datetime,
         duration: float,
-        page: int,
-        per_page: int,
-        format: str,
         site_name: str,
         constellation: str | None = None,
     ) -> tuple[list[TdmPrediction], int, str]:
@@ -264,9 +258,6 @@ class SqlAlchemyTdmPredictionRepository(AbstractTdmPredictionRepository):
         self,
         epoch_date: datetime,
         duration: float,
-        page: int,
-        per_page: int,
-        format: str,
         site_name: str,
         constellation: str | None = None,
     ) -> tuple[list[TdmPrediction], int, str]:
@@ -280,8 +271,7 @@ class SqlAlchemyTdmPredictionRepository(AbstractTdmPredictionRepository):
         total_count = 0
 
         logger.info(
-            f"Fetching TdmPredictions for epoch {epoch_date} "
-            f"(page {page}, per_page {per_page})"
+            f"Fetching TdmPredictions for epoch {epoch_date} (site={site_name!r})"
         )
         start_time = time.time()
 
@@ -428,14 +418,6 @@ class SqlAlchemyTdmPredictionRepository(AbstractTdmPredictionRepository):
                 f"Built {total_count} TdmPrediction domain objects after "
                 f"satellite metadata join"
             )
-            if format != "zip":
-                start_idx = (page - 1) * per_page
-                end_idx = start_idx + per_page
-                tdm_predictions = tdm_predictions[start_idx:end_idx]
-                logger.info(
-                    f"Pagination: returning {len(tdm_predictions)} TdmPredictions "
-                    f"out of {total_count} total"
-                )
 
             execution_time = time.time() - start_time
             logger.info(f"Database query completed in {execution_time:.2f} seconds")
