@@ -127,7 +127,7 @@ def get_satellite_passes():
         in: query
         type: string
         required: false
-        description: Data source to use for orbital data ("celestrak","spacetrack", or "aerospace"). Default is any/all sources.
+        description: Data source to use for orbital data ("celestrak","spacetrack"). Default is any/all sources.
         example: "celestrak"
       - name: illuminated_only
         in: query
