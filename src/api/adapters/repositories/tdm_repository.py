@@ -79,25 +79,26 @@ class SqlAlchemyTdmPredictionRepository(AbstractTdmPredictionRepository):
         self.cache_enabled = True
 
     @staticmethod
-    def _to_domain(orm_tdm) -> TdmPrediction | None:
+    def _to_domain(orm_tdm, session) -> TdmPrediction | None:
         # Return None if orm_tdm is None
         if orm_tdm is None:
             return None
 
         # Return None or raise an exception if satellite is None
-        if orm_tdm.satellite is None:
+        if orm_tdm.norad_id is None:
             logger.warning(
                 f"Found TdmPrediction track_id={orm_tdm.track_id} "
-                f"{orm_tdm.creation_date} without a satellite"
+                f"{orm_tdm.creation_date} without a norad_id"
             )
             return None
 
+        sat_repository = SqlAlchemySatelliteRepository(session)
+        satellite = sat_repository.get_satellite_data_by_id(orm_tdm.norad_id)
         # Only convert if we have a valid satellite
-        satellite = SqlAlchemySatelliteRepository._to_domain(orm_tdm.satellite)
         if satellite is None:
             logger.warning(
                 f"Failed to convert satellite for TdmPrediction "
-                f"sat_number={orm_tdm.satellite.sat_number} {orm_tdm.creation_date}"
+                f"sat_number={orm_tdm.norad_id} {orm_tdm.creation_date}"
             )
             return None
 
@@ -125,7 +126,7 @@ class SqlAlchemyTdmPredictionRepository(AbstractTdmPredictionRepository):
             date_added=domain_tdm.date_added,
             track_id=domain_tdm.track_id,
             folder_name=domain_tdm.folder_name,
-            satellite=SqlAlchemySatelliteRepository._to_orm(domain_tdm.satellite),
+            norad_id=domain_tdm.satellite.sat_number,
         )
 
     @staticmethod
