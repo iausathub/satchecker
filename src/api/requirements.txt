@@ -183,7 +183,6 @@ types-setuptools==80.3.0.20250505
 typing_extensions==4.7.1
 tzdata==2024.1
 tzlocal==5.2
-urllib3==1.26.19
 urllib3==2.6.3
 vine==5.1.0
 virtualenv==21.2.0
