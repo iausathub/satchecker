@@ -1,15 +1,20 @@
 # ruff: noqa: S101
 import logging
-from datetime import timezone
+from datetime import timedelta, timezone
 
 import pytest
 from astropy.time import Time
-from tests.conftest import FakeTLERepository
+from tests.conftest import FakeTdmPredictionRepository, FakeTLERepository
 from tests.factories.satellite_factory import SatelliteFactory
+from tests.factories.tdm_prediction_factory import (
+    TdmPredictionFactory,
+    TdmPredictionPointFactory,
+)
 from tests.factories.tle_factory import TLEFactory
 
 from api.services.fov_service import (
     get_satellite_passes_in_fov,
+    get_satellite_passes_in_fov_tdm,
     get_satellites_above_horizon,
 )
 
@@ -180,6 +185,107 @@ def test_satellite_outside_fov(test_location, test_time):
         constellation=None,
         data_source="any",
         illuminated_only=False,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    assert len(result["data"]["satellites"]) == 0
+    assert result["data"]["total_position_results"] == 0
+
+
+def test_satellite_in_fov_tdm(test_location, test_time):
+    """Test when satellite never enters FOV"""
+    # Set up with FOV pointing away from orbit - RA changed to 48.797270
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+        constellation="starlink",
+    )
+
+    tdm_prediction = TdmPredictionFactory(
+        satellite=satellite,
+        creation_date=test_time,
+        time_range_start=test_time - timedelta(minutes=2),
+        time_range_end=test_time + timedelta(minutes=2),
+    )
+
+    point = TdmPredictionPointFactory(
+        tdm_prediction_id=tdm_prediction.id,
+        timestamp=test_time + timedelta(seconds=15),
+        right_ascension=48.797270,
+        declination=75.774139,
+        apparent_magnitude=10.0,
+        satellite_number=31746,
+        satellite_name="FENGYUN 1C DEB",
+    )
+    tdm_repo = FakeTdmPredictionRepository(
+        tdm_prediction_points=[point], tdm_predictions=[tdm_prediction]
+    )
+
+    result = get_satellite_passes_in_fov_tdm(
+        tdm_repo,
+        site="LSST",
+        location=test_location,
+        mid_obs_time_jd=test_time,
+        start_time_jd=None,
+        duration=30,
+        ra=48.797270,
+        dec=75.774139,
+        fov_radius=2.0,
+        group_by="satellite",
+        constellation="starlink",
+        api_source="test",
+        api_version="1.0",
+    )
+
+    assert len(result["data"]["satellites"]) == 0
+    assert result["data"]["total_position_results"] == 0
+
+
+def test_satellite_outside_fov_tdm(test_location, test_time):
+    """Test when satellite never enters FOV"""
+    # Set up with FOV pointing away from orbit - RA changed to 48.797270
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+
+    tdm_prediction = TdmPredictionFactory(
+        satellite=satellite,
+        creation_date=test_time,
+    )
+
+    point = TdmPredictionPointFactory(
+        tdm_prediction_id=tdm_prediction.id,
+        timestamp=test_time + timedelta(minutes=1),
+        right_ascension=40.797270,
+        declination=72.774139,
+        apparent_magnitude=10.0,
+        satellite_number=31746,
+        satellite_name="FENGYUN 1C DEB",
+    )
+    tdm_repo = FakeTdmPredictionRepository(
+        tdm_prediction_points=[point], tdm_predictions=[tdm_prediction]
+    )
+
+    result = get_satellite_passes_in_fov_tdm(
+        tdm_repo,
+        site="test",
+        location=test_location,
+        mid_obs_time_jd=test_time,
+        start_time_jd=None,
+        duration=30,
+        ra=48.797270,
+        dec=75.774139,
+        fov_radius=2.0,
+        group_by="satellite",
+        constellation="starlink",
         api_source="test",
         api_version="1.0",
     )

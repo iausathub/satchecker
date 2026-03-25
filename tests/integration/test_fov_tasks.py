@@ -17,12 +17,10 @@ from api.services.tasks.fov_tasks import get_fov_task_status
 def test_get_fov_task_status_pending(app, mocker):
     """Test getting status of a pending task."""
     with app.app_context():
-        # Use a fake task ID
         task_id = "fake-task-id-12345"
 
         status = get_fov_task_status(task_id)
 
-        # Should return pending status for task that hasn't been run yet
         assert status["status"] == "PENDING"
         assert status["task_id"] == task_id
         assert "message" in status
@@ -57,7 +55,6 @@ def test_fov_endpoint_async_integration(client, session, services_available):
     assert response.status_code == 200
     data = response.json
 
-    # Should return task information with valid task_id
     assert "task_id" in data
     assert data["task_id"] is not None
     assert isinstance(data["task_id"], str)
@@ -68,14 +65,12 @@ def test_fov_endpoint_async_integration(client, session, services_available):
     assert "message" in data
     assert isinstance(data["message"], str)
 
-    # Verify task status endpoint is queryable
     task_id = data["task_id"]
     status_response = client.get(f"/fov/task-status/{task_id}")
 
     assert status_response.status_code == 200
     status_data = status_response.json
 
-    # Verify status endpoint returns valid structure
     assert "task_id" in status_data
     assert status_data["task_id"] == task_id
     assert "status" in status_data
@@ -94,7 +89,6 @@ def test_fov_endpoint_sync(client, session, services_available):
     tle_repo.add(tle)
     session.commit()
 
-    # Make request with async=false for immediate results
     response = client.get(
         "/fov/satellite-passes/?latitude=0&longitude=0&elevation=0"
         "&mid_obs_time_jd=2460218.5&duration=30&ra=224.048903&dec=78.778084"
@@ -104,16 +98,13 @@ def test_fov_endpoint_sync(client, session, services_available):
     assert response.status_code == 200
     data = response.json
 
-    # Should return actual results, not a task ID
     assert "task_id" not in data
-    # Should have FOV data
     assert "data" in data or "satellites" in data or "info" in data
 
 
 def test_get_fov_task_status_progress(app, mocker):
     """Test getting status of a task in progress."""
     with app.app_context():
-        # Mock a task in PROGRESS state
         mock_task = mocker.Mock()
         mock_task.state = "PROGRESS"
         mock_task.info = {
@@ -139,7 +130,6 @@ def test_get_fov_task_status_progress(app, mocker):
 def test_get_fov_task_status_failure(app, mocker):
     """Test getting status of a failed task."""
     with app.app_context():
-        # Mock a task in FAILURE state
         mock_task = mocker.Mock()
         mock_task.state = "FAILURE"
         mock_task.info = Exception("Propagation error occurred")
@@ -161,7 +151,6 @@ def test_get_fov_task_status_failure(app, mocker):
 def test_get_fov_task_status_exception_handling(app, mocker):
     """Test exception handling in get_fov_task_status."""
     with app.app_context():
-        # Mock AsyncResult to raise an exception
         mocker.patch(
             "api.services.tasks.fov_tasks.celery.AsyncResult",
             side_effect=Exception("Connection error"),
@@ -179,7 +168,6 @@ def test_get_fov_task_status_exception_handling(app, mocker):
 def test_get_fov_task_status_unknown_state(app, mocker):
     """Test getting status of a task in an unknown state."""
     with app.app_context():
-        # Mock a task in an unknown/custom state
         mock_task = mocker.Mock()
         mock_task.state = "REVOKED"
 
@@ -198,7 +186,6 @@ def test_get_fov_task_status_unknown_state(app, mocker):
 def test_get_fov_task_status_success_with_list_result(app, mocker):
     """Test getting status of a successful task with list result (normal case)."""
     with app.app_context():
-        # Mock a task in SUCCESS state with a list result
         mock_task = mocker.Mock()
         mock_task.state = "SUCCESS"
         # Result is a tuple: (results, points_in_fov, group_by, performance_metrics)
@@ -239,7 +226,6 @@ def test_get_fov_task_status_success_with_list_result(app, mocker):
 def test_get_fov_task_status_success_non_list(app, mocker):
     """Test getting status of a successful task with non-list result."""
     with app.app_context():
-        # Mock a task in SUCCESS state with a non-list result
         mock_task = mocker.Mock()
         mock_task.state = "SUCCESS"
         mock_task.result = {"custom": "result", "data": "value"}
@@ -278,4 +264,7 @@ def test_aggregate_fov_results_task(app):
         assert points_in_fov == 2
         assert group_by == "satellite"
         assert metrics["satellites_processed"] == 2
-        assert metrics["propagation_time"] == 0.8  # 0.5 + 0.3
+        assert metrics["calculation_time"] == 0.8
+        assert metrics["data_retrieval_time"] == 0.1
+        assert metrics["total_time"] == 0.9
+        assert metrics["points_in_fov"] == 2
