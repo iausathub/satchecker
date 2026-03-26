@@ -200,7 +200,15 @@ def fov_data_to_json(
         for field, value in fields_to_round:
             if value is None:
                 continue
-            if field in ["ra", "dec", "altitude", "azimuth", "angle", "range_km"]:
+            if field in [
+                "ra",
+                "dec",
+                "altitude",
+                "azimuth",
+                "angle",
+                "range_km",
+                "apparent_magnitude",
+            ]:
                 result[field] = my_round(value, precision_angles)
             elif field == "julian_date":
                 result[field] = my_round(value, precision_date)
@@ -243,8 +251,11 @@ def fov_data_to_json(
                 "date_time": format_date(result.get("date_time")),
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
-                "tle_epoch": result.get("tle_epoch"),
             }
+            if "tle_epoch" in result:
+                pass_data["tle_epoch"] = result["tle_epoch"]
+            if "apparent_magnitude" in result:
+                pass_data["apparent_magnitude"] = result["apparent_magnitude"]
             satellites[sat_key]["positions"].append(pass_data)
 
         formatted_results = {

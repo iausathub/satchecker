@@ -1,6 +1,6 @@
 # noqa: I001
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import psycopg2
@@ -17,6 +17,7 @@ from api.adapters.database_orm import Base
 from api.adapters.repositories.satellite_repository import (
     AbstractSatelliteRepository,
 )
+from api.adapters.repositories.tdm_repository import AbstractTdmPredictionRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.entrypoints.extensions import db as database
@@ -134,8 +135,10 @@ def cleanup_database(session):
 
     yield
     try:
-        # Delete from tle first since it references satellites
+        # Delete child tables before parent tables to respect FK constraints
         session.execute(text("DELETE FROM tle"))
+        session.execute(text("DELETE FROM tdm_prediction_points"))
+        session.execute(text("DELETE FROM tdm_predictions"))
         session.execute(text("DELETE FROM satellites"))
         session.commit()
     except Exception as e:
@@ -435,6 +438,41 @@ class FakeTLERepository(AbstractTLERepository):
             key=lambda tle: abs(tle.epoch - epoch),
             default=None,
         )
+
+
+class FakeTdmPredictionRepository(AbstractTdmPredictionRepository):
+    def __init__(self, tdm_predictions, tdm_prediction_points, exception_to_raise=None):
+        self._tdm_predictions = set(tdm_predictions)
+        self._tdm_prediction_points = set(tdm_prediction_points)
+        self.exception_to_raise = exception_to_raise
+
+    def _add(self, tdm_prediction):
+        self._tdm_predictions.add(tdm_prediction)
+
+    def _get_all_tdm_predictions_at_epoch(
+        self, epoch_date, duration, site_name, constellation
+    ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        range_end = epoch_date + timedelta(seconds=duration)
+        results = [
+            p
+            for p in self._tdm_predictions
+            if p.time_range_start <= epoch_date
+            and p.time_range_end >= range_end
+            and (constellation is None or p.satellite.constellation == constellation)
+            and (site_name is None or p.site_name == site_name)
+        ]
+        return results, len(results), "fake"
+
+    def _get_tdm_prediction_points(self, tdm_prediction_ids):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        return [
+            pt
+            for pt in self._tdm_prediction_points
+            if pt.tdm_prediction_id in tdm_prediction_ids
+        ]
 
 
 class FakeSession:

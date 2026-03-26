@@ -687,9 +687,11 @@ def test_benchmark_fov_endpoint_response_time(
             f"Satellites processed: {result.get('performance_metrics', {}).get('satellites_processed', 0)}"
         )
         print(
-            f"Propagation time: {result.get('performance_metrics', {}).get('propagation_time', 0)}s"
+            f"Calculation time: {result.get('performance_metrics', {}).get('calculation_time', 0)}s"
         )
-        print(f"TLE time: {result.get('performance_metrics', {}).get('tle_time', 0)}s")
+        print(
+            f"Data retrieval time: {result.get('performance_metrics', {}).get('data_retrieval_time', 0)}s"
+        )
         print(
             f"Total time: {result.get('performance_metrics', {}).get('total_time', 0)}s"
         )
