@@ -6,7 +6,6 @@ from typing import Any
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from api.domain.models.tle import TLE
 from api.entrypoints.extensions import db, redis_client, scheduler
 
 # Use the application's centralized logging configuration
@@ -14,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_TTL = 3600  # 1 hour in seconds
 RECENT_TLES_CACHE_KEY = "recent_tles"
+RECENT_TDM_PREDICTIONS_CACHE_KEY = "recent_tdm_predictions"
 
 
 def create_fov_cache_key(
@@ -90,13 +90,13 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
         if isinstance(data, dict):
             if "results" in data:
                 results_count = len(data["results"]) if data["results"] else 0
-                logger.info(
+                logger.debug(
                     f"Caching {results_count} results in data structure "
                     f"for key {key}"
                 )
             if "tles" in data:
                 tles_count = len(data["tles"]) if data["tles"] else 0
-                logger.info(
+                logger.debug(
                     f"Caching {tles_count} TLEs in data structure for key {key}"
                 )
 
@@ -107,10 +107,8 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
             )
             return False
 
-        logger.info(f"Attempting to cache data for key {key}: {serialized_size} bytes")
+        logger.debug(f"Attempting to cache data for key {key}: {serialized_size} bytes")
         redis_client.setex(key, ttl, serialized)
-
-        check_redis_memory()
 
         # Immediately verify the data was cached successfully
         verification_data = redis_client.get(key)
@@ -121,7 +119,7 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
                     verified_count = (
                         len(verified_data["results"]) if verified_data["results"] else 0
                     )
-                    logger.info(
+                    logger.debug(
                         f"Verification: Retrieved {verified_count} results "
                         f"from cache for key {key}"
                     )
@@ -129,11 +127,11 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
                     verified_tles = (
                         len(verified_data["tles"]) if verified_data["tles"] else 0
                     )
-                    logger.info(
+                    logger.debug(
                         f"Verification: Retrieved {verified_tles} TLEs "
                         f"from cache for key {key}"
                     )
-            logger.info(f"Successfully cached and verified data for key {key}")
+            logger.debug(f"Successfully cached and verified data for key {key}")
         else:
             logger.warning(
                 "Cache verification failed - data not found immediately "
@@ -145,47 +143,6 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
     except Exception as e:
         logger.warning(f"Cache set error for key {key}: {e}", exc_info=True)
         return False
-
-
-def batch_serialize_tles(tles: list[TLE]) -> list[dict[str, Any]]:
-    """
-    Efficiently serialize a batch of TLEs for caching.
-    Much faster than serializing one by one, especially for large datasets.
-
-    Args:
-        tles: List of TLE objects to serialize
-
-    Returns:
-        List of serialized TLE dictionaries
-    """
-    result: list[dict[str, Any]] = []
-    result_append = result.append
-
-    for tle in tles:
-        # Get satellite information once to avoid repeated attribute access
-        satellite = tle.satellite
-        decay_date = satellite.decay_date
-
-        # Create efficient TLE dictionary with direct attribute access
-        tle_dict = {
-            "tle_line1": tle.tle_line1,
-            "tle_line2": tle.tle_line2,
-            "epoch": tle.epoch.isoformat(),
-            "date_collected": tle.date_collected.isoformat(),
-            "is_supplemental": tle.is_supplemental,
-            "data_source": tle.data_source,
-            "satellite": {
-                "sat_name": satellite.sat_name,
-                "sat_number": satellite.sat_number,
-                "decay_date": decay_date.isoformat() if decay_date else None,
-                "has_current_sat_number": getattr(
-                    satellite, "has_current_sat_number", True
-                ),
-            },
-        }
-        result_append(tle_dict)
-
-    return result
 
 
 def refresh_tle_cache(session=None):
@@ -226,7 +183,7 @@ def refresh_tle_cache(session=None):
         logger.info(f"Serializing {len(tles)} TLEs for caching")
         try:
             # Use the batch serialization for all TLEs
-            serialized_tles = batch_serialize_tles(tles)
+            serialized_tles = SqlAlchemyTLERepository.batch_serialize_tles(tles)
             logger.info(f"Successfully serialized {len(serialized_tles)} TLEs")
         except Exception as e:
             logger.error(f"Batch serialization failed: {e}", exc_info=True)
@@ -376,26 +333,28 @@ def check_redis_memory() -> None:
         evicted_keys = stats_info.get("evicted_keys", 0)
         expired_keys = stats_info.get("expired_keys", 0)
 
-        logger.info(
+        logger.debug(
             f"Redis memory usage: {used_memory/1024/1024:.2f}MB "
             f"(peak: {used_memory_peak/1024/1024:.2f}MB)"
         )
 
         if maxmemory > 0:
             memory_usage_pct = (used_memory / maxmemory) * 100
-            logger.info(
+            logger.debug(
                 f"Redis memory limit: {maxmemory/1024/1024:.2f}MB "
                 f"({memory_usage_pct:.1f}% used), policy: {maxmemory_policy}"
             )
         else:
-            logger.info(f"Redis memory limit: unlimited, policy: {maxmemory_policy}")
+            logger.debug(f"Redis memory limit: unlimited, policy: {maxmemory_policy}")
 
         if evicted_keys > 0:
             logger.warning(
                 f"Redis has evicted {evicted_keys} keys due to memory pressure"
             )
 
-        logger.info(f"Redis expired keys: {expired_keys}, evicted keys: {evicted_keys}")
+        logger.debug(
+            f"Redis expired keys: {expired_keys}, evicted keys: {evicted_keys}"
+        )
 
     except Exception as e:
         logger.error(f"Failed to get Redis memory info: {e}")

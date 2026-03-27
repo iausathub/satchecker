@@ -7,6 +7,7 @@ import sys
 from flask import Flask
 
 from api.celery_app import celery
+from api.utils.log_formatter import JSONFormatter
 
 
 def create_app(test_config=None):
@@ -23,6 +24,11 @@ def create_app(test_config=None):
     from api.middleware.error_handler import init_error_handler
 
     init_error_handler(app)
+
+    # Initialize request logger
+    from api.middleware.request_logger import init_request_logging
+
+    init_request_logging(app)
 
     # Configure database
     from api.config import get_db_login
@@ -44,12 +50,18 @@ def create_app(test_config=None):
             "use_native_hstore": False,
         }
 
+    # Get Redis URL from environment variables
+    from api.utils.redis_config import get_redis_url
+
+    redis_url = get_redis_url()
+
     app.config.from_mapping(
         CELERY=dict(
-            broker_url="redis://localhost:6379/0",
-            result_backend="redis://localhost:6379/0",
+            broker_url=redis_url,
+            result_backend=redis_url,
             task_ignore_result=False,
             task_track_started=True,
+            broker_connection_retry_on_startup=True,
         ),
     )
 
@@ -76,7 +88,6 @@ def create_app(test_config=None):
     migrate = Migrate(app, db)  # noqa: F841
 
     # Initialize celery
-
     celery.conf.update(app.config)
     app.extensions["celery"] = celery
 
@@ -87,37 +98,44 @@ def create_app(test_config=None):
 
 def setup_logging(app):
     """Set up logging based on the running environment."""
-    # First, clear any existing handlers to avoid duplicates
-    if app.logger.handlers:
-        app.logger.handlers = []
+    formatter: logging.Formatter = JSONFormatter()
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    # Configure root logger - all other loggers inherit from this
+    root_logger = logging.getLogger()
 
-    is_gunicorn = "gunicorn" in sys.modules
+    # Clear existing handlers to avoid duplicates
+    root_logger.handlers = []
+    app.logger.handlers = []
 
-    if is_gunicorn:  # pragma: no cover
-        # Use Gunicorn's logger for production
-        gunicorn_logger = logging.getLogger("gunicorn.error")
+    # Prevent app.logger from propagating to root (avoid duplicates)
+    app.logger.propagate = False
+
+    # When running under gunicorn, reuse its handlers so logs go to the
+    # same stream gunicorn manages (stdout/stderr in the container).
+    gunicorn_logger = logging.getLogger("gunicorn.error")
+
+    if gunicorn_logger.handlers:  # pragma: no cover
         for handler in gunicorn_logger.handlers:
             handler.setFormatter(formatter)
+            root_logger.addHandler(handler)
             app.logger.addHandler(handler)
-        app.logger.setLevel(logging.INFO)
-        app.logger.info("Production logging configured (using Gunicorn logger)")
     else:
-        # Create a handler that writes to stdout
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
+        root_logger.addHandler(console_handler)
         app.logger.addHandler(console_handler)
-        app.logger.setLevel(logging.DEBUG if app.debug else logging.INFO)
-        app.logger.info("Development logging configured")
+
+    log_level = logging.DEBUG if app.debug else logging.INFO
+    root_logger.setLevel(log_level)
+    app.logger.setLevel(log_level)
+    app.logger.info("Logging configured (JSON)")
 
 
 app = create_app()
 
 # Initialize cache
 with app.app_context():
+
     from api.services.cache_service import initialize_cache_refresh_scheduler
 
     try:

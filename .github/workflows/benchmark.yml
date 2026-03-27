@@ -57,7 +57,7 @@ jobs:
         run: |
             celery -A api.satchecker.celery worker --loglevel INFO &
         env:
-            REDIS_URL: redis://localhost:6379/0
+            REDIS_URL: redis://localhost
         working-directory: src
 
       - name: Install dependencies
@@ -72,7 +72,7 @@ jobs:
           python -m pytest --benchmark-only --benchmark-json output.json || true
           # keep going even if some tests fail
         env:
-            REDIS_URL: redis://localhost:6379/0
+            REDIS_URL: redis://localhost
             PYTHONPATH: src
             SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
             LOCAL_DB: 1

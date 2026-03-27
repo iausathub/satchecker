@@ -5,11 +5,16 @@ This effort is a collaboration between the IAU Centre for the Protection of the 
 from Satellite Constellation Interference, NOIRLab, the University of Illinois Urbana-Champaign,
 the University of Washington, and Imperial College London.
 
-The development of SatChecker has been supported by the National Science Foundation (NSF)
-under grant number: AST 2332736. SatChecker is hosted at NSF NOIRLab. Any opinions, findings,
-and conclusions or recommendations expressed in this material are those of the author(s) and
-do not necessarily reflect the views of the National Science Foundation or the International
-Astronomical Union.
+
+.. admonition:: Acknowledgement
+   :class: note
+
+   If you use SatChecker in your work, please include the following acknowledgement:
+
+   *"This research made use of data and/or services provided by the International Astronomical Union Centre for the Protection of the Dark and Quiet Sky (IAU CPS) SatHub. 
+   The development of SatChecker has been supported by the National Science Foundation (NSF) under grant numbers: AST 2332735 and AST 2332736. 
+   SatChecker is hosted at the NSF NOIRLab. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and
+   do not necessarily reflect the views of the NSF, IAU, NSF NOIRLab, SKAO, ESO, or any host or member institution of the IAU CPS."*
 
 .. raw:: html
 

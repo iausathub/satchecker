@@ -71,13 +71,13 @@ jobs:
       run: |
           celery -A api.satchecker.celery worker --loglevel INFO &
       env:
-          REDIS_URL: redis://localhost:6379/0
+          REDIS_URL: redis://localhost
       working-directory: src
     - name: Test with pytest
       run: |
         pytest --ignore=tests/benchmark --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=. --cov-config=pytest.ini tests/ | tee pytest-coverage.txt
       env:
-        REDIS_URL: redis://localhost:6379/0
+        REDIS_URL: redis://localhost
         PYTHONPATH: src
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
         LOCAL_DB: 1
@@ -104,7 +104,7 @@ jobs:
       run: |
         pytest --ignore=tests/benchmark --cov-report=html:coverage-html-report --cov=. --cov-config=pytest.ini tests/
       env:
-        REDIS_URL: redis://localhost:6379/0
+        REDIS_URL: redis://localhost
         PYTHONPATH: src
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_satchecker
         LOCAL_DB: 1

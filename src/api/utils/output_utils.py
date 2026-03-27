@@ -200,7 +200,15 @@ def fov_data_to_json(
         for field, value in fields_to_round:
             if value is None:
                 continue
-            if field in ["ra", "dec", "altitude", "azimuth", "angle", "range_km"]:
+            if field in [
+                "ra",
+                "dec",
+                "altitude",
+                "azimuth",
+                "angle",
+                "range_km",
+                "apparent_magnitude",
+            ]:
                 result[field] = my_round(value, precision_angles)
             elif field == "julian_date":
                 result[field] = my_round(value, precision_date)
@@ -248,10 +256,13 @@ def fov_data_to_json(
                 "date_time": format_date(result.get("date_time")),
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
-                "tle_epoch": result.get("tle_epoch"),
                 "propagation_epoch": result.get("propagation_epoch"),
                 "propagation_source": result.get("propagation_source"),
             }
+            if "tle_epoch" in result:
+                pass_data["tle_epoch"] = result["tle_epoch"]
+            if "apparent_magnitude" in result:
+                pass_data["apparent_magnitude"] = result["apparent_magnitude"]
             satellites[sat_key]["positions"].append(pass_data)
 
         formatted_results = {
@@ -305,3 +316,43 @@ def format_date(date):
     formatted_date = date.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     return formatted_date
+
+
+def satellite_data_to_json(satellites: list, api_source: str, api_version: str) -> dict:
+    """
+    Convert satellite data to JSON format
+
+    Args:
+        satellites: List of satellites
+        api_source: Source of the API
+        api_version: Version of the API
+
+    Returns:
+        dict: JSON dictionary of the satellite data
+    """
+    satellite_list = [
+        {
+            "satellite_name": satellite.sat_name,
+            "satellite_id": satellite.sat_number,
+            "international_designator": satellite.object_id,
+            "rcs_size": satellite.rcs_size,
+            "launch_date": (
+                satellite.launch_date.strftime("%Y-%m-%d")
+                if satellite.launch_date
+                else None
+            ),
+            "decay_date": (
+                satellite.decay_date.strftime("%Y-%m-%d")
+                if satellite.decay_date
+                else None
+            ),
+            "object_type": satellite.object_type,
+        }
+        for satellite in satellites
+    ]
+    return {
+        "count": len(satellite_list),
+        "data": satellite_list,
+        "source": api_source,
+        "version": api_version,
+    }

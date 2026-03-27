@@ -4,19 +4,19 @@ from pathlib import Path
 
 import numpy as np
 from astropy.config import set_temp_cache
-from skyfield.api import EarthSatellite, load, wgs84
+from skyfield.api import EarthSatellite, wgs84
 from skyfield.nutationlib import iau2000b
 from skyfield.timelib import Time
 
 from api.common import error_messages
 from api.common.exceptions import ValidationError
+from api.utils.skyfield_loader import load
 from api.utils.time_utils import calculate_lst, jd_to_gst
 
-# Configure Astropy to use a secure cache directory within the application
-cache_dir = (
-    Path(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    / "data"
-    / "astropy_cache"
+# Configure Astropy cache to use /tmp to avoid consuming container writable layer
+# (ephemeral storage). In Kubernetes, /tmp is often tmpfs or has limits.
+cache_dir = Path(
+    os.environ.get("ASTROPY_CACHE_DIR", "/tmp/astropy_cache")  # noqa: S108
 )
 cache_dir.mkdir(parents=True, exist_ok=True)
 set_temp_cache(cache_dir)
@@ -594,6 +594,39 @@ def get_phase_angle(
 
     phase_angle = float(np.rad2deg(np.arccos(np.dot(satsunn, topocentric_gcrs_norm))))
     return phase_angle
+
+
+def is_in_fov(
+    ra_points: np.ndarray,
+    dec_points: np.ndarray,
+    ra_center: float,
+    dec_center: float,
+    fov_radius: float,
+) -> np.ndarray:
+    """Determines if a point is in the field of view.
+
+    Args:
+        ra (np.ndarray): The right ascension of the points in degrees.
+        dec (np.ndarray): The declination of the points in degrees.
+        ra_center (float): The right ascension of the center of the field of view in
+        degrees.
+        dec_center (float): The declination of the center of the field of view in
+        degrees.
+        fov_radius (float): The radius of the field of view in degrees.
+
+    Returns:
+        bool: True if the point is in the field of view, False otherwise.
+    """
+    ra_pts = np.radians(ra_points)
+    dec_pts = np.radians(dec_points)
+    ra = np.radians(ra_center)
+    dec = np.radians(dec_center)
+    dra = ra_pts - ra
+    ddec = dec_pts - dec
+    a = np.sin(ddec / 2) ** 2 + np.cos(dec) * np.cos(dec_pts) * np.sin(dra / 2) ** 2
+    distances = np.degrees(2 * np.arcsin(np.sqrt(np.clip(a, 0, 1))))
+    result: np.ndarray = distances < fov_radius
+    return result
 
 
 def calculate_satellite_observer_relative(

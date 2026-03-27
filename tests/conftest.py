@@ -1,6 +1,6 @@
 # noqa: I001
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
 import psycopg2
@@ -18,6 +18,7 @@ from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepo
 from api.adapters.repositories.satellite_repository import (
     AbstractSatelliteRepository,
 )
+from api.adapters.repositories.tdm_repository import AbstractTdmPredictionRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
 from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
@@ -35,45 +36,29 @@ os.environ["LOCAL_DB"] = "1"
 def create_partitions(engine):
     """Create partitions for test data"""
     with engine.connect() as conn:
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_historical
             PARTITION OF tle_partitioned
             FOR VALUES FROM (TIMESTAMP '-infinity') TO ('2020-01-01 00:00:00+00')
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_2020_2023
             PARTITION OF tle_partitioned
             FOR VALUES FROM ('2020-01-01 00:00:00+00') TO ('2024-01-01 00:00:00+00')
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_2024
             PARTITION OF tle_partitioned
             FOR VALUES FROM ('2024-01-01 00:00:00+00') TO ('2025-01-01 00:00:00+00')
-        """
-            )
-        )
+        """))
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE IF NOT EXISTS tle_partitioned_future
             PARTITION OF tle_partitioned
             FOR VALUES FROM ('2025-01-01 00:00:00+00') TO (TIMESTAMP 'infinity')
-        """
-            )
-        )
+        """))
 
         conn.execute(text("commit"))
 
@@ -158,6 +143,8 @@ def cleanup_database(session):
         session.execute(text("DELETE FROM ephemeris_points"))
         session.execute(text("DELETE FROM interpolable_ephemeris"))
         session.execute(text("DELETE FROM tle"))
+        session.execute(text("DELETE FROM tdm_prediction_points"))
+        session.execute(text("DELETE FROM tdm_predictions"))
         session.execute(text("DELETE FROM satellites"))
         session.commit()
     except Exception as e:
@@ -342,6 +329,9 @@ class FakeSatelliteRepository(AbstractSatelliteRepository):
                 or satellite.object_type.lower() == object_type.lower()
             )
         ]
+
+    def _search_all_satellites(self, parameters):
+        return self._satellites
 
     def _get(self, satellite_id):
         return next(
@@ -554,6 +544,41 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
                 if data_source is None or closest_ephemeris.data_source == data_source:
                     results[satellite_number] = closest_ephemeris
         return results
+
+
+class FakeTdmPredictionRepository(AbstractTdmPredictionRepository):
+    def __init__(self, tdm_predictions, tdm_prediction_points, exception_to_raise=None):
+        self._tdm_predictions = set(tdm_predictions)
+        self._tdm_prediction_points = set(tdm_prediction_points)
+        self.exception_to_raise = exception_to_raise
+
+    def _add(self, tdm_prediction):
+        self._tdm_predictions.add(tdm_prediction)
+
+    def _get_all_tdm_predictions_at_epoch(
+        self, epoch_date, duration, site_name, constellation
+    ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        range_end = epoch_date + timedelta(seconds=duration)
+        results = [
+            p
+            for p in self._tdm_predictions
+            if p.time_range_start <= epoch_date
+            and p.time_range_end >= range_end
+            and (constellation is None or p.satellite.constellation == constellation)
+            and (site_name is None or p.site_name == site_name)
+        ]
+        return results, len(results), "fake"
+
+    def _get_tdm_prediction_points(self, tdm_prediction_ids):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        return [
+            pt
+            for pt in self._tdm_prediction_points
+            if pt.tdm_prediction_id in tdm_prediction_ids
+        ]
 
 
 class FakeSession:

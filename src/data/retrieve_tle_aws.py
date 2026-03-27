@@ -16,12 +16,14 @@ import sys
 
 import psycopg2
 from connections import get_db_login
+from logging_utils import JSONFormatter
 from psycopg2 import OperationalError
 from satellite_utils import (
     get_decayed_satellites,
     get_starlink_ephemeris_data,
     get_starlink_generations,
 )
+from tdm_utils import get_tdm_data
 from tle_utils import (
     get_celestrak_general_tles,
     get_celestrak_supplemental_tles,
@@ -30,10 +32,13 @@ from tle_utils import (
 
 
 def main():
-    # define the logging info
-    logging.basicConfig(
-        level=logging.INFO,
-    )
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JSONFormatter())
+
+    root_logger = logging.getLogger()
+    root_logger.handlers = []
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
 
     parser = argparse.ArgumentParser(description="Retrieve TLEs from celestrak.com")
     parser.add_argument(
@@ -106,7 +111,10 @@ def main():
         get_spacetrack_tles(cursor, connection)
         get_decayed_satellites(cursor, connection)
         get_starlink_generations(cursor, connection)
-        get_starlink_ephemeris_data(cursor, connection)
+        get_starlink_ephemeris_data(connection)
+
+        # For now, add in the TDM/position data from S3 here
+        get_tdm_data(cursor, connection)
 
         connection.commit()
         cursor.close()

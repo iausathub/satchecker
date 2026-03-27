@@ -740,7 +740,6 @@ def get_starlink_ephemeris_data(cursor, connection):
         MEME_57851_STARLINK-30405_1490204_Operational_1432778700_UNCLASSIFIED
 
     Args:
-        cursor: Database cursor for executing queries
         connection: Database connection for transaction management
 
     Raises:
@@ -773,6 +772,8 @@ def get_starlink_ephemeris_data(cursor, connection):
 
             logging.info(f"Today's date: {today}")
             logging.info(f"Found {len(ephemeris_files)} files in manifest")
+
+            cursor = connection.cursor()
 
             # Process each file individually
             for file_name in ephemeris_files:
@@ -832,10 +833,28 @@ def get_starlink_ephemeris_data(cursor, connection):
                             file_name,
                             e,
                         )
+                        try:
+                            connection.rollback()
+                        except Exception as rollback_err:
+                            logging.warning(
+                                "Rollback failed after insert error for %s: %s",
+                                file_name,
+                                rollback_err,
+                            )
+                        cursor = connection.cursor()
                         continue
 
                 except Exception as e:
                     logging.error(f"Error processing file {file_name}: {e}")
+                    try:
+                        connection.rollback()
+                    except Exception as rollback_err:
+                        logging.warning(
+                            "Rollback failed after processing error for %s: %s",
+                            file_name,
+                            rollback_err,
+                        )
+                    cursor = connection.cursor()
                     continue
 
                 total_data_points += num_points

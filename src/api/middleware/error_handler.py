@@ -1,10 +1,7 @@
 import logging
-import traceback
-from datetime import datetime, timezone
 
 from flask import jsonify, request
 
-# Use the application's centralized logging configuration
 logger = logging.getLogger(__name__)
 
 
@@ -13,45 +10,40 @@ def handle_error(error):
     Global error handler for consistent error logging and responses
     """
 
-    # Get timestamp in UTC
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-
     # Determine status code and message
     if hasattr(error, "code"):
         code = error.code
         message = getattr(error, "description", str(error))
     elif hasattr(error, "status_code"):
         code = error.status_code
-        if hasattr(error, "message"):
-            message = error.message
-        else:
-            message = str(error)
+        message = getattr(error, "message", str(error))
     else:
         code = 500
         message = "Internal server error"
 
-    # Create error details
-    error_details = {
-        "timestamp": timestamp,
-        "path": request.path,
-        "method": request.method,
-        "error_type": error.__class__.__name__,
-        "message": message,
-        "status_code": code,
-    }
-
-    # Always log error details for debugging
     logger.error(
-        f"\nError occurred:\n"
-        f"Status Code: {code}\n"
-        f"Type: {error_details['error_type']}\n"
-        f"Path: {error_details['path']}\n"
-        f"Method: {error_details['method']}\n"
-        f"Message: {message}\n"
-        f"Stack Trace:\n{traceback.format_exc()}"
+        "unhandled exception",
+        exc_info=error,
+        extra={
+            "error_type": error.__class__.__name__,
+            "status_code": code,
+            "method": request.method,
+            "path": request.path,
+        },
     )
 
-    return jsonify(error_details), code
+    return (
+        jsonify(
+            {
+                "path": request.path,
+                "method": request.method,
+                "error_type": error.__class__.__name__,
+                "message": message,
+                "status_code": code,
+            }
+        ),
+        code,
+    )
 
 
 def init_error_handler(app):
