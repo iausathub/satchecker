@@ -341,7 +341,6 @@ def get_satellite_passes():
             else:
                 task_response = get_satellite_passes_in_fov_async(
                     tle_repo,
-                    ephem_repo,
                     validated_parameters["location"],
                     validated_parameters["mid_obs_time_jd"],
                     validated_parameters["start_time_jd"],
@@ -363,6 +362,7 @@ def get_satellite_passes():
         else:
             satellite_passes = get_satellite_passes_in_fov(
                 tle_repo,
+                ephem_repo,
                 validated_parameters["location"],
                 validated_parameters["mid_obs_time_jd"],
                 validated_parameters["start_time_jd"],
