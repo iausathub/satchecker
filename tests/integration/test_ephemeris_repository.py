@@ -97,7 +97,10 @@ def test_get_closest_by_satellite_number(session):
     repo_ephemeris = ephemeris_repository.get_closest_by_satellite_number(
         satellite.sat_number, datetime.now(timezone.utc)
     )
-    assert repo_ephemeris == ephemeris1
+    assert repo_ephemeris.id == ephemeris1.id
+    assert repo_ephemeris.generated_at == ephemeris1.generated_at
+    assert repo_ephemeris.ephemeris_start == ephemeris1.ephemeris_start
+    assert repo_ephemeris.ephemeris_stop == ephemeris1.ephemeris_stop
 
     repo_ephemeris2 = ephemeris_repository.get_closest_by_satellite_number(
         satellite.sat_number, datetime.now(timezone.utc) - timedelta(days=4)

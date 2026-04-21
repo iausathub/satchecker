@@ -147,6 +147,7 @@ def get_satellite_passes_in_fov_async(
         "fov_radius": float(fov_radius),
         "include_tles": include_tles,
         "illuminated_only": illuminated_only,
+        "tle_only": tle_only,
     }
 
     batch_tasks = []
