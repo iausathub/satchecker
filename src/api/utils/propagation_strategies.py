@@ -131,8 +131,8 @@ satellite_position_fov = namedtuple(
         "julian_date",
         "name",
         "norad_id",
-        "propagation_epoch",
-        "propagation_source",
+        "orbital_data_epoch",
+        "orbital_data_source",
     ],
 )
 
@@ -1073,8 +1073,8 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
                     julian_date=float(jd),  # Ensure jd is a float
                     name=None,  # added in fov_service
                     norad_id=None,  # added in fov_service
-                    propagation_epoch=None,  # added in fov_service
-                    propagation_source=None,  # added in fov_service
+                    orbital_data_epoch=None,  # fov_service / fov_tasks when ephemeris
+                    orbital_data_source=None,  # added in fov_service
                 )
             )
 

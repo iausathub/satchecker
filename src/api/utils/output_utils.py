@@ -256,11 +256,12 @@ def fov_data_to_json(
                 "date_time": format_date(result.get("date_time")),
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
-                "propagation_epoch": result.get("propagation_epoch"),
-                "propagation_source": result.get("propagation_source"),
+                "orbital_data_epoch": result.get("orbital_data_epoch"),
+                "orbital_data_source": result.get("orbital_data_source"),
             }
             if "tle_epoch" in result:
-                pass_data["tle_epoch"] = result["tle_epoch"]
+                pass_data["orbital_data_epoch"] = result["tle_epoch"]
+                pass_data["orbital_data_source"] = "tle"
             if "apparent_magnitude" in result:
                 pass_data["apparent_magnitude"] = result["apparent_magnitude"]
             satellites[sat_key]["positions"].append(pass_data)
@@ -277,6 +278,11 @@ def fov_data_to_json(
         }
     else:
         sorted_results = sorted(results, key=lambda x: x.get("julian_date", 0))
+        for result in sorted_results:
+            if "tle_epoch" in result:
+                result["orbital_data_epoch"] = result["tle_epoch"]
+                result["orbital_data_source"] = "tle"
+                result.pop("tle_epoch")
 
         formatted_results = {
             "data": sorted_results,

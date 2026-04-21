@@ -142,6 +142,12 @@ def get_satellite_passes():
         required: false
         description: Whether to process the request asynchronously. If true or omitted, returns a task ID for polling status. If false, returns immediate results.
         example: false
+      - name: tle_only
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include only TLE data in the response. If true, ephemeris data will not be used.
+        example: true
     responses:
       200:
         description: Successful response. Returns either immediate satellite pass data (synchronous) or task information (asynchronous) based on the async parameter.
@@ -199,9 +205,14 @@ def get_satellite_passes():
                                       type: number
                                       format: float
                                       description: Right ascension in degrees
-                                    tle_epoch:
+                                    orbital_data_epoch:
                                       type: string
-                                      description: Epoch date of the TLE used for calculation
+                                      nullable: true
+                                      description: UTC instant for which the underlying orbital data applies (TLE epoch is in tle_epoch; for ephemeris-based positions this is the ephemeris generation time)
+                                    orbital_data_source:
+                                      type: string
+                                      nullable: true
+                                      description: Orbital data source used for the position (e.g. ephemeris)
                                     range_km:
                                       type: number
                                       format: float
@@ -285,6 +296,7 @@ def get_satellite_passes():
         "data_source",
         "illuminated_only",
         "async",
+        "tle_only",
     ]
 
     if "site" not in request.args:
@@ -303,6 +315,9 @@ def get_satellite_passes():
     validated_parameters = validate_parameters(request, parameters, required_parameters)
     if validated_parameters["async"] is None:
         validated_parameters["async"] = True
+
+    if validated_parameters["tle_only"] is None:
+        validated_parameters["tle_only"] = False
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
@@ -354,6 +369,7 @@ def get_satellite_passes():
                     validated_parameters["constellation"],
                     validated_parameters["data_source"],
                     validated_parameters["illuminated_only"],
+                    validated_parameters["tle_only"],
                     api_source,
                     api_version,
                 )
@@ -376,6 +392,7 @@ def get_satellite_passes():
                 validated_parameters["constellation"],
                 validated_parameters["data_source"],
                 validated_parameters["illuminated_only"],
+                validated_parameters["tle_only"],
                 api_source,
                 api_version,
             )

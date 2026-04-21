@@ -26,6 +26,7 @@ from api.services.cache_service import (
 from api.services.tasks.fov_tasks import (
     aggregate_fov_results_task,
     process_satellite_batch_task,
+    refine_with_ephemeris_task,
 )
 from api.utils import coordinate_systems, output_utils
 from api.utils.propagation_strategies import (
@@ -55,6 +56,7 @@ def get_satellite_passes_in_fov_async(
     constellation: str,
     data_source: str,
     illuminated_only: bool,
+    tle_only: bool,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -160,6 +162,17 @@ def get_satellite_passes_in_fov_async(
         tle_time=tle_time,
         jd_times=jd_times_list,
     )
+    if not tle_only:
+        callback = callback | refine_with_ephemeris_task.s(
+            jd_times=jd_times_list,
+            location_lat=float(location.lat.value),
+            location_lon=float(location.lon.value),
+            location_height=float(location.height.value),
+            ra=float(ra),
+            dec=float(dec),
+            fov_radius=float(fov_radius),
+        )
+
     chord_primitive = chord(group(batch_tasks), callback)
     chord_result = chord_primitive.apply_async()
     task_id = chord_result.id
@@ -192,6 +205,7 @@ def get_satellite_passes_in_fov(
     constellation: str,
     data_source: str,
     illuminated_only: bool,
+    tle_only: bool,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -214,6 +228,7 @@ def get_satellite_passes_in_fov(
         constellation: Constellation of the satellites to include in the response
         data_source: Data source for TLEs
         illuminated_only: Whether to include only illuminated satellites
+        tle_only: Whether to include only TLE data in the response
         api_source: Source of the API call
         api_version: Version of the API
 
@@ -281,158 +296,8 @@ def get_satellite_passes_in_fov(
     points_in_fov = 0
     satellites_processed = 0
 
-    # Get ephemeris for all satellites in the time range
     tles_to_propagate = tles
-    """
-    satellites_with_ephemeris = ephemeris_repo.get_satellites_with_ephemeris(
-        ensure_datetime(jd_times[0]),
-        ensure_datetime(jd_times[-1]),
-    )
-    logger.info(f"Satellites with ephemeris: {len(satellites_with_ephemeris)}")
 
-    satellite_numbers_with_ephemeris = set(satellites_with_ephemeris)
-
-    for tle in tles:
-        if tle.satellite.sat_number not in satellite_numbers_with_ephemeris:
-            tles_to_propagate.append(tle)
-
-    # TODO: Change to getting all interpolator splines at the epoch instead
-    # of getting each ephemeris
-
-    # Process Starlink satellites with Krogh propagation (sequential for now)
-    if satellites_with_ephemeris:
-        logger.info(
-            f"Processing {len(satellites_with_ephemeris)} Starlink satellites "
-            f"with Krogh propagation"
-        )
-
-        krogh_strategy = KroghPropagationStrategy()
-        for i, satellite_number in enumerate(satellites_with_ephemeris):
-            try:
-                # Load ephemeris data for this Starlink satellite
-                logger.info(f"Satellite number: {satellite_number}")
-                ephemeris = ephemeris_repo.get_closest_by_satellite_number(
-                    str(satellite_number),
-                    ensure_datetime(jd_times[0]),
-                )
-                logger.info(f"Ephemeris: {ephemeris}")
-
-                # Skip if no ephemeris data found
-                if ephemeris is None:
-                    logger.warning(
-                        f"No ephemeris data found for Starlink satellite "
-                        f"{satellite_number}"
-                    )
-                    satellites_processed += 1
-                    continue
-
-                try:
-                    krogh_strategy.load_ephemeris(ephemeris, ephemeris_repo)
-                except Exception as e:
-                    logger.error(
-                        f"Error loading ephemeris for satellite {satellite_number}: {e}"
-                    )
-                    satellites_processed += 1
-                    continue
-
-                try:
-                    # create a new InterpolatorSplines object to save to the database
-                    # Convert Julian dates to datetime objects
-                    splines_dict = krogh_strategy.interpolated_splines
-
-                    time_range_start_dt = Time(
-                        splines_dict["time_range"][0], format="jd"
-                    ).datetime
-                    time_range_end_dt = Time(
-                        splines_dict["time_range"][1], format="jd"
-                    ).datetime
-
-                    interpolator_splines = InterpolatorSplines(
-                        sat_id=krogh_strategy.ephemeris_data.satellite,
-                        ephemeris_id=ephemeris.id,
-                        time_range_start=time_range_start_dt,
-                        time_range_end=time_range_end_dt,
-                        generated_at=krogh_strategy.ephemeris_data.generated_at,
-                        data_source=krogh_strategy.ephemeris_data.data_source,
-                        method="krogh_chunked",
-                        chunk_size=14,
-                        overlap=8,
-                        n_sigma_points=13,
-                        date_collected=krogh_strategy.ephemeris_data.date_collected,
-                        interpolated_splines=krogh_strategy.interpolated_splines,
-                    )
-
-                    ephemeris_repo.add_interpolator_splines(interpolator_splines)
-                except Exception as e:
-                    logger.error(
-                        f"Error adding interpolator splines for satellite "
-                        f"Error loading ephemeris for satellite "
-                        f"{satellite_number}: {e}"
-                    )
-                    satellites_processed += 1
-                    continue
-
-                try:
-                    # Propagate positions
-                    positions = krogh_strategy.propagate(
-                        jd_times,
-                        "",
-                        "",
-                        location.lat.value,
-                        location.lon.value,
-                        location.height.value,
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"Error propagating positions for satellite "
-                        f"{satellite_number}: {e}"
-                    )
-                    satellites_processed += 1
-                    continue
-
-                # Check if positions are in FOV
-                for pos in positions:
-                    if pos.ra is not None and pos.dec is not None:
-                        # Calculate angular distance from FOV center
-                        angular_distance = np.sqrt(
-                            (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
-                        )
-                        if angular_distance <= fov_radius:
-                            # Create new satellite_position_fov with updated values
-                            updated_pos = satellite_position_fov(
-                                ra=pos.ra,
-                                dec=pos.dec,
-                                altitude=pos.altitude,
-                                azimuth=pos.azimuth,
-                                range_km=pos.range_km,
-                                julian_date=pos.julian_date,
-                                name=tle.satellite.sat_name,
-                                norad_id=tle.satellite.sat_number,
-                                propagation_epoch=output_utils.format_date(
-                                    ephemeris.generated_at
-                                ),
-                                propagation_source="ephemeris",
-                            )
-                            result = updated_pos._asdict()
-
-                            all_results.append(result)
-                            points_in_fov += 1
-
-                satellites_processed += 1
-
-                # Progress logging
-                if (i + 1) % 100 == 0:
-                    logger.info(
-                        f"Completed {i + 1}/{len(satellites_with_ephemeris)} satellites"
-                    )
-
-            except Exception as e:
-                logger.error(
-                    f"Error processing Starlink satellite {satellite_number}: {e}"
-                )
-                satellites_processed += 1
-                continue
-    """
     # Process non-Starlink satellites with parallel propagation
     if tles_to_propagate:
         logger.info(
@@ -486,96 +351,100 @@ def get_satellite_passes_in_fov(
                     f"Found None value in result {idx}, field {key} before returning"
                 )
 
-    # Process ephemeris data for satellites that were initially processed with TLE data
-    # Only process each unique norad_id once and replace original TLE results
-    unique_norad_ids = set()
-    for result in all_results:
-        if result.get("norad_id") is not None:
-            unique_norad_ids.add(result["norad_id"])
+    if not tle_only:
+        # Process ephemeris data for satellites that were initially processed with TLE
+        # data
+        # Only process each unique norad_id once and replace original TLE results
+        unique_norad_ids = set()
+        for result in all_results:
+            if result.get("norad_id") is not None:
+                unique_norad_ids.add(result["norad_id"])
 
-    # Batch lookup all ephemeris data at once
-    satellite_numbers = [str(norad_id) for norad_id in unique_norad_ids]
-    ephemeris_dict = ephemeris_repo.get_closest_by_satellite_numbers(
-        satellite_numbers,
-        ensure_datetime(jd_times[0]),
-    )
+        # Batch lookup all ephemeris data at once
+        satellite_numbers = [str(norad_id) for norad_id in unique_norad_ids]
+        ephemeris_dict = ephemeris_repo.get_closest_by_satellite_numbers(
+            satellite_numbers,
+            ensure_datetime(jd_times[0]),
+        )
 
-    logger.info(
-        f"Found ephemeris data for {len(ephemeris_dict)} out of "
-        f"{len(unique_norad_ids)} satellites"
-    )
+        logger.info(
+            f"Found ephemeris data for {len(ephemeris_dict)} out of "
+            f"{len(unique_norad_ids)} satellites"
+        )
 
-    for norad_id in satellite_numbers:
-        krogh_strategy = KroghPropagationStrategy()
+        for norad_id in satellite_numbers:
+            krogh_strategy = KroghPropagationStrategy()
 
-        ephemeris = ephemeris_dict.get(int(norad_id))
+            ephemeris = ephemeris_dict.get(int(norad_id))
 
-        # Skip if no ephemeris data found
-        if ephemeris is None:
-            logger.warning(f"No ephemeris data found for satellite {norad_id}")
-            continue
+            # Skip if no ephemeris data found
+            if ephemeris is None:
+                logger.warning(f"No ephemeris data found for satellite {norad_id}")
+                continue
 
-        try:
-            krogh_strategy.load_ephemeris(ephemeris, ephemeris_repo)
-        except Exception as e:
-            logger.error(f"Error loading ephemeris for satellite {norad_id}: {e}")
-            continue
+            try:
+                krogh_strategy.load_ephemeris(ephemeris, ephemeris_repo)
+            except Exception as e:
+                logger.error(f"Error loading ephemeris for satellite {norad_id}: {e}")
+                continue
 
-        try:
-            # Propagate positions
-            positions = krogh_strategy.propagate(
-                jd_times,
-                "",
-                "",
-                location.lat.value,
-                location.lon.value,
-                location.height.value,
-            )
-            logger.info(
-                f"Propagated {len(positions)} positions for satellite {norad_id}"
-            )
+            try:
+                # Propagate positions
+                positions = krogh_strategy.propagate(
+                    jd_times,
+                    "",
+                    "",
+                    location.lat.value,
+                    location.lon.value,
+                    location.height.value,
+                )
+                logger.info(
+                    f"Propagated {len(positions)} positions for satellite {norad_id}"
+                )
 
-            # Check if positions are in FOV
-            replacement_results = []
-            for pos in positions:
+                # Check if positions are in FOV
+                replacement_results = []
+                for pos in positions:
 
-                if pos.ra is not None and pos.dec is not None:
-                    # Calculate angular distance from FOV center
-                    angular_distance = np.sqrt(
-                        (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
-                    )
-                    if angular_distance <= fov_radius * 1.2:  # add 20% margin
-                        # Create new satellite_position_fov with updated values
-                        updated_pos = satellite_position_fov(
-                            ra=pos.ra,
-                            dec=pos.dec,
-                            covariance=pos.covariance.tolist(),
-                            angle=angular_distance,
-                            altitude=pos.altitude,
-                            azimuth=pos.azimuth,
-                            range_km=pos.range_km,
-                            julian_date=pos.julian_date,
-                            name=ephemeris.satellite.sat_name,
-                            norad_id=int(norad_id),
-                            propagation_epoch=output_utils.format_date(
-                                ephemeris.generated_at
-                            ),
-                            propagation_source="ephemeris",
+                    if pos.ra is not None and pos.dec is not None:
+                        # Calculate angular distance from FOV center
+                        angular_distance = np.sqrt(
+                            (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
                         )
+                        if angular_distance <= fov_radius * 1.2:  # add 20% margin
+                            # Create new satellite_position_fov with updated values
+                            updated_pos = satellite_position_fov(
+                                ra=pos.ra,
+                                dec=pos.dec,
+                                covariance=pos.covariance.tolist(),
+                                angle=angular_distance,
+                                altitude=pos.altitude,
+                                azimuth=pos.azimuth,
+                                range_km=pos.range_km,
+                                julian_date=pos.julian_date,
+                                name=ephemeris.satellite.sat_name,
+                                norad_id=int(norad_id),
+                                orbital_data_epoch=output_utils.format_date(
+                                    ephemeris.generated_at
+                                ),
+                                orbital_data_source="ephemeris",
+                            )
 
-                        replacement_results.append(updated_pos._asdict())
+                            replacement_results.append(updated_pos._asdict())
 
-            # Replace all TLE results for this norad_id
-            # with ephemeris results
-            all_results = [
-                result
-                for result in all_results
-                if result.get("norad_id") != int(norad_id)
-            ]
-            all_results.extend(replacement_results)
-        except Exception as e:
-            logger.error(f"Error propagating positions for satellite {norad_id}: {e}")
-            continue
+                # Replace all TLE results for this norad_id
+                # with ephemeris results
+                all_results = [
+                    result
+                    for result in all_results
+                    if result.get("norad_id") != int(norad_id)
+                ]
+                all_results.extend(replacement_results)
+            except Exception as e:
+                logger.error(
+                    f"Error propagating positions for satellite {norad_id}: {e}"
+                )
+                continue
 
     # Calculate final points_in_fov count after all processing
     points_in_fov = len(all_results)
