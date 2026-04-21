@@ -308,55 +308,53 @@ def get_satellite_passes():
     tdm_repo = SqlAlchemyTdmPredictionRepository(session)
 
     try:
+        if validated_parameters["data_source"] == "aerospace":
+            # has to use site, not lat/lon/elev, because the TDM predictions are not available for all sites
+            # return with error if site is not included
+            if validated_parameters["site"] is None:
+                return {
+                    "info": "Site is required for TDM predictions",
+                    "api_source": api_source,
+                    "version": api_version,
+                }
+
+            task_response = get_satellite_passes_in_fov_tdm(
+                tdm_repo,
+                validated_parameters["site"],
+                validated_parameters["location"],
+                validated_parameters["mid_obs_time_jd"],
+                validated_parameters["start_time_jd"],
+                validated_parameters["duration"],
+                validated_parameters["ra"],
+                validated_parameters["dec"],
+                validated_parameters["fov_radius"],
+                validated_parameters["group_by"],
+                validated_parameters["constellation"],
+                api_source,
+                api_version,
+            )
+            return jsonify(task_response)
+
         if validated_parameters["async"]:
-            if validated_parameters["data_source"] == "aerospace":
-                # has to use site, not lat/lon/elev, because the TDM predictions are not available for all sites
-                # return with error if site is not included
-                if validated_parameters["site"] is None:
-                    return {
-                        "info": "Site is required for TDM predictions",
-                        "api_source": api_source,
-                        "version": api_version,
-                    }
-
-                task_response = get_satellite_passes_in_fov_tdm(
-                    tdm_repo,
-                    validated_parameters["site"],
-                    validated_parameters["location"],
-                    validated_parameters["mid_obs_time_jd"],
-                    validated_parameters["start_time_jd"],
-                    validated_parameters["duration"],
-                    validated_parameters["ra"],
-                    validated_parameters["dec"],
-                    validated_parameters["fov_radius"],
-                    validated_parameters["group_by"],
-                    validated_parameters["constellation"],
-                    api_source,
-                    api_version,
-                )
-                return jsonify(task_response)
-
-            else:
-                task_response = get_satellite_passes_in_fov_async(
-                    tle_repo,
-                    validated_parameters["location"],
-                    validated_parameters["mid_obs_time_jd"],
-                    validated_parameters["start_time_jd"],
-                    validated_parameters["duration"],
-                    validated_parameters["ra"],
-                    validated_parameters["dec"],
-                    validated_parameters["fov_radius"],
-                    validated_parameters["group_by"],
-                    validated_parameters["include_tles"],
-                    validated_parameters["skip_cache"],
-                    validated_parameters["constellation"],
-                    validated_parameters["data_source"],
-                    validated_parameters["illuminated_only"],
-                    api_source,
-                    api_version,
-                )
-
-                return jsonify(task_response)
+            task_response = get_satellite_passes_in_fov_async(
+                tle_repo,
+                validated_parameters["location"],
+                validated_parameters["mid_obs_time_jd"],
+                validated_parameters["start_time_jd"],
+                validated_parameters["duration"],
+                validated_parameters["ra"],
+                validated_parameters["dec"],
+                validated_parameters["fov_radius"],
+                validated_parameters["group_by"],
+                validated_parameters["include_tles"],
+                validated_parameters["skip_cache"],
+                validated_parameters["constellation"],
+                validated_parameters["data_source"],
+                validated_parameters["illuminated_only"],
+                api_source,
+                api_version,
+            )
+            return jsonify(task_response)
         else:
             satellite_passes = get_satellite_passes_in_fov(
                 tle_repo,
@@ -382,7 +380,6 @@ def get_satellite_passes():
                     "api_source": api_source,
                     "version": api_version,
                 }
-
             return jsonify(satellite_passes)
     except ValueError as e:
         app.logger.error(e)
