@@ -5,13 +5,15 @@ Celery for background task processing.
 """
 
 # ruff: noqa: S101
+from contextlib import nullcontext
 from datetime import datetime, timezone
 
+import numpy as np
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from api.services.tasks.fov_tasks import get_fov_task_status
+from api.services.tasks.fov_tasks import get_fov_task_status, refine_with_ephemeris_task
 
 
 def test_get_fov_task_status_pending(app, mocker):
@@ -268,3 +270,165 @@ def test_aggregate_fov_results_task(app):
         assert metrics["data_retrieval_time"] == 0.1
         assert metrics["total_time"] == 0.9
         assert metrics["points_in_fov"] == 2
+
+
+def test_refine_with_ephemeris_task(mocker):
+    aggregate_result = (
+        [
+            {"norad_id": 12345, "orbital_data_source": "tle", "ra": 100.0, "dec": 50.0},
+            {"norad_id": 12345, "orbital_data_source": "tle", "ra": 101.0, "dec": 51.0},
+            {"norad_id": 99999, "orbital_data_source": "tle", "ra": 300.0, "dec": 10.0},
+        ],
+        3,
+        "satellite",
+        {"total_time": 1.0, "points_in_fov": 3},
+    )
+    jd_times = [2460218.5]
+
+    fake_session = mocker.Mock()
+    fake_db = mocker.Mock()
+    fake_db.engine = mocker.Mock()
+    fake_db.engine.url = mocker.Mock()
+    fake_db.engine.url.render_as_string.return_value = "postgresql://user:***@db/test"
+
+    fake_app = mocker.Mock()
+    fake_app.app_context.return_value = nullcontext()
+
+    fake_satellite = mocker.Mock()
+    fake_satellite.sat_name = "TEST SAT"
+    fake_ephemeris = mocker.Mock()
+    fake_ephemeris.id = 1
+    fake_ephemeris.generated_at = datetime(2024, 10, 1, tzinfo=timezone.utc)
+    fake_ephemeris.satellite = fake_satellite
+
+    fake_repo = mocker.Mock()
+    fake_repo.get_closest_by_satellite_numbers.return_value = {12345: fake_ephemeris}
+
+    mocker.patch("api.app", fake_app)
+    mocker.patch("api.entrypoints.extensions.db", fake_db)
+    mocker.patch("sqlalchemy.orm.Session", return_value=fake_session)
+    mocker.patch(
+        "api.adapters.repositories.ephemeris_repository.SqlAlchemyEphemerisRepository",
+        return_value=fake_repo,
+    )
+    mocker.patch(
+        "api.utils.time_utils.ensure_datetime",
+        return_value=datetime.now(timezone.utc),
+    )
+    mocker.patch(
+        "api.utils.output_utils.format_date",
+        return_value="2024-10-01 00:00:00",
+    )
+
+    fake_position = mocker.Mock()
+    fake_position.ra = 100.2
+    fake_position.dec = 50.2
+    fake_position.covariance = np.eye(3)
+    fake_position.altitude = 40.0
+    fake_position.azimuth = 180.0
+    fake_position.range_km = 550.0
+    fake_position.julian_date = 2460218.5
+
+    fake_krogh = mocker.Mock()
+    fake_krogh.propagate.return_value = [fake_position, fake_position]
+    mocker.patch(
+        "api.services.tasks.fov_tasks.KroghPropagationStrategy",
+        return_value=fake_krogh,
+    )
+
+    refined_results, points, group_by, metrics = refine_with_ephemeris_task(
+        aggregate_result,
+        jd_times=jd_times,
+        location_lat=0.0,
+        location_lon=0.0,
+        location_height=0.0,
+        ra=100.0,
+        dec=50.0,
+        fov_radius=2.0,
+    )
+
+    sat_12345_entries = [r for r in refined_results if r["norad_id"] == 12345]
+    sat_99999_entries = [r for r in refined_results if r["norad_id"] == 99999]
+
+    assert len(sat_12345_entries) == 2
+    assert len(sat_99999_entries) == 1
+    assert all(r["orbital_data_source"] == "ephemeris" for r in sat_12345_entries)
+    assert points == len(refined_results)
+    assert group_by == "satellite"
+    assert "ephemeris_refinement_time" in metrics
+    assert metrics["points_in_fov"] == points
+    fake_session.close.assert_called_once()
+
+
+def test_refine_with_ephemeris_task_keeps_tle_when_krogh_positions_out_of_fov(mocker):
+    aggregate_result = (
+        [
+            {"norad_id": 12345, "orbital_data_source": "tle", "ra": 100.0, "dec": 50.0},
+        ],
+        1,
+        "satellite",
+        {"total_time": 1.0, "points_in_fov": 1},
+    )
+
+    fake_session = mocker.Mock()
+    fake_db = mocker.Mock()
+    fake_db.engine = mocker.Mock()
+    fake_db.engine.url = mocker.Mock()
+    fake_db.engine.url.render_as_string.return_value = "postgresql://user:***@db/test"
+
+    fake_app = mocker.Mock()
+    fake_app.app_context.return_value = nullcontext()
+
+    fake_ephemeris = mocker.Mock()
+    fake_ephemeris.generated_at = datetime(2024, 10, 1, tzinfo=timezone.utc)
+    fake_ephemeris.satellite = mocker.Mock(sat_name="TEST SAT")
+    fake_repo = mocker.Mock()
+    fake_repo.get_closest_by_satellite_numbers.return_value = {12345: fake_ephemeris}
+
+    mocker.patch("api.app", fake_app)
+    mocker.patch("api.entrypoints.extensions.db", fake_db)
+    mocker.patch("sqlalchemy.orm.Session", return_value=fake_session)
+    mocker.patch(
+        "api.adapters.repositories.ephemeris_repository.SqlAlchemyEphemerisRepository",
+        return_value=fake_repo,
+    )
+    mocker.patch(
+        "api.utils.time_utils.ensure_datetime",
+        return_value=datetime.now(timezone.utc),
+    )
+    mocker.patch(
+        "api.utils.output_utils.format_date",
+        return_value="2024-10-01 00:00:00",
+    )
+
+    out_of_fov_position = mocker.Mock()
+    out_of_fov_position.ra = 300.0
+    out_of_fov_position.dec = -50.0
+    out_of_fov_position.covariance = np.eye(3)
+    out_of_fov_position.altitude = 40.0
+    out_of_fov_position.azimuth = 180.0
+    out_of_fov_position.range_km = 550.0
+    out_of_fov_position.julian_date = 2460218.5
+
+    fake_krogh = mocker.Mock()
+    fake_krogh.propagate.return_value = [out_of_fov_position]
+    mocker.patch(
+        "api.services.tasks.fov_tasks.KroghPropagationStrategy",
+        return_value=fake_krogh,
+    )
+
+    refined_results, points, _, metrics = refine_with_ephemeris_task(
+        aggregate_result,
+        jd_times=[2460218.5],
+        location_lat=0.0,
+        location_lon=0.0,
+        location_height=0.0,
+        ra=100.0,
+        dec=50.0,
+        fov_radius=2.0,
+    )
+
+    assert refined_results == aggregate_result[0]
+    assert points == 1
+    assert metrics["points_in_fov"] == 1
+    fake_session.close.assert_called_once()
