@@ -288,7 +288,7 @@ class SqlAlchemyTdmPredictionRepository(AbstractTdmPredictionRepository):
                     FROM tdm_predictions
                     WHERE time_range_start <= :range_end
                     AND time_range_end >= :range_start
-                    AND site_name = :site_name
+                    AND LOWER(site_name) = LOWER(:site_name)
                     ORDER BY norad_id, creation_date DESC
                 )
                 SELECT * FROM latest_tdm_predictions
