@@ -9,6 +9,7 @@ from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
+from api.domain.models.interpolator_splines import InterpolatorSplines
 
 faker = Faker()
 
@@ -96,3 +97,38 @@ class InterpolableEphemerisFactory(factory.Factory):
             generate_ephemeris_point(self.ephemeris_start + i * time_step)
             for i in range(num_points)
         ]
+
+
+class InterpolatorSplinesFactory(factory.Factory):
+    class Meta:
+        model = InterpolatorSplines
+
+    sat_id = factory.LazyFunction(lambda: faker.random_int(min=1, max=10000))
+    ephemeris_id = factory.LazyFunction(lambda: faker.random_int(min=1, max=10000))
+    time_range_start = factory.LazyFunction(
+        lambda: faker.date_time_between(
+            start_date="-10y", end_date=datetime.datetime.now(timezone.utc)
+        ).replace(tzinfo=timezone.utc)
+    )
+    time_range_end = factory.LazyAttribute(
+        lambda o: o.time_range_start + datetime.timedelta(days=3)
+    )
+    generated_at = factory.LazyFunction(
+        lambda: faker.date_time_between(
+            start_date="-10y", end_date=datetime.datetime.now(timezone.utc)
+        ).replace(tzinfo=timezone.utc)
+    )
+    chunk_size = 14
+    overlap = 8
+    n_sigma_points = 13
+    data_source = factory.LazyFunction(
+        lambda: faker.random_element(elements=("other", "spacetrack"))
+    )
+    method = "krogh_chunked"
+    interpolated_splines = factory.LazyAttribute(
+        lambda o: {
+            "positions": [[None, None, None] for _ in range(o.n_sigma_points)],
+            "velocities": [[None, None, None] for _ in range(o.n_sigma_points)],
+            "time_range": (0.0, 1.0),
+        }
+    )

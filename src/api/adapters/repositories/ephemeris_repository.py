@@ -96,7 +96,7 @@ class AbstractEphemerisRepository(abc.ABC):
 
     @abc.abstractmethod
     def _add(self, ephemeris: InterpolableEphemeris):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
@@ -105,7 +105,7 @@ class AbstractEphemerisRepository(abc.ABC):
         data_timestamp: datetime,
         data_source: str | None = None,
     ) -> InterpolableEphemeris | None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _get_closest_by_satellite_name(
@@ -114,13 +114,13 @@ class AbstractEphemerisRepository(abc.ABC):
         data_timestamp: datetime,
         data_source: str | None = None,
     ) -> InterpolableEphemeris | None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _get_latest_by_satellite_number(
         self, satellite_number: str, data_source: str | None = None
     ) -> InterpolableEphemeris | None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _get_latest_by_satellite_name(
@@ -132,23 +132,23 @@ class AbstractEphemerisRepository(abc.ABC):
     def _get_satellites_with_ephemeris(
         self, start_time: datetime, end_time: datetime
     ) -> list[int]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _add_interpolator_splines(self, interpolator_splines: InterpolatorSplines):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _get_interpolator_splines(
         self, ephemeris_id: int
     ) -> InterpolatorSplines | None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _get_all_interpolator_splines_at_epoch(
         self, epoch_date: datetime
     ) -> list[InterpolatorSplines]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @abc.abstractmethod
     def _get_closest_by_satellite_numbers(
@@ -157,7 +157,7 @@ class AbstractEphemerisRepository(abc.ABC):
         epoch: datetime,
         data_source: str | None = None,
     ) -> dict[int, InterpolableEphemeris]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
