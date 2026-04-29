@@ -467,6 +467,15 @@ def validate_parameters(
             )
         parameters["async"] = parameters["async"].lower() == "true"
 
+    if "tle_only" in parameters.keys() and parameters["tle_only"] is not None:
+        if parameters["tle_only"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " tle_only must be 'true' or 'false'",
+            )
+        parameters["tle_only"] = parameters["tle_only"].lower() == "true"
+
     try:
         if (
             "launch_date_start" in parameters.keys()
