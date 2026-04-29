@@ -40,7 +40,6 @@ def process_satellite_batch_task(
     fov_radius: float,
     include_tles: bool,
     illuminated_only: bool,
-    tle_only: bool,
 ) -> tuple[list[dict[str, Any]], int, float]:
     """
     Process a single batch of satellites for FOV calculation.
