@@ -317,7 +317,7 @@ def get_satellite_passes():
         validated_parameters["async"] = True
 
     if validated_parameters["tle_only"] is None:
-        validated_parameters["tle_only"] = False
+        validated_parameters["tle_only"] = True
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
