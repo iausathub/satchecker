@@ -16,13 +16,10 @@ import sys
 
 import psycopg2
 from connections import get_db_login
+from ephemeris_utils import get_starlink_ephemeris_data
 from logging_utils import JSONFormatter
 from psycopg2 import OperationalError
-from satellite_utils import (
-    get_decayed_satellites,
-    get_starlink_ephemeris_data,
-    get_starlink_generations,
-)
+from satellite_utils import get_decayed_satellites, get_starlink_generations
 from tdm_utils import get_tdm_data
 from tle_utils import (
     get_celestrak_general_tles,
