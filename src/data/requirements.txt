@@ -2,6 +2,8 @@ astropy==7.0.2
 astropy-iers-data==0.2025.5.12.0.38.29
 boto3>=1.42.76
 botocore>=1.42.76
+astropy==7.0.2
+astropy-iers-data==0.2025.5.12.0.38.29
 numpy==1.26.4
 requests==2.33.0
 psycopg2-binary==2.9.7
@@ -11,3 +13,4 @@ beautifulsoup4==4.12.2
 lxml==6.1.0
 scipy==1.15.1
 sgp4==2.22
+julian==0.14
