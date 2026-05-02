@@ -493,6 +493,7 @@ def get_starlink_ephemeris_data(cursor, connection):
                         fit_xyz_rms, fit_ang_rms = create_tle_from_ephemeris(
                             ephemeris, cursor, connection
                         )
+
                         end_time = time.perf_counter()
                         tle_generation_s = end_time - start_time
 
