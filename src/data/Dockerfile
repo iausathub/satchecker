@@ -8,7 +8,6 @@ COPY src/data/ ./
 COPY src/data/docker_context_stubs/api/__init__.py ./api/__init__.py
 COPY src/api/domain/models/satellite.py ./api/domain/models/satellite.py
 COPY src/api/domain/models/interpolable_ephemeris.py ./api/domain/models/interpolable_ephemeris.py
-COPY src/api/utils/interpolation_utils.py ./api/utils/interpolation_utils.py
 
 ENV PYTHONPATH=/usr/src/app
 
