@@ -455,8 +455,6 @@ def get_starlink_ephemeris_data(cursor, connection):
             logging.info(f"Today's date: {today}")
             logging.info(f"Found {len(ephemeris_files)} files in manifest")
 
-            cursor = connection.cursor()
-
             stats = []
             # Process each file individually
             for file_name in ephemeris_files:

@@ -108,7 +108,7 @@ def main():
         get_spacetrack_tles(cursor, connection)
         get_decayed_satellites(cursor, connection)
         get_starlink_generations(cursor, connection)
-        get_starlink_ephemeris_data(connection)
+        get_starlink_ephemeris_data(cursor, connection)
 
         # For now, add in the TDM/position data from S3 here
         get_tdm_data(cursor, connection)
