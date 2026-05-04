@@ -15,7 +15,6 @@ from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
-from api.domain.models.satellite import Satellite
 
 
 def insert_ephemeris_data(
@@ -150,22 +149,9 @@ def insert_ephemeris_data(
             )
             ephemeris_points.append(point)
 
-        # Create Satellite object from database result
-        satellite = Satellite(
-            sat_number=satellite_result[1],
-            sat_name=satellite_result[2],
-            constellation=satellite_result[3],
-            generation=satellite_result[4],
-            rcs_size=satellite_result[5],
-            launch_date=satellite_result[6],
-            decay_date=satellite_result[7],
-            object_id=satellite_result[8],
-            object_type=satellite_result[9],
-            has_current_sat_number=satellite_result[10],
-        )
         # Create and return the InterpolableEphemeris object
         ephemeris = InterpolableEphemeris(
-            satellite=satellite,
+            sat_id=satellite_id,
             generated_at=parsed_data["generated_at"],
             data_source=data_source,
             frame=parsed_data["frame"],
