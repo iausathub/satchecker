@@ -408,6 +408,7 @@ def get_starlink_ephemeris_data(cursor, connection):
         MEME_57851_STARLINK-30405_1490204_Operational_1432778700_UNCLASSIFIED
 
     Args:
+        cursor: Database cursor used to execute SQL.
         connection: Database connection for transaction management
 
     Raises:
@@ -469,9 +470,18 @@ def get_starlink_ephemeris_data(cursor, connection):
                     try:
                         file_content = response.content.decode("utf-8")
                         parsed_data = parse_ephemeris_file(file_content, file_name)
-                        ephemeris, ephemeris_id = insert_ephemeris_data(
+                        insert_result = insert_ephemeris_data(
                             parsed_data, cursor, connection
                         )
+                        if insert_result is None:
+                            logging.warning(
+                                "Skipping TLE generation for %s: ephemeris insert "
+                                "returned None (duplicate, missing satellite, etc.)",
+                                file_name,
+                            )
+                            continue
+
+                        ephemeris, ephemeris_id = insert_result
 
                         start_time = time.perf_counter()
                         fit_xyz_rms, fit_ang_rms = create_tle_from_ephemeris(
@@ -489,7 +499,7 @@ def get_starlink_ephemeris_data(cursor, connection):
                             }
                         )
 
-                        num_points = len(parsed_data["timestamps"]) if ephemeris else 0
+                        num_points = len(ephemeris.points)
 
                     except Exception as e:
                         logging.error(
@@ -597,8 +607,50 @@ def propagate_teme_positions_km(
     return out
 
 
-def get_closest_tle(start_time: datetime) -> tuple[str, str]:
-    pass
+def get_closest_tle(
+    ephemeris_start_time: datetime, sat_id: int, cursor
+) -> tuple[str, str] | None:
+    """
+    Retrieve a catalog TLE to seed fitting, aligned with ephemeris start time.
+
+    Rows whose ``epoch`` falls in ``[ephemeris_start_time,
+    ephemeris_start_time + 8h]`` are sorted first. Within each group, the row
+    with ``epoch`` closest to ``ephemeris_start_time + 8h`` (absolute time
+    difference) wins. If the window is empty, this falls back to the globally
+    closest ``epoch`` to that same target — same idea as
+    ``TleRepository._get_closest_by_satellite_number``, but with ``sat_id`` and
+    a soft preference for that 8h window (no ``data_source`` filter).
+
+    Args:
+        ephemeris_start_time (datetime): Ephemeris segment start.
+        sat_id (int): Satellite primary key
+        cursor: Database cursor used to execute SQL.
+
+    Returns:
+        TLE line 1 and line 2, or ``None`` if no row matches ``sat_id``.
+    """
+
+    target_time = ephemeris_start_time + timedelta(hours=8)
+
+    cursor.execute(
+        "SELECT t.id, t.tle_line1, t.tle_line2 FROM tle t "
+        "WHERE t.sat_id = %s "
+        "ORDER BY CASE "
+        "WHEN t.epoch >= %s::timestamptz "
+        "AND t.epoch <= %s::timestamptz THEN 0 ELSE 1 END, "
+        "ABS(EXTRACT(EPOCH FROM t.epoch) - "
+        "EXTRACT(EPOCH FROM %s::timestamptz)) "
+        "LIMIT 1",
+        (sat_id, ephemeris_start_time, target_time, target_time),
+    )
+    tle_result = cursor.fetchone()
+    if tle_result is None:
+        logging.error(f"TLE not found: {ephemeris_start_time}")
+        return None
+
+    tle_line1 = tle_result[1]
+    tle_line2 = tle_result[2]
+    return tle_line1, tle_line2
 
 
 def get_fit_params_from_satrec(satrec: Satrec) -> np.ndarray:
@@ -797,10 +849,12 @@ def create_tle_from_ephemeris(
             position vectors used as fit targets
 
     Returns:
-        tuple[str, str]: Fitted TLE line 1 and line 2
+        tuple[float, float]: XYZ RMS and angular RMS (arcsec) of the fitted TLE
+            vs the ephemeris samples.
 
     Raises:
-        ValueError: If ephemeris has fewer than two points
+        ValueError: If ephemeris has fewer than two points, if no seed TLE exists
+            in the database, or if the least-squares fit does not converge.
     """
     if len(ephemeris.points) < 2:
         raise ValueError("At least two ephemeris points are required to fit a TLE")
@@ -810,10 +864,13 @@ def create_tle_from_ephemeris(
     max_nfev = 300
 
     # Query a nearby catalog TLE to seed the optimizer.
-    # If possible, use a TLE approximately 8 hours after the ephemeris start time.
-    # Otherwise, use the closest one as long as it's later than the start time.
-    tle_start_time = ephemeris.ephemeris_start + timedelta(hours=8)
-    line1, line2 = get_closest_tle(tle_start_time)
+    seed_lines = get_closest_tle(ephemeris.ephemeris_start, ephemeris.sat_id, cursor)
+    if seed_lines is None:
+        raise ValueError(
+            f"No catalog TLE found for sat_id={ephemeris.sat_id} "
+            f"near ephemeris_start={ephemeris.ephemeris_start}"
+        )
+    line1, line2 = seed_lines
 
     seed_sat = Satrec.twoline2rv(line1, line2)
     x0 = get_fit_params_from_satrec(seed_sat)
@@ -855,9 +912,12 @@ def create_tle_from_ephemeris(
     )
 
     if not result.success:
-        logging.info(
-            f"least_squares reported success={result.success}: {result.message}"
+        logging.error(
+            "least_squares did not converge: %s (nfev=%s); TLE not saved",
+            result.message,
+            result.nfev,
         )
+        raise ValueError(f"Least-squares TLE fit did not converge: {result.message}")
 
     # Evaluate final fit quality and export TLE text.
     fitted = build_satrec_from_params(seed_sat, result.x)
@@ -872,7 +932,7 @@ def create_tle_from_ephemeris(
     )
 
     date_collected = datetime.now(timezone.utc)
-    save_tle_to_db(fitted, date_collected, ephemeris.satellite.id, cursor, connection)
+    save_tle_to_db(fitted, date_collected, ephemeris.sat_id, cursor, connection)
 
     return fit_xyz_rms, fit_ang_rms
 
@@ -913,4 +973,11 @@ def save_tle_to_db(
             data_source,
         ),
     )
+    if cursor.rowcount == 0:
+        logging.warning(
+            "TLE not inserted (ON CONFLICT): sat_id=%s epoch=%s data_source=%s",
+            sat_id,
+            epoch,
+            data_source,
+        )
     connection.commit()
