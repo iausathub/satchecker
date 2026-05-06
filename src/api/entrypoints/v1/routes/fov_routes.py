@@ -284,6 +284,7 @@ def get_satellite_passes():
         "data_source",
         "illuminated_only",
         "async",
+        "use_generated_tles",
     ]
 
     if "site" not in request.args:
@@ -302,6 +303,9 @@ def get_satellite_passes():
     validated_parameters = validate_parameters(request, parameters, required_parameters)
     if validated_parameters["async"] is None:
         validated_parameters["async"] = True
+
+    if validated_parameters["use_generated_tles"] is None:
+        validated_parameters["use_generated_tles"] = False
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
@@ -351,6 +355,7 @@ def get_satellite_passes():
                 validated_parameters["constellation"],
                 validated_parameters["data_source"],
                 validated_parameters["illuminated_only"],
+                validated_parameters["use_generated_tles"],
                 api_source,
                 api_version,
             )
@@ -371,6 +376,7 @@ def get_satellite_passes():
                 validated_parameters["constellation"],
                 validated_parameters["data_source"],
                 validated_parameters["illuminated_only"],
+                validated_parameters["use_generated_tles"],
                 api_source,
                 api_version,
             )

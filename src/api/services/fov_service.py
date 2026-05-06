@@ -48,6 +48,7 @@ def get_satellite_passes_in_fov_async(
     constellation: str,
     data_source: str,
     illuminated_only: bool,
+    use_generated_tles: bool,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -101,7 +102,7 @@ def get_satellite_passes_in_fov_async(
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
     # Get all current TLEs
     tles, count, tle_time = _get_tle_data(
-        tle_repo, time_param, constellation, data_source
+        tle_repo, time_param, constellation, data_source, use_generated_tles
     )
 
     jd_times = _create_jd_list(mid_obs_time_jd, start_time_jd, duration)
@@ -184,6 +185,7 @@ def get_satellite_passes_in_fov(
     constellation: str,
     data_source: str,
     illuminated_only: bool,
+    use_generated_tles: bool,
     api_source: str,
     api_version: str,
 ) -> dict[str, Any]:
@@ -261,7 +263,7 @@ def get_satellite_passes_in_fov(
 
     # Get all current TLEs
     tles, count, tle_time = _get_tle_data(
-        tle_repo, time_param, constellation, data_source
+        tle_repo, time_param, constellation, data_source, use_generated_tles
     )
 
     prop_start = python_time.time()
@@ -619,7 +621,11 @@ def get_satellites_above_horizon(
 
 
 def _get_tle_data(
-    tle_repo: AbstractTLERepository, time_jd: Time, constellation: str, data_source: str
+    tle_repo: AbstractTLERepository,
+    time_jd: Time,
+    constellation: str,
+    data_source: str,
+    use_generated_tles: bool,
 ) -> tuple[list[TLE], int, float]:
     tle_start = python_time.time()
 
@@ -633,6 +639,7 @@ def _get_tle_data(
             "zip",
             constellation,
             data_source,
+            use_generated_tles,
         )
         logger.debug(f"Successfully retrieved {count} TLEs")
     except Exception as e:

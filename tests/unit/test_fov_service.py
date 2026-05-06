@@ -56,6 +56,7 @@ def test_satellite_in_fov(test_location, test_time):
         constellation=None,
         data_source="any",
         illuminated_only=False,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -79,6 +80,7 @@ def test_satellite_in_fov(test_location, test_time):
         constellation=None,
         data_source=None,
         illuminated_only=False,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -113,6 +115,7 @@ def test_satellite_in_fov(test_location, test_time):
         constellation=None,
         data_source=None,
         illuminated_only=False,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -136,6 +139,7 @@ def test_satellite_in_fov(test_location, test_time):
         constellation=None,
         data_source="any",
         illuminated_only=False,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -185,6 +189,7 @@ def test_satellite_outside_fov(test_location, test_time):
         constellation=None,
         data_source="any",
         illuminated_only=False,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -313,6 +318,7 @@ def test_empty_tle_list(test_location, test_time):
         constellation=None,
         data_source=None,
         illuminated_only=False,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )

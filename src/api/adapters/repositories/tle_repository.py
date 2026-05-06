@@ -72,9 +72,16 @@ class AbstractTLERepository(abc.ABC):
         format: str,
         constellation: str | None = None,
         data_source_limit: str | None = None,
+        use_generated_tles: bool = False,
     ) -> tuple[list[TLE], int, str]:
         return self._get_all_tles_at_epoch(
-            epoch_date, page, per_page, format, constellation, data_source_limit
+            epoch_date,
+            page,
+            per_page,
+            format,
+            constellation,
+            data_source_limit,
+            use_generated_tles,
         )
 
     def get_nearest_tle(self, id: str, id_type: str, epoch: datetime) -> TLE | None:
@@ -133,7 +140,8 @@ class AbstractTLERepository(abc.ABC):
         per_page: int,
         format: str,
         constellation: str | None = None,
-        data_source: str | None = None,
+        data_source_limit: str | None = None,
+        use_generated_tles: bool = False,
     ) -> tuple[list[TLE], int, str]:
         raise NotImplementedError
 
@@ -448,6 +456,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         format: str,
         constellation: str | None = None,
         data_source_limit: str | None = None,
+        use_generated_tles: bool = False,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
@@ -544,6 +553,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     WHERE epoch BETWEEN :start_date AND :end_date
                     AND sat_id = ANY(:satellite_ids)
                     AND (:data_source_limit IS NULL OR data_source = :data_source_limit)
+                    AND (:use_generated_tles = TRUE OR data_source != 'generated')
                     ORDER BY sat_id, epoch DESC
                 )
                 SELECT * FROM latest_tles
@@ -568,6 +578,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     "end_date": epoch_date,
                     "satellite_ids": list(valid_satellites.keys()),
                     "data_source_limit": data_source_limit,
+                    "use_generated_tles": use_generated_tles,
                 },
             )
 
