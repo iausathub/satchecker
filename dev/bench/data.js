@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778530677889,
+  "lastUpdate": 1778530927669,
   "repoUrl": "https://github.com/iausathub/satchecker",
   "entries": {
     "Benchmark": [
@@ -31716,6 +31716,513 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.18760877823071997",
             "extra": "mean: 1.0637751761999426 sec\nrounds: 5"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michelle.dadighat@noirlab.edu",
+            "name": "Michelle Dadighat",
+            "username": "mdadighat"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c50d8875e040f0da6a41b47f024325875750b563",
+          "message": "Merge pull request #204 from iausathub/dependabot/pip/src/api/mistune-3.2.1\n\nBump mistune from 3.0.1 to 3.2.1 in /src/api",
+          "timestamp": "2026-05-11T12:38:48-07:00",
+          "tree_id": "740faba0d25a12ebdc428e36c27b50f8b5c0ff98",
+          "url": "https://github.com/iausathub/satchecker/commit/c50d8875e040f0da6a41b47f024325875750b563"
+        },
+        "date": 1778530927032,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2020_1day_15min]",
+            "value": 0.772439192029184,
+            "unit": "iter/sec",
+            "range": "stddev: 0.46187728741654327",
+            "extra": "mean: 1.294600287399993 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2024_1day_5min]",
+            "value": 0.5848151957097619,
+            "unit": "iter/sec",
+            "range": "stddev: 0.18744284091651553",
+            "extra": "mean: 1.7099418881999953 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2020_1day_30min]",
+            "value": 1.7613000117624713,
+            "unit": "iter/sec",
+            "range": "stddev: 0.13937416520044674",
+            "extra": "mean: 567.7624443999946 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2020_60min_5min]",
+            "value": 2.1444154537249647,
+            "unit": "iter/sec",
+            "range": "stddev: 0.11645877715315073",
+            "extra": "mean: 466.32754780000596 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2020_60min_30min]",
+            "value": 2.0079509081094344,
+            "unit": "iter/sec",
+            "range": "stddev: 0.14807026331659717",
+            "extra": "mean: 498.02014379999946 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2024_60min_15min]",
+            "value": 2.5575074370475055,
+            "unit": "iter/sec",
+            "range": "stddev: 0.12069315084750118",
+            "extra": "mean: 391.0057055999971 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2020_60min_15min]",
+            "value": 2.5105793214154977,
+            "unit": "iter/sec",
+            "range": "stddev: 0.13420784115627363",
+            "extra": "mean: 398.31444139999803 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2025_1day_15min]",
+            "value": 1.5527969725343378,
+            "unit": "iter/sec",
+            "range": "stddev: 0.201352730411025",
+            "extra": "mean: 643.9991948000056 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2024_1day_15min]",
+            "value": 1.7972275177530852,
+            "unit": "iter/sec",
+            "range": "stddev: 0.11399929169103813",
+            "extra": "mean: 556.4125800000056 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2024_60min_5min]",
+            "value": 2.6860157038273025,
+            "unit": "iter/sec",
+            "range": "stddev: 0.02680809819236124",
+            "extra": "mean: 372.2986424000055 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2025_60min_30min]",
+            "value": 1.490387108816587,
+            "unit": "iter/sec",
+            "range": "stddev: 0.6332785178633727",
+            "extra": "mean: 670.9666193999965 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2024_60min_30min]",
+            "value": 3.091407705069613,
+            "unit": "iter/sec",
+            "range": "stddev: 0.008102939807464156",
+            "extra": "mean: 323.477229599996 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2020_1day_5min]",
+            "value": 0.5327791560614702,
+            "unit": "iter/sec",
+            "range": "stddev: 0.5785465013772658",
+            "extra": "mean: 1.8769503060000035 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2025_1day_5min]",
+            "value": 0.7043141198963802,
+            "unit": "iter/sec",
+            "range": "stddev: 0.12702471560975906",
+            "extra": "mean: 1.4198210312000015 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2025_60min_5min]",
+            "value": 2.8243096155335903,
+            "unit": "iter/sec",
+            "range": "stddev: 0.015977077424305937",
+            "extra": "mean: 354.0688295999985 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2025_60min_15min]",
+            "value": 2.9965169008937256,
+            "unit": "iter/sec",
+            "range": "stddev: 0.015214067464432834",
+            "extra": "mean: 333.72079420000773 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2025_1day_30min]",
+            "value": 1.8909563065065695,
+            "unit": "iter/sec",
+            "range": "stddev: 0.08228246067383728",
+            "extra": "mean: 528.832948999991 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_ephemeris_benchmark.py::test_benchmark_ephemeris_endpoint_response_time[EPHEMERIS_2024_1day_30min]",
+            "value": 2.2392127645901234,
+            "unit": "iter/sec",
+            "range": "stddev: 0.048071007233514366",
+            "extra": "mean: 446.585521399993 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_icrf2radec",
+            "value": 150731.73436974,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000011357853115200869",
+            "extra": "mean: 6.634303016424085 usec\nrounds: 13425"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_get_phase_angle",
+            "value": 127456.72831813539,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00000240533869030888",
+            "extra": "mean: 7.845800007544312 usec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_is_illuminated",
+            "value": 135328.90870330675,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000010331702714880358",
+            "extra": "mean: 7.389404153050449 usec\nrounds: 17048"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_fov_propagation_strategy",
+            "value": 1626.3888991546114,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00005821201502638788",
+            "extra": "mean: 614.8590909098033 usec\nrounds: 814"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_tle_to_icrf_state",
+            "value": 468.37806609427304,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00031763221037682375",
+            "extra": "mean: 2.135027390028816 msec\nrounds: 341"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_jd_to_gst",
+            "value": 714436.6365957658,
+            "unit": "iter/sec",
+            "range": "stddev: 5.920529894628149e-7",
+            "extra": "mean: 1.3997042547606757 usec\nrounds: 43152"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_calculate_lst",
+            "value": 631666.5678728734,
+            "unit": "iter/sec",
+            "range": "stddev: 5.066339611273823e-7",
+            "extra": "mean: 1.583113704066187 usec\nrounds: 49066"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_skyfield_propagation",
+            "value": 594.8382743669355,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000056882484768640874",
+            "extra": "mean: 1.6811292129180209 msec\nrounds: 418"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_icrf2radec_unit_vector",
+            "value": 211257.7769067228,
+            "unit": "iter/sec",
+            "range": "stddev: 9.297753831884529e-7",
+            "extra": "mean: 4.733553550748253 usec\nrounds: 55751"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_get_earth_sun_positions",
+            "value": 11373277.179035388,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0325624280812623e-8",
+            "extra": "mean: 87.92540481148856 nsec\nrounds: 104888"
+          },
+          {
+            "name": "tests/benchmark/test_util_benchmark.py::test_benchmark_full_satellite_position_calculation",
+            "value": 5570.2570816757625,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00002983053823950256",
+            "extra": "mean: 179.52492772544693 usec\nrounds: 1688"
+          },
+          {
+            "name": "tests/benchmark/test_tools_benchmark.py::test_benchmark_tools_get_active_satellites_response_time",
+            "value": 0.506551158559731,
+            "unit": "iter/sec",
+            "range": "stddev: 0.11067906877173987",
+            "extra": "mean: 1.9741342667999902 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_tools_benchmark.py::test_benchmark_tools_get_tle_data_response_time",
+            "value": 0.719948636180323,
+            "unit": "iter/sec",
+            "range": "stddev: 1.2632756666443443",
+            "extra": "mean: 1.3889879774000065 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_tools_benchmark.py::test_benchmark_tools_tles_at_epoch_response_time",
+            "value": 1.1175100888592964,
+            "unit": "iter/sec",
+            "range": "stddev: 0.04514286627961047",
+            "extra": "mean: 894.8465073999955 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2024_radius1_duration30]",
+            "value": 0.20003944241698834,
+            "unit": "iter/sec",
+            "range": "stddev: 0.1583386932770076",
+            "extra": "mean: 4.999014133999981 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2019_radius1_duration30]",
+            "value": 0.26588164419217664,
+            "unit": "iter/sec",
+            "range": "stddev: 0.4588373392725362",
+            "extra": "mean: 3.7610719725999955 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2020]",
+            "value": 0.21593319623160492,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5354259492166829",
+            "extra": "mean: 4.631061909200025 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2025_radius1_duration30]",
+            "value": 0.15900021758123997,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0985263530885307",
+            "extra": "mean: 6.289299569600007 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2019]",
+            "value": 0.3061597178707765,
+            "unit": "iter/sec",
+            "range": "stddev: 0.1440578009083288",
+            "extra": "mean: 3.2662690146000157 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2023]",
+            "value": 0.20699885245855718,
+            "unit": "iter/sec",
+            "range": "stddev: 0.44526521173595596",
+            "extra": "mean: 4.8309446556000015 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_radius_45_radius45_duration30]",
+            "value": 0.08302275783648194,
+            "unit": "iter/sec",
+            "range": "stddev: 0.9751504695545474",
+            "extra": "mean: 12.044890172999999 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2025]",
+            "value": 0.15019467460820957,
+            "unit": "iter/sec",
+            "range": "stddev: 1.0922165607899288",
+            "extra": "mean: 6.658025676399984 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_1980]",
+            "value": 0.9319410854714425,
+            "unit": "iter/sec",
+            "range": "stddev: 0.10568588871482415",
+            "extra": "mean: 1.0730292028000121 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_duration_300_radius1_duration300]",
+            "value": 0.03311409098795032,
+            "unit": "iter/sec",
+            "range": "stddev: 13.213951120899349",
+            "extra": "mean: 30.19862451800002 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2024]",
+            "value": 0.18057448815712454,
+            "unit": "iter/sec",
+            "range": "stddev: 1.2857885502975657",
+            "extra": "mean: 5.537880850199963 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_get_satellite_passes_in_fov_setup",
+            "value": 100436.24835794706,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0000016686025062313607",
+            "extra": "mean: 9.95656465020554 usec\nrounds: 12606"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_radius_5_radius5_duration30]",
+            "value": 0.17134713108496213,
+            "unit": "iter/sec",
+            "range": "stddev: 0.40400242457132196",
+            "extra": "mean: 5.836105884399967 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_1960_radius1_duration30]",
+            "value": 0.9062309529510741,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5145093719259821",
+            "extra": "mean: 1.1034714680000435 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_duration_30_radius1_duration30]",
+            "value": 0.15807381044045193,
+            "unit": "iter/sec",
+            "range": "stddev: 0.514882789485051",
+            "extra": "mean: 6.32615862939997 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_1980_radius1_duration30]",
+            "value": 0.8969158916354375,
+            "unit": "iter/sec",
+            "range": "stddev: 0.03462525755893032",
+            "extra": "mean: 1.1149317448000602 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_duration_180_radius1_duration180]",
+            "value": 0.05268634892659427,
+            "unit": "iter/sec",
+            "range": "stddev: 1.5408838767185846",
+            "extra": "mean: 18.980248591400006 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2021]",
+            "value": 0.30867158409683804,
+            "unit": "iter/sec",
+            "range": "stddev: 1.033983772341017",
+            "extra": "mean: 3.2396892086000206 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_get_satellites_above_horizon_setup",
+            "value": 28496.373117234794,
+            "unit": "iter/sec",
+            "range": "stddev: 0.000003016654157129652",
+            "extra": "mean: 35.092185096186626 usec\nrounds: 7850"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2000_radius1_duration30]",
+            "value": 0.44196061221107974,
+            "unit": "iter/sec",
+            "range": "stddev: 0.5032667518140403",
+            "extra": "mean: 2.2626450691999707 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_duration_600_radius1_duration600]",
+            "value": 0.02450166793254572,
+            "unit": "iter/sec",
+            "range": "stddev: 3.9839185181874806",
+            "extra": "mean: 40.81354799000005 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_duration_240_radius1_duration240]",
+            "value": 0.03930593944744017,
+            "unit": "iter/sec",
+            "range": "stddev: 4.369041271427872",
+            "extra": "mean: 25.441447629999992 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2010_radius1_duration30]",
+            "value": 0.25791524036553876,
+            "unit": "iter/sec",
+            "range": "stddev: 1.1804911727328566",
+            "extra": "mean: 3.8772427661999247 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2021_radius1_duration30]",
+            "value": 0.3877909318905594,
+            "unit": "iter/sec",
+            "range": "stddev: 0.7245395598471683",
+            "extra": "mean: 2.57870908720015 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_1960]",
+            "value": 2.6101046738311906,
+            "unit": "iter/sec",
+            "range": "stddev: 0.13033705091839656",
+            "extra": "mean: 383.126397200067 msec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2010]",
+            "value": 0.3566309768813414,
+            "unit": "iter/sec",
+            "range": "stddev: 0.12276675832681488",
+            "extra": "mean: 2.8040189013999224 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_duration_60_radius1_duration60]",
+            "value": 0.10181789444972655,
+            "unit": "iter/sec",
+            "range": "stddev: 0.48558895568716226",
+            "extra": "mean: 9.821456291199956 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_radius_1_radius1_duration30]",
+            "value": 0.1652376233084409,
+            "unit": "iter/sec",
+            "range": "stddev: 0.40079702629604863",
+            "extra": "mean: 6.051890483400075 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2022_radius1_duration30]",
+            "value": 0.3833469776949666,
+            "unit": "iter/sec",
+            "range": "stddev: 0.20540900504919993",
+            "extra": "mean: 2.6086028016000453 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_radius_20_radius20_duration30]",
+            "value": 0.14992666395853876,
+            "unit": "iter/sec",
+            "range": "stddev: 0.6360853314817017",
+            "extra": "mean: 6.669927640599963 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2023_radius1_duration30]",
+            "value": 0.18861718703978128,
+            "unit": "iter/sec",
+            "range": "stddev: 0.14592972254914854",
+            "extra": "mean: 5.301743789600096 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_radius_2_radius2_duration30]",
+            "value": 0.17469135404043717,
+            "unit": "iter/sec",
+            "range": "stddev: 0.2122518982562515",
+            "extra": "mean: 5.724381755999912 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2015]",
+            "value": 0.3474821102941138,
+            "unit": "iter/sec",
+            "range": "stddev: 0.19729846563121348",
+            "extra": "mean: 2.8778459965998993 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_2015_radius1_duration30]",
+            "value": 0.31555324850283334,
+            "unit": "iter/sec",
+            "range": "stddev: 0.07192106428873267",
+            "extra": "mean: 3.1690372536000724 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_fov_endpoint_response_time[FOV_radius_10_radius10_duration30]",
+            "value": 0.16720369683395409,
+            "unit": "iter/sec",
+            "range": "stddev: 0.3631158029991376",
+            "extra": "mean: 5.980729008600065 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2022]",
+            "value": 0.40237190829859565,
+            "unit": "iter/sec",
+            "range": "stddev: 0.17649935987203125",
+            "extra": "mean: 2.4852629604000867 sec\nrounds: 5"
+          },
+          {
+            "name": "tests/benchmark/test_fov_benchmark.py::test_benchmark_horizon_endpoint_response_time[Horizon_2000]",
+            "value": 0.5019907434866474,
+            "unit": "iter/sec",
+            "range": "stddev: 0.27203958063923545",
+            "extra": "mean: 1.9920686048000789 sec\nrounds: 5"
           }
         ]
       }
