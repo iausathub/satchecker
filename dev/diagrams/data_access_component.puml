@@ -1,0 +1,72 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("Route", $bgColor="Burlywood", $borderColor="DarkGoldenrod", $fontColor="black")
+AddElementTag("Service", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("External", $bgColor="LightSteelBlue", $borderColor="DarkSlateGray", $fontColor="black")
+AddElementTag("Data", $bgColor="IndianRed", $borderColor="FireBrick", $fontColor="black")
+AddElementTag("Shared", $bgColor="DarkSeaGreen", $borderColor="SeaGreen", $fontColor="black")
+AddElementTag("ToDo", $fontColor="Maroon", $borderColor="red")
+AddElementTag("Repository", $bgColor="Thistle", $borderColor="Purple", $fontColor="black")
+
+title SatChecker - Data Access Layer Component Diagram
+
+' External data providers
+System_Ext(celestrak, "Celestrak", "TLE data provider", $tags="External")
+System_Ext(spacetrack, "Space-Track", "TLE data provider", $tags="External")
+System_Ext(starlink, "Starlink", "Orbital ephemeris data provider", $tags="External")
+
+' Ingestion
+Component(data_ingestor, "Data Ingestor", "Python/Cron", "Scheduled job that fetches and stores TLEs, satellite data, and orbital ephemeris data", $tags="Service")
+
+' Primary storage
+ComponentDb(orbital_db, "Orbital Database", "PostgreSQL", "Stores satellite and TLE data", $tags="Data")
+
+' Repositories
+Component(ephem_repo, "Ephemeris Repository", "Python", "Manages ephemeris data from multiple sources", $tags="Repository")
+Component(satellite_repo, "Satellite Repository", "Python", "Manages satellite data", $tags="Repository")
+Component(tle_repo, "TLE Repository", "Python", "Manages TLE data from multiple sources", $tags="Repository")
+
+' Application services and tasks
+Component(tools_service, "Tools Service", "Python", "Provides TLE and satellite data", $tags="Service")
+Component(ephem_service, "Ephemeris Service", "Python", "Generates ephemeris data", $tags="Service")
+Component(ephem_tasks, "Ephemeris Tasks", "Celery", "Handles async tasks for ephemeris generation", $tags="Service")
+Component(fov_service, "Field of View Service", "Python", "Calculates satellites in a field of view", $tags="Service")
+
+' Cache
+ComponentQueue(cache, "Cache", "Redis", "Stores cached ephemeris results and recent TLEs", $tags="Data")
+
+' ---- Relationships ----
+' External systems -> Data Ingestor (arrow direction matches screenshot)
+Rel(celestrak, data_ingestor, "Fetches TLEs")
+Rel(spacetrack, data_ingestor, "Fetches TLEs")
+Rel(starlink, data_ingestor, "Fetches orbital ephemeris data")
+Rel(data_ingestor, orbital_db, "Writes TLE, satellite, and orbital ephemeris data")
+
+' Orbital Database -> repositories (and bidirectional satellite metadata)
+Rel(orbital_db, ephem_repo, "Reads orbital ephemeris data")
+Rel(orbital_db, satellite_repo, "Reads satellite metadata")
+Rel(orbital_db, tle_repo, "Reads TLEs")
+
+' Repositories -> services and cache (data toward consumers)
+Rel(satellite_repo, tools_service, "Retrieves satellite data")
+Rel(tle_repo, tools_service, "Retrieves TLEs")
+Rel(tle_repo, ephem_service, "Retrieves TLEs")
+Rel(tle_repo, cache, "Stores most recent TLE set")
+Rel(tle_repo, fov_service, "Retrieves TLEs")
+Rel(ephem_repo, fov_service, "Retrieves orbital ephemeris data")
+
+' Ephemeris pipeline
+Rel(ephem_service, ephem_tasks, "Calls", "Celery/async")
+BiRel(ephem_tasks, cache, "Stores/retrieves ephemerides")
+
+' Cache -> Field of View
+Rel(cache, fov_service, "Reads TLE data")
+
+SHOW_LEGEND()
+@enduml

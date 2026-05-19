@@ -1,0 +1,55 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("Route", $bgColor="Burlywood", $borderColor="DarkGoldenrod", $fontColor="black")
+AddElementTag("Service", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("External", $bgColor="LightSteelBlue", $borderColor="DarkSlateGray", $fontColor="black")
+AddElementTag("Data", $bgColor="IndianRed", $borderColor="FireBrick", $fontColor="black")
+AddElementTag("Repository", $bgColor="Thistle", $borderColor="Purple", $fontColor="black")
+AddElementTag("Shared", $bgColor="DarkSeaGreen", $borderColor="SeaGreen", $fontColor="black")
+AddElementTag("ToDo", $fontColor="Maroon", $borderColor="red")
+
+title SatChecker - Propagation System Component Diagram
+
+' Core Services
+Component(ephem_service, "Ephemeris Service", "Python", "Generates ephemeris data", $tags="Service")
+Component(fov_service, "Field of View Service", "Python", "Calculates satellites in a field of view", $tags="Service")
+Component(ephem_tasks, "Ephemeris Tasks", "Celery", "Handles async tasks for ephemeris generation", $tags="Service")
+
+' Repositories
+Component(tle_repository, "TLE Repository", "Python", "Manages TLE data from multiple sources", $tags="Repository")
+Component(ephemeris_repository, "Ephemeris Repository", "Python", "Manages operator provided ephemeris data data", $tags="Repository")
+
+' Data Storage
+ComponentQueue(cache, "Cache", "Redis", "Stores cached ephemeris results and most recent TLE set", $tags="Data")
+
+' Propagation Strategy
+Component(propagation_strategy, "Propagation Strategy", "Python", "Abstract interface for satellite propagation", $tags="Shared") {
+    Component(skyfield_strategy, "Skyfield Strategy", "Python", "Uses Skyfield for high-precision propagation", $tags="Shared")
+    Component(interpolation_strategy, "Krogh Interpolation Strategy", "Python", "Used for interpolating operator-provided ephemeris data", $tags="Shared")
+    Component(sgp4_strategy, "SGP4 Strategy", "Python", "Uses SGP4 for fast propagation", $tags="ToDo+Shared")
+    Component(fov_strategy, "FOV Strategy", "Python", "Optimized for FOV calculations", $tags="Shared")
+}
+
+' ---- Relationships ----
+' Service to Strategy
+Rel(fov_service, propagation_strategy, "Uses for FOV calculations")
+Rel_L(ephem_tasks, propagation_strategy, "Uses for position and brightness calculations")
+
+' To Data
+Rel(tle_repository, ephem_service, "Retreives TLE data")
+Rel(tle_repository, fov_service, "Retreives TLE data")
+Rel(ephemeris_repository, fov_service, "Retreives orbital ephemeris data")
+Rel(tle_repository, cache, "Retrieves most recent TLE set (if applicable)")
+Rel(ephem_tasks, cache, "Caches propagation results")
+
+' Service Dependencies
+Rel(ephem_service, ephem_tasks, "Delegates async propagation")
+
+SHOW_LEGEND()
+@enduml

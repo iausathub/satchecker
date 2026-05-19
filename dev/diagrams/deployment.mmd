@@ -1,0 +1,53 @@
+```mermaid
+flowchart TB
+    %% Development Environment
+    subgraph dev["Development (Docker)"]
+        dev_api["API Service<br/>Flask"]
+        dev_worker["Celery Worker<br/>Python"]
+        dev_alert["Alert Service<br/>Python"]
+        dev_db["PostgreSQL<br/>Database"]
+        dev_cache["Redis<br/>Cache"]
+    end
+
+    %% Production Environment
+    subgraph prod["Production (Kubernetes)"]
+        prod_api["API Service<br/>Flask"]
+        prod_worker["Celery Worker<br/>Python"]
+        prod_alert["Alert Service<br/>Python"]
+        prod_db["PostgreSQL<br/>Database"]
+        prod_cache["Redis<br/>Cache"]
+    end
+
+    %% External Services
+    subgraph ext["External Services (Cloud)"]
+        web_app["Web Application<br/>React"]
+        email_service["Email Service<br/>SMTP/API"]
+        message_broker["Message Broker<br/>Kafka"]
+    end
+
+    %% Development Relationships
+    dev_api --> dev_db
+    dev_api --> dev_cache
+    dev_worker --> dev_cache
+    dev_alert --> dev_db
+
+    %% Production Relationships
+    prod_api --> prod_db
+    prod_api --> prod_cache
+    prod_worker --> prod_cache
+    prod_alert --> prod_db
+
+    %% External Relationships
+    web_app --> prod_api
+    prod_alert --> email_service
+    prod_alert --> message_broker
+
+    %% Styling
+    classDef service fill:#CD853F,stroke:#483D8B,color:black
+    classDef data fill:#CD5C5C,stroke:#B22222,color:black
+    classDef external fill:#B0C4DE,stroke:#2F4F4F,color:black
+
+    class dev_api,dev_worker,dev_alert,prod_api,prod_worker,prod_alert service
+    class dev_db,dev_cache,prod_db,prod_cache data
+    class web_app,email_service,message_broker external
+```

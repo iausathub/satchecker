@@ -1,0 +1,57 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("Service", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("Data", $bgColor="IndianRed", $borderColor="FireBrick", $fontColor="black")
+AddElementTag("External", $bgColor="LightSteelBlue", $borderColor="DarkSlateGray", $fontColor="black")
+
+title SatChecker - Deployment Diagram
+
+' Development Environment
+Deployment_Node(dev, "Development", "Docker") {
+    Container(dev_api, "API Service", "Flask", "Development API", $tags="Service")
+    Container(dev_worker, "Celery Worker", "Python", "Development worker", $tags="Service")
+    Container(dev_alert, "Alert Service", "Python", "Development alerts", $tags="Service")
+    ContainerDb(dev_db, "PostgreSQL", "Database", "Development DB", $tags="Data")
+    ContainerQueue(dev_cache, "Redis", "Cache", "Development cache", $tags="Data")
+}
+
+' Production Environment
+Deployment_Node(prod, "Production", "Kubernetes") {
+    Container(prod_api, "API Service", "Flask", "Production API", $tags="Service")
+    Container(prod_worker, "Celery Worker", "Python", "Production worker", $tags="Service")
+    Container(prod_alert, "Alert Service", "Python", "Production alerts", $tags="Service")
+    ContainerDb(prod_db, "PostgreSQL", "Database", "Production DB", $tags="Data")
+    ContainerQueue(prod_cache, "Redis", "Cache", "Production cache", $tags="Data")
+}
+
+' External Services
+Deployment_Node(ext, "External Services", "Cloud") {
+    Container(web_app, "Web Application", "React", "User interface", $tags="External")
+    Container(email_service, "Email Service", "SMTP/API", "Notifications", $tags="External")
+    Container(message_broker, "Message Broker", "Kafka", "Alert distribution", $tags="External")
+}
+
+' Development Relationships
+Rel(dev_api, dev_db, "Uses", "SQLAlchemy")
+Rel(dev_api, dev_cache, "Uses", "Redis")
+Rel(dev_worker, dev_cache, "Uses", "Redis")
+Rel(dev_alert, dev_db, "Uses", "SQLAlchemy")
+
+' Production Relationships
+Rel(prod_api, prod_db, "Uses", "SQLAlchemy")
+Rel(prod_api, prod_cache, "Uses", "Redis")
+Rel(prod_worker, prod_cache, "Uses", "Redis")
+Rel(prod_alert, prod_db, "Uses", "SQLAlchemy")
+
+' External Relationships
+Rel(web_app, prod_api, "Uses", "HTTPS")
+Rel(prod_alert, email_service, "Uses", "SMTP/API")
+Rel(prod_alert, message_broker, "Uses", "Kafka")
+
+SHOW_LEGEND()
+@enduml

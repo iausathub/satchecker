@@ -1,0 +1,55 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("Route", $bgColor="Burlywood", $borderColor="DarkGoldenrod", $fontColor="black")
+AddElementTag("Service", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("External", $bgColor="LightSteelBlue", $borderColor="DarkSlateGray", $fontColor="black")
+AddElementTag("Data", $bgColor="IndianRed", $borderColor="FireBrick", $fontColor="black")
+AddElementTag("Shared", $bgColor="DarkSeaGreen", $borderColor="SeaGreen", $fontColor="black")
+AddElementTag("ToDo", $fontColor="Maroon", $borderColor="red")
+
+title SatChecker - Core API Services Component Diagram
+
+' External Systems
+Container_Ext(web_app, "Web Application", "React", "User interface for satellite predictions", $tags="External")
+
+' Route Layer
+Component(ephem_routes, "Ephemeris Routes", "Flask", "Handles HTTP requests for ephemeris data", $tags="Route")
+Component(fov_routes, "Field of View Routes", "Flask", "Handles HTTP requests for field of view predictions", $tags="Route")
+Component(tools_routes, "Tools Routes", "Flask", "Handles HTTP requests for TLE and satellite data", $tags="Route")
+
+' Validation
+Component(validation_service, "Input Validation Service", "Python", "Validates request parameters", $tags="Shared")
+
+' Core Services
+Component(ephem_service, "Ephemeris Service", "Python", "Generates ephemeris data", $tags="Service")
+Component(fov_service, "Field of View Service", "Python", "Calculates satellites in a field of view", $tags="Service")
+Component(tools_service, "Tools Service", "Python", "Provides TLE and satellite data", $tags="Service")
+Component(ephem_tasks, "Ephemeris Tasks", "Celery", "Handles async tasks for ephemeris generation", $tags="Service")
+
+' ---- Relationships ----
+' API Layer Relationships
+Rel(ephem_routes, validation_service, "Validates")
+Rel(fov_routes, validation_service, "Validates")
+Rel(tools_routes, validation_service, "Validates")
+
+' API to Core Services
+Rel(ephem_routes, ephem_service, "Calls")
+Rel(fov_routes, fov_service, "Calls")
+Rel(tools_routes, tools_service, "Calls")
+
+' Core Services Relationships
+Rel(ephem_service, ephem_tasks, "Delegates async tasks")
+
+' External Systems
+Rel(web_app, ephem_routes, "Requests ephemeris data")
+Rel(web_app, fov_routes, "Requests FOV data")
+Rel(web_app, tools_routes, "Requests TLE and satellite data")
+
+SHOW_LEGEND()
+@enduml
