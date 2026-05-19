@@ -1,0 +1,106 @@
+@startuml SatCheckerComponentDiagram
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title SatChecker - Component Diagram
+
+Container(WebApplication, "Web Application", "React", "Provides user interface for satellite predictions and alert management")
+Container(API, "API", "Flask", "Provides satellite position queries and alert management")
+
+Container_Boundary(SatChecker, "SatChecker API") {
+    ComponentDb(satellite_db, "Satellite Database", "PostgreSQL", "Stores satellite and TLE data")
+    ComponentDb(alert_db, "Alert Database", "PostgreSQL", "Stores alert configurations and history")
+    ComponentQueue(cache, "Cache", "Redis", "Stores cached ephemeris results and recent TLEs")
+    ComponentQueue(message_broker, "Message Broker", "Kafka", "Distributes alert messages")
+
+    Component(propagation, "Propagation Strategy Library", "Python", "Calculates satellite positions")
+
+    Boundary(shared, "Shared Services") {
+        Component(auth_service, "Authentication Service", "Python", "Handles user authentication and authorization")
+        Component(validation_service, "Input Validation Service", "Python", "Validates request parameters")
+        Component(tle_service, "TLE Service", "Python", "Manages TLE data from multiple sources")
+        Component(satellite_service, "Satellite Service", "Python", "Manages satellite data")
+    }
+
+    Boundary(ephem, "Ephemeris") {
+        Component(ephem_routes, "Ephemeris Routes", "Flask", "Handles HTTP requests for ephemeris data")
+        Component(ephem_service, "Ephemeris Service", "Python", "Generates ephemeris data")
+        Component(ephem_tasks, "Ephemeris Tasks", "Celery", "Handles async tasks for ephemeris generation")
+    }
+
+    Boundary(fov, "Field of View") {
+        Component(fov_routes, "Field of View Routes", "Flask", "Handles HTTP requests for field of view")
+        Component(fov_service, "Field of View Service", "Python", "Calculates satellites passing through a field of view")
+    }
+
+    Boundary(info, "Satellite Info") {
+        Component(info_routes, "Satellite Info Routes", "Flask", "Handles HTTP requests for satellite info")
+        Component(info_service, "Satellite Info Service", "Python", "Provides general info on satellites")
+    }
+
+    Boundary(alert, "Alerts") {
+        Component(alert_routes, "Alert Routes", "Flask", "Handles HTTP requests for alerts")
+        Component(alert_service, "Alert Service", "Python", "Manages alert configurations and triggers")
+        Component(notification_service, "Notification Service", "Python", "Sends alerts via email and message broker")
+    }
+}
+
+' External Systems
+System_Ext(celestrak, "Celestrak", "TLE data provider")
+System_Ext(spacetrack, "Space-Track", "TLE data provider")
+Container_Ext(email_service, "Email Service", "TBD", "Sends email notifications")
+Container_Ext(auth0, "Auth0", "TBD", "Handles authentication")
+
+' Web Application Relationships
+Rel(WebApplication, ephem_routes, "Requests ephemeris data", "HTTPS")
+Rel(WebApplication, fov_routes, "Requests field of view data", "HTTPS")
+Rel(WebApplication, info_routes, "Requests satellite info", "HTTPS")
+Rel(WebApplication, alert_routes, "Manages alerts", "HTTPS")
+
+' API Relationships
+Rel(API, ephem_routes, "Requests ephemeris data", "HTTPS")
+Rel(API, fov_routes, "Requests field of view data", "HTTPS")
+Rel(API, info_routes, "Requests satellite info", "HTTPS")
+Rel(API, alert_routes, "Manages alerts", "HTTPS")
+
+' Internal Service Relationships
+Rel(ephem_routes, ephem_service, "Calls", "Python")
+Rel(fov_routes, fov_service, "Calls", "Python")
+Rel(info_routes, info_service, "Calls", "Python")
+Rel(alert_routes, alert_service, "Calls", "Python")
+
+Rel(ephem_service, ephem_tasks, "Distributes", "Celery/async")
+Rel(ephem_service, tle_service, "Retrieves data", "Python")
+
+Rel(tle_service, satellite_db, "Reads/Writes", "SQLAlchemy")
+Rel(satellite_service, satellite_db, "Reads/Writes", "SQLAlchemy")
+Rel(alert_service, alert_db, "Reads/Writes", "SQLAlchemy")
+
+Rel(ephem_tasks, cache, "Saves to/Reads from", "Redis")
+Rel(ephem_tasks, propagation, "Calls", "Python")
+
+' External Service Relationships
+Rel(tle_service, celestrak, "Retrieves data", "HTTPS")
+Rel(tle_service, spacetrack, "Retrieves data", "HTTPS")
+Rel(auth_service, auth0, "Validates tokens", "HTTPS")
+Rel(notification_service, email_service, "Sends notifications", "SMTP/API")
+Rel(notification_service, message_broker, "Publishes alerts", "Kafka")
+
+' Validation and Authentication
+Rel(ephem_routes, validation_service, "Calls", "Python")
+Rel(fov_routes, validation_service, "Calls", "Python")
+Rel(info_routes, validation_service, "Calls", "Python")
+Rel(alert_routes, validation_service, "Calls", "Python")
+
+Rel(ephem_routes, auth_service, "Validates", "Python")
+Rel(fov_routes, auth_service, "Validates", "Python")
+Rel(info_routes, auth_service, "Validates", "Python")
+Rel(alert_routes, auth_service, "Validates", "Python")
+
+SHOW_LEGEND()
+
+@enduml

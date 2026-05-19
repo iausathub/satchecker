@@ -1,0 +1,50 @@
+```mermaid
+classDiagram
+    class PropagationStrategy {
+        <<interface>>
+        +propagate(satellite, start_time, end_time) List[Position]
+        +calculate_brightness(position) float
+        +get_phase_angle(position) float
+        +is_illuminated(position) bool
+    }
+
+    class SkyfieldStrategy {
+        -skyfield_loader: Loader
+        -timescale: Timescale
+        +propagate(satellite, start_time, end_time) List[Position]
+        +calculate_brightness(position) float
+        +get_phase_angle(position) float
+        +is_illuminated(position) bool
+    }
+
+    class SGP4Strategy {
+        -sgp4_model: SGP4
+        +propagate(satellite, start_time, end_time) List[Position]
+        +calculate_brightness(position) float
+        +get_phase_angle(position) float
+        +is_illuminated(position) bool
+    }
+
+    class FOVStrategy {
+        -skyfield_strategy: SkyfieldStrategy
+        +propagate(satellite, start_time, end_time) List[Position]
+        +calculate_brightness(position) float
+        +get_phase_angle(position) float
+        +is_illuminated(position) bool
+        +is_in_fov(position, fov) bool
+    }
+
+    PropagationStrategy <|-- SkyfieldStrategy
+    PropagationStrategy <|-- SGP4Strategy
+    PropagationStrategy <|-- FOVStrategy
+    FOVStrategy o-- SkyfieldStrategy
+
+    %% Styling
+    classDef interface fill:#8FBC8F,stroke:#2E8B57,color:black
+    classDef implementation fill:#CD853F,stroke:#483D8B,color:black
+    classDef todo fill:#CD853F,stroke:#800000,color:#800000
+
+    class PropagationStrategy interface
+    class SkyfieldStrategy,FOVStrategy implementation
+    class SGP4Strategy todo
+```

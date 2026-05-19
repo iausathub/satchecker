@@ -1,0 +1,39 @@
+```mermaid
+graph TB
+    %% External Systems
+    celestrak["Celestrak<br/>TLE data provider"]
+    spacetrack["Space-Track<br/>TLE data provider"]
+    email_service["Email Service<br/>SMTP/API"]
+    message_broker["Message Broker<br/>Kafka"]
+
+    %% SatChecker Systems
+    subgraph SatChecker
+        web_app["Web Application<br/>React"]
+        api_service["API Service<br/>Flask"]
+        alert_service["Alert Service<br/>Python"]
+        satellite_db["Satellite Database<br/>PostgreSQL"]
+        cache["Cache<br/>Redis"]
+    end
+
+    %% Relationships
+    api_service -->|"Fetches TLE data<br/>HTTPS"| celestrak
+    api_service -->|"Fetches TLE data<br/>HTTPS"| spacetrack
+    alert_service -->|"Sends notifications<br/>SMTP/API"| email_service
+    alert_service -->|"Publishes alerts<br/>Kafka"| message_broker
+    web_app -->|"Requests data<br/>HTTPS"| api_service
+    alert_service -->|"Requests FOV calculations<br/>Internal"| api_service
+
+    %% Data Flow
+    api_service -->|"Stores/retrieves data<br/>SQLAlchemy"| satellite_db
+    api_service -->|"Caches results<br/>Redis"| cache
+    alert_service -->|"Stores alert configs<br/>SQLAlchemy"| satellite_db
+
+    %% Styling
+    classDef external fill:#B0C4DE,stroke:#2F4F4F,color:black
+    classDef system fill:#CD853F,stroke:#483D8B,color:black
+    classDef data fill:#CD5C5C,stroke:#B22222,color:black
+
+    class celestrak,spacetrack,email_service,message_broker external
+    class web_app,api_service,alert_service system
+    class satellite_db,cache data
+```

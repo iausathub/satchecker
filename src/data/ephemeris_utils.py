@@ -11,6 +11,8 @@ from psycopg2.extras import execute_values
 from scipy.optimize import least_squares
 from sgp4.api import WGS84, Satrec
 from sgp4.exporter import export_tle
+from skyfield.api import EarthSatellite, load
+from skyfield.elementslib import osculating_elements_of
 
 from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
@@ -37,6 +39,9 @@ TLE_SEED_PREFERENCE_WINDOW_HOURS = 8.0
 # the step as a bad direction and back off via its damping parameter, but
 # finite so it never raises and never produces NaN cost.
 LARGE_RESIDUAL = 1.0e6
+
+# ``sgp4init`` epoch argument: days since 1949-12-31 00:00 UT (JD 2433281.5).
+SGP4_EPOCH_REFERENCE_JD = 2433281.5
 
 
 def insert_ephemeris_data(
@@ -649,6 +654,74 @@ def get_closest_tle(
     return tle_line1, tle_line2
 
 
+def ut1_jd_from_datetime(dt: datetime) -> float:
+    """UT1 Julian date for an aware or naive UTC ``datetime``."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return float(Time(dt, format="datetime", scale="utc").ut1.jd)
+
+
+def sgp4_epoch_days_from_ut1_jd(jd_ut1: float) -> float:
+    """Convert UT1 JD to the ``sgp4init`` epoch offset (days since 1949-12-31)."""
+    return float(jd_ut1) - SGP4_EPOCH_REFERENCE_JD
+
+
+def fit_window_epoch_datetime(window_start: datetime) -> datetime:
+    """Midpoint of the TLE fit window (``window_start + TLE_FIT_WINDOW_HOURS / 2``)."""
+    if window_start.tzinfo is None:
+        window_start = window_start.replace(tzinfo=timezone.utc)
+    else:
+        window_start = window_start.astimezone(timezone.utc)
+    return window_start + timedelta(hours=TLE_FIT_WINDOW_HOURS / 2.0)
+
+
+def fit_epoch_jd_from_fit_jds(jd_fit: np.ndarray) -> float:
+    """Midpoint epoch (UT1 JD) from the first and last sample in the fit window."""
+    if len(jd_fit) < 1:
+        raise ValueError("jd_fit must contain at least one epoch")
+    return float(0.5 * (float(jd_fit[0]) + float(jd_fit[-1])))
+
+
+def seed_params_at_epoch(
+    line1: str,
+    line2: str,
+    fit_epoch_dt: datetime,
+) -> np.ndarray:
+    """
+    Physical SGP4 parameters at ``fit_epoch_dt`` for LM initialization.
+
+    Propagates the seed TLE to ``fit_epoch_dt`` and maps osculating elements
+    (Skyfield) to the ``get_fit_params_from_satrec`` vector order. ``ndot`` and
+    ``bstar`` stay from the seed catalog TLE.
+    """
+    if fit_epoch_dt.tzinfo is None:
+        fit_epoch_dt = fit_epoch_dt.replace(tzinfo=timezone.utc)
+    else:
+        fit_epoch_dt = fit_epoch_dt.astimezone(timezone.utc)
+
+    seed_sat = Satrec.twoline2rv(line1, line2)
+    ts = load.timescale()
+    elements = osculating_elements_of(
+        EarthSatellite(line1, line2, "SAT", ts).at(ts.from_datetime(fit_epoch_dt))
+    )
+    no_kozai = elements.mean_motion_per_day.radians / (24.0 * 60.0)
+    return np.array(
+        [
+            elements.inclination.radians,
+            elements.longitude_of_ascending_node.radians,
+            float(elements.eccentricity),
+            elements.argument_of_periapsis.radians,
+            elements.mean_anomaly.radians,
+            no_kozai,
+            float(seed_sat.ndot),
+            float(seed_sat.bstar),
+        ],
+        dtype=np.float64,
+    )
+
+
 def get_fit_params_from_satrec(satrec: Satrec) -> np.ndarray:
     """
     Convert a `Satrec` object to the least-squares fit parameter vector.
@@ -743,14 +816,18 @@ def xyz_rms_km(model_pos: np.ndarray, obs_pos: np.ndarray) -> float:
 def build_satrec_from_params(
     template: Satrec,
     x: np.ndarray,
+    *,
+    epoch_ut1_jd: float | None = None,
 ) -> Satrec:
     """
     Build a new `Satrec` from an optimized TLE parameter vector.
 
     Args:
-        template (Satrec): Seed satellite record providing metadata and epoch
+        template (Satrec): Seed satellite record providing metadata
         x (np.ndarray): Fit vector ordered as
         [inclo, nodeo, ecco, argpo, mo, no_kozai, ndot, bstar]
+        epoch_ut1_jd: UT1 Julian date for ``sgp4init``; defaults to the seed
+            TLE epoch when omitted.
 
     Returns:
         Satrec: Re-initialized SGP4 satellite record with fitted elements
@@ -765,13 +842,18 @@ def build_satrec_from_params(
     ndot = float(x[6])
     bstar = float(x[7])
 
-    # sgp4init() expects epoch as days since 1949-12-31 00:00 UT
-    # (JD 2433281.5), so convert absolute JD by subtracting that reference epoch.
+    if epoch_ut1_jd is None:
+        epoch_days = (
+            template.jdsatepoch + template.jdsatepochF - SGP4_EPOCH_REFERENCE_JD
+        )
+    else:
+        epoch_days = sgp4_epoch_days_from_ut1_jd(epoch_ut1_jd)
+
     sat.sgp4init(
         WGS84,
         template.operationmode,
         template.satnum,
-        template.jdsatepoch + template.jdsatepochF - 2433281.5,
+        epoch_days,
         bstar,
         ndot,
         template.nddot,
@@ -801,15 +883,30 @@ def build_unconstrained_tle_param_transform(
     seed_params: np.ndarray,
 ) -> tuple[Callable[[np.ndarray], np.ndarray], np.ndarray]:
     """
-    Build an unconstrained LM parameterization for ``ecco`` and ``no_kozai``.
+    Build an unconstrained LM parameterization for ``ecco``, ``no_kozai``, and
+    ``bstar``.
 
-    Levenberg–Marquardt does not support bounds. We optimize an *unconstrained*
-    parameter vector of the same length as the physical TLE fit vector. Indices
-    0, 1, 3, 4, 6, 7 pass through unchanged, while ``ecco`` (index 2) and
-    ``no_kozai`` (index 5) are mapped through ``tanh`` so they stay in finite
-    intervals that avoid the most common ``sgp4init`` / propagation failures
-    (negative or hyperbolic eccentricity, mean motion so high that
-    ``a < 0.95 ER``).
+    Levenberg–Marquardt does not support bounds. Three elements use the same map:
+    ``physical[i] = center + half_width * tanh(u_i)`` so each unconstrained
+    ``u_i`` can roam while staying in a finite interval. Indices ``0``, ``1``,
+    ``3``, ``4``, ``6`` (``inclo``, ``nodeo``, ``argpo``, ``mo``, ``ndot``) copy
+    through unchanged.
+
+    **ecco** (index ``2``): Band is an absolute eccentricity interval
+    ``[ecc_min, ecc_max]`` with center at the midpoint (not the seed). Keeps ecc
+    off the negative / hyperbolic ``sgp4init`` failures and bounded for a sane
+    LEO regime; see the implementation for ``ecc_min`` / ``ecc_max``. Starting
+    ``unconstrained_seed[2]`` is set from ``arctanh`` so the seed eccentricity is
+    reproduced.
+
+    **no_kozai** (index ``5``): Band is relative to the seed mean motion (about
+    ±5% of the seed), trimmed so the upper edge stays safely below ~0.074 rad/min
+    (below the regime where ``sgp4init`` returns err=1, ``a < 0.95 ER``).
+
+    **bstar** (index ``7``): Band is centered on the seed drag term with
+    half-width ``max(0.5 * |bstar_seed|, 1e-7)``. ``no_kozai`` and ``bstar`` both
+    use ``u=0`` at the seed so ``unconstrained_seed[5] ==
+    unconstrained_seed[7] == 0`` recovers seed mean motion and BSTAR.
 
     Args:
         seed_params (np.ndarray): Physical seed parameter vector in the order
@@ -820,9 +917,7 @@ def build_unconstrained_tle_param_transform(
             ``(unconstrained_to_physical, unconstrained_seed)`` where
             ``unconstrained_to_physical(unconstrained)`` yields a physical
             parameter vector in the same order as ``get_fit_params_from_satrec``,
-            and ``unconstrained_seed`` is the unconstrained iterate that
-            reproduces ``seed_params`` at the seed (in particular,
-            ``unconstrained_seed[5] == 0`` recovers the seed ``no_kozai``).
+            and ``unconstrained_seed`` reproduces ``seed_params``.
     """
     if seed_params.shape[0] < 8:
         raise ValueError("Expected at least 8 seed parameters in seed_params")
@@ -857,6 +952,10 @@ def build_unconstrained_tle_param_transform(
         no_kozai_half_width = min(no_kozai_relative_band, 0.01 * no_kozai_seed)
     no_kozai_half_width = max(float(no_kozai_half_width), 1e-12)
 
+    bstar_seed = float(seed_params[7])
+    bstar_center = bstar_seed
+    bstar_half_width = max(abs(bstar_seed) * 0.5, 1e-7)
+
     def unconstrained_to_physical(unconstrained: np.ndarray) -> np.ndarray:
         unconstrained = np.asarray(unconstrained, dtype=np.float64)
         physical = unconstrained.copy()
@@ -864,6 +963,7 @@ def build_unconstrained_tle_param_transform(
         physical[5] = no_kozai_seed + no_kozai_half_width * np.tanh(
             float(unconstrained[5])
         )
+        physical[7] = bstar_center + bstar_half_width * np.tanh(float(unconstrained[7]))
         return physical
 
     unconstrained_seed = seed_params.copy()
@@ -871,6 +971,10 @@ def build_unconstrained_tle_param_transform(
     ecc_normalized = float(np.clip(ecc_normalized, -0.999999, 0.999999))
     unconstrained_seed[2] = float(np.arctanh(ecc_normalized))
     unconstrained_seed[5] = 0.0
+    if bstar_half_width > 0:
+        bstar_norm = (bstar_seed - bstar_center) / bstar_half_width
+        bstar_norm = float(np.clip(bstar_norm, -0.999999, 0.999999))
+        unconstrained_seed[7] = float(np.arctanh(bstar_norm))
 
     return unconstrained_to_physical, unconstrained_seed
 
@@ -882,6 +986,7 @@ def residuals_from_unconstrained_params(
     jd: np.ndarray,
     pos_obs_km: np.ndarray,
     km_scale: float,
+    epoch_ut1_jd: float,
 ) -> np.ndarray:
     """
     Evaluate ``residuals`` after mapping unconstrained params to physical ones.
@@ -891,16 +996,24 @@ def residuals_from_unconstrained_params(
         unconstrained_to_physical (Callable): Mapping built by
             ``build_unconstrained_tle_param_transform``.
         template_satrec (Satrec): Template satellite record used for metadata
-            and epoch in ``build_satrec_from_params``.
+            in ``build_satrec_from_params``.
         jd (np.ndarray): Julian dates for propagation, shape ``(N,)``.
         pos_obs_km (np.ndarray): Observed TEME positions in km, shape ``(N, 3)``.
         km_scale (float): Residual scaling factor in kilometers.
+        epoch_ut1_jd (float): UT1 Julian date anchored at the fit-window midpoint.
 
     Returns:
         np.ndarray: Flattened residual vector with shape ``(3N,)``.
     """
     physical_params = unconstrained_to_physical(unconstrained_params)
-    return residuals(physical_params, template_satrec, jd, pos_obs_km, km_scale)
+    return residuals(
+        physical_params,
+        template_satrec,
+        jd,
+        pos_obs_km,
+        km_scale,
+        epoch_ut1_jd,
+    )
 
 
 def residuals(
@@ -909,6 +1022,7 @@ def residuals(
     jd: np.ndarray,
     pos_obs_km: np.ndarray,
     km_scale: float,
+    epoch_ut1_jd: float,
 ) -> np.ndarray:
     """
     Build scaled residuals for least-squares fitting of TLE parameters.
@@ -922,10 +1036,11 @@ def residuals(
 
     Args:
         x (np.ndarray): Fit parameter vector
-        template_satrec (Satrec): Template satellite record used for metadata/epoch
+        template_satrec (Satrec): Template satellite record used for metadata
         jd (np.ndarray): Julian dates for propagation, shape `(N,)`
         pos_obs_km (np.ndarray): Observed TEME positions in km, shape `(N, 3)`
         km_scale (float): Residual scaling factor in kilometers
+        epoch_ut1_jd (float): UT1 Julian date for ``sgp4init`` (fit-window midpoint)
 
     Returns:
         np.ndarray: Flattened residual vector with shape `(3N,)`
@@ -941,7 +1056,7 @@ def residuals(
     penalty_vec = np.full(pos_obs_km.size, LARGE_RESIDUAL, dtype=float)
 
     try:
-        satrec = build_satrec_from_params(template_satrec, x)
+        satrec = build_satrec_from_params(template_satrec, x, epoch_ut1_jd=epoch_ut1_jd)
         pos_model_km = propagate_teme_positions_km(satrec, jd)
     except (RuntimeError, ValueError, OverflowError, FloatingPointError):
         return penalty_vec
@@ -1008,7 +1123,6 @@ def create_tle_from_ephemeris(
     line1, line2 = seed_lines
 
     seed_sat = Satrec.twoline2rv(line1, line2)
-    x0 = get_fit_params_from_satrec(seed_sat)
 
     # Limit the fit to the first ``TLE_FIT_WINDOW_HOURS`` of the ephemeris.
     # The DB stores up to ``EPHEMERIS_DB_SPAN_HOURS``; the fit window is a
@@ -1069,6 +1183,15 @@ def create_tle_from_ephemeris(
     jd_full = _to_jd(sorted_points)
     pos_full = _to_pos_km(sorted_points)
 
+    fit_epoch_dt = fit_window_epoch_datetime(window_start)
+    fit_epoch_jd = ut1_jd_from_datetime(fit_epoch_dt)
+    x0 = seed_params_at_epoch(line1, line2, fit_epoch_dt)
+    logging.info(
+        "TLE fit epoch at fit-window midpoint: %s (UT1 JD %.8f)",
+        fit_epoch_dt.isoformat(),
+        fit_epoch_jd,
+    )
+
     # Baseline error from the seed TLE on the fit window only.
     seed_pos = propagate_teme_positions_km(seed_sat, jd_fit)
     seed_xyz_rms = xyz_rms_km(seed_pos, pos_fit)
@@ -1080,8 +1203,9 @@ def create_tle_from_ephemeris(
         seed_ang_rms,
     )
 
-    # Reparameterize ecco / no_kozai via tanh so LM stays in a physically safe
-    # band without TRF bounds.
+    # Reparameterize ecco (absolute safe band), no_kozai (relative + SGP4
+    # ceiling), and bstar (relative drag band) via tanh so LM stays in
+    # physically safe ranges without TRF bounds.
     unconstrained_to_physical, unconstrained_seed = (
         build_unconstrained_tle_param_transform(x0)
     )
@@ -1096,6 +1220,7 @@ def create_tle_from_ephemeris(
             jd_fit,
             pos_fit,
             km_scale,
+            fit_epoch_jd,
         ),
         method="lm",
         max_nfev=max_nfev,
@@ -1112,7 +1237,9 @@ def create_tle_from_ephemeris(
     fitted_params = unconstrained_to_physical(result.x)
 
     # Evaluate final fit quality on the fit window (in-sample residuals).
-    fitted = build_satrec_from_params(seed_sat, fitted_params)
+    fitted = build_satrec_from_params(
+        seed_sat, fitted_params, epoch_ut1_jd=fit_epoch_jd
+    )
     fit_pos = propagate_teme_positions_km(fitted, jd_fit)
     fit_xyz_rms = xyz_rms_km(fit_pos, pos_fit)
     fit_ang_rms = angular_rms_arcsec(fit_pos, pos_fit)

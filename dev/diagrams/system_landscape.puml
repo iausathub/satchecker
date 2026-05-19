@@ -1,0 +1,43 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("External", $bgColor="LightSteelBlue", $borderColor="DarkSlateGray", $fontColor="black")
+AddElementTag("System", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("Data", $bgColor="IndianRed", $borderColor="FireBrick", $fontColor="black")
+
+title SatChecker - System Landscape Diagram
+
+' External Systems
+System_Ext(celestrak, "Celestrak", "TLE data provider", $tags="External")
+System_Ext(spacetrack, "Space-Track", "TLE data provider", $tags="External")
+System_Ext(email_service, "Email Service", "SMTP/API", $tags="External")
+System_Ext(message_broker, "Message Broker", "Kafka", $tags="External")
+
+' SatChecker Systems
+System_Boundary(satchecker, "SatChecker") {
+    Container(web_app, "Web Application", "React", "User interface for satellite predictions", $tags="System")
+    Container(api_service, "API Service", "Flask", "Provides satellite calculations and data", $tags="System")
+    Container(alert_service, "Alert Service", "Python", "Generates and delivers alerts", $tags="System")
+    ContainerDb(satellite_db, "Satellite Database", "PostgreSQL", "Stores satellite and TLE data", $tags="Data")
+    ContainerQueue(cache, "Cache", "Redis", "Caches calculation results", $tags="Data")
+}
+
+' Relationships
+Rel(api_service, celestrak, "Fetches TLE data", "HTTPS")
+Rel(api_service, spacetrack, "Fetches TLE data", "HTTPS")
+Rel(alert_service, email_service, "Sends notifications", "SMTP/API")
+Rel(alert_service, message_broker, "Publishes alerts", "Kafka")
+Rel(web_app, api_service, "Requests data", "HTTPS")
+Rel(alert_service, api_service, "Requests FOV calculations", "Internal")
+
+' Data Flow
+Rel_Down(api_service, satellite_db, "Stores/retrieves data", "SQLAlchemy")
+Rel_Down(api_service, cache, "Caches results", "Redis")
+Rel_Down(alert_service, satellite_db, "Stores alert configs", "SQLAlchemy")
+
+SHOW_LEGEND()
+@enduml

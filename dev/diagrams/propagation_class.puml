@@ -1,0 +1,62 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("Interface", $bgColor="DarkSeaGreen", $borderColor="SeaGreen", $fontColor="black")
+AddElementTag("Implementation", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("ToDo", $fontColor="Maroon", $borderColor="red")
+
+title SatChecker - Propagation Strategy Class Diagram
+
+' Abstract Classes and Interfaces
+class PropagationStrategy {
+    + propagate(satellite: Satellite, start_time: datetime, end_time: datetime): List[Position]
+    + calculate_brightness(position: Position): float
+    + get_phase_angle(position: Position): float
+    + is_illuminated(position: Position): bool
+}
+
+' Implementations
+class SkyfieldStrategy {
+    - skyfield_loader: Loader
+    - timescale: Timescale
+    + propagate(satellite: Satellite, start_time: datetime, end_time: datetime): List[Position]
+    + calculate_brightness(position: Position): float
+    + get_phase_angle(position: Position): float
+    + is_illuminated(position: Position): bool
+}
+
+class SGP4Strategy {
+    - sgp4_model: SGP4
+    + propagate(satellite: Satellite, start_time: datetime, end_time: datetime): List[Position]
+    + calculate_brightness(position: Position): float
+    + get_phase_angle(position: Position): float
+    + is_illuminated(position: Position): bool
+}
+
+class FOVStrategy {
+    - skyfield_strategy: SkyfieldStrategy
+    + propagate(satellite: Satellite, start_time: datetime, end_time: datetime): List[Position]
+    + calculate_brightness(position: Position): float
+    + get_phase_angle(position: Position): float
+    + is_illuminated(position: Position): bool
+    + is_in_fov(position: Position, fov: FOV): bool
+}
+
+' Relationships
+PropagationStrategy <|-- SkyfieldStrategy
+PropagationStrategy <|-- SGP4Strategy
+PropagationStrategy <|-- FOVStrategy
+FOVStrategy o-- SkyfieldStrategy
+
+' Notes
+note right of SGP4Strategy
+  ToDo: Implement SGP4
+  for faster calculations
+end note
+
+SHOW_LEGEND()
+@enduml
