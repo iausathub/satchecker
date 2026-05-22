@@ -456,7 +456,7 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
         format: str,
         constellation: str | None = None,
         data_source_limit: str | None = None,
-        use_d_tles: bool = False,
+        use_generated_tles: bool = False,
     ) -> tuple[list[TLE], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
