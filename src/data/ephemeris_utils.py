@@ -1111,7 +1111,7 @@ def create_tle_from_ephemeris(
 
     # Residual scaling (km) to keep least-squares numerics well-conditioned.
     km_scale = 10.0
-    max_nfev = 300
+    max_nfev = 600
 
     # Query a nearby catalog TLE to seed the optimizer.
     seed_lines = get_closest_tle(ephemeris.ephemeris_start, ephemeris.sat_id, cursor)
