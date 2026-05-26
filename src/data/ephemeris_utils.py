@@ -23,7 +23,7 @@ from api.domain.models.interpolable_ephemeris import (
 # horizon from ``ephemeris_start`` is dropped in ``parse_ephemeris_file``.
 EPHEMERIS_DB_SPAN_HOURS = 26.0
 
-# Subset of the stored ephemeris that ``create_tle_from_ephemeris`` actually
+# Subset of the stored ephemeris that ```` actually
 # uses to fit a TLE. Must be ``<= EPHEMERIS_DB_SPAN_HOURS``; chosen empirically
 # (20 h gave the lowest XYZ RMS over the 26 h DB span without overfitting the
 # first few hours), but this can be changed later if needed.
@@ -433,7 +433,7 @@ def get_starlink_ephemeris_data(cursor, connection):
     2. Parses each file (``parse_ephemeris_file``), inserts the points into
        ``ephemeris_points`` (``insert_ephemeris_data``), and fits a generated
        TLE from the first ``TLE_FIT_WINDOW_HOURS`` of stored data
-       (``create_tle_from_ephemeris``).
+       (````).
     3. After the loop, logs mean/median/p95/min/max for both TLE-fit timing
        and residuals across every ephemeris that was successfully processed.
 
@@ -519,6 +519,9 @@ def get_starlink_ephemeris_data(cursor, connection):
                 fit_xyz_rms, fit_ang_rms = create_tle_from_ephemeris(
                     ephemeris, cursor, connection
                 )
+                
+                if (fit_xyz_rms == -1 and fit_ang_rms == -1)
+                    continue
                 stats.append(
                     {
                         "tle_generation_s": time.perf_counter() - t0,
@@ -1227,12 +1230,13 @@ def create_tle_from_ephemeris(
     )
 
     if not result.success:
-        logging.error(
+        logging.info(
             "least_squares did not converge: %s (nfev=%s); TLE not saved",
             result.message,
             result.nfev,
         )
-        raise ValueError(f"Least-squares TLE fit did not converge: {result.message}")
+        return -1, -1
+        #raise ValueError(f"Least-squares TLE fit did not converge: {result.message}")
 
     fitted_params = unconstrained_to_physical(result.x)
 
@@ -1293,7 +1297,7 @@ def save_tle_to_db(
     The TLE epoch is taken from ``satrec`` (converted from its internal Julian
     date to a UTC ``datetime``); ``data_source`` is fixed to ``"generated"`` and
     ``is_supplemental`` to ``False`` because this path only stores TLEs that
-    were fitted by ``create_tle_from_ephemeris``. Inserts use
+    were fitted by ````. Inserts use
     ``ON CONFLICT (SAT_ID, EPOCH, DATA_SOURCE) DO NOTHING`` so duplicate runs
     are idempotent; a conflict logs a warning but does not raise.
 
