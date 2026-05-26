@@ -415,7 +415,14 @@ class FakeTLERepository(AbstractTLERepository):
         )
 
     def _get_all_tles_at_epoch(
-        self, epoch_date, page, per_page, format, constellation=None, data_source=None
+        self,
+        epoch_date,
+        page,
+        per_page,
+        format,
+        constellation=None,
+        data_source=None,
+        use_generated_tles=False,
     ):
         if self.exception_to_raise:
             raise self.exception_to_raise

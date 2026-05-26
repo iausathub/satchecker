@@ -385,6 +385,21 @@ def validate_parameters(
 
         parameters["include_tles"] = parameters["include_tles"].lower() == "true"
 
+    if (
+        "use_generated_tles" in parameters.keys()
+        and parameters["use_generated_tles"] is not None
+    ):
+        if parameters["use_generated_tles"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " use_generated_tles must be 'true' or 'false'",
+            )
+
+        parameters["use_generated_tles"] = (
+            parameters["use_generated_tles"].lower() == "true"
+        )
+
     if "skip_cache" in parameters.keys() and parameters["skip_cache"] is not None:
         if parameters["skip_cache"].lower() not in ["true", "false"]:
             raise ValidationError(

@@ -1,0 +1,91 @@
+```mermaid
+graph TB
+    %% External Systems
+    web_app["Web Application<br/>React<br/>User interface for satellite predictions"]
+    alert_service["Alert Service<br/>Python<br/>Generates alerts based on scheduled FOV queries"]
+    celestrak["Celestrak<br/>TLE data provider"]
+    spacetrack["Space-Track<br/>TLE data provider"]
+
+    %% API System
+    subgraph api["API System"]
+        %% Route Layer
+        ephem_routes["Ephemeris Routes<br/>Flask<br/>Handles HTTP requests for ephemeris data"]
+        fov_routes["Field of View Routes<br/>Flask<br/>Handles HTTP requests for field of view predictions"]
+        tools_routes["Tools Routes<br/>Flask<br/>Handles HTTP requests for TLE and satellite data"]
+
+        %% Validation
+        validation_service["Input Validation Service<br/>Python<br/>Validates request parameters"]
+
+        %% Core Services
+        ephem_service["Ephemeris Service<br/>Python<br/>Generates ephemeris data"]
+        fov_service["Field of View Service<br/>Python<br/>Calculates satellites in a field of view"]
+        tools_service["Tools Service<br/>Python<br/>Provides TLE and satellite data"]
+
+        %% Shared Services
+        tle_service["TLE Repository<br/>Python<br/>Manages TLE data from multiple sources"]
+        satellite_service["Satellite Repository<br/>Python<br/>Manages satellite data"]
+
+        %% Propagation Strategy
+        subgraph propagation_strategy["Propagation Strategy"]
+            skyfield_strategy["Skyfield Strategy<br/>Python<br/>Uses Skyfield for propagation"]
+            sgp4_strategy["SGP4 Strategy<br/>Python<br/>Uses SGP4 for propagation"]
+            test_strategy["FOV Strategy<br/>Python<br/>FOV-specific Skyfield propagation"]
+        end
+
+        %% Tasks
+        ephem_tasks["Ephemeris Tasks<br/>Celery<br/>Handles async tasks for ephemeris generation"]
+
+        %% Data Layer
+        satellite_db["Satellite Database<br/>PostgreSQL<br/>Stores satellite and TLE data"]
+        cache["Cache<br/>Redis<br/>Stores cached ephemeris results and recent TLEs"]
+    end
+
+    %% Relationships
+    web_app -->|"Requests ephemeris data"| ephem_routes
+    web_app -->|"Requests FOV data"| fov_routes
+    web_app -->|"Requests TLE and satellite data"| tools_routes
+
+    ephem_routes -->|"Validates"| validation_service
+    fov_routes -->|"Validates"| validation_service
+    tools_routes -->|"Validates"| validation_service
+
+    ephem_routes -->|"Calls"| ephem_service
+    fov_routes -->|"Calls"| fov_service
+    tools_routes -->|"Calls"| tools_service
+
+    ephem_service -->|"Retrieves TLEs"| tle_service
+    ephem_tasks -->|"Uses for position and brightness"| propagation_strategy
+    ephem_service -->|"Delegates async tasks"| ephem_tasks
+
+    fov_service -->|"Uses for calculations"| propagation_strategy
+    fov_service -->|"Retrieves TLEs"| tle_service
+    fov_service -->|"Reads TLE data"| cache
+
+    tools_service -->|"Retrieves TLEs"| tle_service
+    tools_service -->|"Retrieves satellite data"| satellite_service
+
+    ephem_tasks -->|"Stores/retrieves ephemerides"| cache
+
+    tle_service -->|"Reads/Writes TLEs"| satellite_db
+    satellite_service -->|"Reads/Writes satellite metadata"| satellite_db
+
+    tle_service -->|"Fetches TLEs"| celestrak
+    tle_service -->|"Fetches TLEs"| spacetrack
+    alert_service -->|"Triggers FOV checks"| fov_service
+    fov_service -->|"Returns FOV results"| alert_service
+
+    %% Styling
+    classDef external fill:#B0C4DE,stroke:#2F4F4F,color:black
+    classDef route fill:#DEB887,stroke:#B8860B,color:black
+    classDef service fill:#CD853F,stroke:#483D8B,color:black
+    classDef data fill:#CD5C5C,stroke:#B22222,color:black
+    classDef shared fill:#8FBC8F,stroke:#2E8B57,color:black
+    classDef todo fill:#CD5C5C,stroke:#B22222,color:white
+
+    class web_app,alert_service,celestrak,spacetrack external
+    class ephem_routes,fov_routes,tools_routes route
+    class ephem_service,fov_service,tools_service,ephem_tasks service
+    class satellite_db,cache data
+    class validation_service,tle_service,satellite_service,propagation_strategy,skyfield_strategy,test_strategy shared
+    class sgp4_strategy todo
+```

@@ -1,0 +1,91 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_TOP_DOWN()
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("Route", $bgColor="Burlywood", $borderColor="DarkGoldenrod", $fontColor="black")
+AddElementTag("Service", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("External", $bgColor="LightSteelBlue", $borderColor="DarkSlateGray", $fontColor="black")
+AddElementTag("Data", $bgColor="IndianRed", $borderColor="FireBrick", $fontColor="black")
+AddElementTag("Shared", $bgColor="DarkSeaGreen", $borderColor="SeaGreen", $fontColor="black")
+AddElementTag("ToDo", $fontColor="Maroon", $borderColor="red")
+
+title SatChecker - API Component Diagram
+
+' External Systems
+Container_Ext(web_app, "Web Application", "React", "User interface for satellite predictions", $tags="ToDo+External")
+Container_Ext(alert_service, "Alert Service", "Python", "Generates alerts based on scheduled FOV queries", $tags="ToDo+External")
+System_Ext(celestrak, "Celestrak", "TLE data provider", $tags="External")
+System_Ext(spacetrack, "Space-Track", "TLE data provider", $tags="External")
+System_Ext(starlink, "Starlink", "Orbital ephemeris data provider", $tags="External")
+
+' Route Layer
+Component(ephem_routes, "Ephemeris Routes", "Flask", "Handles HTTP requests for ephemeris data", $tags="Route")
+Component(fov_routes, "Field of View Routes", "Flask", "Handles HTTP requests for field of view predictions", $tags="Route")
+Component(tools_routes, "Tools Routes", "Flask", "Handles HTTP requests for TLE and satellite data", $tags="Route")
+
+' Validation
+Component(validation_service, "Input Validation Service", "Python", "Validates request parameters", $tags="Shared")
+
+' Core Services
+Component(ephem_service, "Ephemeris Service", "Python", "Generates ephemeris data", $tags="Service")
+Component(fov_service, "Field of View Service", "Python", "Calculates satellites in a field of view", $tags="Service")
+Component(tools_service, "Tools Service", "Python", "Provides TLE and satellite data", $tags="Service")
+
+' Shared Services
+Component(tle_repository, "TLE Repository", "Python", "Manages TLE data from multiple sources", $tags="Shared")
+Component(satellite_repository, "Satellite Repository", "Python", "Manages satellite data", $tags="Shared")
+Component(ephemeris_repository, "Ephemeris Repository", "Python", "Manages TLE data from multiple sources", $tags="Shared")
+
+Component(propagation_strategy, "Propagation Strategy", "Python", "Provides satellite position and brightness calculations", $tags="Shared") {
+    Component(skyfield_strategy, "Skyfield Strategy", "Python", "Uses Skyfield for propagation", $tags="Shared")
+    Component(interpolation_strategy, "Krogh Interpolation Strategy", "Python", "Used for interpolating operator-provided ephemeris data", $tags="Shared")
+    Component(sgp4_strategy, "SGP4 Strategy", "Python", "Uses SGP4 for propagation", $tags="ToDo+Shared")
+    Component(fov_strategy, "FOV Strategy", "Python", "FOV-specific Skyfield propagation", $tags="Shared")
+}
+Component(ephem_tasks, "Ephemeris Tasks", "Celery", "Handles async tasks for ephemeris generation", $tags="Service")
+
+' Data Layer
+ComponentDb(satellite_db, "Satellite Database", "PostgreSQL", "Stores satellite and TLE data", $tags="Data")
+ComponentQueue(cache, "Cache", "Redis", "Stores cached ephemeris results and recent TLEs", $tags="Data")
+
+' ---- Relationships ----
+Rel(ephem_routes, validation_service, "Validates")
+Rel(fov_routes, validation_service, "Validates")
+Rel(tools_routes, validation_service, "Validates")
+
+Rel(ephem_routes, ephem_service, "Calls")
+Rel(fov_routes, fov_service, "Calls")
+Rel(tools_routes, tools_service, "Calls")
+
+Rel(ephem_service, tle_repository, "Retrieves TLEs")
+Rel(ephem_tasks, propagation_strategy, "Uses for position and brightness")
+Rel(ephem_service, ephem_tasks, "Delegates async tasks")
+
+Rel(fov_service, propagation_strategy, "Uses for calculations")
+Rel(fov_service, ephemeris_repository, "Retrieves ephemeris data")
+Rel(fov_service, tle_repository, "Retrieves TLEs")
+Rel(fov_service, cache, "Reads TLE data")
+
+Rel(tools_service, tle_repository, "Retrieves TLEs")
+Rel(tools_service, satellite_repository, "Retrieves satellite data")
+
+Rel(ephem_tasks, cache, "Stores/retrieves ephemerides")
+
+Rel(tle_repository, satellite_db, "Reads/Writes TLEs")
+Rel(satellite_repository, satellite_db, "Reads/Writes satellite metadata")
+
+Rel(tle_repository, celestrak, "Fetches TLEs")
+Rel(tle_repository, spacetrack, "Fetches TLEs")
+Rel(ephemeris_repository, starlink, "Fetches ephemeris data")
+Rel(web_app, ephem_routes, "Requests ephemeris data")
+Rel(web_app, fov_routes, "Requests FOV data")
+Rel(web_app, tools_routes, "Requests TLE and satellite data")
+Rel(alert_service, fov_service, "Triggers FOV checks")
+Rel(fov_service, alert_service, "Returns FOV results")
+
+SHOW_LEGEND()
+@enduml

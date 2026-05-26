@@ -1,0 +1,66 @@
+@startuml SatCheckerAlertComponentDiagram
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+AddElementTag("Route", $bgColor="Burlywood", $borderColor="DarkGoldenrod", $fontColor="black")
+AddElementTag("Service", $bgColor="Peru", $borderColor="DarkSlateBlue", $fontColor="black")
+AddElementTag("External", $bgColor="LightSteelBlue", $borderColor="DarkSlateGray", $fontColor="black")
+AddElementTag("Data", $bgColor="IndianRed", $borderColor="FireBrick", $fontColor="black")
+AddElementTag("Shared", $bgColor="DarkSeaGreen", $borderColor="SeaGreen", $fontColor="black")
+AddElementTag("ToDo", $fontColor="Maroon", $borderColor="red")
+
+title SatChecker - Alert Service Component Diagram
+
+Container_Boundary(alert_service, "Alert Service", "Python", "Generates alerts based on scheduled FOV queries and delivers notifications") {
+    Component(alert_scheduler, "Alert Scheduler", "Python", "Schedules and manages FOV queries for pass alerts", $tags="Service")
+    Component(alert_processor, "Alert Processor", "Python", "Processes FOV results and generates alerts", $tags="Service")
+    Component(notification_service, "Notification Service", "Python", "Sends alerts via email and message broker", $tags="Service")
+
+    ' Show only the shared services that alerts interact with
+    Boundary(shared, "Shared Services") {
+        Component(auth_service, "Authentication Service", "Python", "Handles user authentication and authorization", $tags="Shared")
+        Component(validation_service, "Input Validation Service", "Python", "Validates request parameters", $tags="Shared")
+    }
+}
+
+' External Systems
+Container_Ext(email_service, "Email Service", "TBD", "Sends email notifications", $tags="External")
+Container_Ext(auth, "Authentication", "TBD", "Handles authentication", $tags="External")
+Container_Ext(web_app, "Web Application", "React", "User interface for satellite predictions", $tags="External")
+Container_Ext(api, "API", "Flask", "Provides ephemeris calculations", $tags="External")
+
+' Databases and Message Broker
+ComponentDb(alert_db, "Alert Database", "PostgreSQL", "Stores alert configurations and history", $tags="Data")
+ComponentQueue(message_broker, "Message Broker", "Kafka", "Distributes alert messages", $tags="Data")
+
+' Alert Service Internal Relationships
+Rel(alert_scheduler, alert_processor, "Triggers processing", "Python")
+Rel(alert_processor, notification_service, "Sends alerts", "Python")
+
+' API and FOV Relationships
+Rel(alert_scheduler, api, "Requests FOV calculations", "Internal")
+Rel(api, alert_processor, "Returns FOV results", "Internal")
+
+' Database Relationships
+Rel(alert_scheduler, alert_db, "Reads configurations", "SQLAlchemy", $tags="Data")
+Rel(alert_processor, alert_db, "Writes alert history", "SQLAlchemy", $tags="Data")
+
+' External Service Relationships
+Rel(auth_service, auth, "Validates tokens", "HTTPS", $tags="External")
+Rel(notification_service, email_service, "Sends notifications", "SMTP/API", $tags="External")
+Rel(notification_service, message_broker, "Publishes alerts", "Kafka", $tags="External")
+
+' Web Application Relationships
+Rel(web_app, alert_scheduler, "Configures alerts", "HTTPS")
+
+' Validation and Authentication
+Rel(alert_scheduler, validation_service, "Calls", "Python")
+Rel(alert_scheduler, auth_service, "Validates", "Python")
+
+SHOW_LEGEND()
+
+@enduml

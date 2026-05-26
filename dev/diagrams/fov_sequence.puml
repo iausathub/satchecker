@@ -1,0 +1,53 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title SatChecker - FOV Calculation Sequence Diagram
+
+actor User
+participant "Web App" as WebApp
+participant "FOV Routes" as Routes
+participant "Validation Service" as Validation
+participant "FOV Service" as FOVService
+participant "TLE Repository" as TLERepo
+participant "Propagation Strategy" as PropStrategy
+participant "Cache" as Cache
+
+User -> WebApp: Request FOV calculation
+WebApp -> Routes: POST /api/fov/calculate
+activate Routes
+
+Routes -> Validation: Validate request parameters
+activate Validation
+Validation --> Routes: Validation result
+deactivate Validation
+
+Routes -> FOVService: Calculate FOV
+activate FOVService
+
+FOVService -> TLERepo: Get TLE data
+activate TLERepo
+TLERepo -> Cache: Check for cached TLEs
+activate Cache
+Cache --> TLERepo: Return cached TLEs
+deactivate Cache
+TLERepo --> FOVService: Return TLE data
+deactivate TLERepo
+
+FOVService -> PropStrategy: Propagate satellites
+activate PropStrategy
+PropStrategy --> FOVService: Return positions
+deactivate PropStrategy
+
+FOVService -> FOVService: Filter by FOV
+FOVService --> Routes: Return FOV results
+deactivate FOVService
+
+Routes --> WebApp: Return HTTP response
+deactivate Routes
+WebApp --> User: Display results
+
+@enduml
