@@ -66,25 +66,25 @@ def test_get_ephemeris_no_tle(client, services_available):
     response = client.get(
         "/ephemeris/name/?name=ISS&latitude=0&longitude=0&elevation=0&julian_date=2459000.5"
     )
-    assert response.status_code == 500
+    assert response.status_code == 404
     assert "No TLE found" in response.text
 
     response = client.get(
         "/ephemeris/name-jdstep/?name=ISS&latitude=0&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
-    assert response.status_code == 500
+    assert response.status_code == 404
     assert "No TLE found" in response.text
 
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=0&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
-    assert response.status_code == 500
+    assert response.status_code == 404
     assert "No TLE found" in response.text
 
     response = client.get(
         "/ephemeris/catalog-number-jdstep/?catalog=25544&latitude=0&longitude=0&elevation=0&startjd=2459000.5&stopjd=2459001.5&stepjd=0.5"
     )
-    assert response.status_code == 500
+    assert response.status_code == 404
     assert "No TLE found" in response.text
 
 
