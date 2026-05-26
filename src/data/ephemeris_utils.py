@@ -519,8 +519,8 @@ def get_starlink_ephemeris_data(cursor, connection):
                 fit_xyz_rms, fit_ang_rms = create_tle_from_ephemeris(
                     ephemeris, cursor, connection
                 )
-                
-                if (fit_xyz_rms == -1 and fit_ang_rms == -1):
+
+                if fit_xyz_rms == -1 and fit_ang_rms == -1:
                     continue
                 stats.append(
                     {
@@ -1236,7 +1236,7 @@ def create_tle_from_ephemeris(
             result.nfev,
         )
         return -1, -1
-        #raise ValueError(f"Least-squares TLE fit did not converge: {result.message}")
+        # raise ValueError(f"Least-squares TLE fit did not converge: {result.message}")
 
     fitted_params = unconstrained_to_physical(result.x)
 
