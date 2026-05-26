@@ -183,7 +183,7 @@ def test_get_ephemeris_tle_date_out_of_range(
     response = client.get(
         f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={past_jd.jd}"
     )
-    assert response.status_code == 500
+    assert response.status_code == 422
     assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
 
     # Test future date more than 30 days after TLE epoch
@@ -191,7 +191,7 @@ def test_get_ephemeris_tle_date_out_of_range(
     response = client.get(
         f"/ephemeris/name/?name=TEST_ISS_DATE_RANGE&latitude=0&longitude=0&elevation=0&julian_date={future_jd.jd}"
     )
-    assert response.status_code == 500
+    assert response.status_code == 422
     assert error_messages.TLE_DATE_OUT_OF_RANGE in response.text
 
 
