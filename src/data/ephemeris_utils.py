@@ -520,7 +520,7 @@ def get_starlink_ephemeris_data(cursor, connection):
                     ephemeris, cursor, connection
                 )
                 
-                if (fit_xyz_rms == -1 and fit_ang_rms == -1)
+                if (fit_xyz_rms == -1 and fit_ang_rms == -1):
                     continue
                 stats.append(
                     {
