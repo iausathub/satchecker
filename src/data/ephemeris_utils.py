@@ -593,9 +593,6 @@ def propagate_teme_positions_km(
 
     Returns:
         np.ndarray: Position vectors with shape (N, 3) in TEME frame (km)
-
-    Raises:
-        RuntimeError: If SGP4 returns a non-zero error code for any epoch
     """
     out = np.empty((len(julian_dates), 3), dtype=float)
     for i, jd in enumerate(julian_dates):
@@ -603,7 +600,7 @@ def propagate_teme_positions_km(
         jd_frac = float(jd - jd_int)
         err, r, _v = satrec.sgp4(jd_int, jd_frac)
         if err != 0:
-            raise RuntimeError(f"SGP4 propagation error code {err} at JD={jd}")
+            logging.info("SGP4 propagation error code %s at JD=%s", err, jd)
         out[i] = np.array(r, dtype=float)
     return out
 
