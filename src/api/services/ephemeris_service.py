@@ -38,7 +38,7 @@ def generate_ephemeris_data(
     )
 
     if tle is None:
-        raise DataError(404, error_messages.NO_TLE_FOUND)
+        raise DataError(422, error_messages.NO_TLE_FOUND)
 
     # Check if the requested date is within 30 days of the TLE epoch
     tle_epoch_time = Time(tle.epoch, scale="utc")
