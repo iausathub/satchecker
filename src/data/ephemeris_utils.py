@@ -72,7 +72,7 @@ def insert_ephemeris_data(
         )
         satellite_result = cursor.fetchone()
         if satellite_result is None:
-            logging.error("Satellite not found: %s", parsed_data["satellite_name"])
+            logging.info("Satellite not found: %s", parsed_data["satellite_name"])
             return None
 
         satellite_id = satellite_result[0]
@@ -646,7 +646,7 @@ def get_closest_tle(
     )
     tle_result = cursor.fetchone()
     if tle_result is None:
-        logging.error("TLE not found: %s", ephemeris_start_time)
+        logging.info("TLE not found: %s", ephemeris_start_time)
         return None
 
     tle_line1 = tle_result[1]
