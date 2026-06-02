@@ -1,10 +1,15 @@
 # ruff: noqa: S101
 import logging
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
-from tests.conftest import FakeTdmPredictionRepository, FakeTLERepository
+from tests.conftest import (
+    FakeEphemerisRepository,
+    FakeTdmPredictionRepository,
+    FakeTLERepository,
+)
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tdm_prediction_factory import (
     TdmPredictionFactory,
@@ -39,23 +44,26 @@ def test_satellite_in_fov(test_location, test_time):
     )
 
     tle_repo = FakeTLERepository([tle])
+    ephemeris_repo = FakeEphemerisRepository([])
 
     # Test with group_by=satellite
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
         duration=30,
         ra=24.797270,
         dec=75.774139,
-        fov_radius=2.0,
+        fov_radius=1.66,
         group_by="satellite",
         include_tles=False,
         skip_cache=False,
         constellation=None,
         data_source="any",
         illuminated_only=False,
+        tle_only=False,
         use_generated_tles=False,
         api_source="test",
         api_version="1.0",
@@ -67,19 +75,21 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=time
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
         duration=30,
         ra=24.797270,
         dec=75.774139,
-        fov_radius=2.0,
+        fov_radius=1.66,
         group_by="time",
         include_tles=False,
         skip_cache=False,
         constellation=None,
         data_source=None,
         illuminated_only=False,
+        tle_only=False,
         use_generated_tles=False,
         api_source="test",
         api_version="1.0",
@@ -93,7 +103,7 @@ def test_satellite_in_fov(test_location, test_time):
     assert result["data"][0]["angle"] >= 0
     assert result["data"][0]["julian_date"] is not None
     assert result["data"][0]["name"] == "FENGYUN 1C DEB"
-    assert result["data"][0]["tle_epoch"] is not None
+    assert result["data"][0]["orbital_data_epoch"] is not None
     assert result["data"][0]["ra"] is not None
     assert result["data"][0]["dec"] is not None
     with pytest.raises(KeyError):
@@ -102,6 +112,7 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=time and include_tles=True
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -115,6 +126,7 @@ def test_satellite_in_fov(test_location, test_time):
         constellation=None,
         data_source=None,
         illuminated_only=False,
+        tle_only=False,
         use_generated_tles=False,
         api_source="test",
         api_version="1.0",
@@ -126,6 +138,7 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=satellite and include_tles=True
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -139,6 +152,7 @@ def test_satellite_in_fov(test_location, test_time):
         constellation=None,
         data_source="any",
         illuminated_only=False,
+        tle_only=False,
         use_generated_tles=False,
         api_source="test",
         api_version="1.0",
@@ -173,9 +187,11 @@ def test_satellite_outside_fov(test_location, test_time):
     )
 
     tle_repo = FakeTLERepository([tle])
+    ephemeris_repo = FakeEphemerisRepository([])
 
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -189,6 +205,7 @@ def test_satellite_outside_fov(test_location, test_time):
         constellation=None,
         data_source="any",
         illuminated_only=False,
+        tle_only=False,
         use_generated_tles=False,
         api_source="test",
         api_version="1.0",
@@ -196,6 +213,83 @@ def test_satellite_outside_fov(test_location, test_time):
 
     assert len(result["data"]["satellites"]) == 0
     assert result["data"]["total_position_results"] == 0
+
+
+def test_fov_service_uses_ephemeris(starlink_ephemeris):
+    """Service call uses ephemeris refinement when both TLE and ephemeris exist."""
+    satellite = SatelliteFactory(
+        sat_name="STARLINK-31570",
+        sat_number=59324,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    # TLE from production matching STARLINK-31570 at 2025-10-10 19:07:42 UTC
+    # to match the ephemeris fixture data
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1="1 59324C 24057E   25283.79701389  .00003769  00000+0  13645-3 0  2837",  # noqa: E501
+        tle_line2="2 59324  43.0040 313.9787 0001364 274.5572 329.6279 15.27588869    18",  # noqa: E501
+        epoch=datetime(2025, 10, 10, 19, 7, 42, tzinfo=timezone.utc),
+    )
+
+    tle_repo = FakeTLERepository([tle])
+    ephemeris_repo = FakeEphemerisRepository([starlink_ephemeris])
+    location = EarthLocation(lat=-0.808, lon=-1.084, height=0)
+    obs_time = Time(2460959.317847, format="jd", scale="utc")
+
+    result = get_satellite_passes_in_fov(
+        tle_repo,
+        ephemeris_repo,
+        location=location,
+        mid_obs_time_jd=obs_time,
+        start_time_jd=None,
+        duration=30,
+        ra=312.6525015,
+        dec=-0.9114941,
+        fov_radius=180.0,
+        group_by="time",
+        include_tles=False,
+        skip_cache=True,
+        constellation=None,
+        data_source=None,
+        illuminated_only=False,
+        tle_only=False,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    assert result["total_position_results"] > 0
+    starlink_results = [row for row in result["data"] if row["norad_id"] == 59324]
+    assert len(starlink_results) > 0
+    assert all(row["orbital_data_source"] == "ephemeris" for row in starlink_results)
+
+    tle_only_result = get_satellite_passes_in_fov(
+        tle_repo,
+        ephemeris_repo,
+        location=location,
+        mid_obs_time_jd=obs_time,
+        start_time_jd=None,
+        duration=30,
+        ra=312.6525015,
+        dec=-0.9114941,
+        fov_radius=180.0,
+        group_by="time",
+        include_tles=False,
+        skip_cache=True,
+        constellation=None,
+        data_source=None,
+        illuminated_only=False,
+        tle_only=True,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    assert tle_only_result["total_position_results"] > 0
+    tle_starlink_results = [
+        row for row in tle_only_result["data"] if row["norad_id"] == 59324
+    ]
+    assert len(tle_starlink_results) > 0
+    assert all(row.get("orbital_data_source") == "tle" for row in tle_starlink_results)
 
 
 def test_satellite_in_fov_tdm(test_location, test_time):
@@ -302,9 +396,11 @@ def test_satellite_outside_fov_tdm(test_location, test_time):
 def test_empty_tle_list(test_location, test_time):
     """Test behavior with no TLEs available"""
     tle_repo = FakeTLERepository([])
+    ephemeris_repo = FakeEphemerisRepository([])
 
     result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
         start_time_jd=None,
@@ -318,6 +414,7 @@ def test_empty_tle_list(test_location, test_time):
         constellation=None,
         data_source=None,
         illuminated_only=False,
+        tle_only=False,
         use_generated_tles=False,
         api_source="test",
         api_version="1.0",
@@ -462,10 +559,11 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
     mock_redis_client.setex.side_effect = mock_setex
 
     tle_repo = FakeTLERepository([])
-
+    ephemeris_repo = FakeEphemerisRepository([])
     # First call - should compute and cache (cache miss)
     first_result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -497,6 +595,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
 
     second_result = get_satellite_passes_in_fov(  # noqa: F841
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -532,6 +631,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
 
     third_result = get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -564,11 +664,12 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])
-
+    ephemeris_repo = FakeEphemerisRepository([])
     # Make multiple identical calls and collect cache keys
     for _ in range(3):
         get_satellite_passes_in_fov(
             tle_repo,
+            ephemeris_repo,
             test_location,
             None,
             test_time,
@@ -598,7 +699,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])
-
+    ephemeris_repo = FakeEphemerisRepository([])
     # Parameter variations to test
     param_variations = [
         {"duration": 1800},  # Different duration
@@ -614,6 +715,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
     # First call with base parameters
     get_satellite_passes_in_fov(
         tle_repo,
+        ephemeris_repo,
         test_location,
         None,
         test_time,
@@ -637,6 +739,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         # Start with base parameters
         params = {
             "tle_repo": tle_repo,
+            "ephemeris_repo": ephemeris_repo,
             "location": test_location,
             "start_time_jd": None,
             "mid_obs_time_jd": test_time,

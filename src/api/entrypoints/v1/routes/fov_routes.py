@@ -2,6 +2,7 @@
 from flask import current_app as app
 from flask import jsonify, request
 
+from api.adapters.repositories.ephemeris_repository import SqlAlchemyEphemerisRepository
 from api.adapters.repositories.tdm_repository import SqlAlchemyTdmPredictionRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.entrypoints.extensions import db, limiter
@@ -141,6 +142,12 @@ def get_satellite_passes():
         required: false
         description: Whether to process the request asynchronously. If true or omitted, returns a task ID for polling status. If false, returns immediate results.
         example: false
+      - name: tle_only
+        in: query
+        type: boolean
+        required: false
+        description: Whether to include only TLE data in the response. If true, ephemeris data will not be used.
+        example: true
     responses:
       200:
         description: Successful response. Returns either immediate satellite pass data (synchronous) or task information (asynchronous) based on the async parameter.
@@ -198,9 +205,14 @@ def get_satellite_passes():
                                       type: number
                                       format: float
                                       description: Right ascension in degrees
-                                    tle_epoch:
+                                    orbital_data_epoch:
                                       type: string
-                                      description: Epoch date of the TLE used for calculation
+                                      nullable: true
+                                      description: UTC instant for which the underlying orbital data applies (TLE epoch is in tle_epoch; for ephemeris-based positions this is the ephemeris generation time)
+                                    orbital_data_source:
+                                      type: string
+                                      nullable: true
+                                      description: Orbital data source used for the position (e.g. ephemeris)
                                     range_km:
                                       type: number
                                       format: float
@@ -284,6 +296,7 @@ def get_satellite_passes():
         "data_source",
         "illuminated_only",
         "async",
+        "tle_only",
         "use_generated_tles",
     ]
 
@@ -304,11 +317,15 @@ def get_satellite_passes():
     if validated_parameters["async"] is None:
         validated_parameters["async"] = True
 
+    if validated_parameters["tle_only"] is None:
+        validated_parameters["tle_only"] = True
+
     if validated_parameters["use_generated_tles"] is None:
         validated_parameters["use_generated_tles"] = False
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    ephem_repo = SqlAlchemyEphemerisRepository(session)
     tdm_repo = SqlAlchemyTdmPredictionRepository(session)
 
     try:
@@ -355,6 +372,7 @@ def get_satellite_passes():
                 validated_parameters["constellation"],
                 validated_parameters["data_source"],
                 validated_parameters["illuminated_only"],
+                validated_parameters["tle_only"],
                 validated_parameters["use_generated_tles"],
                 api_source,
                 api_version,
@@ -363,6 +381,7 @@ def get_satellite_passes():
         else:
             satellite_passes = get_satellite_passes_in_fov(
                 tle_repo,
+                ephem_repo,
                 validated_parameters["location"],
                 validated_parameters["mid_obs_time_jd"],
                 validated_parameters["start_time_jd"],
@@ -376,6 +395,7 @@ def get_satellite_passes():
                 validated_parameters["constellation"],
                 validated_parameters["data_source"],
                 validated_parameters["illuminated_only"],
+                validated_parameters["tle_only"],
                 validated_parameters["use_generated_tles"],
                 api_source,
                 api_version,

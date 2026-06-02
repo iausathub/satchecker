@@ -1,8 +1,11 @@
 # noqa: I001
 import os
-from datetime import datetime, timedelta
+import re
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.parse import urlparse
 
+import numpy as np
 import psycopg2
 import pytest
 import redis
@@ -14,13 +17,22 @@ from sqlalchemy.orm import sessionmaker
 
 from api import create_app
 from api.adapters.database_orm import Base
+from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.adapters.repositories.satellite_repository import (
     AbstractSatelliteRepository,
 )
 from api.adapters.repositories.tdm_repository import AbstractTdmPredictionRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.celery_app import make_celery
+from api.domain.models.interpolable_ephemeris import (
+    EphemerisPoint,
+    InterpolableEphemeris,
+)
+from api.domain.models.interpolator_splines import InterpolatorSplines
+from api.domain.models.satellite import Satellite
 from api.entrypoints.extensions import db as database
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 if "SQLALCHEMY_DATABASE_URI" not in os.environ:
     os.environ["SQLALCHEMY_DATABASE_URI"] = (
@@ -135,11 +147,15 @@ def cleanup_database(session):
 
     yield
     try:
-        # Delete child tables before parent tables to respect FK constraints
+        # Delete from tables in order of dependencies
+        session.execute(text("DELETE FROM ephemeris_points"))
+        session.execute(text("DELETE FROM interpolable_ephemeris"))
         session.execute(text("DELETE FROM tle"))
         session.execute(text("DELETE FROM tdm_prediction_points"))
         session.execute(text("DELETE FROM tdm_predictions"))
         session.execute(text("DELETE FROM satellites"))
+        session.execute(text("DELETE FROM tdm_predictions"))
+        session.execute(text("DELETE FROM tdm_prediction_points"))
         session.commit()
     except Exception as e:
         session.rollback()
@@ -447,6 +463,107 @@ class FakeTLERepository(AbstractTLERepository):
         )
 
 
+class FakeEphemerisRepository(AbstractEphemerisRepository):
+    def __init__(self, ephemeris):
+        self._ephemeris = ephemeris
+
+    def _add(self, ephemeris):
+        self._ephemeris.add(ephemeris)
+
+    def _get_closest_by_satellite_number(self, satellite_number, epoch):
+        satellite_number_int = int(satellite_number)
+        return min(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_number == satellite_number_int
+            ),
+            key=lambda ephemeris: abs(ephemeris.generated_at - epoch),
+            default=None,
+        )
+
+    def _get_closest_by_satellite_name(self, satellite_name, epoch):
+        return min(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_name == satellite_name
+            ),
+            key=lambda ephemeris: abs(ephemeris.generated_at - epoch),
+            default=None,
+        )
+
+    def _get_latest_by_satellite_number(self, satellite_number):
+        return max(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_number == satellite_number
+            ),
+            key=lambda ephemeris: ephemeris.generated_at,
+            default=None,
+        )
+
+    def _get_latest_by_satellite_name(self, satellite_name):
+        return max(
+            (
+                ephemeris
+                for ephemeris in self._ephemeris
+                if ephemeris.satellite.sat_name == satellite_name
+            ),
+            key=lambda ephemeris: ephemeris.generated_at,
+            default=None,
+        )
+
+    def _get_satellites_with_ephemeris(
+        self, start_time: datetime, end_time: datetime
+    ) -> list[Satellite]:
+        return [ephemeris.satellite for ephemeris in self._ephemeris]
+
+    def _add_interpolator_splines(self, interpolator_splines: InterpolatorSplines):
+
+        if not hasattr(self, "_interpolator_splines"):
+            self._interpolator_splines = []
+        self._interpolator_splines.append(interpolator_splines)
+
+    def _get_interpolator_splines(
+        self, ephemeris_id: int
+    ) -> InterpolatorSplines | None:
+        if not hasattr(self, "_interpolator_splines"):
+            return None
+        for splines in self._interpolator_splines:
+            if splines.ephemeris_id == ephemeris_id:
+                return splines
+        return None
+
+    def _get_all_interpolator_splines_at_epoch(
+        self, epoch_date: datetime
+    ) -> list[InterpolatorSplines]:
+        if not hasattr(self, "_interpolator_splines"):
+            return []
+        return [
+            splines
+            for splines in self._interpolator_splines
+            if splines.time_range_start <= epoch_date <= splines.time_range_end
+        ]
+
+    def _get_closest_by_satellite_numbers(
+        self,
+        satellite_numbers: list[str],
+        epoch: datetime,
+        data_source: str | None = None,
+    ) -> dict[int, InterpolableEphemeris]:
+        results = {}
+        for satellite_number in satellite_numbers:
+            closest_ephemeris = self._get_closest_by_satellite_number(
+                satellite_number, epoch
+            )
+            if closest_ephemeris:
+                if data_source is None or closest_ephemeris.data_source == data_source:
+                    results[int(satellite_number)] = closest_ephemeris
+        return results
+
+
 class FakeTdmPredictionRepository(AbstractTdmPredictionRepository):
     def __init__(self, tdm_predictions, tdm_prediction_points, exception_to_raise=None):
         self._tdm_predictions = set(tdm_predictions)
@@ -497,3 +614,57 @@ def test_location():
 @pytest.fixture
 def test_time():
     return Time("2024-10-01T18:19:13", format="isot", scale="utc")
+
+
+# Starlink-31570 ephemeris fixture built from a trimmed MEME operator file.
+# The sample covers 2025-10-10 19:07:42–19:57:42 UTC (50 one-minute points).
+@pytest.fixture(scope="module")
+def starlink_ephemeris():
+    """
+    InterpolableEphemeris for STARLINK-31570 (NORAD 59324) built from a
+    50-point slice of a real operator MEME file stored in tests/fixtures/.
+
+    Ephemeris span: 2025-10-10 19:07:42 – 19:57:42 UTC (1-minute cadence).
+    The sub-satellite point at index 30 (19:37:42 UTC, JD 2460959.317847) is
+    near (Lat -0.808°, Lon -1.084°) — useful as a test observer location.
+    """
+    lines = (FIXTURES_DIR / "sample_starlink_ephemeris.txt").read_text().splitlines()
+
+    def _date_time(s):
+        return datetime.strptime(s.replace(" UTC", ""), "%Y-%m-%d %H:%M:%S").replace(
+            tzinfo=timezone.utc
+        )
+
+    generated_at = _date_time(lines[0].split(":", 1)[1].strip())
+    ephemeris_start = _date_time(
+        re.search(r"ephemeris_start:(.+?) ephemeris_stop:", lines[1]).group(1)
+    )
+    ephemeris_stop = _date_time(
+        re.search(r"ephemeris_stop:(.+?) step_size:", lines[1]).group(1)
+    )
+
+    row_idx, col_idx = np.tril_indices(6)
+    points = []
+    for i in range(4, len(lines), 4):  # skip 3 header lines + "UVW" frame line
+        parts = lines[i].split()
+        ts = datetime.strptime(parts[0][:13], "%Y%j%H%M%S").replace(tzinfo=timezone.utc)
+        pos = np.array(parts[1:4], dtype=float)
+        vel = np.array(parts[4:7], dtype=float)
+        cov_vals = np.array(
+            [x for row in lines[i + 1 : i + 4] for x in row.split()], dtype=float
+        )
+        cov = np.zeros((6, 6))
+        cov[row_idx, col_idx] = cov_vals
+        cov[col_idx, row_idx] = cov_vals
+        points.append(EphemerisPoint(ts, pos, vel, cov))
+
+    return InterpolableEphemeris(
+        id=1,
+        satellite=Satellite(sat_number=59324, sat_name="STARLINK-31570"),
+        generated_at=generated_at,
+        data_source="spacetrack",
+        frame="UVW",
+        points=points,
+        ephemeris_start=ephemeris_start,
+        ephemeris_stop=ephemeris_stop,
+    )
