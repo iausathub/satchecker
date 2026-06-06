@@ -110,6 +110,9 @@ def main():
         get_starlink_generations(cursor, connection)
         get_starlink_ephemeris_data(cursor, connection)
 
+        # TODO: Disabled until S3 is ready
+        # archive_starlink_ephemeris_data(cursor, connection)
+
         # For now, add in the TDM/position data from S3 here
         get_tdm_data(cursor, connection)
 
