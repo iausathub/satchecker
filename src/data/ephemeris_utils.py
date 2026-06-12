@@ -41,10 +41,10 @@ STARLINK_EPHEMERIS_S3_SUBPREFIX = os.environ.get(
 _POINTS_FOR_ARCHIVE_SQL = """
     SELECT
         ep.ephemeris_id,
-        ep.timestamp AS point_timestamp,
-        ep.position AS position_xyz,
-        ep.velocity AS velocity_xyz,
-        ep.covariance AS covariance
+        ep.timestamp,
+        ep.position,
+        ep.velocity,
+        ep.covariance
     FROM ephemeris_points ep
     WHERE ep.ephemeris_id = %s
     ORDER BY ep.timestamp
