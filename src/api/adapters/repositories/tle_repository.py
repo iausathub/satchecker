@@ -553,7 +553,10 @@ class SqlAlchemyTLERepository(AbstractTLERepository):
                     WHERE epoch BETWEEN :start_date AND :end_date
                     AND sat_id = ANY(:satellite_ids)
                     AND (:data_source_limit IS NULL OR data_source = :data_source_limit)
-                    AND (:use_generated_tles = TRUE OR data_source != 'generated')
+                    AND (
+                        (:use_generated_tles AND data_source = 'generated')
+                        OR (NOT :use_generated_tles AND data_source != 'generated')
+                    )
                     ORDER BY sat_id, epoch DESC
                 )
                 SELECT * FROM latest_tles

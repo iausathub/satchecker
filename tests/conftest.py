@@ -663,7 +663,7 @@ def starlink_ephemeris():
         satellite=Satellite(sat_number=59324, sat_name="STARLINK-31570"),
         generated_at=generated_at,
         data_source="spacetrack",
-        frame="UVW",
+        frame="MEME",
         points=points,
         ephemeris_start=ephemeris_start,
         ephemeris_stop=ephemeris_stop,

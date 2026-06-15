@@ -254,6 +254,7 @@ def test_fov_service_uses_ephemeris(starlink_ephemeris):
         data_source=None,
         illuminated_only=False,
         tle_only=False,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )
@@ -280,6 +281,7 @@ def test_fov_service_uses_ephemeris(starlink_ephemeris):
         data_source=None,
         illuminated_only=False,
         tle_only=True,
+        use_generated_tles=False,
         api_source="test",
         api_version="1.0",
     )

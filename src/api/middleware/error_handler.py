@@ -21,16 +21,24 @@ def handle_error(error):
         code = 500
         message = "Internal server error"
 
-    logger.error(
-        "unhandled exception",
-        exc_info=error,
-        extra={
-            "error_type": error.__class__.__name__,
-            "status_code": code,
-            "method": request.method,
-            "path": request.path,
-        },
-    )
+    log_extra = {
+        "error_type": error.__class__.__name__,
+        "status_code": code,
+        "method": request.method,
+        "path": request.path,
+    }
+
+    if code >= 500:
+        logger.error(
+            "unhandled exception",
+            exc_info=error,
+            extra=log_extra,
+        )
+    else:
+        logger.info(
+            "client error",
+            extra=log_extra,
+        )
 
     return (
         jsonify(
