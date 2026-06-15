@@ -242,18 +242,26 @@ def fov_data_to_json(
 
                 satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info
+            covariance = result.get("covariance")
+            if covariance is not None and hasattr(covariance, "tolist"):
+                covariance = covariance.tolist()
+
             pass_data = {
                 "ra": result["ra"],
                 "dec": result["dec"],
+                "covariance": covariance,
                 "altitude": result.get("altitude"),
                 "azimuth": result.get("azimuth"),
                 "julian_date": result.get("julian_date"),
                 "date_time": format_date(result.get("date_time")),
                 "angle": result.get("angle"),
                 "range_km": result.get("range_km"),
+                "orbital_data_epoch": result.get("orbital_data_epoch"),
+                "orbital_data_source": result.get("orbital_data_source"),
             }
             if "tle_epoch" in result:
-                pass_data["tle_epoch"] = result["tle_epoch"]
+                pass_data["orbital_data_epoch"] = result["tle_epoch"]
+                pass_data["orbital_data_source"] = "tle"
             if "apparent_magnitude" in result:
                 pass_data["apparent_magnitude"] = result["apparent_magnitude"]
             satellites[sat_key]["positions"].append(pass_data)
@@ -269,9 +277,15 @@ def fov_data_to_json(
             "version": api_version,
         }
     else:
-        # Original chronological format
+        sorted_results = sorted(results, key=lambda x: x.get("julian_date", 0))
+        for result in sorted_results:
+            if "tle_epoch" in result:
+                result["orbital_data_epoch"] = result["tle_epoch"]
+                result["orbital_data_source"] = "tle"
+                result.pop("tle_epoch")
+
         formatted_results = {
-            "data": results,
+            "data": sorted_results,
             "total_position_results": points_in_fov,
             "performance": performance_metrics,
             "source": api_source,

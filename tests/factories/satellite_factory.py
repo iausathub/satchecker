@@ -1,9 +1,11 @@
 import datetime
 import random
+from datetime import timezone
 
 import factory
 from faker import Faker
-from src.api.domain.models.satellite import Satellite
+
+from api.domain.models.satellite import Satellite
 
 faker = Faker()
 
@@ -31,12 +33,12 @@ class SatelliteFactory(factory.Factory):
     launch_date = factory.LazyFunction(
         lambda: faker.date_time_between(
             start_date="-10y", end_date=datetime.datetime.now()
-        )
+        ).replace(tzinfo=timezone.utc)
     )
     decay_date = factory.LazyFunction(
         lambda: faker.date_time_between(
             start_date="-10y", end_date=datetime.datetime.now()
-        )
+        ).replace(tzinfo=timezone.utc)
     )
 
     object_id = factory.LazyFunction(generate_object_id)
