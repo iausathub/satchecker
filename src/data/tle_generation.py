@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 from astropy.time import Time
+from frame_transforms import operator_positions_km_to_teme
 from scipy.optimize import least_squares
 from sgp4.api import WGS84, Satrec
 from sgp4.exporter import export_tle
@@ -14,7 +15,6 @@ from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
-from data.frame_transforms import operator_positions_km_to_teme
 
 # When picking a seed TLE from the catalog, prefer rows whose epoch falls in
 # ``[ephemeris_start, ephemeris_start + this many hours]`` (used by
