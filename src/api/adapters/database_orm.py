@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    String,
     Text,
     UniqueConstraint,
     func,
@@ -126,6 +127,7 @@ class InterpolableEphemerisDb(Base):
     ephemeris_start = Column(DateTime(timezone=True), nullable=False)
     ephemeris_stop = Column(DateTime(timezone=True), nullable=False)
     frame = Column(Text, nullable=False)  # UVW, EME2000, etc.
+    parquet_points_file = Column(Text)
 
     # Relationship to points, ordered by timestamp
     points = relationship(
@@ -236,4 +238,41 @@ class TdmPredictionPointDb(Base):
         Index("idx_tdm_prediction_points_timestamp", timestamp),
         Index("idx_tdm_prediction_points_prediction_id", tdm_prediction_id),
         Index("idx_tdm_prediction_points_ra_dec", right_ascension, declination),
+    )
+
+
+class OrbitalElementsDb(Base):
+    __tablename__ = "orbital_elements"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sat_id = Column(Integer, ForeignKey("satellites.id"), nullable=False)
+    date_collected = Column(DateTime(timezone=True), nullable=False)
+    epoch = Column(DateTime(timezone=True), nullable=False)
+    data_source = Column(Text, nullable=False)
+    mean_motion = Column(Float, nullable=False)
+    eccentricity = Column(Float, nullable=False)
+    inclination = Column(Float, nullable=False)
+    ra_of_ascending_node = Column(Float, nullable=False)
+    arg_of_pericenter = Column(Float, nullable=False)
+    mean_anomaly = Column(Float, nullable=False)
+    ephemeris_type = Column(Integer, nullable=False)
+    classification_type = Column(String(1), nullable=False)
+    element_set_no = Column(Integer, nullable=False)
+    rev_at_epoch = Column(Integer, nullable=False)
+    bstar = Column(Float, nullable=False)
+    mean_motion_dot = Column(Float, nullable=False)
+    mean_motion_ddot = Column(Float, nullable=False)
+    satellite = relationship("SatelliteDb", backref="orbital_elements")
+
+    __table_args__ = (
+        UniqueConstraint("sat_id", "epoch", "data_source"),
+        Index("idx_orbital_elements_epoch", epoch.desc()),
+        Index("idx_orbital_elements_epoch_sat_id", sat_id.asc(), epoch.desc()),
+        Index("idx_date_collected", date_collected),
+        Index(
+            "idx_orbital_elements_sat_epoch",
+            sat_id.asc(),
+            epoch.asc(),
+            data_source.asc(),
+        ),
     )

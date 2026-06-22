@@ -225,7 +225,7 @@ def get_celestrak_general_tles(cursor, connection):
     groups = ["starlink", "oneweb", "geo", "active"]
     for group in groups:
         tle = requests.get(
-            "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=tle"  # noqa: UP031
+            "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=json"  # noqa: UP031
             % group,
             timeout=120,
         )
@@ -248,7 +248,7 @@ def get_celestrak_supplemental_tles(cursor, connection):
     for constellation in constellations:
         tle = requests.get(
             "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"  # noqa: UP031
-            "?FILE=%s&FORMAT=tle" % constellation,
+            "?FILE=%s&FORMAT=json" % constellation,
             timeout=120,
         )
         tle.raise_for_status()
