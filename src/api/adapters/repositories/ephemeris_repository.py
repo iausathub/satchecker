@@ -119,7 +119,7 @@ def _load_ephemeris_points(
                 "Ephemeris points S3 bucket is not configured",
             )
         return _read_ephemeris_points_from_s3(
-            orm_ephemeris.parquet_points_file, int(orm_ephemeris.id)
+            str(orm_ephemeris.parquet_points_file), int(orm_ephemeris.id)
         )
 
     points = _points_from_orm_relationship(orm_ephemeris)
