@@ -16,7 +16,7 @@ import sys
 
 import psycopg2
 from connections import get_db_login
-from ephemeris_utils import get_starlink_ephemeris_data
+from ephemeris_utils import archive_starlink_ephemeris_data, get_starlink_ephemeris_data
 from logging_utils import JSONFormatter
 from psycopg2 import OperationalError
 from satellite_utils import get_decayed_satellites, get_starlink_generations
@@ -110,8 +110,12 @@ def main():
         get_starlink_generations(cursor, connection)
         get_starlink_ephemeris_data(cursor, connection)
 
-        # TODO: Disabled until S3 is ready
-        # archive_starlink_ephemeris_data(cursor, connection)
+        try:
+            archive_starlink_ephemeris_data(cursor, connection)
+        except Exception:
+            logging.exception(
+                "Ephemeris archive failed; ingest completed and will retry on next run"
+            )
 
         # For now, add in the TDM/position data from S3 here
         get_tdm_data(cursor, connection)

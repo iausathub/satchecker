@@ -128,6 +128,7 @@ class InterpolableEphemerisDb(Base):
     ephemeris_stop = Column(DateTime(timezone=True), nullable=False)
     frame = Column(Text, nullable=False)  # UVW, EME2000, etc.
     parquet_points_file = Column(Text)
+    run_id = Column(Text)
 
     # Relationship to points, ordered by timestamp
     points = relationship(

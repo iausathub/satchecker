@@ -30,13 +30,8 @@ DEFAULT_ARCHIVE_WRITE_BATCH_ROWS = 50_000
 DEFAULT_ARCHIVE_DB_UPDATE_CHUNK = 5_000
 
 EPHEMERIS_POINTS_S3_BUCKET = os.environ.get("EPHEMERIS_POINTS_S3_BUCKET", "bucket-name")
-EPHEMERIS_POINTS_S3_REGION = os.environ.get("EPHEMERIS_POINTS_S3_REGION", "region-name")
-EPHEMERIS_POINTS_S3_PREFIX = os.environ.get(
-    "EPHEMERIS_POINTS_S3_PREFIX", "test-data"
-).strip("/")
-STARLINK_EPHEMERIS_S3_SUBPREFIX = os.environ.get(
-    "STARLINK_EPHEMERIS_S3_SUBPREFIX", "starlink-incremental"
-).strip("/")
+EPHEMERIS_POINTS_S3_REGION = "us-west-2"
+EPHEMERIS_POINTS_S3_PREFIX = "starlink-ephemeris-data/ephemeris-shards"
 
 _POINTS_FOR_ARCHIVE_SQL = """
     SELECT
@@ -52,7 +47,7 @@ _POINTS_FOR_ARCHIVE_SQL = """
 
 
 def insert_ephemeris_data(
-    parsed_data, cursor, connection
+    parsed_data, cursor, connection, run_id
 ) -> tuple[InterpolableEphemeris, int] | None:
     """
     Insert ephemeris data into the database efficiently using batch inserts.
@@ -61,7 +56,7 @@ def insert_ephemeris_data(
         parsed_data (dict): Dictionary containing parsed ephemeris data
         cursor: Database cursor
         connection: Database connection
-
+        run_id: Run ID for the ephemeris data set collection
     Returns:
         tuple[InterpolableEphemeris, int]: The created ephemeris and its DB id if
         successful, None if duplicate
@@ -93,8 +88,10 @@ def insert_ephemeris_data(
                 file_reference,
                 ephemeris_start,
                 ephemeris_stop,
-                frame
+                frame,
+                run_id
             ) VALUES (
+                %s,
                 %s,
                 %s,
                 %s,
@@ -119,6 +116,7 @@ def insert_ephemeris_data(
                 parsed_data["ephemeris_start"],
                 parsed_data["ephemeris_stop"],
                 parsed_data["frame"],
+                run_id,
             ),
         )
         ephemeris_result = cursor.fetchone()
@@ -483,6 +481,8 @@ def get_starlink_ephemeris_data(cursor, connection):
         files_processed = 0
         total_data_points = 0
 
+        run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
         for file_name in ephemeris_files:
             try:
                 # Check if file has already been processed
@@ -508,7 +508,9 @@ def get_starlink_ephemeris_data(cursor, connection):
                 parsed_data = parse_ephemeris_file(
                     response.content.decode("utf-8"), file_name
                 )
-                insert_result = insert_ephemeris_data(parsed_data, cursor, connection)
+                insert_result = insert_ephemeris_data(
+                    parsed_data, cursor, connection, run_id
+                )
                 if insert_result is None:
                     logging.warning(
                         "Skipping TLE generation for %s: ephemeris insert "
@@ -637,18 +639,20 @@ def _select_ephemeris_ids_for_archive(cursor) -> list[int]:
 
     Requires ``interpolable_ephemeris.run_id``. Archives ephemerides in the oldest
     ``run_id`` batch that still have ``parquet_points_file`` unset (skips rows
-    already archived in a partial run)  - this is the oldest ephemeris not yet on S3.
+    already archived in a partial run). Only rows with ``generated_at`` older than
+    one week are eligible.
     """
     cursor.execute("""
         SELECT id FROM interpolable_ephemeris
         WHERE run_id = (
             SELECT run_id FROM interpolable_ephemeris
-            WHERE parquet_points_file IS NULL
-               OR parquet_points_file = ''
+            WHERE (parquet_points_file IS NULL OR parquet_points_file = '')
+              AND generated_at < NOW() - INTERVAL '7 days'
             ORDER BY generated_at ASC
             LIMIT 1
         )
           AND (parquet_points_file IS NULL OR parquet_points_file = '')
+          AND generated_at < NOW() - INTERVAL '7 days'
         ORDER BY id
         """)
     return [int(row[0]) for row in cursor.fetchall()]
@@ -662,8 +666,8 @@ def _archive_batch_run_id(cursor) -> str:
     """
     cursor.execute("""
         SELECT run_id FROM interpolable_ephemeris
-        WHERE parquet_points_file IS NULL
-           OR parquet_points_file = ''
+        WHERE (parquet_points_file IS NULL OR parquet_points_file = '')
+          AND generated_at < NOW() - INTERVAL '7 days'
         ORDER BY generated_at ASC
         LIMIT 1
         """)
@@ -873,9 +877,10 @@ def archive_starlink_ephemeris_data(
 
     Called from ``retrieve_tle_aws`` after ``get_starlink_ephemeris_data``. Ingest
     and archive are separate: this function only processes rows chosen by
-    ``_select_ephemeris_ids_for_archive`` (oldest pending ``run_id``).
+    ``_select_ephemeris_ids_for_archive`` (oldest pending ``run_id``, at least one
+    week old).
 
-    S3 layout: ``{prefix}/{starlink-incremental}/{run_id}/part-000.parquet``, etc.
+    S3 layout: ``{prefix}/{run_id}/part-000.parquet``, etc.
 
     Uses a process temp directory; does not delete ``ephemeris_points`` rows after
     upload (retention is separate).
@@ -883,15 +888,19 @@ def archive_starlink_ephemeris_data(
     Partial failure: shards already committed keep their S3 key; retry only
     processes rows still missing parquet_points_file (see SQL comments below).
     """
+    if not EPHEMERIS_POINTS_S3_BUCKET or EPHEMERIS_POINTS_S3_BUCKET == "bucket-name":
+        logging.error(
+            "EPHEMERIS_POINTS_S3_BUCKET is not configured; skipping ephemeris archive"
+        )
+        return
+
     to_archive = _select_ephemeris_ids_for_archive(cursor)
     if not to_archive:
         logging.info("No ephemerides to archive for selected batch")
         return
 
     run_id = _archive_batch_run_id(cursor)
-    s3_prefix = (
-        f"{EPHEMERIS_POINTS_S3_PREFIX}/{STARLINK_EPHEMERIS_S3_SUBPREFIX}/{run_id}"
-    )
+    s3_prefix = f"{EPHEMERIS_POINTS_S3_PREFIX}/{run_id}"
     logging.info(
         "Archiving run_id=%s: %d ephemerides → s3://%s/%s/ (shard target %.0f MiB)",
         run_id,
