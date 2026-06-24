@@ -269,7 +269,7 @@ class OrbitalElementsDb(Base):
         UniqueConstraint("sat_id", "epoch", "data_source"),
         Index("idx_orbital_elements_epoch", epoch.desc()),
         Index("idx_orbital_elements_epoch_sat_id", sat_id.asc(), epoch.desc()),
-        Index("idx_date_collected", date_collected),
+        Index("idx_orbital_elements_date_collected", date_collected),
         Index(
             "idx_orbital_elements_sat_epoch",
             sat_id.asc(),
