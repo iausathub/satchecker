@@ -20,6 +20,7 @@ from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
 )
+from api.domain.models.satellite import Satellite
 
 # How much of each ephemeris file we keep in the database. Anything beyond this
 # horizon from ``ephemeris_start`` is dropped in ``parse_ephemeris_file``.
@@ -48,7 +49,7 @@ _POINTS_FOR_ARCHIVE_SQL = """
 
 def insert_ephemeris_data(
     parsed_data, cursor, connection, run_id
-) -> tuple[InterpolableEphemeris, int] | None:
+) -> tuple[InterpolableEphemeris, int, int] | None:
     """
     Insert ephemeris data into the database efficiently using batch inserts.
 
@@ -58,23 +59,39 @@ def insert_ephemeris_data(
         connection: Database connection
         run_id: Run ID for the ephemeris data set collection
     Returns:
-        tuple[InterpolableEphemeris, int]: The created ephemeris and its DB id if
-        successful, None if duplicate
+        tuple[InterpolableEphemeris, int, int]: Created ephemeris, ephemeris DB id,
+        and satellite DB id (``satellites`` PK) on success; ``None`` if duplicate
     """
     try:
         # TODO: fix usage of has_current_sat_number
         cursor.execute(
-            "SELECT id FROM satellites "
-            "WHERE sat_name = %s "
-            "AND has_current_sat_number = true",
+            """
+            SELECT id, sat_number, sat_name, constellation, rcs_size, launch_date,
+            decay_date, object_id, object_type, generation, has_current_sat_number
+            FROM satellites
+            WHERE sat_name = %s
+            AND has_current_sat_number = true
+            """,
             (parsed_data["satellite_name"],),
         )
-        satellite_result = cursor.fetchone()
-        if satellite_result is None:
+        satellite_row = cursor.fetchone()
+        if satellite_row is None:
             logging.info("Satellite not found: %s", parsed_data["satellite_name"])
             return None
 
-        satellite_id = satellite_result[0]
+        (
+            satellite_id,
+            sat_number,
+            sat_name,
+            constellation,
+            rcs_size,
+            launch_date,
+            decay_date,
+            object_id,
+            object_type,
+            generation,
+            has_current_sat_number,
+        ) = satellite_row
 
         date_collected = datetime.now(timezone.utc)
         data_source = "starlink"
@@ -180,9 +197,22 @@ def insert_ephemeris_data(
             )
             ephemeris_points.append(point)
 
+        satellite = Satellite(
+            sat_number=sat_number,
+            sat_name=sat_name,
+            constellation=constellation,
+            generation=generation,
+            rcs_size=rcs_size,
+            launch_date=launch_date,
+            decay_date=decay_date,
+            object_id=object_id,
+            object_type=object_type,
+            has_current_sat_number=has_current_sat_number,
+        )
+
         # Create and return the InterpolableEphemeris object
         ephemeris = InterpolableEphemeris(
-            sat_id=satellite_id,
+            satellite=satellite,
             generated_at=parsed_data["generated_at"],
             data_source=data_source,
             frame=parsed_data["frame"],
@@ -193,7 +223,7 @@ def insert_ephemeris_data(
             date_collected=date_collected,
         )
 
-        return ephemeris, ephemeris_id
+        return ephemeris, ephemeris_id, satellite_id
 
     except Exception as e:
         connection.rollback()
@@ -518,11 +548,11 @@ def get_starlink_ephemeris_data(cursor, connection):
                         file_name,
                     )
                     continue
-                ephemeris, _ephemeris_id = insert_result
+                ephemeris, _ephemeris_id, satellite_id = insert_result
 
                 t0 = time.perf_counter()
                 fit_xyz_rms, fit_ang_rms = create_tle_from_ephemeris(
-                    ephemeris, cursor, connection
+                    ephemeris, satellite_id, cursor, connection
                 )
 
                 if fit_xyz_rms == -1 and fit_ang_rms == -1:
