@@ -123,6 +123,7 @@ psycopg2-binary==2.9.7
 ptyprocess==0.7.0
 pure-eval==0.2.2
 py-cpuinfo==9.0.0
+pyarrow==24.0.0
 pyerfa==2.0.1.5
 Pygments==2.20.0
 pylint==3.0.1
