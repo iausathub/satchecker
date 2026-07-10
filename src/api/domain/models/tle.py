@@ -1,9 +1,12 @@
 from datetime import datetime
 
+from skyfield.api import EarthSatellite, Timescale
+
+from api.domain.models.orbital_data import OrbitalData
 from api.domain.models.satellite import Satellite
 
 
-class TLE:
+class TLE(OrbitalData):
     def __init__(
         self,
         date_collected: datetime,
@@ -14,13 +17,10 @@ class TLE:
         data_source: str,
         satellite: Satellite,
     ):
-        self.date_collected = date_collected
+        super().__init__(date_collected, epoch, data_source, satellite)
         self.tle_line1 = tle_line1
         self.tle_line2 = tle_line2
-        self.epoch = epoch
-        self.is_supplemental = is_supplemental
-        self.data_source = data_source
-        self.satellite = satellite
+        self._is_supplemental = is_supplemental
 
     def __repr__(self):
         return f"<TLE {self.satellite}>"
@@ -47,6 +47,13 @@ class TLE:
                 self.data_source,
             )
         )
+
+    @property
+    def is_supplemental(self) -> bool:
+        return self._is_supplemental
+
+    def to_earth_satellite(self, ts: Timescale) -> EarthSatellite:
+        return EarthSatellite(self.tle_line1, self.tle_line2, ts=ts)
 
     def get_satellite(self):
         return self.satellite

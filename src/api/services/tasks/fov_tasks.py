@@ -16,9 +16,9 @@ from typing import Any
 
 import numpy as np
 
-from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.celery_app import celery
 from api.entrypoints.v1.routes import api_source, api_version
+from api.utils.orbital_data_utils import deserialize_orbital_data_batch
 from api.utils.output_utils import fov_data_to_json
 from api.utils.propagation_strategies import (
     KroghPropagationStrategy,
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 @celery.task(name="fov.process_satellite_batch")
 def process_satellite_batch_task(
-    serialized_batch_tles: list[dict[str, Any]],
+    serialized_batch_orbital_data: list[dict[str, Any]],
     jd_times: list[float],
     location_lat: float,
     location_lon: float,
@@ -47,9 +47,9 @@ def process_satellite_batch_task(
     Each batch runs on its own Celery worker.
     Returns (batch_results, satellites_processed, execution_time).
     """
-    batch_tles = SqlAlchemyTLERepository.deserialize_tles(serialized_batch_tles)
+    batch_orbital_data = deserialize_orbital_data_batch(serialized_batch_orbital_data)
     args = (
-        batch_tles,
+        batch_orbital_data,
         jd_times,
         location_lat,
         location_lon,
@@ -66,7 +66,7 @@ def process_satellite_batch_task(
 def aggregate_fov_results_task(
     group_results: list[tuple[list[dict[str, Any]], int, float]],
     group_by: str,
-    tle_time: float,
+    orbital_data_time: float,
     jd_times: list[float],
 ) -> tuple[list[dict[str, Any]], int, str, dict[str, object]]:
     """
@@ -86,8 +86,8 @@ def aggregate_fov_results_task(
     points_in_fov = len(all_results)
 
     performance_metrics = {
-        "total_time": round(tle_time + propagation_time, 3),
-        "data_retrieval_time": round(tle_time, 3),
+        "total_time": round(orbital_data_time + propagation_time, 3),
+        "data_retrieval_time": round(orbital_data_time, 3),
         "calculation_time": round(propagation_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
@@ -215,8 +215,7 @@ def refine_with_ephemeris_task(
                 # Propagate positions
                 positions = krogh_strategy.propagate(
                     jd_times,
-                    "",
-                    "",
+                    None,
                     location_lat,
                     location_lon,
                     location_height,

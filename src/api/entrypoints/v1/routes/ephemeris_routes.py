@@ -1,6 +1,9 @@
 # ruff: noqa: E501
 from flask import abort, request
 
+from api.adapters.repositories.orbital_elements_repository import (
+    SqlAlchemyOrbitalElementsRepository,
+)
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import DataError
@@ -142,6 +145,7 @@ def get_ephemeris_by_name():
     session = db.session
     satellite_repository = SqlAlchemySatelliteRepository(session)
     tle_repository = SqlAlchemyTLERepository(session)
+    orbital_elements_repository = SqlAlchemyOrbitalElementsRepository(session)
 
     parameter_list = [
         "name",
@@ -176,6 +180,7 @@ def get_ephemeris_by_name():
         position_data = generate_ephemeris_data(
             satellite_repository,
             tle_repository,
+            orbital_elements_repository,
             parameters["name"],
             "name",
             parameters["location"],
@@ -335,6 +340,7 @@ def get_ephemeris_by_name_jdstep():
     session = db.session
     satellite_repository = SqlAlchemySatelliteRepository(session)
     tle_repository = SqlAlchemyTLERepository(session)
+    orbital_elements_repository = SqlAlchemyOrbitalElementsRepository(session)
 
     parameter_list = [
         "name",
@@ -372,6 +378,7 @@ def get_ephemeris_by_name_jdstep():
         position_data = generate_ephemeris_data(
             satellite_repository,
             tle_repository,
+            orbital_elements_repository,
             parameters["name"],
             "name",
             parameters["location"],
@@ -516,6 +523,7 @@ def get_ephemeris_by_catalog_number():
     session = db.session
     satellite_repository = SqlAlchemySatelliteRepository(session)
     tle_repository = SqlAlchemyTLERepository(session)
+    orbital_elements_repository = SqlAlchemyOrbitalElementsRepository(session)
 
     parameter_list = [
         "catalog",
@@ -549,6 +557,7 @@ def get_ephemeris_by_catalog_number():
     position_data = generate_ephemeris_data(
         satellite_repository,
         tle_repository,
+        orbital_elements_repository,
         parameters["catalog"],
         "catalog_number",
         parameters["location"],
@@ -705,6 +714,7 @@ def get_ephemeris_by_catalog_number_jdstep():
     session = db.session
     satellite_repository = SqlAlchemySatelliteRepository(session)
     tle_repository = SqlAlchemyTLERepository(session)
+    orbital_elements_repository = SqlAlchemyOrbitalElementsRepository(session)
 
     parameter_list = [
         "catalog",
@@ -742,6 +752,7 @@ def get_ephemeris_by_catalog_number_jdstep():
         position_data = generate_ephemeris_data(
             satellite_repository,
             tle_repository,
+            orbital_elements_repository,
             parameters["catalog"],
             "catalog_number",
             parameters["location"],

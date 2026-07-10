@@ -3,6 +3,9 @@ from flask import current_app as app
 from flask import jsonify, request
 
 from api.adapters.repositories.ephemeris_repository import SqlAlchemyEphemerisRepository
+from api.adapters.repositories.orbital_elements_repository import (
+    SqlAlchemyOrbitalElementsRepository,
+)
 from api.adapters.repositories.tdm_repository import SqlAlchemyTdmPredictionRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.entrypoints.extensions import db, limiter
@@ -329,6 +332,7 @@ def get_satellite_passes():
     tle_repo = SqlAlchemyTLERepository(session)
     ephem_repo = SqlAlchemyEphemerisRepository(session)
     tdm_repo = SqlAlchemyTdmPredictionRepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
 
     try:
         if validated_parameters["data_source"] == "aerospace":
@@ -361,6 +365,7 @@ def get_satellite_passes():
         if validated_parameters["async"]:
             task_response = get_satellite_passes_in_fov_async(
                 tle_repo,
+                orbital_elements_repo,
                 validated_parameters["location"],
                 validated_parameters["mid_obs_time_jd"],
                 validated_parameters["start_time_jd"],
@@ -383,6 +388,7 @@ def get_satellite_passes():
         else:
             satellite_passes = get_satellite_passes_in_fov(
                 tle_repo,
+                orbital_elements_repo,
                 ephem_repo,
                 validated_parameters["location"],
                 validated_parameters["mid_obs_time_jd"],

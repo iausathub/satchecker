@@ -6,8 +6,7 @@ from astropy.time import Time
 from flask import current_app, has_app_context
 
 from api.celery_app import celery
-
-# from core import celery, utils
+from api.utils.orbital_data_utils import deserialize_orbital_data
 from api.utils.output_utils import position_data_to_json
 from api.utils.propagation_strategies import (
     PropagationInfo,
@@ -88,18 +87,11 @@ def process_results(
 def generate_position_data(
     location: EarthLocation,
     dates: list[Time],
-    tle_line_1: str,
-    tle_line_2: str,
-    date_collected: str,
-    tle_epoch_date: str,
-    name: str,
-    intl_designator: str,
+    serialized_orbital_data: dict[str, Any],
     min_altitude: float,
     max_altitude: float,
     api_source: str,
     api_version: str,
-    catalog_id: str = "",
-    data_source: str = "",
     propagation_strategy: str = "skyfield",
 ) -> dict[str, Any] | list[dict[str, Any]]:
     """
@@ -111,23 +103,24 @@ def generate_position_data(
     Args:
         location (EarthLocation): The location of the observer.
         dates (list[Time]): The dates for which to propagate the satellite.
-        tle_line_1 (str): The first line of the TLE data for the satellite.
-        tle_line_2 (str): The second line of the TLE data for the satellite.
-        date_collected (str): The date the TLE data was collected.
-        tle_epoch_date (str): The date the TLE was created.
-        name (str): The name of the satellite.
+        serialized_orbital_data (dict): Serialized TLE or orbital elements data.
         min_altitude (float): The minimum altitude for the results.
         max_altitude (float): The maximum altitude for the results.
-        catalog_id (str, optional): The catalog ID of the satellite. Defaults to "".
-        data_source (str, optional): The data source of the TLE data. Defaults to "".
 
     Returns:
         dict[str, Any] | list[dict[str, Any]]: Either a dictionary with results
         or a list of results for the given satellite and date range.
     """
+    orbital_data = deserialize_orbital_data(serialized_orbital_data)
+    satellite = orbital_data.satellite
+
     # Create a chord that will propagate the satellite for
     # each date and then process the results
     if propagation_strategy == "sgp4":
+        if "tle_line1" not in serialized_orbital_data:
+            raise ValueError(
+                "SGP4 propagation requires TLE data; orbital elements are not supported"
+            )
         method = propagate_satellite_sgp4
     elif propagation_strategy == "skyfield":
         method = propagate_satellite_skyfield
@@ -139,12 +132,11 @@ def generate_position_data(
 
     result = method.apply(
         args=[
-            tle_line_1,
-            tle_line_2,
+            serialized_orbital_data,
             location.lat.value,
             location.lon.value,
             location.height.value,
-            jd_dates,  # Pass full list instead of individual dates
+            jd_dates,
         ]
     )
 
@@ -153,12 +145,12 @@ def generate_position_data(
             result.get(),
             min_altitude,
             max_altitude,
-            date_collected,
-            tle_epoch_date,
-            name,
-            intl_designator,
-            catalog_id,
-            data_source,
+            orbital_data.date_collected,
+            orbital_data.epoch,
+            satellite.sat_name,
+            satellite.object_id,
+            satellite.sat_number,
+            orbital_data.data_source,
             api_source,
             api_version,
         ]
@@ -171,15 +163,12 @@ def generate_position_data(
 
 
 @celery.task
-def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
+def propagate_satellite_skyfield(serialized_orbital_data, lat, long, height, jd):
     """
     Propagates satellite and observer states using the Skyfield library.
 
     Args:
-        tle_line_1 (str): The first line of the Two-Line Element set representing
-        the satellite.
-        tle_line_2 (str): The second line of the Two-Line Element set representing
-        the satellite.
+        serialized_orbital_data (dict): Serialized TLE or orbital elements data.
         lat (float): The latitude of the observer's location, in degrees.
         long (float): The longitude of the observer's location, in degrees.
         height (float): The height of the observer's location, in meters above the
@@ -191,24 +180,27 @@ def propagate_satellite_skyfield(tle_line_1, tle_line_2, lat, long, height, jd):
         list[tuple]: A list of tuples containing the propagated state of the
         satellite and the observer.
     """
+    orbital_data = deserialize_orbital_data(serialized_orbital_data)
     propagation_info = PropagationInfo(
-        SkyfieldPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
+        SkyfieldPropagationStrategy(),
+        jd,
+        lat,
+        long,
+        height,
+        orbital_data=orbital_data,
     )
     return propagation_info.propagate()
 
 
 @celery.task
 def propagate_satellite_sgp4(
-    tle_line_1, tle_line_2, lat, long, height, jd
+    serialized_orbital_data, lat, long, height, jd
 ):  # pragma: no cover
     """
     Propagates satellite and observer states using the SGP4 model.
 
     Args:
-        tle_line_1 (str): The first line of the Two-Line Element set representing
-        the satellite.
-        tle_line_2 (str): The second line of the Two-Line Element set representing
-        the satellite.
+        serialized_orbital_data (dict): Serialized TLE data.
         lat (float): The latitude of the observer's location, in degrees.
         long (float): The longitude of the observer's location, in degrees.
         height (float): The height of the observer's location, in meters above the
@@ -220,8 +212,18 @@ def propagate_satellite_sgp4(
         list[tuple]: A list of tuples containing the propagated state of the satellite
         and the observer.
     """
+    if "tle_line1" not in serialized_orbital_data:
+        raise ValueError(
+            "SGP4 propagation requires TLE data; orbital elements are not supported"
+        )
+    orbital_data = deserialize_orbital_data(serialized_orbital_data)
     propagation_info = PropagationInfo(
-        SGP4PropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
+        SGP4PropagationStrategy(),
+        jd,
+        lat,
+        long,
+        height,
+        orbital_data=orbital_data,
     )
     return propagation_info.propagate()
 
@@ -245,7 +247,15 @@ def propagate_satellite_new(
         dict: A dictionary containing the propagated state of the satellite and the
         observer.
     """  # noqa: E501
+    from api.services.validation_service import parse_tle
+
+    orbital_data = parse_tle(f"{tle_line_1}\n{tle_line_2}")
     propagation_info = PropagationInfo(
-        TestPropagationStrategy(), tle_line_1, tle_line_2, jd, lat, long, height
+        TestPropagationStrategy(),
+        jd,
+        lat,
+        long,
+        height,
+        orbital_data=orbital_data,
     )
     return propagation_info.propagate()

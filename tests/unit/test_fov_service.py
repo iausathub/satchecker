@@ -5,11 +5,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
+from skyfield.api import EarthSatellite, load
 from tests.conftest import (
     FakeEphemerisRepository,
+    FakeOrbitalElementsRepository,
     FakeTdmPredictionRepository,
     FakeTLERepository,
 )
+from tests.factories.orbital_elements_factory import OrbitalElementsFactory
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tdm_prediction_factory import (
     TdmPredictionFactory,
@@ -17,8 +20,10 @@ from tests.factories.tdm_prediction_factory import (
 )
 from tests.factories.tle_factory import TLEFactory
 
+from api.services import fov_service
 from api.services.fov_service import (
     get_satellite_passes_in_fov,
+    get_satellite_passes_in_fov_async,
     get_satellite_passes_in_fov_tdm,
     get_satellites_above_horizon,
 )
@@ -41,14 +46,17 @@ def test_satellite_in_fov(test_location, test_time):
         satellite=satellite,
         tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
         tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+        epoch=test_time.to_datetime(timezone.utc),
     )
 
     tle_repo = FakeTLERepository([tle])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
     ephemeris_repo = FakeEphemerisRepository([])
 
     # Test with group_by=satellite
     result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
@@ -75,6 +83,7 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=time
     result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
@@ -104,7 +113,7 @@ def test_satellite_in_fov(test_location, test_time):
     assert result["data"][0]["julian_date"] is not None
     assert result["data"][0]["name"] == "FENGYUN 1C DEB"
     assert result["data"][0]["orbital_data_epoch"] is not None
-    assert result["data"][0]["ra"] is not None
+    assert result["data"][0]["ra"] == pytest.approx(21.23511431, rel=1e-9)
     assert result["data"][0]["dec"] is not None
     with pytest.raises(KeyError):
         assert result["data"][0]["tle_data"]
@@ -112,6 +121,7 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=time and include_tles=True
     result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
@@ -138,6 +148,7 @@ def test_satellite_in_fov(test_location, test_time):
     # Test with group_by=satellite and include_tles=True
     result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
@@ -169,6 +180,235 @@ def test_satellite_in_fov(test_location, test_time):
     )
 
 
+def _fengyun_orbital_elements(satellite, epoch):
+    """OrbitalElements with the same mean elements as the FENGYUN 1C DEB TLE
+    used elsewhere in this file, so both propagation paths describe the same
+    physical orbit."""
+    return OrbitalElementsFactory(
+        satellite=satellite,
+        epoch=epoch,
+        date_collected=epoch,
+        data_source="celestrak",
+        classification_type="U",
+        mean_motion=14.52723026,
+        eccentricity=0.0030132,
+        inclination=98.5847,
+        ra_of_ascending_node=13.2387,
+        arg_of_pericenter=143.9377,
+        mean_anomaly=216.3858,
+        bstar=0.86550e-2,
+        mean_motion_dot=0.00035853,
+        mean_motion_ddot=0.0,
+        rev_at_epoch=90668,
+        ephemeris_type=0,
+        element_set_no=999,
+    )
+
+
+def test_satellite_in_fov_orbital_elements_after_cutoff(test_location):
+    """
+    Regression test for the OMM/orbital-elements sync FOV path
+    (time_param >= ORBITAL_ELEMENTS_CUTOFF).
+    """
+    omm_time = Time("2026-08-01T18:19:13", format="isot", scale="utc")
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    orbital_elements = _fengyun_orbital_elements(
+        satellite, omm_time.to_datetime(timezone.utc)
+    )
+
+    tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([orbital_elements])
+    ephemeris_repo = FakeEphemerisRepository([])
+
+    result = get_satellite_passes_in_fov(
+        tle_repo,
+        orbital_elements_repo,
+        ephemeris_repo,
+        location=test_location,
+        mid_obs_time_jd=omm_time,
+        start_time_jd=None,
+        duration=30,
+        ra=353.68,
+        dec=-22.18,
+        fov_radius=1.0,
+        group_by="satellite",
+        include_tles=False,
+        skip_cache=True,
+        constellation=None,
+        data_source="any",
+        illuminated_only=False,
+        tle_only=False,
+        use_generated_tles=False,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    assert len(result["data"]["satellites"]) == 1
+    satellite_key = list(result["data"]["satellites"].keys())[0]
+    assert result["data"]["satellites"][satellite_key]["norad_id"] == 31746
+    assert len(result["data"]["satellites"][satellite_key]["positions"]) == 30
+    # Same mean elements as the TLE in test_satellite_in_fov (different epoch/
+    # FOV geometry), so this is a different value -- it's here to confirm the
+    # orbital-elements path produces a real, stable propagated position.
+    first_position = result["data"]["satellites"][satellite_key]["positions"][0]
+    assert first_position["ra"] == pytest.approx(353.73939585, rel=1e-9)
+
+
+def test_tle_and_orbital_elements_propagation_match(test_location, test_time):
+    """
+    Cross-check that the TLE path and the orbital-elements path produce the
+    same sky position for the same underlying orbit.
+
+    ORBITAL_ELEMENTS_CUTOFF is patched so both calls
+    use the identical mid_obs_time_jd -- otherwise the two paths would also
+    differ in Earth's rotation state at observation time, confounding the
+    comparison.
+    """
+    tle_line1 = "1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990"  # noqa: E501
+    tle_line2 = "2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685"  # noqa: E501
+    ts = load.timescale()
+    tle_epoch = EarthSatellite(tle_line1, tle_line2, ts=ts).epoch.utc_datetime()
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1=tle_line1,
+        tle_line2=tle_line2,
+        epoch=tle_epoch,
+    )
+    orbital_elements = _fengyun_orbital_elements(satellite, tle_epoch)
+
+    common_args = dict(
+        location=test_location,
+        mid_obs_time_jd=test_time,
+        start_time_jd=None,
+        duration=30,
+        ra=24.797270,
+        dec=75.774139,
+        fov_radius=1.66,
+        group_by="time",
+        include_tles=False,
+        skip_cache=True,
+        constellation=None,
+        data_source="any",
+        illuminated_only=False,
+        tle_only=False,
+        use_generated_tles=False,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    result_tle = get_satellite_passes_in_fov(
+        FakeTLERepository([tle]),
+        FakeOrbitalElementsRepository([]),
+        FakeEphemerisRepository([]),
+        **common_args,
+    )
+
+    original_cutoff = fov_service.ORBITAL_ELEMENTS_CUTOFF
+    fov_service.ORBITAL_ELEMENTS_CUTOFF = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    try:
+        result_omm = get_satellite_passes_in_fov(
+            FakeTLERepository([]),
+            FakeOrbitalElementsRepository([orbital_elements]),
+            FakeEphemerisRepository([]),
+            **common_args,
+        )
+    finally:
+        fov_service.ORBITAL_ELEMENTS_CUTOFF = original_cutoff
+
+    assert result_tle["total_position_results"] == 18
+    assert result_omm["total_position_results"] == result_tle["total_position_results"]
+
+    for tle_point, omm_point in zip(
+        result_tle["data"], result_omm["data"], strict=True
+    ):
+        assert omm_point["ra"] == pytest.approx(tle_point["ra"], abs=1e-4)
+        assert omm_point["dec"] == pytest.approx(tle_point["dec"], abs=1e-4)
+
+
+def test_get_satellite_passes_in_fov_async_orbital_elements_after_cutoff(test_location):
+    """
+    Regression test for the OMM/orbital-elements async FOV path.
+    """
+    from api.celery_app import celery
+    from api.services.tasks.fov_tasks import get_fov_task_status
+
+    omm_time = Time("2026-08-01T18:19:13", format="isot", scale="utc")
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    orbital_elements = _fengyun_orbital_elements(
+        satellite, omm_time.to_datetime(timezone.utc)
+    )
+
+    tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([orbital_elements])
+
+    original_always_eager = celery.conf.task_always_eager
+    original_eager_propagates = celery.conf.task_eager_propagates
+    original_store_eager_result = celery.conf.task_store_eager_result
+    celery.conf.task_always_eager = True
+    celery.conf.task_eager_propagates = True
+    celery.conf.task_store_eager_result = True
+    try:
+        dispatch_result = get_satellite_passes_in_fov_async(
+            tle_repo,
+            orbital_elements_repo,
+            location=test_location,
+            mid_obs_time_jd=omm_time,
+            start_time_jd=None,
+            duration=30,
+            ra=353.68,
+            dec=-22.18,
+            fov_radius=1.0,
+            group_by="satellite",
+            include_tles=False,
+            skip_cache=True,
+            constellation=None,
+            data_source="any",
+            illuminated_only=False,
+            tle_only=True,
+            use_generated_tles=False,
+            api_source="test",
+            api_version="1.0",
+        )
+        assert dispatch_result["status"] == "PENDING"
+        assert dispatch_result["task_id"] is not None
+
+        status = get_fov_task_status(dispatch_result["task_id"])
+    finally:
+        celery.conf.task_always_eager = original_always_eager
+        celery.conf.task_eager_propagates = original_eager_propagates
+        celery.conf.task_store_eager_result = original_store_eager_result
+
+    assert status["status"] == "SUCCESS"
+    satellites = status["data"]["satellites"]
+    assert len(satellites) == 1
+    satellite_key = list(satellites.keys())[0]
+    assert satellites[satellite_key]["norad_id"] == 31746
+
+    positions = satellites[satellite_key]["positions"]
+    assert len(positions) == 30
+    assert positions[0]["ra"] == pytest.approx(353.73939585, rel=1e-9)
+    assert all(p["orbital_data_source"] == "omm" for p in positions)
+
+
 def test_satellite_outside_fov(test_location, test_time):
     """Test when satellite never enters FOV"""
     # Set up with FOV pointing away from orbit - RA changed to 48.797270
@@ -184,13 +424,16 @@ def test_satellite_outside_fov(test_location, test_time):
         satellite=satellite,
         tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
         tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+        epoch=test_time.to_datetime(timezone.utc),
     )
 
     tle_repo = FakeTLERepository([tle])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
     ephemeris_repo = FakeEphemerisRepository([])
 
     result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
@@ -233,12 +476,14 @@ def test_fov_service_uses_ephemeris(starlink_ephemeris):
     )
 
     tle_repo = FakeTLERepository([tle])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
     ephemeris_repo = FakeEphemerisRepository([starlink_ephemeris])
     location = EarthLocation(lat=-0.808, lon=-1.084, height=0)
     obs_time = Time(2460959.317847, format="jd", scale="utc")
 
     result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=location,
         mid_obs_time_jd=obs_time,
@@ -266,6 +511,7 @@ def test_fov_service_uses_ephemeris(starlink_ephemeris):
 
     tle_only_result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=location,
         mid_obs_time_jd=obs_time,
@@ -398,10 +644,12 @@ def test_satellite_outside_fov_tdm(test_location, test_time):
 def test_empty_tle_list(test_location, test_time):
     """Test behavior with no TLEs available"""
     tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
     ephemeris_repo = FakeEphemerisRepository([])
 
     result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         location=test_location,
         mid_obs_time_jd=test_time,
@@ -561,10 +809,12 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
     mock_redis_client.setex.side_effect = mock_setex
 
     tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
     ephemeris_repo = FakeEphemerisRepository([])
     # First call - should compute and cache (cache miss)
     first_result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         test_location,
         None,
@@ -597,6 +847,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
 
     second_result = get_satellite_passes_in_fov(  # noqa: F841
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         test_location,
         None,
@@ -633,6 +884,7 @@ def test_fov_caching_cycle(mocker, test_location, test_time):
 
     third_result = get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         test_location,
         None,
@@ -666,11 +918,13 @@ def test_fov_cache_key_consistency(mocker, test_location, test_time):
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
     ephemeris_repo = FakeEphemerisRepository([])
     # Make multiple identical calls and collect cache keys
     for _ in range(3):
         get_satellite_passes_in_fov(
             tle_repo,
+            orbital_elements_repo,
             ephemeris_repo,
             test_location,
             None,
@@ -701,6 +955,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
     mock_redis_client.get.return_value = None
 
     tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
     ephemeris_repo = FakeEphemerisRepository([])
     # Parameter variations to test
     param_variations = [
@@ -717,6 +972,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
     # First call with base parameters
     get_satellite_passes_in_fov(
         tle_repo,
+        orbital_elements_repo,
         ephemeris_repo,
         test_location,
         None,
@@ -741,6 +997,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
         # Start with base parameters
         params = {
             "tle_repo": tle_repo,
+            "orbital_elements_repo": orbital_elements_repo,
             "ephemeris_repo": ephemeris_repo,
             "location": test_location,
             "start_time_jd": None,
