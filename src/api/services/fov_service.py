@@ -8,7 +8,7 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from celery import chord, group
-from skyfield.api import EarthSatellite, wgs84
+from skyfield.api import wgs84
 
 from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.adapters.repositories.orbital_elements_repository import (
@@ -655,6 +655,7 @@ def get_satellite_passes_in_fov_tdm(
 
 def get_satellites_above_horizon(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
     location: EarthLocation,
     julian_dates: list[Time],
     min_altitude: float,
@@ -670,6 +671,7 @@ def get_satellites_above_horizon(
 
     Args:
         tle_repo: Repository for TLE data
+        orbital_elements_repo: Repository for orbital elements (OMM) data
         location: Observer's location
         time_jd: Time to check (as Time object)
         min_altitude: Minimum altitude in degrees (default: 0.0 = horizon)
@@ -691,12 +693,20 @@ def get_satellites_above_horizon(
 
     time_jd = julian_dates[0]
 
-    # Get all current TLEs
-    tle_start = python_time.time()
-    tles, count, _ = tle_repo.get_all_tles_at_epoch(
-        astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
-    )
-    tle_time = python_time.time() - tle_start
+    # Get all current TLEs or orbital elements, depending on the epoch
+    data_start = python_time.time()
+    orbital_data: list[TLE] | list[OrbitalElements]
+    if time_jd < ORBITAL_ELEMENTS_CUTOFF:
+        orbital_data, count, _ = tle_repo.get_all_tles_at_epoch(
+            astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
+        )
+    else:
+        orbital_data, count, _ = (
+            orbital_elements_repo.get_all_orbital_elements_at_epoch(
+                astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
+            )
+        )
+    data_retrieval_time = python_time.time() - data_start
 
     # Set up time and observer
     ts = load.timescale()
@@ -709,9 +719,9 @@ def get_satellites_above_horizon(
     satellites_processed = 0
     visible_satellites = 0
 
-    for tle in tles:
+    for orbital_data_point in orbital_data:
         try:
-            satellite = EarthSatellite(tle.tle_line1, tle.tle_line2, ts=ts)
+            satellite = orbital_data_point.to_earth_satellite(ts)
             difference = satellite - curr_pos
             topocentric = difference.at(t)
 
@@ -740,12 +750,16 @@ def get_satellites_above_horizon(
                     "dec": dec_sat,
                     "altitude": float(alt._degrees[0]),
                     "azimuth": float(az._degrees[0]),
-                    "name": tle.satellite.sat_name,
-                    "norad_id": tle.satellite.sat_number,
+                    "name": orbital_data_point.satellite.sat_name,
+                    "norad_id": orbital_data_point.satellite.sat_number,
                     "julian_date": time_jd.jd,
                     "range_km": float(distance.km[0]),
-                    "orbital_data_epoch": output_utils.format_date(tle.epoch),
-                    "orbital_data_source": "tle",
+                    "orbital_data_epoch": output_utils.format_date(
+                        orbital_data_point.epoch
+                    ),
+                    "orbital_data_source": (
+                        "tle" if isinstance(orbital_data_point, TLE) else "omm"
+                    ),
                 }
                 all_results.append(position)
                 visible_satellites += 1
@@ -760,7 +774,10 @@ def get_satellites_above_horizon(
                 print(f"Found {visible_satellites} visible satellites so far")
 
         except Exception as e:
-            print(f"Error processing Satellite {tle.satellite.sat_name}: {e}")
+            print(
+                f"Error processing Satellite "
+                f"{orbital_data_point.satellite.sat_name}: {e}"
+            )
             satellites_processed += 1
             continue
 
@@ -769,7 +786,7 @@ def get_satellites_above_horizon(
 
     performance_metrics = {
         "total_time": round(total_time, 3),
-        "data_retrieval_time": round(tle_time, 3),
+        "data_retrieval_time": round(data_retrieval_time, 3),
         "satellites_processed": satellites_processed,
         "visible_satellites": visible_satellites,
     }

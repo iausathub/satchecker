@@ -211,11 +211,12 @@ def get_satellite_passes():
                                     orbital_data_epoch:
                                       type: string
                                       nullable: true
-                                      description: UTC instant for which the underlying orbital data applies (TLE epoch is in tle_epoch; for ephemeris-based positions this is the ephemeris generation time)
+                                      description: UTC instant for which the underlying orbital data applies (TLE/OMM epoch, or for ephemeris-based positions the ephemeris generation time)
                                     orbital_data_source:
                                       type: string
                                       nullable: true
-                                      description: Orbital data source used for the position (e.g. ephemeris)
+                                      description: Type of orbital data used for the position
+                                      enum: ["tle", "omm", "ephemeris"]
                                     range_km:
                                       type: number
                                       format: float
@@ -602,13 +603,17 @@ def get_all_satellites_above_horizon():
                         type: number
                         format: float
                         description: Declination in degrees
-                      range:
+                      range_km:
                         type: number
                         format: float
                         description: Distance to the satellite in kilometers
-                      tle_epoch:
+                      orbital_data_epoch:
                         type: string
-                        description: Epoch date of the TLE used for calculation in YYYY-MM-DD HH:MM:SS TZ format
+                        description: Epoch of the orbital data (TLE or OMM) used for calculation in YYYY-MM-DD HH:MM:SS TZ format
+                      orbital_data_source:
+                        type: string
+                        description: Type of orbital data used for the position
+                        enum: ["tle", "omm"]
                 source:
                   type: string
                   description: The source of the satellite position data
@@ -772,6 +777,7 @@ def _handle_satellites_above_horizon(with_duration=False):
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
 
     try:
         # Choose the appropriate service function based on whether duration is included
@@ -779,6 +785,7 @@ def _handle_satellites_above_horizon(with_duration=False):
             """
             satellite_passes = get_satellites_above_horizon_range(
                 tle_repo,
+                orbital_elements_repo,
                 validated_parameters["location"],
                 validated_parameters["julian_dates"],
                 validated_parameters["min_altitude"],
@@ -794,6 +801,7 @@ def _handle_satellites_above_horizon(with_duration=False):
         else:
             satellite_passes = get_satellites_above_horizon(
                 tle_repo,
+                orbital_elements_repo,
                 validated_parameters["location"],
                 validated_parameters["julian_dates"],
                 validated_parameters["min_altitude"],

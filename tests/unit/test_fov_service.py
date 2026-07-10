@@ -692,9 +692,11 @@ def test_satellites_above_horizon(test_location, test_time):
     )
 
     tle_repo = FakeTLERepository([tle])
+    orbital_elements_repo = FakeOrbitalElementsRepository([])
 
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[test_time],
         min_altitude=0,
@@ -708,6 +710,7 @@ def test_satellites_above_horizon(test_location, test_time):
     # Test for satellite above horizon but below minimum altitude
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[test_time],
         min_altitude=30,
@@ -722,6 +725,7 @@ def test_satellites_above_horizon(test_location, test_time):
     different_time = Time("2024-10-01 15:19:13")
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[different_time],
         min_altitude=0,
@@ -734,6 +738,7 @@ def test_satellites_above_horizon(test_location, test_time):
     # range is 1292
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[test_time],
         min_altitude=0,
@@ -745,6 +750,7 @@ def test_satellites_above_horizon(test_location, test_time):
 
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[test_time],
         min_altitude=0,
@@ -756,6 +762,7 @@ def test_satellites_above_horizon(test_location, test_time):
 
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[test_time],
         min_altitude=0,
@@ -767,6 +774,7 @@ def test_satellites_above_horizon(test_location, test_time):
 
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[test_time],
         min_altitude=0,
@@ -779,6 +787,7 @@ def test_satellites_above_horizon(test_location, test_time):
 
     result = get_satellites_above_horizon(
         tle_repo,
+        orbital_elements_repo,
         location=test_location,
         julian_dates=[test_time],
         min_altitude=0,
@@ -788,6 +797,76 @@ def test_satellites_above_horizon(test_location, test_time):
     )
 
     assert len(result["data"]) == 0
+
+
+def test_tle_and_orbital_elements_above_horizon_match(test_location, test_time):
+    """
+    Cross-check that the TLE path and the orbital-elements path produce the
+    same sky position for get_satellites_above_horizon, for the same
+    underlying orbit.
+
+    ORBITAL_ELEMENTS_CUTOFF is patched so both calls use the identical
+    julian_dates -- otherwise the two paths would also differ in Earth's
+    rotation state at observation time.
+    """
+    tle_line1 = "1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990"  # noqa: E501
+    tle_line2 = "2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685"  # noqa: E501
+    ts = load.timescale()
+    tle_epoch = EarthSatellite(tle_line1, tle_line2, ts=ts).epoch.utc_datetime()
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+        constellation="starlink",
+    )
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1=tle_line1,
+        tle_line2=tle_line2,
+        epoch=tle_epoch,
+    )
+    orbital_elements = _fengyun_orbital_elements(satellite, tle_epoch)
+
+    common_args = dict(
+        location=test_location,
+        julian_dates=[test_time],
+        min_altitude=0,
+        min_range=0,
+        max_range=1500000,
+    )
+
+    result_tle = get_satellites_above_horizon(
+        FakeTLERepository([tle]),
+        FakeOrbitalElementsRepository([]),
+        **common_args,
+    )
+
+    original_cutoff = fov_service.ORBITAL_ELEMENTS_CUTOFF
+    fov_service.ORBITAL_ELEMENTS_CUTOFF = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    try:
+        result_omm = get_satellites_above_horizon(
+            FakeTLERepository([]),
+            FakeOrbitalElementsRepository([orbital_elements]),
+            **common_args,
+        )
+    finally:
+        fov_service.ORBITAL_ELEMENTS_CUTOFF = original_cutoff
+
+    assert len(result_tle["data"]) == 1
+    assert len(result_omm["data"]) == len(result_tle["data"])
+
+    tle_point = result_tle["data"][0]
+    omm_point = result_omm["data"][0]
+
+    assert tle_point["orbital_data_source"] == "tle"
+    assert omm_point["orbital_data_source"] == "omm"
+    assert omm_point["ra"] == pytest.approx(tle_point["ra"], abs=1e-4)
+    assert omm_point["dec"] == pytest.approx(tle_point["dec"], abs=1e-4)
+    assert omm_point["altitude"] == pytest.approx(tle_point["altitude"], abs=1e-4)
+    assert omm_point["azimuth"] == pytest.approx(tle_point["azimuth"], abs=1e-4)
+    assert omm_point["range_km"] == pytest.approx(tle_point["range_km"], abs=1e-2)
 
 
 @pytest.mark.skip(reason="Caching is temporarily disabled")
