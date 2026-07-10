@@ -10,7 +10,7 @@ from api.adapters.repositories.satellite_repository import AbstractSatelliteRepo
 from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.common import error_messages
 from api.common.exceptions import DataError
-from api.domain.models.orbital_data import OrbitalData
+from api.domain.models.orbital_elements import OrbitalElements
 from api.domain.models.tle import TLE
 from api.services.tasks.ephemeris_tasks import generate_position_data
 from api.utils.orbital_data_utils import ORBITAL_ELEMENTS_CUTOFF, serialize_orbital_data
@@ -23,7 +23,7 @@ def _get_closest_orbital_data(
     identifier_type: str,
     request_time: Time,
     data_source: str,
-) -> OrbitalData | None:
+) -> TLE | OrbitalElements | None:
     """Return the closest TLE or orbital elements record for the request epoch."""
     epoch = request_time.to_datetime()
     use_tles = request_time < ORBITAL_ELEMENTS_CUTOFF

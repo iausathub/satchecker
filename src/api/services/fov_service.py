@@ -2,7 +2,7 @@
 import logging
 import time as python_time
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -117,6 +117,7 @@ def get_satellite_passes_in_fov_async(
 
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
 
+    orbital_data: list[TLE] | list[OrbitalElements]
     if time_param < ORBITAL_ELEMENTS_CUTOFF:
 
         # Get all current TLEs
@@ -172,11 +173,13 @@ def get_satellite_passes_in_fov_async(
     for i in range(0, len(orbital_data), batch_size):
         batch = orbital_data[i : i + batch_size]
         if isinstance(batch[0], TLE):
-            serialized_batch = SqlAlchemyTLERepository.batch_serialize_tles(batch)
+            serialized_batch = SqlAlchemyTLERepository.batch_serialize_tles(
+                cast(list[TLE], batch)
+            )
         else:
             serialized_batch = (
                 SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements(
-                    batch
+                    cast(list[OrbitalElements], batch)
                 )
             )
         batch_tasks.append(
@@ -311,6 +314,7 @@ def get_satellite_passes_in_fov(
 
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
 
+    orbital_data: list[TLE] | list[OrbitalElements]
     # if time_param is before 2026-07-08 use TLEs, otherwise use orbital elements
     if time_param < ORBITAL_ELEMENTS_CUTOFF:
         orbital_data, count, orbital_data_time = _get_tle_data(

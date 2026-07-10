@@ -18,7 +18,15 @@ class OrbitalDataLookupMixin:
     """
 
     session: Session
-    _orm_model: type
+    _orm_model: type[Any]
+
+    @staticmethod
+    def _to_domain(orm: Any) -> Any:
+        raise NotImplementedError
+
+    @staticmethod
+    def _to_orm(domain: Any) -> Any:
+        raise NotImplementedError
 
     def _lookup_closest_by_satellite_number(
         self,
@@ -341,7 +349,7 @@ class OrbitalDataLookupMixin:
         epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
 
         # get the closest TLE/orbital elements set for each satellite
-        closest_orbital_data = []
+        closest_orbital_data: list[Any] = []
         for sat in satellites_with_this_identifier:
             closest_orbital_data.append(
                 self.session.query(model)

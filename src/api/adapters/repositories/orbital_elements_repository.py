@@ -193,7 +193,7 @@ class SqlAlchemyOrbitalElementsRepository(
         self.cache_enabled = True
 
     @staticmethod
-    def _to_domain(orm: OrbitalElementsDb) -> OrbitalElements | None:
+    def _to_domain(orm) -> OrbitalElements | None:
         if orm is None:
             return None
 
