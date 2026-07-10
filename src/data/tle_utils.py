@@ -273,9 +273,10 @@ def add_orbital_data_list_to_db(
     skipped_count = 0
 
     def _record_label(record):
-        return f"{
-            record.get('OBJECT_NAME', '?')
-            } (NORAD {record.get('NORAD_CAT_ID', '?')})"
+        return (
+            f"{record.get('OBJECT_NAME', '?')} "
+            f"(NORAD {record.get('NORAD_CAT_ID', '?')})"
+        )
 
     try:
         ts = load.timescale()
