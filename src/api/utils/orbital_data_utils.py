@@ -10,7 +10,7 @@ from api.domain.models.orbital_data import OrbitalData
 from api.domain.models.orbital_elements import OrbitalElements
 from api.domain.models.tle import TLE
 
-ORBITAL_ELEMENTS_CUTOFF = datetime(2026, 7, 8, tzinfo=timezone.utc)
+ORBITAL_ELEMENTS_CUTOFF = datetime(2026, 7, 11, tzinfo=timezone.utc)
 
 
 def serialize_orbital_data(orbital_data: TLE | OrbitalElements) -> dict[str, Any]:
