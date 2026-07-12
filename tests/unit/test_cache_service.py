@@ -3,9 +3,12 @@ import astropy.units as u
 from astropy.coordinates import EarthLocation
 
 from api.services.cache_service import (
+    RECENT_ORBITAL_ELEMENTS_CACHE_KEY,
+    RECENT_TLES_CACHE_KEY,
     check_redis_memory,
     create_fov_cache_key,
     get_cached_data,
+    refresh_orbital_elements_cache,
     refresh_tle_cache,
     set_cached_data,
 )
@@ -119,6 +122,16 @@ def test_refresh_tle_cache_no_flask_context(mocker):
     mock_logger.error.assert_called_once()
 
 
+def test_refresh_orbital_elements_cache_no_flask_context(mocker):
+    mock_logger = mocker.patch("api.services.cache_service.logger")
+    mocker.patch("flask.current_app", None)
+
+    result = refresh_orbital_elements_cache()
+
+    assert result is False
+    mock_logger.error.assert_called_once()
+
+
 def test_refresh_tle_cache_database_error(mocker):
     mock_repo_class = mocker.patch(
         "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository"
@@ -135,6 +148,29 @@ def test_refresh_tle_cache_database_error(mocker):
     mock_repo_class.return_value = mock_repo
 
     result = refresh_tle_cache()
+
+    assert result is False
+    mock_session.rollback.assert_called_once()
+
+
+def test_refresh_orbital_elements_cache_database_error(mocker):
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.orbital_elements_repository.SqlAlchemyOrbitalElementsRepository"
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mock_current_app = mocker.MagicMock()
+    mocker.patch("flask.current_app", mock_current_app)
+
+    mock_session = mocker.Mock()
+    mock_db.session = mock_session
+
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_orbital_elements_at_epoch.side_effect = Exception(
+        "Database error"
+    )
+    mock_repo_class.return_value = mock_repo
+
+    result = refresh_orbital_elements_cache()
 
     assert result is False
     mock_session.rollback.assert_called_once()
@@ -165,6 +201,31 @@ def test_refresh_tle_cache_serialization_error(mocker):
     assert result is False
 
 
+def test_refresh_orbital_elements_cache_serialization_error(mocker):
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.orbital_elements_repository.SqlAlchemyOrbitalElementsRepository"
+    )
+    mock_batch_serialize = mocker.patch(
+        "api.adapters.repositories.orbital_elements_repository.SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements"
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mock_current_app = mocker.MagicMock()
+    mocker.patch("flask.current_app", mock_current_app)
+
+    mock_session = mocker.Mock()
+    mock_db.session = mock_session
+
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_orbital_elements_at_epoch.return_value = ([], 0, "database")
+    mock_repo_class.return_value = mock_repo
+
+    mock_batch_serialize.side_effect = Exception("Serialization error")
+
+    result = refresh_orbital_elements_cache()
+
+    assert result is False
+
+
 def test_refresh_tle_cache_cache_set_failure(mocker):
     mock_repo_class = mocker.patch(
         "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository"
@@ -190,6 +251,92 @@ def test_refresh_tle_cache_cache_set_failure(mocker):
     result = refresh_tle_cache()
 
     assert result is True
+
+
+def test_refresh_orbital_elements_cache_cache_set_failure(mocker):
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.orbital_elements_repository.SqlAlchemyOrbitalElementsRepository"
+    )
+    mock_set_cached = mocker.patch("api.services.cache_service.set_cached_data")
+    mock_batch_serialize = mocker.patch(
+        "api.adapters.repositories.orbital_elements_repository.SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements"
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mock_current_app = mocker.MagicMock()
+    mocker.patch("flask.current_app", mock_current_app)
+
+    mock_session = mocker.Mock()
+    mock_db.session = mock_session
+
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_orbital_elements_at_epoch.return_value = ([], 0, "database")
+    mock_repo_class.return_value = mock_repo
+
+    mock_batch_serialize.return_value = []
+    mock_set_cached.return_value = False
+
+    result = refresh_orbital_elements_cache()
+
+    assert result is True
+
+
+def test_refresh_tle_cache_uses_tle_cache_key(mocker):
+    """refresh_tle_cache must write under RECENT_TLES_CACHE_KEY, never the
+    orbital-elements key -- a swapped key silently corrupts both caches."""
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository"
+    )
+    mock_set_cached = mocker.patch("api.services.cache_service.set_cached_data")
+    mocker.patch(
+        "api.adapters.repositories.tle_repository.SqlAlchemyTLERepository.batch_serialize_tles",
+        return_value=[],
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mocker.patch("flask.current_app", mocker.MagicMock())
+
+    mock_db.session = mocker.Mock()
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_tles_at_epoch.return_value = ([], 0, "database")
+    mock_repo_class.return_value = mock_repo
+
+    mock_set_cached.return_value = True
+
+    refresh_tle_cache()
+
+    assert mock_set_cached.call_count == 1
+    called_key = mock_set_cached.call_args.args[0]
+    assert called_key == RECENT_TLES_CACHE_KEY
+    assert called_key != RECENT_ORBITAL_ELEMENTS_CACHE_KEY
+
+
+def test_refresh_orbital_elements_cache_uses_orbital_elements_cache_key(mocker):
+    """refresh_orbital_elements_cache must write under
+    RECENT_ORBITAL_ELEMENTS_CACHE_KEY, never the TLE key -- a swapped key
+    silently corrupts both caches (this regressed once already)."""
+    mock_repo_class = mocker.patch(
+        "api.adapters.repositories.orbital_elements_repository.SqlAlchemyOrbitalElementsRepository"
+    )
+    mock_set_cached = mocker.patch("api.services.cache_service.set_cached_data")
+    mocker.patch(
+        "api.adapters.repositories.orbital_elements_repository.SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements",
+        return_value=[],
+    )
+    mock_db = mocker.patch("api.services.cache_service.db")
+    mocker.patch("flask.current_app", mocker.MagicMock())
+
+    mock_db.session = mocker.Mock()
+    mock_repo = mocker.Mock()
+    mock_repo._get_all_orbital_elements_at_epoch.return_value = ([], 0, "database")
+    mock_repo_class.return_value = mock_repo
+
+    mock_set_cached.return_value = True
+
+    refresh_orbital_elements_cache()
+
+    assert mock_set_cached.call_count == 1
+    called_key = mock_set_cached.call_args.args[0]
+    assert called_key == RECENT_ORBITAL_ELEMENTS_CACHE_KEY
+    assert called_key != RECENT_TLES_CACHE_KEY
 
 
 def test_check_redis_memory_connection_error(mocker):

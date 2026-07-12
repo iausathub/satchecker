@@ -1,9 +1,13 @@
 import abc
+import io
 import logging
+import os
 from datetime import datetime
 
+import boto3
 import numpy as np
-from sqlalchemy import DateTime, bindparam, desc, func
+import pyarrow.parquet as pq
+from sqlalchemy import DateTime, bindparam, desc, func, text
 
 from api.adapters.database_orm import (
     EphemerisPointDb,
@@ -12,6 +16,7 @@ from api.adapters.database_orm import (
     SatelliteDb,
 )
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
+from api.common.exceptions import DataError
 from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
     InterpolableEphemeris,
@@ -20,6 +25,111 @@ from api.domain.models.interpolator_splines import InterpolatorSplines
 from api.utils.time_utils import ensure_datetime
 
 logger = logging.getLogger(__name__)
+
+EPHEMERIS_POINTS_S3_BUCKET = os.environ.get("EPHEMERIS_POINTS_S3_BUCKET", "")
+EPHEMERIS_POINTS_S3_REGION = "us-west-2"
+
+
+def _covariance_from_row(covariance) -> np.ndarray:
+    if covariance is None:
+        return np.eye(6, dtype=np.float64) * 1e-12
+    return np.array(covariance, dtype=np.float64).reshape(6, 6)
+
+
+def _read_ephemeris_points_from_s3(
+    parquet_points_file: str, ephemeris_id: int
+) -> list[EphemerisPoint]:
+    s3 = boto3.client("s3", region_name=EPHEMERIS_POINTS_S3_REGION)
+    response = s3.get_object(Bucket=EPHEMERIS_POINTS_S3_BUCKET, Key=parquet_points_file)
+    body = response["Body"].read()
+    table = pq.read_table(io.BytesIO(body))
+    rows = table.to_pylist()
+
+    points = [
+        EphemerisPoint(
+            timestamp=ensure_datetime(point["timestamp"]),
+            position=np.array(point["position"], dtype=np.float64),
+            velocity=np.array(point["velocity"], dtype=np.float64),
+            covariance=_covariance_from_row(point["covariance"]),
+        )
+        for point in rows
+        if point["ephemeris_id"] == ephemeris_id
+    ]
+    points.sort(key=lambda p: p.timestamp)
+    return points
+
+
+def _points_from_orm_relationship(
+    orm_ephemeris: InterpolableEphemerisDb,
+) -> list[EphemerisPoint]:
+    return [
+        EphemerisPoint(
+            timestamp=ensure_datetime(point.timestamp),
+            position=np.array(point.position),
+            velocity=np.array(point.velocity),
+            covariance=_covariance_from_row(point.covariance),
+        )
+        for point in orm_ephemeris.points
+    ]
+
+
+def _points_from_ephemeris_table(session, ephemeris_id: int) -> list[EphemerisPoint]:
+    """Points for ephemeris not yet archived to S3 (still in ``ephemeris_points``)."""
+    rows = session.execute(
+        text("""
+            SELECT timestamp, position, velocity, covariance
+            FROM ephemeris_points
+            WHERE ephemeris_id = :ephemeris_id
+            ORDER BY timestamp
+            """),
+        {"ephemeris_id": ephemeris_id},
+    ).fetchall()
+
+    points = [
+        EphemerisPoint(
+            timestamp=ensure_datetime(row.timestamp),
+            position=np.array(row.position),
+            velocity=np.array(row.velocity),
+            covariance=_covariance_from_row(row.covariance),
+        )
+        for row in rows
+    ]
+    if points:
+        logger.info(
+            "Loaded %d points from ephemeris_points for ephemeris %s",
+            len(points),
+            ephemeris_id,
+        )
+    return points
+
+
+def _load_ephemeris_points(
+    orm_ephemeris: InterpolableEphemerisDb,
+    session=None,
+) -> list[EphemerisPoint]:
+    """Load ephemeris points from S3 or Postgres depending on epoch.
+
+    Archived rows (> 1 week old) are read from S3; unarchived rows
+    are read from the ORM relationship or ``ephemeris_points`` table.
+    """
+    if orm_ephemeris.parquet_points_file:
+        if not EPHEMERIS_POINTS_S3_BUCKET:
+            raise DataError(
+                503,
+                "Ephemeris points S3 bucket is not configured",
+            )
+        return _read_ephemeris_points_from_s3(
+            str(orm_ephemeris.parquet_points_file), int(orm_ephemeris.id)
+        )
+
+    points = _points_from_orm_relationship(orm_ephemeris)
+    if points:
+        return points
+
+    if session is not None:
+        return _points_from_ephemeris_table(session, int(orm_ephemeris.id))
+
+    return []
 
 
 class AbstractEphemerisRepository(abc.ABC):
@@ -211,18 +321,10 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         return orm_ephemeris
 
     @staticmethod
-    def _to_domain(orm_ephemeris: InterpolableEphemerisDb) -> InterpolableEphemeris:
-        # Convert points from ORM to domain objects
-        points = []
-        for point in orm_ephemeris.points:
-            points.append(
-                EphemerisPoint(
-                    timestamp=ensure_datetime(point.timestamp),
-                    position=np.array(point.position),
-                    velocity=np.array(point.velocity),
-                    covariance=np.array(point.covariance).reshape(6, 6),
-                )
-            )
+    def _to_domain(
+        orm_ephemeris: InterpolableEphemerisDb, session=None
+    ) -> InterpolableEphemeris:
+        points = _load_ephemeris_points(orm_ephemeris, session)
 
         # Convert satellite ORM to domain object
         satellite_domain = SqlAlchemySatelliteRepository._to_domain(
@@ -391,7 +493,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         orm_ephemeris = query.first()
 
         if orm_ephemeris:
-            return self._to_domain(orm_ephemeris)
+            return self._to_domain(orm_ephemeris, self.session)
 
         return None
 
@@ -426,7 +528,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         orm_ephemeris = query.first()
 
         if orm_ephemeris:
-            return self._to_domain(orm_ephemeris)
+            return self._to_domain(orm_ephemeris, self.session)
 
         return None
 
@@ -447,7 +549,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         ).first()
 
         if orm_ephemeris:
-            return self._to_domain(orm_ephemeris)
+            return self._to_domain(orm_ephemeris, self.session)
         return None
 
     def _get_latest_by_satellite_name(
@@ -467,7 +569,7 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         ).first()
 
         if orm_ephemeris:
-            return self._to_domain(orm_ephemeris)
+            return self._to_domain(orm_ephemeris, self.session)
         return None
 
     def _get_satellites_with_ephemeris(
@@ -543,6 +645,6 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         for orm_ephemeris in query.all():
             sat_number = orm_ephemeris.satellite_ref.sat_number
             if sat_number not in results:  # First (closest) record for this satellite
-                results[sat_number] = self._to_domain(orm_ephemeris)
+                results[sat_number] = self._to_domain(orm_ephemeris, self.session)
 
         return results

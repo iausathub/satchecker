@@ -268,7 +268,7 @@ def test_aggregate_fov_results_task(app):
         result = aggregate_fov_results_task(
             group_results,
             group_by="satellite",
-            tle_time=0.1,
+            orbital_data_time=0.1,
             jd_times=[2460218.5],
         )
         all_results, points_in_fov, group_by, metrics = result

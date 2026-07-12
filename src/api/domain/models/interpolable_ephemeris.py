@@ -48,6 +48,8 @@ class InterpolableEphemeris:
         ephemeris_stop: datetime,
         file_reference: str | None = None,
         date_collected: datetime | None = None,
+        parquet_points_file: str | None = None,
+        run_id: str | None = None,
         id: int | None = None,
     ):
         self.id = id
@@ -60,6 +62,8 @@ class InterpolableEphemeris:
         self.points = points
         self.ephemeris_start = ephemeris_start
         self.ephemeris_stop = ephemeris_stop
+        self.parquet_points_file = parquet_points_file
+        self.run_id = run_id
 
     def __repr__(self):
         return (
@@ -78,6 +82,8 @@ class InterpolableEphemeris:
                 and self.date_collected == other.date_collected
                 and self.ephemeris_start == other.ephemeris_start
                 and self.ephemeris_stop == other.ephemeris_stop
+                and self.parquet_points_file == other.parquet_points_file
+                and self.run_id == other.run_id
                 and len(self.points) == len(other.points)
                 and all(
                     p1 == p2 for p1, p2 in zip(self.points, other.points, strict=True)
@@ -116,6 +122,8 @@ class InterpolableEphemeris:
             self.date_collected,
             self.ephemeris_start,
             self.ephemeris_stop,
+            self.parquet_points_file,
+            self.run_id,
             point_tuples_tuple,
         )
 
