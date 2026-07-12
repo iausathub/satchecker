@@ -529,6 +529,7 @@ def residuals(
 
 def create_tle_from_ephemeris(
     ephemeris: InterpolableEphemeris,
+    satellite_id: int,
     cursor,
     connection,
 ) -> tuple[float, float]:
@@ -550,6 +551,8 @@ def create_tle_from_ephemeris(
     Args:
         ephemeris (InterpolableEphemeris): Ephemeris object with timestamped
             position vectors used as fit targets.
+        satellite_id (int): Primary key in ``satellites`` for TLE seed lookup
+            and insert.
 
     Returns:
         tuple[float, float]: XYZ RMS (km) and angular RMS (arcsec) of the
@@ -571,10 +574,10 @@ def create_tle_from_ephemeris(
     max_nfev = 600
 
     # Query a nearby catalog TLE to seed the optimizer.
-    seed_lines = get_closest_tle(ephemeris.ephemeris_start, ephemeris.sat_id, cursor)
+    seed_lines = get_closest_tle(ephemeris.ephemeris_start, satellite_id, cursor)
     if seed_lines is None:
         raise ValueError(
-            f"No catalog TLE found for sat_id={ephemeris.sat_id} "
+            f"No catalog TLE found for sat_id={satellite_id} "
             f"near ephemeris_start={ephemeris.ephemeris_start}"
         )
     line1, line2 = seed_lines
@@ -747,7 +750,7 @@ def create_tle_from_ephemeris(
     )
 
     date_collected = datetime.now(timezone.utc)
-    save_tle_to_db(fitted, date_collected, ephemeris.sat_id, cursor, connection)
+    save_tle_to_db(fitted, date_collected, satellite_id, cursor, connection)
 
     return fit_xyz_rms, fit_ang_rms
 
