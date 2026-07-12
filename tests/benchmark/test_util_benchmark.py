@@ -4,6 +4,7 @@ import pytest
 from astropy.time import Time
 from skyfield.api import load, wgs84
 
+from api.services.validation_service import parse_tle
 from api.utils import coordinate_systems
 from api.utils.propagation_strategies import (
     FOVPropagationStrategy,
@@ -20,6 +21,13 @@ def sample_tle():
     tle_line_1 = "1 25544U 98067A   20333.54791667  .00016717  00000-0  10270-3 0  9000"
     tle_line_2 = "2 25544  51.6442  21.4611 0001363  85.7861  74.4771 15.49180547  1000"
     return tle_line_1, tle_line_2
+
+
+@pytest.fixture
+def sample_orbital_data(sample_tle):
+    """Provide a sample TLE domain object for propagation benchmarks."""
+    tle_line_1, tle_line_2 = sample_tle
+    return parse_tle(f"{tle_line_1}\n{tle_line_2}")
 
 
 @pytest.fixture
@@ -90,21 +98,19 @@ def test_benchmark_tle_to_icrf_state(benchmark, sample_tle, sample_julian_date):
 
 
 def test_benchmark_skyfield_propagation(
-    benchmark, sample_tle, sample_location, sample_julian_date
+    benchmark, sample_orbital_data, sample_location, sample_julian_date
 ):
     """Benchmark the Skyfield propagation strategy."""
-    tle_line_1, tle_line_2 = sample_tle
     latitude, longitude, elevation = sample_location
 
     def setup_and_propagate():
         propagation_info = PropagationInfo(
             SkyfieldPropagationStrategy(),
-            tle_line_1,
-            tle_line_2,
             [sample_julian_date],
             latitude,
             longitude,
             elevation,
+            orbital_data=sample_orbital_data,
         )
         return propagation_info.propagate()
 
@@ -115,18 +121,16 @@ def test_benchmark_skyfield_propagation(
 
 
 def test_benchmark_fov_propagation_strategy(
-    benchmark, sample_tle, sample_location, sample_julian_date
+    benchmark, sample_orbital_data, sample_location, sample_julian_date
 ):
     """Benchmark the single satellite FOV propagation strategy."""
-    tle_line_1, tle_line_2 = sample_tle
     latitude, longitude, elevation = sample_location
 
     def setup_and_propagate():
         strategy = FOVPropagationStrategy()
         return strategy.propagate(
             julian_dates=[sample_julian_date],
-            tle_line_1=tle_line_1,
-            tle_line_2=tle_line_2,
+            orbital_data=sample_orbital_data,
             latitude=latitude,
             longitude=longitude,
             elevation=elevation,

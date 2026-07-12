@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CACHE_TTL = 3600  # 1 hour in seconds
 RECENT_TLES_CACHE_KEY = "recent_tles"
 RECENT_TDM_PREDICTIONS_CACHE_KEY = "recent_tdm_predictions"
+RECENT_ORBITAL_ELEMENTS_CACHE_KEY = "recent_orbital_elements"
 
 
 def create_fov_cache_key(
@@ -99,6 +100,14 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
                 logger.debug(
                     f"Caching {tles_count} TLEs in data structure for key {key}"
                 )
+            if "orbital_elements" in data:
+                orbital_elements_count = (
+                    len(data["orbital_elements"]) if data["orbital_elements"] else 0
+                )
+                logger.debug(
+                    f"Caching {orbital_elements_count} orbital elements in "
+                    f"data structure for key {key}"
+                )
 
         if serialized_size > 500 * 1024 * 1024:
             logger.warning(
@@ -131,6 +140,17 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
                         f"Verification: Retrieved {verified_tles} TLEs "
                         f"from cache for key {key}"
                     )
+                if "orbital_elements" in verified_data:
+                    verified_orbital_elements = (
+                        len(verified_data["orbital_elements"])
+                        if verified_data["orbital_elements"]
+                        else 0
+                    )
+                    logger.debug(
+                        f"Verification: Retrieved {verified_orbital_elements} "
+                        f"orbital elements from cache for key {key}"
+                    )
+
             logger.debug(f"Successfully cached and verified data for key {key}")
         else:
             logger.warning(
@@ -216,6 +236,97 @@ def refresh_tle_cache(session=None):
         return False
 
 
+def refresh_orbital_elements_cache(session=None):
+    """
+    Refresh the orbital elements cache with current data from the database.
+    Can be used both for initialization and scheduled updates.
+
+    Args:
+        session: Optional database session to use. If None, db.session will be used,
+                which requires a Flask application context.
+    """
+    from api.adapters.repositories.orbital_elements_repository import (
+        SqlAlchemyOrbitalElementsRepository,
+    )
+
+    try:
+        logger.info(
+            f"Refreshing orbital elements cache at {datetime.now(timezone.utc)}"
+        )
+
+        # Create a new db session if one wasn't provided
+        if session is None:
+            from flask import current_app
+
+            if not current_app:
+                logger.error("No Flask app context available and no session provided")
+                return False
+
+            session = db.session
+
+        orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
+
+        # Current time as the epoch date
+        epoch_date = datetime.now(timezone.utc)
+
+        # Perform full orbital elements retrieval
+        logger.info("Retrieving TLEs from database...")
+        orbital_elements, count, _ = (
+            orbital_elements_repo._get_all_orbital_elements_at_epoch(
+                epoch_date, 1, 100000, "json"
+            )
+        )
+        logger.info(f"Retrieved {count} TLEs from database")
+
+        # Serialize orbital elements for JSON storage
+        logger.info(f"Serializing {len(orbital_elements)} orbital elements for caching")
+        try:
+            # Use the batch serialization for all orbital elements
+            serialized_orbital_elements = (
+                SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements(
+                    orbital_elements
+                )
+            )
+            logger.info(
+                f"Successfully serialized {len(serialized_orbital_elements)} "
+                f"orbital elements"
+            )
+        except Exception as e:
+            logger.error(f"Batch serialization failed: {e}", exc_info=True)
+            return False
+
+        # Cache the result
+        cache_data = {
+            "orbital_elements": serialized_orbital_elements,  # serialized
+            "total_count": count,
+            "cached_at": epoch_date.isoformat(),
+        }
+
+        # Set TTL to 3 hours
+        ttl = 3 * 3600
+        logger.info(f"Setting cache with TTL of {ttl} seconds")
+        cache_result = set_cached_data(
+            RECENT_ORBITAL_ELEMENTS_CACHE_KEY, cache_data, ttl=ttl
+        )
+
+        if cache_result:
+            logger.info(
+                f"Orbital elements cache refreshed with "
+                f"{len(serialized_orbital_elements)} entries"
+            )
+        else:
+            logger.warning("TLE data retrieved but caching failed")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error refreshing TLE cache: {e}", exc_info=True)
+        # Roll back any pending transactions
+        if session and session.is_active:
+            session.rollback()
+        return False
+
+
 # Define a global function for the scheduler to use
 def scheduled_cache_refresh_job():
     """Global function for the scheduler job to refresh the cache"""
@@ -232,8 +343,9 @@ def scheduled_cache_refresh_job():
         with app.app_context():
             logger.info("Running scheduled refresh with app context")
             refresh_tle_cache()
+            refresh_orbital_elements_cache()
     except Exception as e:
-        logger.error(f"Error in scheduled TLE refresh: {e}", exc_info=True)
+        logger.error(f"Error in scheduled cachedata refresh: {e}", exc_info=True)
 
 
 # Global flag to track if the initial refresh has been done
@@ -302,17 +414,18 @@ def initialize_cache_refresh_scheduler(hours=3):
                 return False
 
             # Since we're already in an app context, we can use it directly
-            logger.info("Performing initial TLE cache refresh")
+            logger.info("Performing initial cache data refresh")
             session = db.session
-            result = refresh_tle_cache(session=session)
+            tle_result = refresh_tle_cache(session=session)
+            orbital_elements_result = refresh_orbital_elements_cache(session=session)
             _initial_cache_refresh_done = True
 
             check_redis_memory()
 
-            return result
+            return tle_result and orbital_elements_result
 
         except Exception as e:
-            logger.error(f"Error during initial TLE cache refresh: {e}", exc_info=True)
+            logger.error(f"Error during initial cache data refresh: {e}", exc_info=True)
             return False
 
     return perform_initial_refresh

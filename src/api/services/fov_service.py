@@ -2,20 +2,25 @@
 import logging
 import time as python_time
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from celery import chord, group
-from skyfield.api import EarthSatellite, wgs84
+from skyfield.api import wgs84
 
 from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
+from api.adapters.repositories.orbital_elements_repository import (
+    AbstractOrbitalElementsRepository,
+    SqlAlchemyOrbitalElementsRepository,
+)
 from api.adapters.repositories.tdm_repository import AbstractTdmPredictionRepository
 from api.adapters.repositories.tle_repository import (
     AbstractTLERepository,
     SqlAlchemyTLERepository,
 )
+from api.domain.models.orbital_elements import OrbitalElements
 from api.domain.models.tdm_prediction_point import TdmPredictionPoint
 from api.domain.models.tle import TLE
 from api.services.cache_service import (
@@ -29,6 +34,7 @@ from api.services.tasks.fov_tasks import (
     refine_with_ephemeris_task,
 )
 from api.utils import coordinate_systems, output_utils
+from api.utils.orbital_data_utils import ORBITAL_ELEMENTS_CUTOFF
 from api.utils.propagation_strategies import (
     FOVParallelPropagationStrategy,
     KroghPropagationStrategy,
@@ -43,6 +49,7 @@ logger = logging.getLogger(__name__)
 
 def get_satellite_passes_in_fov_async(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
     location: EarthLocation,
     mid_obs_time_jd: Time,
     start_time_jd: Time,
@@ -109,19 +116,31 @@ def get_satellite_passes_in_fov_async(
         return cached_data
 
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
-    # Get all current TLEs
-    tles, count, tle_time = _get_tle_data(
-        tle_repo, time_param, constellation, data_source, use_generated_tles
-    )
+
+    orbital_data: list[TLE] | list[OrbitalElements]
+    if time_param < ORBITAL_ELEMENTS_CUTOFF:
+
+        # Get all current TLEs
+        orbital_data, count, orbital_data_time = _get_tle_data(
+            tle_repo, time_param, constellation, data_source, use_generated_tles
+        )
+    else:
+        orbital_data, count, orbital_data_time = _get_orbital_elements_data(
+            orbital_elements_repo,
+            time_param,
+            constellation,
+            data_source,
+            use_generated_tles,
+        )
 
     jd_times = _create_jd_list(mid_obs_time_jd, start_time_jd, duration)
     jd_times_list = jd_times.tolist()
 
-    if not tles:
+    if not orbital_data:
         # No TLEs: return empty result immediately, no task needed
         performance_metrics = {
-            "total_time": round(tle_time, 3),
-            "tle_time": round(tle_time, 3),
+            "total_time": round(orbital_data_time, 3),
+            "orbital_data_time": round(orbital_data_time, 3),
             "propagation_time": 0,
             "satellites_processed": 0,
             "points_in_fov": 0,
@@ -151,16 +170,25 @@ def get_satellite_passes_in_fov_async(
     }
 
     batch_tasks = []
-    for i in range(0, len(tles), batch_size):
-        batch = tles[i : i + batch_size]
-        serialized_batch = SqlAlchemyTLERepository.batch_serialize_tles(batch)
+    for i in range(0, len(orbital_data), batch_size):
+        batch = orbital_data[i : i + batch_size]
+        if isinstance(batch[0], TLE):
+            serialized_batch = SqlAlchemyTLERepository.batch_serialize_tles(
+                cast(list[TLE], batch)
+            )
+        else:
+            serialized_batch = (
+                SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements(
+                    cast(list[OrbitalElements], batch)
+                )
+            )
         batch_tasks.append(
             process_satellite_batch_task.s(serialized_batch, **common_args)
         )
 
     callback = aggregate_fov_results_task.s(
         group_by=group_by,
-        tle_time=tle_time,
+        orbital_data_time=orbital_data_time,
         jd_times=jd_times_list,
     )
     if not tle_only:
@@ -192,6 +220,7 @@ def get_satellite_passes_in_fov_async(
 
 def get_satellite_passes_in_fov(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
     ephemeris_repo: AbstractEphemerisRepository,
     location: EarthLocation,
     mid_obs_time_jd: Time,
@@ -285,10 +314,20 @@ def get_satellite_passes_in_fov(
 
     time_param = mid_obs_time_jd if mid_obs_time_jd is not None else start_time_jd
 
-    # Get all current TLEs
-    tles, count, tle_time = _get_tle_data(
-        tle_repo, time_param, constellation, data_source, use_generated_tles
-    )
+    orbital_data: list[TLE] | list[OrbitalElements]
+    # if time_param is before 2026-07-08 use TLEs, otherwise use orbital elements
+    if time_param < ORBITAL_ELEMENTS_CUTOFF:
+        orbital_data, count, orbital_data_time = _get_tle_data(
+            tle_repo, time_param, constellation, data_source, use_generated_tles
+        )
+    else:
+        orbital_data, count, orbital_data_time = _get_orbital_elements_data(
+            orbital_elements_repo,
+            time_param,
+            constellation,
+            data_source,
+            use_generated_tles,
+        )
 
     prop_start = python_time.time()
 
@@ -298,18 +337,21 @@ def get_satellite_passes_in_fov(
     points_in_fov = 0
     satellites_processed = 0
 
-    tles_to_propagate = tles
+    if orbital_data:
+        orbital_data_to_propagate = orbital_data
+    else:
+        orbital_data_to_propagate = None
 
     # Process non-Starlink satellites with parallel propagation
-    if tles_to_propagate:
+    if orbital_data_to_propagate:
         logger.info(
-            f"Processing {len(tles_to_propagate)} non-Starlink satellites "
+            f"Processing {len(orbital_data_to_propagate)} non-Starlink satellites "
             f"with parallel propagation"
         )
         prop_strategy = FOVParallelPropagationStrategy()
         try:
             results, execution_time, non_starlink_processed = prop_strategy.propagate(
-                all_tles=tles_to_propagate,
+                all_objects=orbital_data_to_propagate,
                 jd_times=jd_times,
                 location=location,
                 fov_center=(ra, dec),
@@ -337,7 +379,7 @@ def get_satellite_passes_in_fov(
 
     performance_metrics = _calculate_performance_metrics(
         total_time,
-        tle_time,
+        orbital_data_time,
         prop_time,
         satellites_processed,
         points_in_fov,
@@ -395,8 +437,7 @@ def get_satellite_passes_in_fov(
                 # Propagate positions
                 positions = krogh_strategy.propagate(
                     jd_times,
-                    "",
-                    "",
+                    None,
                     location.lat.value,
                     location.lon.value,
                     location.height.value,
@@ -614,6 +655,7 @@ def get_satellite_passes_in_fov_tdm(
 
 def get_satellites_above_horizon(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
     location: EarthLocation,
     julian_dates: list[Time],
     min_altitude: float,
@@ -629,6 +671,7 @@ def get_satellites_above_horizon(
 
     Args:
         tle_repo: Repository for TLE data
+        orbital_elements_repo: Repository for orbital elements (OMM) data
         location: Observer's location
         time_jd: Time to check (as Time object)
         min_altitude: Minimum altitude in degrees (default: 0.0 = horizon)
@@ -650,12 +693,20 @@ def get_satellites_above_horizon(
 
     time_jd = julian_dates[0]
 
-    # Get all current TLEs
-    tle_start = python_time.time()
-    tles, count, _ = tle_repo.get_all_tles_at_epoch(
-        astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
-    )
-    tle_time = python_time.time() - tle_start
+    # Get all current TLEs or orbital elements, depending on the epoch
+    data_start = python_time.time()
+    orbital_data: list[TLE] | list[OrbitalElements]
+    if time_jd < ORBITAL_ELEMENTS_CUTOFF:
+        orbital_data, count, _ = tle_repo.get_all_tles_at_epoch(
+            astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
+        )
+    else:
+        orbital_data, count, _ = (
+            orbital_elements_repo.get_all_orbital_elements_at_epoch(
+                astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
+            )
+        )
+    data_retrieval_time = python_time.time() - data_start
 
     # Set up time and observer
     ts = load.timescale()
@@ -668,9 +719,9 @@ def get_satellites_above_horizon(
     satellites_processed = 0
     visible_satellites = 0
 
-    for tle in tles:
+    for orbital_data_point in orbital_data:
         try:
-            satellite = EarthSatellite(tle.tle_line1, tle.tle_line2, ts=ts)
+            satellite = orbital_data_point.to_earth_satellite(ts)
             difference = satellite - curr_pos
             topocentric = difference.at(t)
 
@@ -699,11 +750,16 @@ def get_satellites_above_horizon(
                     "dec": dec_sat,
                     "altitude": float(alt._degrees[0]),
                     "azimuth": float(az._degrees[0]),
-                    "name": tle.satellite.sat_name,
-                    "norad_id": tle.satellite.sat_number,
+                    "name": orbital_data_point.satellite.sat_name,
+                    "norad_id": orbital_data_point.satellite.sat_number,
                     "julian_date": time_jd.jd,
                     "range_km": float(distance.km[0]),
-                    "tle_epoch": output_utils.format_date(tle.epoch),
+                    "orbital_data_epoch": output_utils.format_date(
+                        orbital_data_point.epoch
+                    ),
+                    "orbital_data_source": (
+                        "tle" if isinstance(orbital_data_point, TLE) else "omm"
+                    ),
                 }
                 all_results.append(position)
                 visible_satellites += 1
@@ -718,7 +774,10 @@ def get_satellites_above_horizon(
                 print(f"Found {visible_satellites} visible satellites so far")
 
         except Exception as e:
-            print(f"Error processing Satellite {tle.satellite.sat_name}: {e}")
+            print(
+                f"Error processing Satellite "
+                f"{orbital_data_point.satellite.sat_name}: {e}"
+            )
             satellites_processed += 1
             continue
 
@@ -727,7 +786,7 @@ def get_satellites_above_horizon(
 
     performance_metrics = {
         "total_time": round(total_time, 3),
-        "data_retrieval_time": round(tle_time, 3),
+        "data_retrieval_time": round(data_retrieval_time, 3),
         "satellites_processed": satellites_processed,
         "visible_satellites": visible_satellites,
     }
@@ -773,6 +832,43 @@ def _get_tle_data(
     logger.debug(f"Retrieved {count} TLEs in {tle_time:.2f} seconds")
 
     return tles, count, tle_time
+
+
+def _get_orbital_elements_data(
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
+    time_jd: Time,
+    constellation: str,
+    data_source: str,
+    use_generated_tles: bool,
+) -> tuple[list[OrbitalElements], int, float]:
+    orbital_elements_start = python_time.time()
+
+    logger.debug(
+        f"Fetching orbital elements for epoch: {astropy_time_to_datetime_utc(time_jd)}"
+    )
+
+    try:
+        orbital_elements, count, _ = (
+            orbital_elements_repo.get_all_orbital_elements_at_epoch(
+                astropy_time_to_datetime_utc(time_jd),
+                1,
+                10000,
+                "zip",
+                constellation,
+                data_source,
+                use_generated_tles,
+            )
+        )
+        logger.debug(f"Successfully retrieved {count} orbital elements")
+    except Exception as e:
+        logger.error(f"Failed to retrieve orbital elements: {str(e)}", exc_info=True)
+        raise
+
+    orbital_elements_time = python_time.time() - orbital_elements_start
+    logger.debug(
+        f"Retrieved {count} orbital elements in {orbital_elements_time:.2f} seconds"
+    )
+    return orbital_elements, count, orbital_elements_time
 
 
 def _get_tdm_prediction_points(

@@ -59,8 +59,7 @@ def test_propagate_returns_one_result_per_jd(loaded_krogh_strategy):
     """propagate() returns exactly one result for a single JD inside the ephemeris."""
     results = loaded_krogh_strategy.propagate(
         TEST_JD,
-        tle_line_1="",
-        tle_line_2="",
+        None,
         latitude=OBSERVER_LAT,
         longitude=OBSERVER_LON,
         elevation=OBSERVER_ELEV,
@@ -72,8 +71,7 @@ def test_propagated_position_has_valid_ra_dec(loaded_krogh_strategy):
     """Each propagated position carries a valid RA and Dec."""
     results = loaded_krogh_strategy.propagate(
         TEST_JD,
-        tle_line_1="",
-        tle_line_2="",
+        None,
         latitude=OBSERVER_LAT,
         longitude=OBSERVER_LON,
         elevation=OBSERVER_ELEV,
@@ -87,8 +85,7 @@ def test_satellite_overhead_at_sub_satellite_point(loaded_krogh_strategy):
     """Observer placed at the sub-satellite point sees the satellite near zenith."""
     results = loaded_krogh_strategy.propagate(
         TEST_JD,
-        tle_line_1="",
-        tle_line_2="",
+        None,
         latitude=OBSERVER_LAT,
         longitude=OBSERVER_LON,
         elevation=OBSERVER_ELEV,
@@ -102,8 +99,7 @@ def test_propagate_multiple_jds(loaded_krogh_strategy):
     jds = [TEST_JD - 0.005, TEST_JD, TEST_JD + 0.005]  # ~7 min apart
     results = loaded_krogh_strategy.propagate(
         jds,
-        tle_line_1="",
-        tle_line_2="",
+        None,
         latitude=OBSERVER_LAT,
         longitude=OBSERVER_LON,
         elevation=OBSERVER_ELEV,
@@ -118,8 +114,7 @@ def test_covariance_is_returned(loaded_krogh_strategy):
     """Propagated positions include a 6×6 covariance matrix."""
     results = loaded_krogh_strategy.propagate(
         TEST_JD,
-        tle_line_1="",
-        tle_line_2="",
+        None,
         latitude=OBSERVER_LAT,
         longitude=OBSERVER_LON,
         elevation=OBSERVER_ELEV,
@@ -144,8 +139,7 @@ def test_raises_without_loaded_ephemeris():
     with pytest.raises(ValueError, match="No ephemeris data loaded"):
         strategy.propagate(
             TEST_JD,
-            tle_line_1="",
-            tle_line_2="",
+            None,
             latitude=OBSERVER_LAT,
             longitude=OBSERVER_LON,
             elevation=OBSERVER_ELEV,

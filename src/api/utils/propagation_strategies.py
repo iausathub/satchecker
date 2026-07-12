@@ -13,11 +13,13 @@ from astropy import units as u
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
 from sgp4.api import Satrec
-from skyfield.api import EarthSatellite, wgs84
+from skyfield.api import wgs84
 from skyfield.nutationlib import iau2000b
 
 from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
+from api.domain.models.orbital_data import OrbitalData
+from api.domain.models.tle import TLE
 from api.utils import coordinate_systems, output_utils
 from api.utils.coordinate_systems import (
     az_el_to_ra_dec,
@@ -50,6 +52,14 @@ _ts = load.timescale()
 
 def get_timescale():
     return _ts
+
+
+def _require_tle(orbital_data: OrbitalData) -> TLE:
+    if not isinstance(orbital_data, TLE):
+        raise ValueError(
+            "SGP4 propagation requires TLE data; orbital elements are not supported"
+        )
+    return orbital_data
 
 
 """
@@ -144,8 +154,7 @@ class BasePropagationStrategy(ABC):
     def propagate(
         self,
         julian_dates: float | list[float] | np.ndarray,
-        tle_line_1: str,
-        tle_line_2: str,
+        orbital_data: OrbitalData | None,
         latitude: float,
         longitude: float,
         elevation: float,
@@ -161,12 +170,11 @@ class BasePropagationStrategy(ABC):
 
         Args:
             julian_dates: Single Julian date or array of Julian dates
-            tle_line_1: First line of TLE
-            tle_line_2: Second line of TLE
+            orbital_data: Domain orbital data (TLE or orbital elements). Required
+                for strategies that propagate from orbital data; pass None for Krogh.
             latitude: Observer latitude in degrees
             longitude: Observer longitude in degrees
             elevation: Observer elevation in meters
-            **kwargs: Additional strategy-specific parameters
 
         Returns:
             Propagated position(s) in the strategy's format
@@ -178,8 +186,7 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
     def propagate(
         self,
         julian_dates: float | list[float] | np.ndarray,
-        tle_line_1: str,
-        tle_line_2: str,
+        orbital_data: OrbitalData | None,
         latitude: float,
         longitude: float,
         elevation: float,
@@ -191,28 +198,30 @@ class SkyfieldPropagationStrategy(BasePropagationStrategy):
 
         Args:
             julian_dates: Single Julian date or array of Julian dates
-            tle_line_1: TLE line 1
-            tle_line_2: TLE line 2
+            orbital_data: Domain orbital data (TLE or orbital elements). Required
+                for strategies that propagate from orbital data; pass None for Krogh.
             latitude: The observer WGS84 latitude in degrees
             longitude: The observers WGS84 longitude in degrees (positive value
                 represents east, negative value represents west)
             elevation: The observer elevation above WGS84 ellipsoid in meters
-            **kwargs: Additional parameters (not used in this strategy)
 
         Returns:
             List of propagated positions
 
         Raises:
-            RuntimeError: If propagation fails due to invalid TLE
+            RuntimeError: If propagation fails due to invalid orbital data
             or numerical instability
         """
+        if orbital_data is None:
+            raise ValueError("orbital_data is required")
+
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
 
         try:
             ts = get_timescale()
-            satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
+            satellite = orbital_data.to_earth_satellite(ts)
             curr_pos = wgs84.latlon(latitude, longitude, elevation)
         except Exception as e:
             raise RuntimeError(f"Failed to initialize propagation: {str(e)}") from e
@@ -344,8 +353,7 @@ class SGP4PropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def propagate(
         self,
         julian_dates: float | list[float] | np.ndarray,
-        tle_line_1: str,
-        tle_line_2: str,
+        orbital_data: OrbitalData | None,
         latitude: float,
         longitude: float,
         elevation: float,
@@ -356,16 +364,19 @@ class SGP4PropagationStrategy(BasePropagationStrategy):  # pragma: no cover
 
         Args:
             julian_dates: Single Julian date or array of Julian dates
-            tle_line_1: First line of TLE
-            tle_line_2: Second line of TLE
+            orbital_data: TLE domain object (SGP4 does not support orbital elements)
             latitude: Observer latitude in degrees
             longitude: Observer longitude in degrees
             elevation: Observer elevation in meters above the WGS84 ellipsoid.
-            **kwargs: Additional parameters (not used in this strategy)
 
         Returns:
             Single satellite position or list of positions
         """
+        if orbital_data is None:
+            raise ValueError("orbital_data is required")
+
+        tle = _require_tle(orbital_data)
+
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
@@ -396,7 +407,7 @@ class SGP4PropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             jd_frac = julian_date - jd_int
 
             # Propagate satellite
-            satellite = Satrec.twoline2rv(tle_line_1, tle_line_2)
+            satellite = Satrec.twoline2rv(tle.tle_line1, tle.tle_line2)
             error, r, v = satellite.sgp4(jd_int, jd_frac)
 
             r_ecef = teme_to_ecef(r, theta_gst)
@@ -460,8 +471,7 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def propagate(
         self,
         julian_dates: float | list[float] | np.ndarray,
-        tle_line_1: str,
-        tle_line_2: str,
+        orbital_data: OrbitalData | None,
         latitude: float,
         longitude: float,
         elevation: float,
@@ -472,8 +482,8 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
 
         Args:
             julian_dates: Single Julian date or array of Julian dates
-            tle_line_1: First line of TLE
-            tle_line_2: Second line of TLE
+            orbital_data: Domain orbital data (TLE or orbital elements). Required
+                for strategies that propagate from orbital data; pass None for Krogh.
             latitude: Observer latitude in degrees
             longitude: Observer longitude in degrees
             elevation: Observer elevation in meters
@@ -482,6 +492,9 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         Returns:
             Single satellite position or list of positions
         """
+        if orbital_data is None:
+            raise ValueError("orbital_data is required")
+
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
@@ -492,7 +505,7 @@ class TestPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
             eph = load("de430t.bsp")
             earth = eph["Earth"]
             sun = eph["Sun"]
-            satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
+            satellite = orbital_data.to_earth_satellite(ts)
             curr_pos = calculate_current_position(latitude, longitude, elevation)
 
             jd = Time(julian_date, format="jd", scale="ut1")
@@ -579,8 +592,7 @@ class FOVPropagationStrategy(BasePropagationStrategy):
     def propagate(
         self,
         julian_dates: float | list[float] | np.ndarray,
-        tle_line_1: str,
-        tle_line_2: str,
+        orbital_data: OrbitalData | None,
         latitude: float,
         longitude: float,
         elevation: float,
@@ -593,22 +605,24 @@ class FOVPropagationStrategy(BasePropagationStrategy):
 
         Args:
             julian_dates: Single Julian date or array of Julian dates
-            tle_line_1: First line of TLE
-            tle_line_2: Second line of TLE
+            orbital_data: Domain orbital data (TLE or orbital elements). Required
+                for strategies that propagate from orbital data; pass None for Krogh.
             latitude: Observer latitude in degrees
             longitude: Observer longitude in degrees
             elevation: Observer elevation in meters
             fov_center: Tuple of (RA, Dec) in degrees. Defaults to (0,0)
             fov_radius: FOV radius in degrees. Defaults to 0
-            **kwargs: Additional parameters (not used in this strategy)
 
         Returns:
             List of dictionaries containing position data for points in FOV
 
         Raises:
-            RuntimeError: If propagation fails due to invalid TLE
+            RuntimeError: If propagation fails due to invalid orbital data
             or numerical instability
         """
+        if orbital_data is None:
+            raise ValueError("orbital_data is required")
+
         # Convert single date to list for consistent handling
         if isinstance(julian_dates, (float, int)):
             julian_dates = [julian_dates]
@@ -624,7 +638,7 @@ class FOVPropagationStrategy(BasePropagationStrategy):
             )
 
             # Create satellite and get positions
-            satellite = EarthSatellite(tle_line_1, tle_line_2, ts=ts)
+            satellite = orbital_data.to_earth_satellite(ts)
             difference = satellite - curr_pos
             topocentric = difference.at(t)
             position_norm = np.linalg.norm(
@@ -679,7 +693,7 @@ def process_satellite_batch(
     """
     batch_start = time.time()
     (
-        tle_batch,
+        orbital_data_batch,
         julian_dates,
         lat,
         lon,
@@ -706,10 +720,10 @@ def process_satellite_batch(
     batch_results = []
     satellites_processed = 0
 
-    for tle in tle_batch:
+    for orbital_data in orbital_data_batch:
         try:
             # Create satellite
-            satellite = EarthSatellite(tle.tle_line1, tle.tle_line2, ts=ts)
+            satellite = orbital_data.to_earth_satellite(ts)
 
             difference = satellite - curr_pos
             topocentric = difference.at(t)
@@ -758,17 +772,20 @@ def process_satellite_batch(
                     "range_km": float(distance.km[idx]),
                     "julian_date": julian_dates[idx],
                     "angle": np.degrees(sat_fov_angles[idx]),
-                    "name": tle.satellite.sat_name,
-                    "norad_id": tle.satellite.sat_number,
-                    "tle_epoch": output_utils.format_date(tle.epoch),
+                    "name": orbital_data.satellite.sat_name,
+                    "norad_id": orbital_data.satellite.sat_number,
+                    "orbital_data_epoch": output_utils.format_date(orbital_data.epoch),
+                    "orbital_data_source": (
+                        "tle" if isinstance(orbital_data, TLE) else "omm"
+                    ),
                 }
 
                 # Only include TLE data if requested
-                if include_tles:
+                if include_tles and isinstance(orbital_data, TLE):
                     result["tle_data"] = {
-                        "tle_line1": tle.tle_line1,
-                        "tle_line2": tle.tle_line2,
-                        "source": tle.data_source,
+                        "tle_line1": orbital_data.tle_line1,
+                        "tle_line2": orbital_data.tle_line2,
+                        "source": orbital_data.data_source,
                     }
 
                 result_entries.append(result)
@@ -778,7 +795,7 @@ def process_satellite_batch(
 
         except Exception as e:
             logger.warning(
-                "Error processing satellite %s: %s", tle.satellite.sat_name, e
+                "Error processing satellite %s: %s", orbital_data.satellite.sat_name, e
             )
             satellites_processed += 1
 
@@ -831,7 +848,7 @@ class FOVParallelPropagationStrategy:
 
     def propagate(
         self,
-        all_tles,
+        all_objects,
         jd_times,
         location,
         fov_center,
@@ -880,7 +897,8 @@ class FOVParallelPropagationStrategy:
         elev = location.height.value
 
         satellite_batches = [
-            all_tles[i : i + batch_size] for i in range(0, len(all_tles), batch_size)
+            all_objects[i : i + batch_size]
+            for i in range(0, len(all_objects), batch_size)
         ]
 
         if batch_executor is not None:
@@ -927,7 +945,7 @@ class FOVParallelPropagationStrategy:
 
             logger.debug(
                 "Processing %d satellites in %d batches (%d workers)",
-                len(all_tles),
+                len(all_objects),
                 len(satellite_batches),
                 max_workers,
             )
@@ -989,8 +1007,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
     def propagate(
         self,
         julian_dates: float | list[float] | np.ndarray,
-        tle_line_1: str,
-        tle_line_2: str,
+        orbital_data: OrbitalData | None,
         latitude: float,
         longitude: float,
         elevation: float,
@@ -999,10 +1016,12 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         """
         Propagate satellite positions using Krogh interpolation.
 
+        Ephemeris must be loaded first via load_ephemeris(). Pass ``None`` for
+        ``orbital_data``; interpolation uses the loaded ephemeris only.
+
         Args:
             julian_dates: Single Julian date or array of Julian dates
-            tle_line_1: First line of TLE (not used in this strategy)
-            tle_line_2: Second line of TLE (not used in this strategy)
+            orbital_data: Unused; pass None
             latitude: Observer latitude in degrees
             longitude: Observer longitude in degrees
             elevation: Observer elevation in meters
@@ -1011,6 +1030,7 @@ class KroghPropagationStrategy(BasePropagationStrategy):  # pragma: no cover
         Returns:
             List of satellite positions
         """
+        _ = orbital_data
         if self.interpolated_splines is None:
             raise ValueError("No ephemeris data loaded. Call load_ephemeris() first.")
 
@@ -1085,26 +1105,23 @@ class PropagationInfo:
     def __init__(
         self,
         propagation_strategy,
-        tle_line_1,
-        tle_line_2,
         julian_date,
         latitude,
         longitude,
         elevation,
+        orbital_data: OrbitalData,
     ):
         self.propagation_strategy = propagation_strategy
-        self.tle_line_1 = tle_line_1
-        self.tle_line_2 = tle_line_2
         self.julian_date = julian_date
         self.latitude = latitude
         self.longitude = longitude
         self.elevation = elevation
+        self.orbital_data = orbital_data
 
     def propagate(self):
         return self.propagation_strategy.propagate(
             self.julian_date,
-            self.tle_line_1,
-            self.tle_line_2,
+            self.orbital_data,
             self.latitude,
             self.longitude,
             self.elevation,

@@ -18,6 +18,9 @@ from sqlalchemy.orm import sessionmaker
 from api import create_app
 from api.adapters.database_orm import Base
 from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
+from api.adapters.repositories.orbital_elements_repository import (
+    AbstractOrbitalElementsRepository,
+)
 from api.adapters.repositories.satellite_repository import (
     AbstractSatelliteRepository,
 )
@@ -151,6 +154,7 @@ def cleanup_database(session):
         session.execute(text("DELETE FROM ephemeris_points"))
         session.execute(text("DELETE FROM interpolable_ephemeris"))
         session.execute(text("DELETE FROM tle"))
+        session.execute(text("DELETE FROM orbital_elements"))
         session.execute(text("DELETE FROM tdm_prediction_points"))
         session.execute(text("DELETE FROM tdm_predictions"))
         session.execute(text("DELETE FROM satellites"))
@@ -459,6 +463,127 @@ class FakeTLERepository(AbstractTLERepository):
         return min(
             (tle for tle in self._tles if tle.satellite.sat_number == id),
             key=lambda tle: abs(tle.epoch - epoch),
+            default=None,
+        )
+
+
+class FakeOrbitalElementsRepository(AbstractOrbitalElementsRepository):
+    def __init__(self, orbital_elements, exception_to_raise=None):
+        self._orbital_elements = set(orbital_elements)
+        self.exception_to_raise = exception_to_raise
+
+    def _add(self, orbital_elements):
+        self._orbital_elements.add(orbital_elements)
+
+    def _get_all_for_date_range_by_satellite_name(
+        self, satellite_name, start_date, end_date
+    ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        return [
+            oe
+            for oe in self._orbital_elements
+            if (
+                oe.satellite.sat_name == satellite_name
+                and (
+                    (start_date is None or start_date <= oe.epoch)
+                    and (end_date is None or oe.epoch <= end_date)
+                )
+            )
+        ]
+
+    def _get_all_for_date_range_by_satellite_number(
+        self, satellite_number, start_date, end_date
+    ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        return [
+            oe
+            for oe in self._orbital_elements
+            if (
+                oe.satellite.sat_number == satellite_number
+                and (
+                    (start_date is None or start_date <= oe.epoch)
+                    and (end_date is None or oe.epoch <= end_date)
+                )
+            )
+        ]
+
+    def _get_closest_by_satellite_name(self, satellite_name, epoch, data_source):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        return min(
+            (
+                oe
+                for oe in self._orbital_elements
+                if oe.satellite.sat_name == satellite_name
+            ),
+            key=lambda oe: abs(oe.epoch - epoch),
+            default=None,
+        )
+
+    def _get_closest_by_satellite_number(self, satellite_number, epoch, data_source):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        return min(
+            (
+                oe
+                for oe in self._orbital_elements
+                if oe.satellite.sat_number == satellite_number
+            ),
+            key=lambda oe: abs(oe.epoch - epoch),
+            default=None,
+        )
+
+    def _get_all_orbital_elements_at_epoch(
+        self,
+        epoch_date,
+        page,
+        per_page,
+        format,
+        constellation=None,
+        data_source_limit=None,
+        use_generated_tles=False,
+    ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        filtered = [
+            oe
+            for oe in self._orbital_elements
+            if (constellation is None or oe.satellite.constellation == constellation)
+            and (epoch_date is None or oe.epoch <= epoch_date)
+            and (
+                data_source_limit is None
+                or oe.data_source == data_source_limit
+                or data_source_limit == "any"
+            )
+        ]
+        return filtered, len(filtered), "database"
+
+    def _get_adjacent_orbital_elements(self, id, id_type, epoch):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        elements = [
+            oe for oe in self._orbital_elements if oe.satellite.sat_number == id
+        ]
+        return elements[:1] + elements[1:]
+
+    def _get_orbital_elements_around_epoch(
+        self, id, id_type, epoch, count_before, count_after
+    ):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        elements = [
+            oe for oe in self._orbital_elements if oe.satellite.sat_number == id
+        ]
+        return elements[: count_before + count_after]
+
+    def _get_nearest_orbital_elements(self, id, id_type, epoch):
+        if self.exception_to_raise:
+            raise self.exception_to_raise
+        return min(
+            (oe for oe in self._orbital_elements if oe.satellite.sat_number == id),
+            key=lambda oe: abs(oe.epoch - epoch),
             default=None,
         )
 

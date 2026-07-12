@@ -21,6 +21,23 @@ from api.utils.propagation_strategies import (
 )
 
 
+def _tle_from_lines(tle_line_1: str, tle_line_2: str):
+    from api.domain.models.tle import TLE
+    from api.services.validation_service import parse_tle
+
+    if len(tle_line_1) == 69 and len(tle_line_2) == 69:
+        return parse_tle(f"{tle_line_1}\n{tle_line_2}")
+    return TLE(
+        date_collected=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        tle_line1=tle_line_1,
+        tle_line2=tle_line_2,
+        epoch=datetime(2020, 11, 28, 13, 9, 20, tzinfo=timezone.utc),
+        is_supplemental=False,
+        data_source="test",
+        satellite=SatelliteFactory(sat_number="25544", sat_name="ISS"),
+    )
+
+
 def test_icrf2radec_degrees_unit():
     pos = np.array([1, 0, 0])
     expected_ra_deg = 0
@@ -221,7 +238,7 @@ def test_batch_executor_raises_without_serializer():
 
     with pytest.raises(ValueError, match="batch_serializer required"):
         strategy.propagate(
-            all_tles=[tle],
+            all_objects=[tle],
             jd_times=[2460218.5],
             location=location,
             fov_center=(0, 0),
@@ -246,7 +263,7 @@ def test_batch_executor_serializes_and_aggregates(mocker):
     )
 
     results, exec_time, sats = strategy.propagate(
-        all_tles=[tle, tle],
+        all_objects=[tle, tle],
         jd_times=[2460218.5],
         location=location,
         fov_center=(0, 0),
@@ -286,7 +303,7 @@ def test_batch_executor_serializer_per_batch(mocker):
     )
 
     strategy.propagate(
-        all_tles=tles,
+        all_objects=tles,
         jd_times=[2460218.5],
         location=location,
         fov_center=(0, 0),
@@ -314,8 +331,7 @@ def test_skyfield_propagation_strategy():
     strategy = SkyfieldPropagationStrategy()
     result = strategy.propagate(
         julian_dates=[julian_date],
-        tle_line_1=tle_line_1,
-        tle_line_2=tle_line_2,
+        orbital_data=_tle_from_lines(tle_line_1, tle_line_2),
         latitude=latitude,
         longitude=longitude,
         elevation=elevation,
@@ -345,8 +361,9 @@ def test_skyfield_propagation_strategy():
 
 def test_skyfield_propagation_strategy_error():
     julian_date = 2459000.5
-    tle_line_1 = ""
-    tle_line_2 = ""
+    # Valid TLE line length/format, but eccentricity > 1 makes propagation unstable.
+    tle_line_1 = "1 25544U 98067A   20333.54791667  .00016717  00000-0  10270-3 0  9000"
+    tle_line_2 = "2 25544  51.6442  21.4611 9999999  85.7861  74.4771 15.49180547  1000"
     latitude = 0
     longitude = 0
     elevation = 0
@@ -354,13 +371,12 @@ def test_skyfield_propagation_strategy_error():
     strategy = SkyfieldPropagationStrategy()
     result = strategy.propagate(
         julian_dates=[julian_date],
-        tle_line_1=tle_line_1,
-        tle_line_2=tle_line_2,
+        orbital_data=_tle_from_lines(tle_line_1, tle_line_2),
         latitude=latitude,
         longitude=longitude,
         elevation=elevation,
     )
-    # Weird lat/long./elevation values will not cause errors -
+    # Weird lat/long/elevation values will not cause errors -
     # they will be normalized to a valid range; invalid TLE data
     # will cause a NaN result, but not throw an exception
     assert math.isnan(result[0].ra)
