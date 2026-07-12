@@ -343,7 +343,12 @@ def test_get_satellite_passes_in_fov_async_orbital_elements_after_cutoff(test_lo
     Regression test for the OMM/orbital-elements async FOV path.
     """
     from api.celery_app import celery
-    from api.services.tasks.fov_tasks import get_fov_task_status
+    from api.services.tasks.fov_tasks import (
+        aggregate_fov_results_task,
+        get_fov_task_status,
+        process_satellite_batch_task,
+        refine_with_ephemeris_task,
+    )
 
     omm_time = Time("2026-08-01T18:19:13", format="isot", scale="utc")
 
@@ -360,12 +365,21 @@ def test_get_satellite_passes_in_fov_async_orbital_elements_after_cutoff(test_lo
     tle_repo = FakeTLERepository([])
     orbital_elements_repo = FakeOrbitalElementsRepository([orbital_elements])
 
+    eager_tasks = (
+        process_satellite_batch_task,
+        aggregate_fov_results_task,
+        refine_with_ephemeris_task,
+    )
+
     original_always_eager = celery.conf.task_always_eager
     original_eager_propagates = celery.conf.task_eager_propagates
     original_store_eager_result = celery.conf.task_store_eager_result
+    original_task_store_eager_results = [t.store_eager_result for t in eager_tasks]
     celery.conf.task_always_eager = True
     celery.conf.task_eager_propagates = True
     celery.conf.task_store_eager_result = True
+    for task in eager_tasks:
+        task.store_eager_result = True
     try:
         dispatch_result = get_satellite_passes_in_fov_async(
             tle_repo,
@@ -396,6 +410,10 @@ def test_get_satellite_passes_in_fov_async_orbital_elements_after_cutoff(test_lo
         celery.conf.task_always_eager = original_always_eager
         celery.conf.task_eager_propagates = original_eager_propagates
         celery.conf.task_store_eager_result = original_store_eager_result
+        for task, original in zip(
+            eager_tasks, original_task_store_eager_results, strict=True
+        ):
+            task.store_eager_result = original
 
     assert status["status"] == "SUCCESS"
     satellites = status["data"]["satellites"]
