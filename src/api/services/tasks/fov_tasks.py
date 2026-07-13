@@ -38,7 +38,7 @@ def process_satellite_batch_task(
     location_height: float,
     fov_center: tuple[float, float],
     fov_radius: float,
-    include_tles: bool,
+    include_orbital_data: bool,
     illuminated_only: bool,
 ) -> tuple[list[dict[str, Any]], int, float]:
     """
@@ -56,7 +56,7 @@ def process_satellite_batch_task(
         location_height,
         fov_center,
         fov_radius,
-        include_tles,
+        include_orbital_data,
         illuminated_only,
     )
     return process_satellite_batch(args)

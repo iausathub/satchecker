@@ -236,9 +236,9 @@ def fov_data_to_json(
                 }
 
                 # Only add tle_data if it's not null/empty
-                tle_data = result.get("tle_data")
+                tle_data = result.get("orbital_data")
                 if tle_data is not None and tle_data != {}:
-                    satellite_dict["tle_data"] = tle_data
+                    satellite_dict["orbital_data"] = tle_data
 
                 satellites[sat_key] = satellite_dict
             # Add pass data without redundant satellite info

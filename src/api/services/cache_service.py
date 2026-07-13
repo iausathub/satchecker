@@ -25,7 +25,7 @@ def create_fov_cache_key(
     ra: float,
     dec: float,
     fov_radius: float,
-    include_tles: bool = False,
+    include_orbital_data: bool = False,
     constellation: str | None = None,
     data_source: str | None = None,
 ) -> str:
@@ -41,7 +41,7 @@ def create_fov_cache_key(
         f"ra_{ra}",
         f"dec_{dec}",
         f"radius_{fov_radius}",
-        f"include_tles_{include_tles}",
+        f"include_orbital_data_{include_orbital_data}",
         f"constellation_{constellation}",
         f"data_source_{data_source}",
     ]

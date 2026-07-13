@@ -250,7 +250,7 @@ check the epoch of the TLE to make sure that it is suitable for your needs.
         [
             {
                 "source": "IAU CPS SatChecker",
-                "tle_data": [
+                "orbital_data": [
                     {
                         "data_source": "spacetrack",
                         "date_collected": "2024-06-04 19:16:53 UTC",
@@ -324,7 +324,7 @@ by NORAD ID.
         [
             {
                 "source": "IAU CPS SatChecker",
-                "tle_data": [
+                "orbital_data": [
                     {
                         "data_source": "spacetrack",
                         "date_collected": "2024-11-26 17:37:22 UTC",
@@ -409,7 +409,7 @@ It currently only supports searching by NORAD ID.
         [
             {
                 "source": "IAU CPS SatChecker",
-                "tle_data": [
+                "orbital_data": [
                     {
                         "data_source": "spacetrack",
                         "date_collected": "2024-11-26 17:37:22 UTC",

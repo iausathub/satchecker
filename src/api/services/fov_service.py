@@ -58,7 +58,7 @@ def get_satellite_passes_in_fov_async(
     dec: float,
     fov_radius: float,
     group_by: str,
-    include_tles: bool,
+    include_orbital_data: bool,
     skip_cache: bool,
     constellation: str,
     data_source: str,
@@ -81,7 +81,7 @@ def get_satellite_passes_in_fov_async(
         mid_obs_time_jd,
         start_time_jd,
         group_by,
-        include_tles,
+        include_orbital_data,
         skip_cache,
     )
 
@@ -94,7 +94,7 @@ def get_satellite_passes_in_fov_async(
         ra,
         dec,
         fov_radius,
-        False if include_tles is None else include_tles,
+        False if include_orbital_data is None else include_orbital_data,
         constellation,
         data_source,
     )
@@ -165,7 +165,7 @@ def get_satellite_passes_in_fov_async(
         "location_height": float(location.height.value),
         "fov_center": (float(ra), float(dec)),
         "fov_radius": float(fov_radius),
-        "include_tles": include_tles,
+        "include_orbital_data": include_orbital_data,
         "illuminated_only": illuminated_only,
     }
 
@@ -230,7 +230,7 @@ def get_satellite_passes_in_fov(
     dec: float,
     fov_radius: float,
     group_by: str,
-    include_tles: bool,
+    include_orbital_data: bool,
     skip_cache: bool,
     constellation: str,
     data_source: str,
@@ -254,7 +254,7 @@ def get_satellite_passes_in_fov(
         dec: Declination of FOV center in degrees
         fov_radius: Radius of FOV in degrees
         group_by: Grouping strategy ('satellite' or 'time')
-        include_tles: Whether to include TLE data in results
+        include_orbital_data: Whether to include TLE data in results
         skip_cache: Whether to skip cache and force recalculation
         constellation: Constellation of the satellites to include in the response
         data_source: Data source for TLEs
@@ -278,7 +278,7 @@ def get_satellite_passes_in_fov(
         mid_obs_time_jd,
         start_time_jd,
         group_by,
-        include_tles,
+        include_orbital_data,
         skip_cache,
     )
 
@@ -291,7 +291,7 @@ def get_satellite_passes_in_fov(
         ra,
         dec,
         fov_radius,
-        False if include_tles is None else include_tles,
+        False if include_orbital_data is None else include_orbital_data,
         constellation,
         data_source,
     )
@@ -357,7 +357,7 @@ def get_satellite_passes_in_fov(
                 fov_center=(ra, dec),
                 fov_radius=fov_radius,
                 batch_size=250,
-                include_tles=include_tles,
+                include_orbital_data=include_orbital_data,
                 illuminated_only=illuminated_only,
             )
 
@@ -1086,7 +1086,7 @@ def _log_fov_parameters(
     mid_obs_time_jd: Time,
     start_time_jd: Time,
     group_by: str,
-    include_tles: bool,
+    include_orbital_data: bool,
     skip_cache: bool,
 ):
     logger.debug(f"Starting FOV calculation at: {datetime.now().isoformat()}")
@@ -1104,7 +1104,8 @@ def _log_fov_parameters(
         f"Time parameters: mid_obs_time={mid_obs_time_jd}, start_time={start_time_jd}"
     )
     logger.debug(
-        f"Group by: {group_by}, Include TLEs: {include_tles}, Skip cache: {skip_cache}"
+        f"Group by: {group_by}, Include TLEs: {include_orbital_data}, "
+        f"Skip cache: {skip_cache}"
     )
 
 

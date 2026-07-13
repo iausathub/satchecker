@@ -109,7 +109,7 @@ def get_satellite_passes():
         description: Group results by 'satellite' or 'time' (default is 'time' for chronological order)
         enum: [satellite, time]
         example: satellite
-      - name: include_tles
+      - name: include_orbital_data
         in: query
         type: boolean
         required: false
@@ -221,9 +221,9 @@ def get_satellite_passes():
                                       type: number
                                       format: float
                                       description: Distance to the satellite in kilometers
-                                    tle_data:
+                                    orbital_data:
                                       type: object
-                                      description: TLE data for this satellite (only included when include_tles=true)
+                                      description: TLE data for this satellite (only included when include_orbital_data=true)
                                       properties:
                                         tle_line1:
                                           type: string
@@ -294,7 +294,7 @@ def get_satellite_passes():
         "start_time_jd",
         "mid_obs_time_jd",
         "group_by",
-        "include_tles",
+        "include_orbital_data",
         "skip_cache",
         "constellation",
         "data_source",
@@ -375,7 +375,7 @@ def get_satellite_passes():
                 validated_parameters["dec"],
                 validated_parameters["fov_radius"],
                 validated_parameters["group_by"],
-                validated_parameters["include_tles"],
+                validated_parameters["include_orbital_data"],
                 validated_parameters["skip_cache"],
                 validated_parameters["constellation"],
                 validated_parameters["data_source"],
@@ -399,7 +399,7 @@ def get_satellite_passes():
                 validated_parameters["dec"],
                 validated_parameters["fov_radius"],
                 validated_parameters["group_by"],
-                validated_parameters["include_tles"],
+                validated_parameters["include_orbital_data"],
                 validated_parameters["skip_cache"],
                 validated_parameters["constellation"],
                 validated_parameters["data_source"],
