@@ -221,7 +221,7 @@ def get_satellite_passes():
                                       type: number
                                       format: float
                                       description: Distance to the satellite in kilometers
-                                    tle_data:
+                                    orbital_data:
                                       type: object
                                       description: TLE data for this satellite (only included when include_orbital_data=true)
                                       properties:
