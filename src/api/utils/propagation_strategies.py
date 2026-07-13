@@ -782,7 +782,7 @@ def process_satellite_batch(
 
                 # Only include TLE data if requested
                 if include_orbital_data and isinstance(orbital_data, TLE):
-                    result["include_orbital_data"] = {
+                    result["orbital_data"] = {
                         "tle_line1": orbital_data.tle_line1,
                         "tle_line2": orbital_data.tle_line2,
                         "source": orbital_data.data_source,

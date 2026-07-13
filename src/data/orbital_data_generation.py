@@ -881,6 +881,7 @@ def create_tle_from_ephemeris(
 
 def create_orbital_elements_from_ephemeris(
     ephemeris: InterpolableEphemeris,
+    satellite_id: int,
     cursor,
     connection,
 ) -> tuple[float, float]:
@@ -911,11 +912,11 @@ def create_orbital_elements_from_ephemeris(
     """
     # Query nearby catalog OMM elements to seed the optimizer.
     seed_fields = get_closest_orbital_elements(
-        ephemeris.ephemeris_start, ephemeris.sat_id, cursor
+        ephemeris.ephemeris_start, satellite_id, cursor
     )
     if seed_fields is None:
         raise ValueError(
-            f"No catalog orbital elements found for sat_id={ephemeris.sat_id} "
+            f"No catalog orbital elements found for sat_id={satellite_id} "
             f"near ephemeris_start={ephemeris.ephemeris_start}"
         )
     seed_sat = Satrec()
@@ -927,7 +928,7 @@ def create_orbital_elements_from_ephemeris(
 
     date_collected = datetime.now(timezone.utc)
     save_orbital_elements_to_db(
-        fitted, date_collected, ephemeris.sat_id, cursor, connection
+        fitted, date_collected, satellite_id, cursor, connection
     )
 
     return fit_xyz_rms, fit_ang_rms
