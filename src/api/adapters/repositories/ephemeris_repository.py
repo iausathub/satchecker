@@ -26,7 +26,7 @@ from api.utils.time_utils import ensure_datetime
 
 logger = logging.getLogger(__name__)
 
-EPHEMERIS_POINTS_S3_BUCKET = os.environ.get("EPHEMERIS_POINTS_S3_BUCKET", "")
+EPHEMERIS_POINTS_S3_BUCKET = os.environ.get("OBJECT_STORE_BUCKET", "")
 EPHEMERIS_POINTS_S3_REGION = "us-west-2"
 
 

@@ -834,6 +834,7 @@ def fit_satrec_to_ephemeris(
 
 def create_tle_from_ephemeris(
     ephemeris: InterpolableEphemeris,
+    satellite_id: int,
     cursor,
     connection,
 ) -> tuple[float, float]:
@@ -860,10 +861,10 @@ def create_tle_from_ephemeris(
             not saved.
     """
     # Query a nearby catalog TLE to seed the optimizer.
-    seed_lines = get_closest_tle(ephemeris.ephemeris_start, ephemeris.sat_id, cursor)
+    seed_lines = get_closest_tle(ephemeris.ephemeris_start, satellite_id, cursor)
     if seed_lines is None:
         raise ValueError(
-            f"No catalog TLE found for sat_id={ephemeris.sat_id} "
+            f"No catalog TLE found for sat_id={satellite_id} "
             f"near ephemeris_start={ephemeris.ephemeris_start}"
         )
     seed_sat = Satrec.twoline2rv(*seed_lines)
@@ -873,7 +874,7 @@ def create_tle_from_ephemeris(
         return fit_xyz_rms, fit_ang_rms
 
     date_collected = datetime.now(timezone.utc)
-    save_tle_to_db(fitted, date_collected, ephemeris.sat_id, cursor, connection)
+    save_tle_to_db(fitted, date_collected, satellite_id, cursor, connection)
 
     return fit_xyz_rms, fit_ang_rms
 
