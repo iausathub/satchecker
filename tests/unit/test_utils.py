@@ -193,7 +193,7 @@ def test_process_satellite_batch():
     elevation = 300
     fov_center = (24.797270, 75.774139)
     fov_radius = 2.0
-    include_tles = True
+    include_orbital_data = True
     illuminated_only = False
 
     args = (
@@ -204,7 +204,7 @@ def test_process_satellite_batch():
         elevation,
         fov_center,
         fov_radius,
-        include_tles,
+        include_orbital_data,
         illuminated_only,
     )
     result = process_satellite_batch(args)
@@ -221,7 +221,7 @@ def test_process_satellite_batch():
         elevation,
         fov_center,
         fov_radius,
-        include_tles,
+        include_orbital_data,
         illuminated_only,
     )
     result = process_satellite_batch(args)

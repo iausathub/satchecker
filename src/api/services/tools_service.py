@@ -166,7 +166,7 @@ def get_tles_around_epoch_results(
 
     return [
         {
-            "tle_data": tle_data,
+            "orbital_data": tle_data,
             "source": api_source,
             "version": api_version,
         }
@@ -242,7 +242,7 @@ def get_nearest_tle_result(
 
     return [
         {
-            "tle_data": tle_data,
+            "orbital_data": tle_data,
             "source": api_source,
             "version": api_version,
         }
@@ -313,7 +313,7 @@ def get_adjacent_tle_results(
             logger.info("Successfully formatted TLE data as JSON")
             return [
                 {
-                    "tle_data": tle_json_data,
+                    "orbital_data": tle_json_data,
                     "source": api_source,
                     "version": api_version,
                 }

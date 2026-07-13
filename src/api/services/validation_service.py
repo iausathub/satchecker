@@ -375,15 +375,20 @@ def validate_parameters(
                 + " group_by must be 'satellite' or 'time'",
             )
 
-    if "include_tles" in parameters.keys() and parameters["include_tles"] is not None:
-        if parameters["include_tles"].lower() not in ["true", "false"]:
+    if (
+        "include_orbital_data" in parameters.keys()
+        and parameters["include_orbital_data"] is not None
+    ):
+        if parameters["include_orbital_data"].lower() not in ["true", "false"]:
             raise ValidationError(
                 400,
                 error_messages.INVALID_PARAMETER
-                + " include_tles must be 'true' or 'false'",
+                + " include_orbital_data must be 'true' or 'false'",
             )
 
-        parameters["include_tles"] = parameters["include_tles"].lower() == "true"
+        parameters["include_orbital_data"] = (
+            parameters["include_orbital_data"].lower() == "true"
+        )
 
     if (
         "use_generated_tles" in parameters.keys()

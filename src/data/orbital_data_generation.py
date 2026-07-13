@@ -6,6 +6,7 @@ import numpy as np
 from astropy.time import Time
 from frame_transforms import operator_positions_km_to_teme
 from scipy.optimize import least_squares
+from sgp4 import omm
 from sgp4.api import WGS84, Satrec
 from sgp4.exporter import export_tle
 from skyfield.api import EarthSatellite, load
@@ -19,7 +20,7 @@ from api.domain.models.interpolable_ephemeris import (
 # When picking a seed TLE from the catalog, prefer rows whose epoch falls in
 # ``[ephemeris_start, ephemeris_start + this many hours]`` (used by
 # ``get_closest_tle``). Falls back to the globally closest TLE otherwise.
-TLE_SEED_PREFERENCE_WINDOW_HOURS = 8.0
+ORBITAL_DATA_SEED_PREFERENCE_WINDOW_HOURS = 8.0
 
 # Penalty magnitude returned by ``residuals`` when SGP4 propagation fails or
 # produces non-finite outputs. Large enough that least_squares (LM) will treat
@@ -31,10 +32,16 @@ LARGE_RESIDUAL = 1.0e6
 # uses to fit a TLE. Must be ``<= EPHEMERIS_DB_SPAN_HOURS``; chosen empirically
 # (20 h gave the lowest XYZ RMS over the 26 h DB span without overfitting the
 # first few hours), but this can be changed later if needed.
-TLE_FIT_WINDOW_HOURS = 20.0
+ORBITAL_DATA_FIT_WINDOW_HOURS = 20.0
 
 # ``sgp4init`` epoch argument: days since 1949-12-31 00:00 UT (JD 2433281.5).
 SGP4_EPOCH_REFERENCE_JD = 2433281.5
+
+# OMM MEAN_MOTION_DOT / MEAN_MOTION_DDOT <-> satrec.ndot / satrec.nddot unit
+# conversions, mirroring ``sgp4.omm._ndot_units`` / ``_nddot_units`` (see
+# SGP4.cpp for the underlying derivation).
+OMM_NDOT_UNITS = 1036800.0 / np.pi
+OMM_NDDOT_UNITS = 2985984000.0 / 2.0 / np.pi
 
 
 def get_closest_tle(
@@ -44,9 +51,10 @@ def get_closest_tle(
     Retrieve a catalog TLE to seed fitting, aligned with ephemeris start time.
 
     Rows whose ``epoch`` falls in
-    ``[ephemeris_start_time, ephemeris_start_time + TLE_SEED_PREFERENCE_WINDOW_HOURS]``
+    ``[ephemeris_start_time, ephemeris_start_time +
+    ORBITAL_DATA_SEED_PREFERENCE_WINDOW_HOURS]``
     are sorted first. Within each group, the row with ``epoch`` closest to
-    ``ephemeris_start_time + TLE_SEED_PREFERENCE_WINDOW_HOURS`` (absolute time
+    ``ephemeris_start_time + ORBITAL_DATA_SEED_PREFERENCE_WINDOW_HOURS`` (absolute time
     difference) wins. If the window is empty, this falls back to the globally
     closest ``epoch`` to that same target — same idea as
     ``TleRepository._get_closest_by_satellite_number``, but with ``sat_id`` and
@@ -62,7 +70,7 @@ def get_closest_tle(
     """
 
     target_time = ephemeris_start_time + timedelta(
-        hours=TLE_SEED_PREFERENCE_WINDOW_HOURS
+        hours=ORBITAL_DATA_SEED_PREFERENCE_WINDOW_HOURS
     )
 
     cursor.execute(
@@ -86,6 +94,91 @@ def get_closest_tle(
     return tle_line1, tle_line2
 
 
+def get_closest_orbital_elements(
+    ephemeris_start_time: datetime, sat_id: int, cursor
+) -> dict | None:
+    """
+    Retrieve catalog OMM elements to seed fitting, aligned with ephemeris start time.
+
+    Same seed-window preference as ``get_closest_tle``, against the
+    ``orbital_elements`` table instead of ``tle``, joined with ``satellites``
+    for ``object_id``/``sat_number`` (not stored on ``orbital_elements`` itself
+    but required by ``sgp4.omm.initialize``).
+
+    Args:
+        ephemeris_start_time (datetime): Ephemeris segment start.
+        sat_id (int): Satellite primary key
+        cursor: Database cursor used to execute SQL.
+
+    Returns:
+        A CCSDS OMM field dict suitable for ``sgp4.omm.initialize``, or
+        ``None`` if no row matches ``sat_id``.
+    """
+
+    target_time = ephemeris_start_time + timedelta(
+        hours=ORBITAL_DATA_SEED_PREFERENCE_WINDOW_HOURS
+    )
+
+    cursor.execute(
+        "SELECT oe.epoch, oe.mean_motion, oe.eccentricity, oe.inclination, "
+        "oe.ra_of_ascending_node, oe.arg_of_pericenter, oe.mean_anomaly, "
+        "oe.ephemeris_type, oe.classification_type, oe.element_set_no, "
+        "oe.rev_at_epoch, oe.bstar, oe.mean_motion_dot, oe.mean_motion_ddot, "
+        "s.object_id, s.sat_number "
+        "FROM orbital_elements oe JOIN satellites s ON s.id = oe.sat_id "
+        "WHERE oe.sat_id = %s "
+        "ORDER BY CASE "
+        "WHEN oe.epoch >= %s::timestamptz "
+        "AND oe.epoch <= %s::timestamptz THEN 0 ELSE 1 END, "
+        "ABS(EXTRACT(EPOCH FROM oe.epoch) - "
+        "EXTRACT(EPOCH FROM %s::timestamptz)) "
+        "LIMIT 1",
+        (sat_id, ephemeris_start_time, target_time, target_time),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        logging.info("Orbital elements not found: %s", ephemeris_start_time)
+        return None
+
+    (
+        epoch,
+        mean_motion,
+        eccentricity,
+        inclination,
+        ra_of_ascending_node,
+        arg_of_pericenter,
+        mean_anomaly,
+        ephemeris_type,
+        classification_type,
+        element_set_no,
+        rev_at_epoch,
+        bstar,
+        mean_motion_dot,
+        mean_motion_ddot,
+        object_id,
+        sat_number,
+    ) = row
+
+    return {
+        "OBJECT_ID": object_id or "",
+        "EPOCH": epoch.strftime("%Y-%m-%dT%H:%M:%S.%f"),
+        "MEAN_MOTION": mean_motion,
+        "ECCENTRICITY": eccentricity,
+        "INCLINATION": inclination,
+        "RA_OF_ASC_NODE": ra_of_ascending_node,
+        "ARG_OF_PERICENTER": arg_of_pericenter,
+        "MEAN_ANOMALY": mean_anomaly,
+        "EPHEMERIS_TYPE": ephemeris_type,
+        "CLASSIFICATION_TYPE": classification_type,
+        "NORAD_CAT_ID": sat_number,
+        "ELEMENT_SET_NO": element_set_no,
+        "REV_AT_EPOCH": rev_at_epoch,
+        "BSTAR": bstar,
+        "MEAN_MOTION_DOT": mean_motion_dot,
+        "MEAN_MOTION_DDOT": mean_motion_ddot,
+    }
+
+
 def ut1_jd_from_datetime(dt: datetime) -> float:
     """UT1 Julian date for an aware or naive UTC ``datetime``."""
     if dt.tzinfo is None:
@@ -101,12 +194,15 @@ def sgp4_epoch_days_from_ut1_jd(jd_ut1: float) -> float:
 
 
 def fit_window_epoch_datetime(window_start: datetime) -> datetime:
-    """Midpoint of the TLE fit window (``window_start + TLE_FIT_WINDOW_HOURS / 2``)."""
+    """
+    Midpoint of the orbital data fit window
+    (``window_start + ORBITAL_DATA_FIT_WINDOW_HOURS / 2``).
+    """
     if window_start.tzinfo is None:
         window_start = window_start.replace(tzinfo=timezone.utc)
     else:
         window_start = window_start.astimezone(timezone.utc)
-    return window_start + timedelta(hours=TLE_FIT_WINDOW_HOURS / 2.0)
+    return window_start + timedelta(hours=ORBITAL_DATA_FIT_WINDOW_HOURS / 2.0)
 
 
 def fit_epoch_jd_from_fit_jds(jd_fit: np.ndarray) -> float:
@@ -117,26 +213,24 @@ def fit_epoch_jd_from_fit_jds(jd_fit: np.ndarray) -> float:
 
 
 def seed_params_at_epoch(
-    line1: str,
-    line2: str,
+    seed_sat: Satrec,
     fit_epoch_dt: datetime,
 ) -> np.ndarray:
     """
     Physical SGP4 parameters at ``fit_epoch_dt`` for LM initialization.
 
-    Propagates the seed TLE to ``fit_epoch_dt`` and maps osculating elements
+    Propagates ``seed_sat`` to ``fit_epoch_dt`` and maps osculating elements
     (Skyfield) to the ``get_fit_params_from_satrec`` vector order. ``ndot`` and
-    ``bstar`` stay from the seed catalog TLE.
+    ``bstar`` stay from ``seed_sat`` as-is (SGP4 does not evolve them).
     """
     if fit_epoch_dt.tzinfo is None:
         fit_epoch_dt = fit_epoch_dt.replace(tzinfo=timezone.utc)
     else:
         fit_epoch_dt = fit_epoch_dt.astimezone(timezone.utc)
 
-    seed_sat = Satrec.twoline2rv(line1, line2)
     ts = load.timescale()
     elements = osculating_elements_of(
-        EarthSatellite(line1, line2, "SAT", ts).at(ts.from_datetime(fit_epoch_dt))
+        EarthSatellite.from_satrec(seed_sat, ts).at(ts.from_datetime(fit_epoch_dt))
     )
     no_kozai = elements.mean_motion_per_day.radians / (24.0 * 60.0)
     return np.array(
@@ -527,41 +621,41 @@ def residuals(
     return ((pos_model_km - pos_obs_km) / km_scale).ravel()
 
 
-def create_tle_from_ephemeris(
+def fit_satrec_to_ephemeris(
     ephemeris: InterpolableEphemeris,
-    cursor,
-    connection,
-) -> tuple[float, float]:
+    seed_sat: Satrec,
+) -> tuple[Satrec | None, float, float]:
     """
-    Fit a TLE to ephemeris position samples using nonlinear least squares.
+    Fit ``seed_sat`` to ephemeris position samples using nonlinear least squares.
 
-    Only the first ``TLE_FIT_WINDOW_HOURS`` of ``ephemeris.points`` are used
+    Only the first ``ORBITAL_DATA_FIT_WINDOW_HOURS`` of ``ephemeris.points`` are used
     for the fit. The returned XYZ / angular RMS are computed against **that
     same subset** -- they are in-sample residuals over the fit window, not
     over the full ``EPHEMERIS_DB_SPAN_HOURS`` retained in the database.
 
-    Before saving, the fitted TLE is also propagated across **every stored
-    ephemeris point** (the full ``EPHEMERIS_DB_SPAN_HOURS``). If SGP4 fails
-    anywhere in that span the TLE is rejected -- the propagation exception
-    propagates and ``save_tle_to_db`` is never called. When propagation
+    The fitted ``Satrec`` is also propagated across **every stored ephemeris
+    point** (the full ``EPHEMERIS_DB_SPAN_HOURS``). If SGP4 fails anywhere in
+    that span the propagation exception propagates. When propagation
     succeeds, fit-window, full-ephemeris, and out-of-window RMS values are
     logged together in a single ``INFO`` message (not used for validation yet.)
 
     Args:
         ephemeris (InterpolableEphemeris): Ephemeris object with timestamped
             position vectors used as fit targets.
+        seed_sat (Satrec): SGP4 satellite record used as the optimization seed.
 
     Returns:
-        tuple[float, float]: XYZ RMS (km) and angular RMS (arcsec) of the
-            fitted TLE versus the ephemeris samples **inside the fit window**.
+        tuple[Satrec | None, float, float]: The fitted ``Satrec`` and its XYZ
+            RMS (km) / angular RMS (arcsec) versus the ephemeris samples
+            **inside the fit window**, or ``(None, -1, -1)`` if the
+            least-squares fit did not converge.
 
     Raises:
         ValueError: If ephemeris has fewer than two points (overall or in the
-            fit window), if no seed TLE exists in the database, or if the
-            least-squares fit does not converge.
-        RuntimeError: If SGP4 fails to propagate the fitted TLE at any
+            fit window).
+        RuntimeError: If SGP4 fails to propagate the fitted ``Satrec`` at any
             stored ephemeris epoch after the optimizer converged (whether
-            inside or outside the fit window). The TLE is not saved.
+            inside or outside the fit window).
     """
     if len(ephemeris.points) < 2:
         raise ValueError("At least two ephemeris points are required to fit a TLE")
@@ -570,18 +664,7 @@ def create_tle_from_ephemeris(
     km_scale = 10.0
     max_nfev = 600
 
-    # Query a nearby catalog TLE to seed the optimizer.
-    seed_lines = get_closest_tle(ephemeris.ephemeris_start, ephemeris.sat_id, cursor)
-    if seed_lines is None:
-        raise ValueError(
-            f"No catalog TLE found for sat_id={ephemeris.sat_id} "
-            f"near ephemeris_start={ephemeris.ephemeris_start}"
-        )
-    line1, line2 = seed_lines
-
-    seed_sat = Satrec.twoline2rv(line1, line2)
-
-    # Limit the fit to the first ``TLE_FIT_WINDOW_HOURS`` of the ephemeris.
+    # Limit the fit to the first ``ORBITAL_DATA_FIT_WINDOW_HOURS`` of the ephemeris.
     # The DB stores up to ``EPHEMERIS_DB_SPAN_HOURS``; the fit window is a
     # strict subset chosen for accuracy over the full stored span.
     timestamped = [
@@ -598,13 +681,13 @@ def create_tle_from_ephemeris(
     timestamped.sort(key=lambda kv: kv[0])
     sorted_points = [p for _, p in timestamped]
     window_start = timestamped[0][0]
-    window_end = window_start + timedelta(hours=TLE_FIT_WINDOW_HOURS)
+    window_end = window_start + timedelta(hours=ORBITAL_DATA_FIT_WINDOW_HOURS)
     fit_window_points = [p for ts, p in timestamped if ts <= window_end]
 
     if len(fit_window_points) < 2:
         raise ValueError(
             f"Only {len(fit_window_points)} ephemeris point(s) in the first "
-            f"{TLE_FIT_WINDOW_HOURS:g} h window; need at least 2 to fit a TLE"
+            f"{ORBITAL_DATA_FIT_WINDOW_HOURS:g} h window; need at least 2 to fit a TLE"
         )
 
     logging.info(
@@ -613,7 +696,7 @@ def create_tle_from_ephemeris(
         len(sorted_points),
         window_start.isoformat(),
         fit_window_points[-1].timestamp.isoformat(),
-        TLE_FIT_WINDOW_HOURS,
+        ORBITAL_DATA_FIT_WINDOW_HOURS,
     )
 
     # Convert point timestamps to UT1 Julian dates for SGP4 calls. Build two
@@ -656,7 +739,7 @@ def create_tle_from_ephemeris(
 
     fit_epoch_dt = fit_window_epoch_datetime(window_start)
     fit_epoch_jd = ut1_jd_from_datetime(fit_epoch_dt)
-    x0 = seed_params_at_epoch(line1, line2, fit_epoch_dt)
+    x0 = seed_params_at_epoch(seed_sat, fit_epoch_dt)
     logging.info(
         "TLE fit epoch at fit-window midpoint: %s (UT1 JD %.8f)",
         fit_epoch_dt.isoformat(),
@@ -699,11 +782,11 @@ def create_tle_from_ephemeris(
 
     if not result.success:
         logging.info(
-            "least_squares did not converge: %s (nfev=%s); TLE not saved",
+            "least_squares did not converge: %s (nfev=%s); not saved",
             result.message,
             result.nfev,
         )
-        return -1, -1
+        return None, -1, -1
         # raise ValueError(f"Least-squares TLE fit did not converge: {result.message}")
 
     fitted_params = unconstrained_to_physical(result.x)
@@ -746,8 +829,105 @@ def create_tle_from_ephemeris(
         result.nfev,
     )
 
+    return fitted, fit_xyz_rms, fit_ang_rms
+
+
+def create_tle_from_ephemeris(
+    ephemeris: InterpolableEphemeris,
+    cursor,
+    connection,
+) -> tuple[float, float]:
+    """
+    Fit a TLE to ephemeris position samples and save it via ``save_tle_to_db``.
+
+    Seeds the fit from the closest catalog TLE (``get_closest_tle``); see
+    ``fit_satrec_to_ephemeris`` for the fit itself.
+
+    Args:
+        ephemeris (InterpolableEphemeris): Ephemeris object with timestamped
+            position vectors used as fit targets.
+
+    Returns:
+        tuple[float, float]: XYZ RMS (km) and angular RMS (arcsec) of the
+            fitted TLE versus the ephemeris samples **inside the fit window**.
+
+    Raises:
+        ValueError: If no seed TLE exists in the database, or (via
+            ``fit_satrec_to_ephemeris``) if ephemeris has fewer than two
+            points.
+        RuntimeError: If SGP4 fails to propagate the fitted TLE at any
+            stored ephemeris epoch after the optimizer converged. The TLE is
+            not saved.
+    """
+    # Query a nearby catalog TLE to seed the optimizer.
+    seed_lines = get_closest_tle(ephemeris.ephemeris_start, ephemeris.sat_id, cursor)
+    if seed_lines is None:
+        raise ValueError(
+            f"No catalog TLE found for sat_id={ephemeris.sat_id} "
+            f"near ephemeris_start={ephemeris.ephemeris_start}"
+        )
+    seed_sat = Satrec.twoline2rv(*seed_lines)
+
+    fitted, fit_xyz_rms, fit_ang_rms = fit_satrec_to_ephemeris(ephemeris, seed_sat)
+    if fitted is None:
+        return fit_xyz_rms, fit_ang_rms
+
     date_collected = datetime.now(timezone.utc)
     save_tle_to_db(fitted, date_collected, ephemeris.sat_id, cursor, connection)
+
+    return fit_xyz_rms, fit_ang_rms
+
+
+def create_orbital_elements_from_ephemeris(
+    ephemeris: InterpolableEphemeris,
+    cursor,
+    connection,
+) -> tuple[float, float]:
+    """
+    Fit OMM elements to ephemeris position samples and save via
+    ``save_orbital_elements_to_db``.
+
+    Seeds the fit from the closest catalog OMM record
+    (``get_closest_orbital_elements``); see ``fit_satrec_to_ephemeris`` for
+    the fit itself.
+
+    Args:
+        ephemeris (InterpolableEphemeris): Ephemeris object with timestamped
+            position vectors used as fit targets.
+
+    Returns:
+        tuple[float, float]: XYZ RMS (km) and angular RMS (arcsec) of the
+            fitted elements versus the ephemeris samples **inside the fit
+            window**.
+
+    Raises:
+        ValueError: If no seed OMM record exists in the database, or (via
+            ``fit_satrec_to_ephemeris``) if ephemeris has fewer than two
+            points.
+        RuntimeError: If SGP4 fails to propagate the fitted elements at any
+            stored ephemeris epoch after the optimizer converged. The record
+            is not saved.
+    """
+    # Query nearby catalog OMM elements to seed the optimizer.
+    seed_fields = get_closest_orbital_elements(
+        ephemeris.ephemeris_start, ephemeris.sat_id, cursor
+    )
+    if seed_fields is None:
+        raise ValueError(
+            f"No catalog orbital elements found for sat_id={ephemeris.sat_id} "
+            f"near ephemeris_start={ephemeris.ephemeris_start}"
+        )
+    seed_sat = Satrec()
+    omm.initialize(seed_sat, seed_fields)
+
+    fitted, fit_xyz_rms, fit_ang_rms = fit_satrec_to_ephemeris(ephemeris, seed_sat)
+    if fitted is None:
+        return fit_xyz_rms, fit_ang_rms
+
+    date_collected = datetime.now(timezone.utc)
+    save_orbital_elements_to_db(
+        fitted, date_collected, ephemeris.sat_id, cursor, connection
+    )
 
     return fit_xyz_rms, fit_ang_rms
 
@@ -813,6 +993,80 @@ def save_tle_to_db(
     if cursor.rowcount == 0:
         logging.warning(
             "TLE not inserted (ON CONFLICT): sat_id=%s epoch=%s data_source=%s",
+            sat_id,
+            epoch,
+            data_source,
+        )
+    connection.commit()
+
+
+def save_orbital_elements_to_db(
+    satrec: Satrec,
+    date_collected: datetime,
+    sat_id: int,
+    cursor,
+    connection,
+) -> None:
+    """
+    Convert ``satrec`` to OMM mean elements and insert into ``orbital_elements``.
+
+    Field conversions are the inverse of ``sgp4.omm.initialize``; ``data_source``
+    is fixed to ``"generated"``, matching ``save_tle_to_db``. Inserts use
+    ``ON CONFLICT (SAT_ID, EPOCH, DATA_SOURCE) DO NOTHING`` so duplicate runs
+    are idempotent; a conflict logs a warning but does not raise.
+
+    Args:
+        satrec (Satrec): Fitted SGP4 satellite record to convert.
+        date_collected (datetime): When this record was produced (UTC).
+        sat_id (int): Satellites table primary key the record belongs to.
+        cursor: Database cursor used to execute SQL.
+        connection: Database connection; ``commit()`` is called on success.
+    """
+    epoch = Time(
+        satrec.jdsatepoch + satrec.jdsatepochF,
+        format="jd",
+        scale="utc",
+    ).to_datetime(timezone.utc)
+
+    data_source = "generated"
+    mean_motion = satrec.no_kozai * 720.0 / np.pi
+    mean_motion_dot = satrec.ndot * OMM_NDOT_UNITS
+    mean_motion_ddot = satrec.nddot * OMM_NDDOT_UNITS
+
+    orbital_elements_insert_query = """
+        INSERT INTO orbital_elements (SAT_ID, DATE_COLLECTED, EPOCH, DATA_SOURCE,
+        MEAN_MOTION, ECCENTRICITY, INCLINATION, RA_OF_ASCENDING_NODE, ARG_OF_PERICENTER,
+        MEAN_ANOMALY, EPHEMERIS_TYPE, CLASSIFICATION_TYPE, ELEMENT_SET_NO, REV_AT_EPOCH,
+        BSTAR, MEAN_MOTION_DOT, MEAN_MOTION_DDOT)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (SAT_ID, EPOCH, DATA_SOURCE) DO NOTHING"""
+
+    cursor.execute(
+        orbital_elements_insert_query,
+        (
+            sat_id,
+            date_collected,
+            epoch,
+            data_source,
+            mean_motion,
+            satrec.ecco,
+            np.degrees(satrec.inclo),
+            np.degrees(satrec.nodeo),
+            np.degrees(satrec.argpo),
+            np.degrees(satrec.mo),
+            satrec.ephtype,
+            satrec.classification,
+            satrec.elnum,
+            satrec.revnum,
+            satrec.bstar,
+            mean_motion_dot,
+            mean_motion_ddot,
+        ),
+    )
+    if cursor.rowcount == 0:
+        logging.warning(
+            "Orbital elements not inserted (ON CONFLICT): "
+            "sat_id=%s epoch=%s data_source=%s",
             sat_id,
             epoch,
             data_source,
