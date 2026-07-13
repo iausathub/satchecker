@@ -321,10 +321,8 @@ def get_satellite_passes():
     if validated_parameters["async"] is None:
         validated_parameters["async"] = True
 
-    # Disable for now to prevent ephemeris position data from being used
-    # if validated_parameters["tle_only"] is None:
-    #    validated_parameters["tle_only"] = True
-    validated_parameters["tle_only"] = True
+    if validated_parameters["tle_only"] is None:
+        validated_parameters["tle_only"] = True
 
     if validated_parameters["use_generated_tles"] is None:
         validated_parameters["use_generated_tles"] = False
