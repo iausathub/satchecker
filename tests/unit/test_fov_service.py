@@ -66,7 +66,7 @@ def test_satellite_in_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=1.66,
         group_by="satellite",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=False,
         constellation=None,
         data_source="any",
@@ -93,7 +93,7 @@ def test_satellite_in_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=1.66,
         group_by="time",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=False,
         constellation=None,
         data_source=None,
@@ -116,9 +116,9 @@ def test_satellite_in_fov(test_location, test_time):
     assert result["data"][0]["ra"] == pytest.approx(21.23511431, rel=1e-9)
     assert result["data"][0]["dec"] is not None
     with pytest.raises(KeyError):
-        assert result["data"][0]["tle_data"]
+        assert result["data"][0]["orbital_data"]
 
-    # Test with group_by=time and include_tles=True
+    # Test with group_by=time and include_orbital_data=True
     result = get_satellite_passes_in_fov(
         tle_repo,
         orbital_elements_repo,
@@ -131,7 +131,7 @@ def test_satellite_in_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=2.0,
         group_by="time",
-        include_tles=True,
+        include_orbital_data=True,
         skip_cache=False,
         constellation=None,
         data_source=None,
@@ -142,10 +142,10 @@ def test_satellite_in_fov(test_location, test_time):
         api_version="1.0",
     )
 
-    assert result["data"][0]["tle_data"]["tle_line1"] == tle.tle_line1
-    assert result["data"][0]["tle_data"]["tle_line2"] == tle.tle_line2
+    assert result["data"][0]["orbital_data"]["tle_line1"] == tle.tle_line1
+    assert result["data"][0]["orbital_data"]["tle_line2"] == tle.tle_line2
 
-    # Test with group_by=satellite and include_tles=True
+    # Test with group_by=satellite and include_orbital_data=True
     result = get_satellite_passes_in_fov(
         tle_repo,
         orbital_elements_repo,
@@ -158,7 +158,7 @@ def test_satellite_in_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=2.5,
         group_by="satellite",
-        include_tles=True,
+        include_orbital_data=True,
         skip_cache=False,
         constellation=None,
         data_source="any",
@@ -171,11 +171,11 @@ def test_satellite_in_fov(test_location, test_time):
     # Get the first satellite key
     satellite_key = list(result["data"]["satellites"].keys())[0]
     assert (
-        result["data"]["satellites"][satellite_key]["tle_data"]["tle_line1"]
+        result["data"]["satellites"][satellite_key]["orbital_data"]["tle_line1"]
         == tle.tle_line1
     )
     assert (
-        result["data"]["satellites"][satellite_key]["tle_data"]["tle_line2"]
+        result["data"]["satellites"][satellite_key]["orbital_data"]["tle_line2"]
         == tle.tle_line2
     )
 
@@ -238,7 +238,7 @@ def test_satellite_in_fov_orbital_elements_after_cutoff(test_location):
         dec=-22.18,
         fov_radius=1.0,
         group_by="satellite",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=True,
         constellation=None,
         data_source="any",
@@ -298,7 +298,7 @@ def test_tle_and_orbital_elements_propagation_match(test_location, test_time):
         dec=75.774139,
         fov_radius=1.66,
         group_by="time",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=True,
         constellation=None,
         data_source="any",
@@ -392,7 +392,7 @@ def test_get_satellite_passes_in_fov_async_orbital_elements_after_cutoff(test_lo
             dec=-22.18,
             fov_radius=1.0,
             group_by="satellite",
-            include_tles=False,
+            include_orbital_data=False,
             skip_cache=True,
             constellation=None,
             data_source="any",
@@ -461,7 +461,7 @@ def test_satellite_outside_fov(test_location, test_time):
         dec=75.774139,
         fov_radius=2.0,
         group_by="satellite",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=False,
         constellation=None,
         data_source="any",
@@ -511,7 +511,7 @@ def test_fov_service_uses_ephemeris(starlink_ephemeris):
         dec=-0.9114941,
         fov_radius=180.0,
         group_by="time",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=True,
         constellation=None,
         data_source=None,
@@ -539,7 +539,7 @@ def test_fov_service_uses_ephemeris(starlink_ephemeris):
         dec=-0.9114941,
         fov_radius=180.0,
         group_by="time",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=True,
         constellation=None,
         data_source=None,
@@ -677,7 +677,7 @@ def test_empty_tle_list(test_location, test_time):
         dec=75.774139,
         fov_radius=2.0,
         group_by="satellite",
-        include_tles=False,
+        include_orbital_data=False,
         skip_cache=False,
         constellation=None,
         data_source=None,
@@ -1104,7 +1104,7 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
             "dec": -20.0,
             "fov_radius": 10.0,
             "group_by": "time",
-            "include_tles": False,
+            "include_orbital_data": False,
             "skip_cache": False,
             "constellation": None,
             "data_source": None,

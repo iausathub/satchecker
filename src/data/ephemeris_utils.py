@@ -13,8 +13,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import requests
 from frame_transforms import operator_position_frame_from_filename
+from orbital_data_generation import (
+    create_orbital_elements_from_ephemeris,
+    # create_tle_from_ephemeris,
+)
 from psycopg2.extras import execute_values
-from tle_generation import create_tle_from_ephemeris
 
 from api.domain.models.interpolable_ephemeris import (
     EphemerisPoint,
@@ -464,7 +467,7 @@ def get_starlink_ephemeris_data(cursor, connection):
        (``https://api.starlink.com/public-files/ephemerides``).
     2. Parses each file (``parse_ephemeris_file``), inserts the points into
        ``ephemeris_points`` (``insert_ephemeris_data``), and fits a generated
-       TLE from the first ``TLE_FIT_WINDOW_HOURS`` of stored data
+       OMM element set from the first ``ORBITAL_DATA_FIT_WINDOW_HOURS`` of stored data
        (````).
     3. After the loop, logs mean/median/p95/min/max for both TLE-fit timing
        and residuals across every ephemeris that was successfully processed.
@@ -551,21 +554,32 @@ def get_starlink_ephemeris_data(cursor, connection):
                 ephemeris, _ephemeris_id, satellite_id = insert_result
 
                 t0 = time.perf_counter()
-                fit_xyz_rms, fit_ang_rms = create_tle_from_ephemeris(
-                    ephemeris, satellite_id, cursor, connection
-                )
+                try:
+                    omm_xyz_rms, omm_ang_rms = create_orbital_elements_from_ephemeris(
+                        ephemeris, satellite_id, cursor, connection
+                    )
+                    if not (omm_xyz_rms == -1 and omm_ang_rms == -1):
+                        stats.append(
+                            {
+                                "orbital_data_generation_s": time.perf_counter() - t0,
+                                "fit_xyz_rms_km": omm_xyz_rms,
+                                "fit_ang_rms_arcsec": omm_ang_rms,
+                            }
+                        )
+                        total_data_points += len(ephemeris.points)
+                        files_processed += 1
+                except Exception as omm_err:
+                    logging.warning(
+                        "OMM generation failed for %s: %s", file_name, omm_err
+                    )
+                    try:
+                        connection.rollback()
+                    except Exception as rollback_err:
+                        logging.warning(
+                            "Rollback failed for %s: %s", file_name, rollback_err
+                        )
+                    cursor = connection.cursor()
 
-                if fit_xyz_rms == -1 and fit_ang_rms == -1:
-                    continue
-                stats.append(
-                    {
-                        "tle_generation_s": time.perf_counter() - t0,
-                        "fit_xyz_rms_km": fit_xyz_rms,
-                        "fit_ang_rms_arcsec": fit_ang_rms,
-                    }
-                )
-                total_data_points += len(ephemeris.points)
-                files_processed += 1
             except Exception as e:
                 logging.error("Error processing file %s: %s", file_name, e)
                 try:
@@ -579,15 +593,17 @@ def get_starlink_ephemeris_data(cursor, connection):
 
         logging.info("Total data points: %d", total_data_points)
         logging.info("Files processed: %d", files_processed)
-        _log_tle_generation_stats(stats)
+        _log_orbital_data_generation_stats(stats, label="OMM")
 
 
-def _log_tle_generation_stats(stats: list[dict[str, float]]) -> None:
+def _log_orbital_data_generation_stats(
+    stats: list[dict[str, float]], label: str = "OMM"
+) -> None:
     """Log mean/median/p95/min/max for timing and RMS across a batch."""
     if not stats:
         return
 
-    times = np.array([s["tle_generation_s"] for s in stats], dtype=float)
+    times = np.array([s["orbital_data_generation_s"] for s in stats], dtype=float)
     xyz_rms = np.array([s["fit_xyz_rms_km"] for s in stats], dtype=float)
     ang_rms = np.array([s["fit_ang_rms_arcsec"] for s in stats], dtype=float)
 
@@ -600,7 +616,7 @@ def _log_tle_generation_stats(stats: list[dict[str, float]]) -> None:
             float(np.max(values)),
         )
 
-    logging.info("TLE generation aggregate stats for %d ephemerides:", len(stats))
+    logging.info("%s generation aggregate stats for %d ephemerides:", label, len(stats))
     logging.info(
         "  Time (s):           mean=%.3f median=%.3f p95=%.3f min=%.3f max=%.3f",
         *_summary(times),

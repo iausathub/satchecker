@@ -407,12 +407,12 @@ def test_get_adjacent_tles():
     results = get_adjacent_tle_results(
         tle_repo, 25544, "catalog", epoch_jd, "test", "1.0"
     )
-    assert len(results[0]["tle_data"]) == 2
-    assert results[0]["tle_data"][0]["satellite_id"] == 25544
-    assert results[0]["tle_data"][1]["satellite_id"] == 25544
+    assert len(results[0]["orbital_data"]) == 2
+    assert results[0]["orbital_data"][0]["satellite_id"] == 25544
+    assert results[0]["orbital_data"][1]["satellite_id"] == 25544
 
     results = get_adjacent_tle_results(tle_repo, 1, "catalog", epoch_jd, "test", "1.0")
-    assert len(results[0]["tle_data"]) == 0
+    assert len(results[0]["orbital_data"]) == 0
 
 
 def test_get_nearest_tle():
@@ -427,11 +427,11 @@ def test_get_nearest_tle():
     tle_repo = FakeTLERepository([tle_1, tle_2])
 
     results = get_nearest_tle_result(tle_repo, 25544, "catalog", epoch, "test", "1.0")
-    assert results[0]["tle_data"][0]["tle_line1"] == tle_1.tle_line1
-    assert results[0]["tle_data"][0]["tle_line2"] == tle_1.tle_line2
+    assert results[0]["orbital_data"][0]["tle_line1"] == tle_1.tle_line1
+    assert results[0]["orbital_data"][0]["tle_line2"] == tle_1.tle_line2
 
     results = get_nearest_tle_result(tle_repo, 1, "catalog", epoch, "test", "1.0")
-    assert len(results[0]["tle_data"]) == 0
+    assert len(results[0]["orbital_data"]) == 0
 
 
 def test_get_tles_around_epoch():
@@ -451,22 +451,22 @@ def test_get_tles_around_epoch():
     results = get_tles_around_epoch_results(
         tle_repo, 25544, "catalog", epoch, 2, 2, "test", "1.0"
     )
-    assert len(results[0]["tle_data"]) == 3
+    assert len(results[0]["orbital_data"]) == 3
 
     results = get_tles_around_epoch_results(
         tle_repo, 25544, "catalog", epoch, 1, 1, "test", "1.0"
     )
-    assert len(results[0]["tle_data"]) == 2
+    assert len(results[0]["orbital_data"]) == 2
 
     results = get_tles_around_epoch_results(
         tle_repo, 25544, "catalog", epoch, 1, 1, "test", "1.0"
     )
-    assert len(results[0]["tle_data"]) == 2
+    assert len(results[0]["orbital_data"]) == 2
 
     results = get_tles_around_epoch_results(
         tle_repo, 25544, "catalog", epoch, 0, 2, "test", "1.0"
     )
-    assert len(results[0]["tle_data"]) == 2
+    assert len(results[0]["orbital_data"]) == 2
 
 
 def test_get_satellite_data():

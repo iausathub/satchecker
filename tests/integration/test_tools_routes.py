@@ -189,7 +189,7 @@ def test_get_adjacent_tles(client, session, services_available):
         f"/tools/get-adjacent-tles/?id=25544&id_type=catalog&epoch={epoch_jd}"
     )
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 2
+    assert len(response.json[0]["orbital_data"]) == 2
 
 
 def test_get_adjacent_tles_nonexistent_satellite(client, session, services_available):
@@ -204,7 +204,7 @@ def test_get_adjacent_tles_nonexistent_satellite(client, session, services_avail
 
     # Should return success but with empty tle_data
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 0
+    assert len(response.json[0]["orbital_data"]) == 0
 
 
 def test_get_adjacent_tles_errors(client, session, services_available):
@@ -261,7 +261,7 @@ def test_get_nearest_tle(client, session, services_available):
         f"/tools/get-nearest-tle/?id=25544&id_type=catalog&epoch={epoch_jd}"
     )
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 1
+    assert len(response.json[0]["orbital_data"]) == 1
 
     # Use a satellite ID that doesn't exist in the database
     response = client.get(
@@ -270,7 +270,7 @@ def test_get_nearest_tle(client, session, services_available):
 
     # Should return success but with empty tle_data
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 0
+    assert len(response.json[0]["orbital_data"]) == 0
 
 
 def test_get_nearest_tle_nonexistent_satellite(client, session, services_available):
@@ -285,7 +285,7 @@ def test_get_nearest_tle_nonexistent_satellite(client, session, services_availab
 
     # Should return success but with empty tle_data
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 0
+    assert len(response.json[0]["orbital_data"]) == 0
 
 
 @pytest.mark.parametrize(
@@ -356,8 +356,8 @@ def test_get_nearest_tle_name_id_type(client, session, services_available):
     )
 
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 1
-    assert response.json[0]["tle_data"][0]["satellite_name"] == "TEST_SAT"
+    assert len(response.json[0]["orbital_data"]) == 1
+    assert response.json[0]["orbital_data"][0]["satellite_name"] == "TEST_SAT"
 
 
 def test_get_tles_around_epoch(client, session, services_available):
@@ -377,7 +377,7 @@ def test_get_tles_around_epoch(client, session, services_available):
         f"/tools/get-tles-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}"
     )
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 2
+    assert len(response.json[0]["orbital_data"]) == 2
 
 
 def test_get_tles_around_epoch_nonexistent_satellite(
@@ -394,7 +394,7 @@ def test_get_tles_around_epoch_nonexistent_satellite(
 
     # Should return success but with empty tle_data
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 0
+    assert len(response.json[0]["orbital_data"]) == 0
 
 
 @pytest.mark.parametrize(
@@ -483,21 +483,21 @@ def test_get_tles_around_epoch_custom_counts(client, session, services_available
         f"/tools/get-tles-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}"
     )
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 4
+    assert len(response.json[0]["orbital_data"]) == 4
 
     # Test with custom counts (3 before, 1 after)
     response = client.get(
         f"/tools/get-tles-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}&count_before=3&count_after=1"
     )
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 4
+    assert len(response.json[0]["orbital_data"]) == 4
 
     # Test with custom counts (0 before, 4 after)
     response = client.get(
         f"/tools/get-tles-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}&count_before=0&count_after=4"
     )
     assert response.status_code == 200
-    assert len(response.json[0]["tle_data"]) == 4
+    assert len(response.json[0]["orbital_data"]) == 4
 
     # Test with invalid counts
     response = client.get(

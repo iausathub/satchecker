@@ -700,7 +700,7 @@ def process_satellite_batch(
         elev,
         fov_center,
         fov_radius,
-        include_tles,
+        include_orbital_data,
         illuminated_only,
     ) = args
 
@@ -781,8 +781,8 @@ def process_satellite_batch(
                 }
 
                 # Only include TLE data if requested
-                if include_tles and isinstance(orbital_data, TLE):
-                    result["tle_data"] = {
+                if include_orbital_data and isinstance(orbital_data, TLE):
+                    result["orbital_data"] = {
                         "tle_line1": orbital_data.tle_line1,
                         "tle_line2": orbital_data.tle_line2,
                         "source": orbital_data.data_source,
@@ -855,7 +855,7 @@ class FOVParallelPropagationStrategy:
         fov_radius,
         batch_size=1000,
         max_workers=None,
-        include_tles=True,
+        include_orbital_data=True,
         illuminated_only=False,
         progress_callback=None,
         *,
@@ -873,7 +873,7 @@ class FOVParallelPropagationStrategy:
             fov_radius: FOV radius in degrees. Defaults to 0
             batch_size: Number of satellites to process in each batch
             max_workers: Maximum number of workers (in-process mode only)
-            include_tles: Whether to include TLE data in results
+            include_orbital_data: Whether to include TLE data in results
             illuminated_only: Whether to only include illuminated satellites
             progress_callback: Optional callback for progress updates
             batch_executor: Callable(serialized_batches, common_args) -> list of
@@ -915,7 +915,7 @@ class FOVParallelPropagationStrategy:
                 "location_height": elev,
                 "fov_center": fov_center,
                 "fov_radius": fov_radius,
-                "include_tles": include_tles,
+                "include_orbital_data": include_orbital_data,
                 "illuminated_only": illuminated_only,
             }
             batch_results = batch_executor(serialized_batches, common_args)
@@ -937,7 +937,7 @@ class FOVParallelPropagationStrategy:
                     elev,
                     fov_center,
                     fov_radius,
-                    include_tles,
+                    include_orbital_data,
                     illuminated_only,
                 )
                 for batch in satellite_batches
