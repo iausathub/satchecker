@@ -89,9 +89,6 @@ def main():
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
             logging.info(log_time + "\t" + "Daily GP save successful.")
 
-            # For now, add in the TDM/position data from S3 here
-            get_tdm_data(cursor, connection)
-
         # Download and save the supplemental TLEs if any new ones have been added
         # since the last check
         if args.mode.upper() == "SUP":
@@ -119,6 +116,9 @@ def main():
             logging.exception(
                 "Ephemeris archive failed; ingest completed and will retry on next run"
             )
+
+        # For now, add in the TDM/position data from S3 here
+        get_tdm_data(cursor, connection)
 
         connection.commit()
         cursor.close()
