@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 import boto3
 import psycopg2
+from psycopg2.extras import execute_values
 
 logger = logging.getLogger(__name__)
 
@@ -292,12 +293,17 @@ def process_zip_file(
                     # each with its own metadata, since a file can contain multiple
                     # blocks like these
 
-                    for _block_idx, block_data in enumerate(parsed_blocks):
+                    point_rows: list[tuple[int, str, float, float, float | None]] = []
+                    date_added = datetime.now(timezone.utc)
+
+                    for block_data in parsed_blocks:
                         cursor.execute(
                             "INSERT INTO tdm_predictions (creation_date, site_name, "
                             "norad_id, reference_frame, time_range_start, "
                             "time_range_end, track_id, folder_name, date_added) VALUES "
-                            "(%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                            "(%s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                            "ON CONFLICT (folder_name, track_id) DO NOTHING "
+                            "RETURNING id",
                             (
                                 block_data["creation_date"],
                                 block_data["site_name"],
@@ -307,22 +313,41 @@ def process_zip_file(
                                 block_data["last_timestamp"],
                                 block_data["track_id"],
                                 folder_name,
-                                datetime.now(timezone.utc),
+                                date_added,
                             ),
                         )
                         result = cursor.fetchone()
                         if result is None:
-                            raise ValueError("Failed to get inserted row ID")
+                            # Already ingested this track from this zip
+                            continue
                         row_id = result[0]
                         logger.debug(f"    Inserted TDM prediction with ID: {row_id}")
-                        for point in block_data["data_points"]:
-                            cursor.execute(
-                                "INSERT INTO tdm_prediction_points (tdm_prediction_id, "
-                                "timestamp, right_ascension, declination, "
-                                "apparent_magnitude) VALUES "
-                                "(%s, %s, %s, %s, %s)",
-                                (row_id, point[0], point[1], point[2], point[3]),
+                        point_rows.extend(
+                            (
+                                row_id,
+                                point[0],
+                                point[1],
+                                point[2],
+                                point[3],
                             )
+                            for point in block_data["data_points"]
+                        )
+
+                    if point_rows:
+                        execute_values(
+                            cursor,
+                            """
+                            INSERT INTO tdm_prediction_points (
+                                tdm_prediction_id,
+                                timestamp,
+                                right_ascension,
+                                declination,
+                                apparent_magnitude
+                            ) VALUES %s
+                            """,
+                            point_rows,
+                            page_size=1000,
+                        )
 
                 except ValueError as e:
                     # If there is a failure for one file, rollback at the folder

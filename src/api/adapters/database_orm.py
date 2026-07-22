@@ -212,6 +212,7 @@ class TdmPredictionDb(Base):
     )
 
     __table_args__ = (
+        UniqueConstraint("folder_name", "track_id"),
         Index("idx_tdm_predictions_norad_id", norad_id),
         Index("idx_tdm_predictions_site_name", site_name),
     )
