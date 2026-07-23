@@ -37,6 +37,14 @@ ORBITAL_DATA_FIT_WINDOW_HOURS = 20.0
 # ``sgp4init`` epoch argument: days since 1949-12-31 00:00 UT (JD 2433281.5).
 SGP4_EPOCH_REFERENCE_JD = 2433281.5
 
+# Save gates: discard a converged fit if its RMS vs. the ephemeris exceeds
+# these. Typical good fits are ~1-2 km in-window (dominated by SGP4 model
+# error). Thresholds are intentionally loose — they only reject clearly broken
+# solutions, not to enforce tight quality targets.
+# Conservative starting values; retune against real fit statistics.
+ORBITAL_DATA_MAX_FIT_WINDOW_RMS_KM = 5.0
+ORBITAL_DATA_MAX_FULL_SPAN_RMS_KM = 15.0
+
 # OMM MEAN_MOTION_DOT / MEAN_MOTION_DDOT <-> satrec.ndot / satrec.nddot unit
 # conversions, mirroring ``sgp4.omm._ndot_units`` / ``_nddot_units`` (see
 # SGP4.cpp for the underlying derivation).
@@ -828,6 +836,23 @@ def fit_satrec_to_ephemeris(
         result.cost,
         result.nfev,
     )
+
+    # Save gate: a fit can converge numerically yet describe the ephemeris
+    # poorly (bad seed basin, corrupt ephemeris, maneuver inside the span).
+    # Discard rather than save a misleading element set.
+    if (
+        fit_xyz_rms > ORBITAL_DATA_MAX_FIT_WINDOW_RMS_KM
+        or full_xyz > ORBITAL_DATA_MAX_FULL_SPAN_RMS_KM
+    ):
+        logging.warning(
+            "Fit rejected by RMS gate (fit window %.3f km > %.1f km or "
+            "full span %.3f km > %.1f km); not saved",
+            fit_xyz_rms,
+            ORBITAL_DATA_MAX_FIT_WINDOW_RMS_KM,
+            full_xyz,
+            ORBITAL_DATA_MAX_FULL_SPAN_RMS_KM,
+        )
+        return None, fit_xyz_rms, fit_ang_rms
 
     return fitted, fit_xyz_rms, fit_ang_rms
 
