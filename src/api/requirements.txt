@@ -93,7 +93,7 @@ matplotlib-inline==0.1.6
 mccabe==0.7.0
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
-mistune==3.2.1
+mistune==3.3.0
 mypy==1.15.0
 mypy-extensions==1.0.0
 myst-parser==4.0.1
