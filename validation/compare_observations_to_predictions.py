@@ -73,7 +73,7 @@ def _julian_date_from_timestamp(timestamp: str) -> float:
     elif normalized.upper().endswith("UTC"):
         normalized = normalized[: -len("UTC")].strip()
 
-    return Time(normalized, scale="utc").jd
+    return float(Time(normalized, scale="utc").jd)
 
 
 def predict_position_at_jd(
