@@ -8,8 +8,14 @@ Submodules
    :maxdepth: 4
 
    src.api.utils.coordinate_systems
+   src.api.utils.interpolation_utils
+   src.api.utils.location_utils
+   src.api.utils.log_formatter
+   src.api.utils.orbital_data_utils
    src.api.utils.output_utils
    src.api.utils.propagation_strategies
+   src.api.utils.redis_config
+   src.api.utils.skyfield_loader
    src.api.utils.time_utils
 
 Module contents

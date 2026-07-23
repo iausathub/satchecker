@@ -11,6 +11,7 @@ Subpackages
    src.api.common
    src.api.domain
    src.api.entrypoints
+   src.api.middleware
    src.api.services
    src.api.utils
 
@@ -22,6 +23,7 @@ Submodules
 
    src.api.celery_app
    src.api.config
+   src.api.init_db
    src.api.satchecker
 
 Module contents

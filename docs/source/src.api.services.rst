@@ -15,6 +15,7 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   src.api.services.cache_service
    src.api.services.ephemeris_service
    src.api.services.fov_service
    src.api.services.tools_service

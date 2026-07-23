@@ -10,6 +10,7 @@ Submodules
    src.api.common.error_messages
    src.api.common.exceptions
    src.api.common.position_data_point
+   src.api.common.types
 
 Module contents
 ---------------

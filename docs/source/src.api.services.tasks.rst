@@ -9,6 +9,7 @@ Submodules
 
    src.api.services.tasks.development_tasks
    src.api.services.tasks.ephemeris_tasks
+   src.api.services.tasks.fov_tasks
 
 Module contents
 ---------------

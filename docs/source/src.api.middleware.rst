@@ -4,13 +4,11 @@ src.api.middleware package
 Submodules
 ----------
 
-src.api.middleware.error\_handler module
-----------------------------------------
+.. toctree::
+   :maxdepth: 4
 
-.. automodule:: src.api.middleware.error_handler
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   src.api.middleware.error_handler
+   src.api.middleware.request_logger
 
 Module contents
 ---------------
