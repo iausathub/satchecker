@@ -534,8 +534,15 @@ def get_starlink_ephemeris_data(cursor, connection):
                 file_url = (
                     f"https://api.starlink.com/public-files/ephemerides/{file_name}"
                 )
-                response = session.get(file_url, timeout=120)
-                response.raise_for_status()
+                for attempt in range(3):
+                    try:
+                        response = session.get(file_url, timeout=120)
+                        response.raise_for_status()
+                        break
+                    except requests.exceptions.RequestException:
+                        if attempt == 2:
+                            raise
+                        time.sleep(2**attempt)
                 logging.info("Processing file: %s", file_name)
 
                 parsed_data = parse_ephemeris_file(

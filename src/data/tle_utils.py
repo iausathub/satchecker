@@ -1,5 +1,6 @@
 import datetime
 import logging
+import time
 import traceback
 
 import requests
@@ -600,16 +601,19 @@ def add_archival_spacetrack_tles_to_db(
         raise
 
 
+# Pause between Celestrak GETs to avoid rate limiting
+_CELESTRAK_REQUEST_PAUSE_SEC = 30
+
+
 def get_celestrak_general_tles(cursor, connection):
     groups = ["starlink", "oneweb", "geo", "active"]
-    for group in groups:
-        tle = requests.get(
-            "https://celestrak.org/NORAD/elements/gp.php?GROUP=%s&FORMAT=json"  # noqa: UP031
-            % group,
-            timeout=120,
-        )
-        tle.raise_for_status()
+    for i, group in enumerate(groups):
+        if i > 0:
+            time.sleep(_CELESTRAK_REQUEST_PAUSE_SEC)
+        url = f"https://celestrak.org/NORAD/elements/gp.php?GROUP={group}&FORMAT=json"
         try:
+            tle = requests.get(url, timeout=120)
+            tle.raise_for_status()
             constellation = (
                 group if (group == "starlink" or group == "oneweb") else "other"
             )
@@ -618,26 +622,34 @@ def get_celestrak_general_tles(cursor, connection):
             )
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
-            logging.error(log_time + "\t" + "database ERROR:", err)
+            logging.error(
+                f"{log_time}\tERROR fetching/storing group '{group}' "
+                f"({type(err).__name__}) url={url}: {err}"
+            )
             connection.rollback()
 
 
 def get_celestrak_supplemental_tles(cursor, connection):
     constellations = ["starlink", "oneweb", "ast", "kuiper", "planet"]
-    for constellation in constellations:
-        tle = requests.get(
-            "https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"  # noqa: UP031
-            "?FILE=%s&FORMAT=json" % constellation,
-            timeout=120,
+    for i, constellation in enumerate(constellations):
+        if i > 0:
+            time.sleep(_CELESTRAK_REQUEST_PAUSE_SEC)
+        url = (
+            f"https://celestrak.org/NORAD/elements/supplemental/sup-gp.php"
+            f"?FILE={constellation}&FORMAT=json"
         )
-        tle.raise_for_status()
         try:
+            tle = requests.get(url, timeout=120)
+            tle.raise_for_status()
             add_orbital_data_list_to_db(
                 tle, constellation, cursor, connection, "true", "celestrak", True
             )
         except Exception as err:
             log_time = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M:%S")
-            logging.error(log_time + "\t" + "database ERROR:", err)
+            logging.error(
+                f"{log_time}\tERROR fetching/storing constellation "
+                f"'{constellation}' ({type(err).__name__}) url={url}: {err}"
+            )
             connection.rollback()
 
 
