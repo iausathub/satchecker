@@ -63,7 +63,7 @@ class AbstractTLERepository(abc.ABC):
             satellite_name, start_date, end_date
         )
 
-    def get_all_tles_at_epoch(
+    def get_all_orbital_data_at_epoch(
         self,
         epoch_date: datetime,
         page: int,
@@ -73,7 +73,7 @@ class AbstractTLERepository(abc.ABC):
         data_source_limit: str | None = None,
         use_generated_tles: bool = False,
     ) -> tuple[list[TLE], int, str]:
-        return self._get_all_tles_at_epoch(
+        return self._get_all_orbital_data_at_epoch(
             epoch_date,
             page,
             per_page,
@@ -100,6 +100,26 @@ class AbstractTLERepository(abc.ABC):
         return self._get_tles_around_epoch(
             id, id_type, epoch, count_before, count_after
         )
+
+    def get_nearest_orbital_data(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> TLE | None:
+        return self.get_nearest_tle(id, id_type, epoch)
+
+    def get_adjacent_orbital_data(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> list[TLE]:
+        return self.get_adjacent_tles(id, id_type, epoch)
+
+    def get_orbital_data_around_epoch(
+        self,
+        id: str,
+        id_type: str,
+        epoch: datetime,
+        count_before: int,
+        count_after: int,
+    ) -> list[TLE]:
+        return self.get_tles_around_epoch(id, id_type, epoch, count_before, count_after)
 
     @abc.abstractmethod
     def _get_closest_by_satellite_number(
@@ -132,7 +152,7 @@ class AbstractTLERepository(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_all_tles_at_epoch(
+    def _get_all_orbital_data_at_epoch(
         self,
         epoch_date: datetime,
         page: int,
@@ -358,7 +378,7 @@ class SqlAlchemyTLERepository(OrbitalDataLookupMixin, AbstractTLERepository):
             satellite_name, start_date, end_date
         )
 
-    def _get_all_tles_at_epoch(
+    def _get_all_orbital_data_at_epoch(
         self,
         epoch_date: datetime,
         page: int,

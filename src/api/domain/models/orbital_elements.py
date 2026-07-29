@@ -88,9 +88,15 @@ class OrbitalElements(OrbitalData):
     def get_satellite(self):
         return self.satellite
 
-    def to_earth_satellite(self, ts: Timescale) -> EarthSatellite:
-        # sgp4.omm.initialize() requires these exact CCSDS OMM field names
-        element_dict = {
+    def to_omm_dict(self) -> dict:
+        """Serialize to a CCSDS OMM element dictionary.
+
+        Uses the exact CCSDS OMM field names required by sgp4.omm.initialize()
+        (via EarthSatellite.from_omm). This is the single source of truth for the
+        OMM representation, shared by the propagation path and the API responses
+        so clients receive standard OMM field names.
+        """
+        return {
             "OBJECT_NAME": self.satellite.sat_name,
             "OBJECT_ID": self.satellite.object_id or "",
             "EPOCH": self.epoch.strftime("%Y-%m-%dT%H:%M:%S.%f"),
@@ -110,7 +116,8 @@ class OrbitalElements(OrbitalData):
             "MEAN_MOTION_DDOT": self.mean_motion_ddot,
         }
 
-        return EarthSatellite.from_omm(ts=ts, element_dict=element_dict)
+    def to_earth_satellite(self, ts: Timescale) -> EarthSatellite:
+        return EarthSatellite.from_omm(ts=ts, element_dict=self.to_omm_dict())
 
     @property
     def is_supplemental(self) -> bool:

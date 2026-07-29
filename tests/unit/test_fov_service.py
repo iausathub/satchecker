@@ -260,6 +260,96 @@ def test_satellite_in_fov_orbital_elements_after_cutoff(test_location):
     assert first_position["ra"] == pytest.approx(353.73939585, rel=1e-9)
 
 
+def test_satellite_in_fov_orbital_elements_include_orbital_data(test_location):
+    """Test include_orbital_data=True returns OMM fields."""
+    omm_time = Time("2026-08-01T18:19:13", format="isot", scale="utc")
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    orbital_elements = _fengyun_orbital_elements(
+        satellite, omm_time.to_datetime(timezone.utc)
+    )
+
+    tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([orbital_elements])
+    ephemeris_repo = FakeEphemerisRepository([])
+
+    common_args = dict(
+        tle_repo=tle_repo,
+        orbital_elements_repo=orbital_elements_repo,
+        ephemeris_repo=ephemeris_repo,
+        location=test_location,
+        mid_obs_time_jd=omm_time,
+        start_time_jd=None,
+        duration=30,
+        ra=353.68,
+        dec=-22.18,
+        fov_radius=1.0,
+        skip_cache=True,
+        constellation=None,
+        data_source="any",
+        illuminated_only=False,
+        tle_only=False,
+        use_generated_tles=False,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    # Without include_orbital_data, orbital_data should be absent
+    result = get_satellite_passes_in_fov(
+        **common_args,
+        group_by="time",
+        include_orbital_data=False,
+    )
+    assert result["data"][0]["orbital_data_source"] == "omm"
+    with pytest.raises(KeyError):
+        assert result["data"][0]["orbital_data"]
+
+    expected_orbital_data = {
+        "mean_motion": orbital_elements.mean_motion,
+        "eccentricity": orbital_elements.eccentricity,
+        "inclination": orbital_elements.inclination,
+        "ra_of_ascending_node": orbital_elements.ra_of_ascending_node,
+        "arg_of_pericenter": orbital_elements.arg_of_pericenter,
+        "mean_anomaly": orbital_elements.mean_anomaly,
+        "ephemeris_type": orbital_elements.ephemeris_type,
+        "classification_type": orbital_elements.classification_type,
+        "element_set_no": orbital_elements.element_set_no,
+        "rev_at_epoch": orbital_elements.rev_at_epoch,
+        "bstar": orbital_elements.bstar,
+        "mean_motion_dot": orbital_elements.mean_motion_dot,
+        "source": orbital_elements.data_source,
+    }
+
+    # group_by=time and include_orbital_data=True
+    result = get_satellite_passes_in_fov(
+        **common_args,
+        group_by="time",
+        include_orbital_data=True,
+    )
+    orbital_data = result["data"][0]["orbital_data"]
+    for key, value in expected_orbital_data.items():
+        assert orbital_data[key] == value
+    assert orbital_data["epoch"] is not None
+    assert result["data"][0]["orbital_data_source"] == "omm"
+
+    # group_by=satellite and include_orbital_data=True
+    result = get_satellite_passes_in_fov(
+        **common_args,
+        group_by="satellite",
+        include_orbital_data=True,
+    )
+    satellite_key = list(result["data"]["satellites"].keys())[0]
+    orbital_data = result["data"]["satellites"][satellite_key]["orbital_data"]
+    for key, value in expected_orbital_data.items():
+        assert orbital_data[key] == value
+    assert orbital_data["epoch"] is not None
+
+
 def test_tle_and_orbital_elements_propagation_match(test_location, test_time):
     """
     Cross-check that the TLE path and the orbital-elements path produce the

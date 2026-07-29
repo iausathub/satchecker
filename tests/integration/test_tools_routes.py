@@ -4,10 +4,15 @@ from datetime import datetime, timedelta
 
 import pytest
 from astropy.time import Time
+from tests.factories.orbital_elements_factory import OrbitalElementsFactory
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
-from api.adapters.repositories import satellite_repository, tle_repository
+from api.adapters.repositories import (
+    orbital_elements_repository,
+    satellite_repository,
+    tle_repository,
+)
 from api.entrypoints.extensions import db
 
 
@@ -103,7 +108,7 @@ def test_get_tles_at_epoch(client, session, services_available):
     assert len(response.json) > 0
     assert response.json[0]["data"][0]["satellite_name"] == "ISS"
 
-    # test that older TLEs ( > 1 week ) are not returned
+    # test that older TLEs ( > 2 weeks ) are not returned
     epoch_date = 2460505
     response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_date}")
     assert response.status_code == 200
@@ -169,6 +174,93 @@ def test_get_tles_at_epoch_zipped(client, session, services_available):
     assert response.headers["Content-Type"] == "application/zip"
     assert (
         response.headers["Content-Disposition"] == "attachment; filename=tle_data.zip"
+    )
+
+
+def test_get_omms_at_epoch(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        decay_date=None,
+        has_current_sat_number=True,
+        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
+    )
+    epoch_date = datetime.strptime("2024-10-21", "%Y-%m-%d")
+    omm = OrbitalElementsFactory(satellite=satellite, epoch=epoch_date)
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    session.commit()
+
+    epoch_date = 2460605
+    response = client.get(f"/tools/omms-at-epoch/?epoch={epoch_date}")
+    assert response.status_code == 200
+    assert len(response.json) > 0
+    assert response.json[0]["data"][0]["orbital_elements"]["OBJECT_NAME"] == "ISS"
+
+    # test that older OMMs ( > 2 weeks ) are not returned
+    epoch_date = 2460505
+    response = client.get(f"/tools/omms-at-epoch/?epoch={epoch_date}")
+    assert response.status_code == 200
+    assert len(response.json[0]["data"]) == 0
+
+
+def test_get_omms_at_epoch_pagination(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_name="ISS",
+        decay_date=None,
+        has_current_sat_number=True,
+        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
+    )
+    epoch_date = datetime.strptime("2024-10-22", "%Y-%m-%d")
+    omm = OrbitalElementsFactory(satellite=satellite, epoch=epoch_date)
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    session.commit()
+    epoch_date = 2460606
+    response = client.get(f"/tools/omms-at-epoch/?epoch={epoch_date}&page=1&per_page=1")
+    omms = response.json[0]["data"]
+    assert response.status_code == 200
+    assert len(response.json) == 1
+    assert omms[0]["orbital_elements"]["OBJECT_NAME"] == "ISS"
+
+
+def test_get_omms_at_epoch_optional_epoch_date(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
+    )
+    # get current date for OMM epoch
+    epoch_date = datetime.now()
+    omm = OrbitalElementsFactory(
+        satellite=satellite,
+        epoch=epoch_date,
+    )
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    session.commit()
+    response = client.get("/tools/omms-at-epoch/")
+    omms = response.json[0]["data"]
+    assert response.status_code == 200
+    assert len(response.json) > 0
+    assert omms[0]["orbital_elements"]["OBJECT_NAME"] == "ISS"
+
+
+def test_get_omms_at_epoch_zipped(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_name="ISS", decay_date=None, has_current_sat_number=True
+    )
+    # get current date for OMM epoch
+    epoch_date = datetime.now()
+    omm = OrbitalElementsFactory(
+        satellite=satellite,
+        epoch=epoch_date,
+    )
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    session.commit()
+    response = client.get("/tools/omms-at-epoch/?format=zip")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/zip"
+    assert (
+        response.headers["Content-Disposition"] == "attachment; filename=omm_data.zip"
     )
 
 

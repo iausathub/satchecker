@@ -144,7 +144,7 @@ def test_refresh_tle_cache_database_error(mocker):
     mock_db.session = mock_session
 
     mock_repo = mocker.Mock()
-    mock_repo._get_all_tles_at_epoch.side_effect = Exception("Database error")
+    mock_repo._get_all_orbital_data_at_epoch.side_effect = Exception("Database error")
     mock_repo_class.return_value = mock_repo
 
     result = refresh_tle_cache()
@@ -165,9 +165,7 @@ def test_refresh_orbital_elements_cache_database_error(mocker):
     mock_db.session = mock_session
 
     mock_repo = mocker.Mock()
-    mock_repo._get_all_orbital_elements_at_epoch.side_effect = Exception(
-        "Database error"
-    )
+    mock_repo._get_all_orbital_data_at_epoch.side_effect = Exception("Database error")
     mock_repo_class.return_value = mock_repo
 
     result = refresh_orbital_elements_cache()
@@ -191,7 +189,7 @@ def test_refresh_tle_cache_serialization_error(mocker):
     mock_db.session = mock_session
 
     mock_repo = mocker.Mock()
-    mock_repo._get_all_tles_at_epoch.return_value = ([], 0, "database")
+    mock_repo._get_all_orbital_data_at_epoch.return_value = ([], 0, "database")
     mock_repo_class.return_value = mock_repo
 
     mock_batch_serialize.side_effect = Exception("Serialization error")
@@ -216,7 +214,7 @@ def test_refresh_orbital_elements_cache_serialization_error(mocker):
     mock_db.session = mock_session
 
     mock_repo = mocker.Mock()
-    mock_repo._get_all_orbital_elements_at_epoch.return_value = ([], 0, "database")
+    mock_repo._get_all_orbital_data_at_epoch.return_value = ([], 0, "database")
     mock_repo_class.return_value = mock_repo
 
     mock_batch_serialize.side_effect = Exception("Serialization error")
@@ -242,7 +240,7 @@ def test_refresh_tle_cache_cache_set_failure(mocker):
     mock_db.session = mock_session
 
     mock_repo = mocker.Mock()
-    mock_repo._get_all_tles_at_epoch.return_value = ([], 0, "database")
+    mock_repo._get_all_orbital_data_at_epoch.return_value = ([], 0, "database")
     mock_repo_class.return_value = mock_repo
 
     mock_batch_serialize.return_value = []
@@ -269,7 +267,7 @@ def test_refresh_orbital_elements_cache_cache_set_failure(mocker):
     mock_db.session = mock_session
 
     mock_repo = mocker.Mock()
-    mock_repo._get_all_orbital_elements_at_epoch.return_value = ([], 0, "database")
+    mock_repo._get_all_orbital_data_at_epoch.return_value = ([], 0, "database")
     mock_repo_class.return_value = mock_repo
 
     mock_batch_serialize.return_value = []
@@ -296,7 +294,7 @@ def test_refresh_tle_cache_uses_tle_cache_key(mocker):
 
     mock_db.session = mocker.Mock()
     mock_repo = mocker.Mock()
-    mock_repo._get_all_tles_at_epoch.return_value = ([], 0, "database")
+    mock_repo._get_all_orbital_data_at_epoch.return_value = ([], 0, "database")
     mock_repo_class.return_value = mock_repo
 
     mock_set_cached.return_value = True
@@ -326,7 +324,7 @@ def test_refresh_orbital_elements_cache_uses_orbital_elements_cache_key(mocker):
 
     mock_db.session = mocker.Mock()
     mock_repo = mocker.Mock()
-    mock_repo._get_all_orbital_elements_at_epoch.return_value = ([], 0, "database")
+    mock_repo._get_all_orbital_data_at_epoch.return_value = ([], 0, "database")
     mock_repo_class.return_value = mock_repo
 
     mock_set_cached.return_value = True
