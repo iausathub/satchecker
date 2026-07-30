@@ -86,7 +86,7 @@ def validate_parameters(
             site_location = get_location_from_astropy_site(parameters["site"])
             parameters["location"] = site_location
         except Exception as e:
-            raise ValidationError(500, error_messages.INVALID_SITE, e) from e
+            raise ValidationError(400, error_messages.INVALID_SITE, e) from e
 
     # Cast the latitude, longitude, and jd to floats (request parses as a string)
     if (

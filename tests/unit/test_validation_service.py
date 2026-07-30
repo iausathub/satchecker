@@ -468,10 +468,11 @@ def test_validate_parameters_site_invalid(app):
         parameter_list = ["site"]
         required_parameters = []
 
-        with pytest.raises(ValidationError, match="Invalid site"):
+        with pytest.raises(ValidationError, match="Invalid site") as exc_info:
             parameters = validate_parameters(  # noqa: F841
                 request, parameter_list, required_parameters
             )
+        assert exc_info.value.status_code == 400
 
 
 def test_validate_parameters_site_and_location(app):
