@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import numpy as np
 import pytest
 from astropy import units as u
-from astropy.coordinates import EarthLocation
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 from skyfield.api import wgs84
 from tests.factories.satellite_factory import SatelliteFactory
@@ -832,3 +832,36 @@ def test_ensure_datetime():
 
     with pytest.raises(ValueError):
         time_utils.ensure_datetime(1.0)
+
+
+def test_angular_separation():
+    # Identical points -> zero separation.
+    assert coordinate_systems.angular_separation(
+        10.0, 20.0, 10.0, 20.0
+    ) == pytest.approx(0.0, abs=1e-9)
+
+    # A range of cases checked against astropy's spherical separation, including
+    # ones where a flat-sky sqrt((dra)**2 + (ddec)**2) is wrong: high
+    # declination (cos(dec) foreshortening) and the RA 0/360 wraparound.
+    cases = [
+        (10.0, 20.0, 11.0, 20.0),  # 1 deg of RA near the equator
+        (10.0, 85.0, 20.0, 85.0),  # 10 deg of RA at high declination
+        (359.5, 0.0, 0.5, 0.0),  # straddles RA = 0
+        (359.0, 88.0, 1.0, 89.0),  # wrap and high declination together
+        (123.4, -45.6, 200.0, 60.0),  # widely separated points
+    ]
+    for ra1, dec1, ra2, dec2 in cases:
+        expected = (
+            SkyCoord(ra1 * u.deg, dec1 * u.deg)
+            .separation(SkyCoord(ra2 * u.deg, dec2 * u.deg))
+            .deg
+        )
+        result = coordinate_systems.angular_separation(ra1, dec1, ra2, dec2)
+        assert result == pytest.approx(expected, abs=1e-6)
+
+    # The two cases the old flat-sky formula got wrong should have small true
+    # separations, not the large values sqrt((dra)**2 + (ddec)**2) would give.
+    assert coordinate_systems.angular_separation(10.0, 85.0, 20.0, 85.0) < 1.0
+    assert coordinate_systems.angular_separation(359.5, 0.0, 0.5, 0.0) == pytest.approx(
+        1.0, abs=1e-6
+    )
