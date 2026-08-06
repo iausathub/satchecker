@@ -230,7 +230,7 @@ def test_process_satellite_batch():
     assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
 
 
-def test_process_satellite_batch_illuminated_only_filters_results(monkeypatch):
+def test_process_satellite_batch_illuminated_only_filters_results(mocker):
     # Regression test: with illuminated_only=True, only the timesteps the
     # illumination model marks as lit may be returned. The results used to be
     # indexed by in_fov_mask rather than visible_mask, so non-illuminated
@@ -285,9 +285,7 @@ def test_process_satellite_batch_illuminated_only_filters_results(monkeypatch):
 
     # Mark only even-indexed timesteps as illuminated.
     illuminated = np.array([i % 2 == 0 for i in range(n)])
-    monkeypatch.setattr(
-        ps, "is_illuminated_vectorized", lambda sat_list, jds: illuminated
-    )
+    mocker.patch.object(ps, "is_illuminated_vectorized", return_value=illuminated)
 
     results, _, _ = process_satellite_batch((*base_args, True))
 
