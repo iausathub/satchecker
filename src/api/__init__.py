@@ -76,11 +76,12 @@ def create_app(test_config=None):
     }
 
     # Initialize extensions
-    from api.entrypoints.extensions import db, limiter, swagger
+    from api.entrypoints.extensions import db, limiter, scheduler, swagger
 
     db.init_app(app)
     limiter.init_app(app)
     swagger.init_app(app)
+    scheduler.init_app(app)
 
     # Initialize migrations
     from flask_migrate import Migrate
@@ -136,11 +137,20 @@ app = create_app()
 # Initialize cache
 with app.app_context():
 
+    from api.entrypoints.extensions import scheduler
     from api.services.cache_service import initialize_cache_refresh_scheduler
 
     try:
         app.logger.info("Setting up cache refresh scheduler")
         initial_refresh_func = initialize_cache_refresh_scheduler(hours=3)
+
+        # This runs once per gunicorn worker; the refresh jobs themselves are
+        # guarded by a pod-local Redis lock so only one worker per pod runs each
+        # refresh (see cache_service._acquire_refresh_lock).
+        if not scheduler.running:
+            scheduler.start()
+            app.logger.info("Cache refresh scheduler started")
+
         refresh_success = initial_refresh_func()
         if not refresh_success:
             app.logger.warning("Initial TLE cache refresh was not successful")
