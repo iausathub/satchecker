@@ -269,6 +269,7 @@ class SqlAlchemyTLERepository(OrbitalDataLookupMixin, AbstractTLERepository):
                     "sat_name": satellite.sat_name,
                     "sat_number": satellite.sat_number,
                     "decay_date": decay_date.isoformat() if decay_date else None,
+                    "object_id": getattr(satellite, "object_id", None),
                     "has_current_sat_number": getattr(
                         satellite, "has_current_sat_number", True
                     ),
@@ -310,6 +311,7 @@ class SqlAlchemyTLERepository(OrbitalDataLookupMixin, AbstractTLERepository):
                     sat_name=sat_data.get("sat_name", ""),
                     sat_number=sat_data.get("sat_number", ""),
                     decay_date=decay_date,
+                    object_id=sat_data.get("object_id"),
                     has_current_sat_number=sat_data.get("has_current_sat_number", True),
                     constellation=sat_data.get("constellation", ""),
                 )

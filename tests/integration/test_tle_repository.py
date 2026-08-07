@@ -859,6 +859,21 @@ def test_batch_serialize_tles_with_factory_data():
     assert "tle_line1" in result[0]
     assert "satellite" in result[0]
     assert "sat_name" in result[0]["satellite"]
+    assert result[0]["satellite"]["object_id"] == satellite.object_id
+
+
+def test_batch_serialize_deserialize_tles_preserves_object_id():
+    """Ephemeris responses get international_designator from deserialized satellite."""
+    satellite = SatelliteFactory(object_id="2026-128A")
+    tle = TLEFactory(satellite=satellite)
+
+    serialized = SqlAlchemyTLERepository.batch_serialize_tles([tle])
+    deserialized = SqlAlchemyTLERepository.deserialize_tles(serialized)
+
+    assert len(deserialized) == 1
+    assert deserialized[0].satellite.object_id == "2026-128A"
+    assert deserialized[0].satellite.sat_name == satellite.sat_name
+    assert deserialized[0].satellite.sat_number == satellite.sat_number
 
 
 def test_batch_serialize_tles_missing_satellite_attribute(mocker):

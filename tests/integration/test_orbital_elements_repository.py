@@ -834,6 +834,25 @@ def test_batch_serialize_orbital_elements_with_factory_data():
     assert "date_collected" in result[0]
     assert "data_source" in result[0]
     assert "satellite" in result[0]
+    assert result[0]["satellite"]["object_id"] == satellite.object_id
+
+
+def test_batch_serialize_deserialize_orbital_elements_preserves_object_id():
+    """Ephemeris responses get international_designator from deserialized satellite."""
+    satellite = SatelliteFactory(object_id="2026-128A")
+    data_set = OrbitalElementsFactory(satellite=satellite)
+
+    serialized = SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements(
+        [data_set]
+    )
+    deserialized = SqlAlchemyOrbitalElementsRepository.deserialize_orbital_elements(
+        serialized
+    )
+
+    assert len(deserialized) == 1
+    assert deserialized[0].satellite.object_id == "2026-128A"
+    assert deserialized[0].satellite.sat_name == satellite.sat_name
+    assert deserialized[0].satellite.sat_number == satellite.sat_number
 
 
 def test_batch_serialize_orbital_elements_missing_satellite_attribute(mocker):
