@@ -9,7 +9,7 @@ Notes related to building documentation, todos, etc.
 #### [Tests](tests)
 Notes related to test structure and running tests.
 
-#### [Contribution Guide](https://github.com/iausathub/satchecker/blob/main/setup/CONTRIBUTING.md)
+#### [Contribution Guide](https://github.com/iausathub/satchecker/blob/main/.github/CONTRIBUTING.md)
 Additional notes for anyone interested in contributing to this project.
 
 ***
