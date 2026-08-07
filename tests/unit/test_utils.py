@@ -230,6 +230,70 @@ def test_process_satellite_batch():
     assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
 
 
+def test_process_satellite_batch_illuminated_only_filters_results(mocker):
+    # Regression test: with illuminated_only=True, only the timesteps the
+    # illumination model marks as lit may be returned. The results used to be
+    # indexed by in_fov_mask rather than visible_mask, so non-illuminated
+    # points leaked through whenever the satellite had any illuminated point
+    # in the window.
+    from api.utils import propagation_strategies as ps
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
+        tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+    )
+
+    # An 11-second window at 1 s cadence over which this object stays inside the
+    # 2-degree FOV at every step, so both illuminated and dark steps below are
+    # in-FOV and the filter's effect is observable.
+    t0 = Time("2024-10-01T18:19:13", format="isot", scale="utc").jd
+    n = 11
+    half = (n - 1) // 2
+    julian_dates = [t0 + (k - half) / 86400.0 for k in range(n)]
+    jd_arr = np.array(julian_dates)
+
+    base_args = (
+        [tle],
+        julian_dates,
+        43.1929,
+        -81.3256,
+        300,
+        (24.797270, 75.774139),
+        2.0,
+        True,  # include_orbital_data
+    )
+
+    def indices_of(results):
+        return sorted(
+            int(np.argmin(np.abs(jd_arr - r["julian_date"]))) for r in results
+        )
+
+    # Baseline (no illumination filter) establishes which steps are in the FOV.
+    all_results, _, _ = process_satellite_batch((*base_args, False))
+    base_indices = indices_of(all_results)
+    # The test is only meaningful if the FOV window spans both an illuminated
+    # (even index) and a dark (odd index) step.
+    assert any(i % 2 == 0 for i in base_indices)
+    assert any(i % 2 == 1 for i in base_indices)
+
+    # Mark only even-indexed timesteps as illuminated.
+    illuminated = np.array([i % 2 == 0 for i in range(n)])
+    mocker.patch.object(ps, "is_illuminated_vectorized", return_value=illuminated)
+
+    results, _, _ = process_satellite_batch((*base_args, True))
+
+    # Only the illuminated in-FOV steps come back — no dark points leak through.
+    expected = [i for i in base_indices if illuminated[i]]
+    assert indices_of(results) == expected
+
+
 def test_batch_executor_raises_without_serializer():
     strategy = FOVParallelPropagationStrategy()
     satellite = SatelliteFactory()
