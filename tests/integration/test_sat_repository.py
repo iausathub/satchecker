@@ -2,11 +2,12 @@
 
 from datetime import datetime, timezone
 
-from src.api.adapters.database_orm import SatelliteDb
-from src.api.adapters.repositories.satellite_repository import (
+from tests.factories import SatelliteFactory
+
+from api.adapters.database_orm import SatelliteDb
+from api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from tests.factories import SatelliteFactory
 
 
 def test_get_satellite_by_id(session):
