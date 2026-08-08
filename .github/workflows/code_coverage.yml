@@ -115,7 +115,11 @@ jobs:
         path: coverage-html-report/
     - name: Pytest coverage comment
       id: coverageComment
-      if: github.event_name == 'pull_request'
+      # Only comment on same-repo PRs. Fork PRs get a read-only GITHUB_TOKEN,
+      # so posting a comment would fail with a permission error.
+      if: >-
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository
       uses: MishaKav/pytest-coverage-comment@main
       with:
         pytest-coverage-path: ./pytest-coverage.txt
