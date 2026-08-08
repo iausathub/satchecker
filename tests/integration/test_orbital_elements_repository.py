@@ -4,15 +4,15 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from src.api.adapters.database_orm import OrbitalElementsDb
-from src.api.adapters.repositories.orbital_elements_repository import (
-    SqlAlchemyOrbitalElementsRepository,
-)
-from src.api.adapters.repositories.satellite_repository import (
-    SqlAlchemySatelliteRepository,
-)
 from tests.factories import OrbitalElementsFactory, SatelliteFactory
 
+from api.adapters.database_orm import OrbitalElementsDb
+from api.adapters.repositories.orbital_elements_repository import (
+    SqlAlchemyOrbitalElementsRepository,
+)
+from api.adapters.repositories.satellite_repository import (
+    SqlAlchemySatelliteRepository,
+)
 from api.services.cache_service import (
     RECENT_ORBITAL_ELEMENTS_CACHE_KEY,
     set_cached_data,
