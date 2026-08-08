@@ -4,16 +4,17 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from src.api.adapters.database_orm import TLEDb
-from src.api.adapters.repositories.satellite_repository import (
+from tests.factories import SatelliteFactory, TLEFactory
+
+from api.adapters.database_orm import TLEDb
+from api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from src.api.services.cache_service import (
+from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.services.cache_service import (
     RECENT_TLES_CACHE_KEY,
     set_cached_data,
 )
-from tests.factories import SatelliteFactory, TLEFactory
 
 
 def test_add_tle(session, services_available):

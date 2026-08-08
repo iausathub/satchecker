@@ -250,7 +250,7 @@ def test_refresh_tle_cache_cache_set_failure(mocker):
 
     result = refresh_tle_cache()
 
-    assert result is True
+    assert result is False
 
 
 def test_refresh_orbital_elements_cache_cache_set_failure(mocker):
@@ -277,7 +277,7 @@ def test_refresh_orbital_elements_cache_cache_set_failure(mocker):
 
     result = refresh_orbital_elements_cache()
 
-    assert result is True
+    assert result is False
 
 
 def test_refresh_tle_cache_uses_tle_cache_key(mocker):
