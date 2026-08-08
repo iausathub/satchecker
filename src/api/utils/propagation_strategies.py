@@ -751,9 +751,13 @@ def process_satellite_batch(
                 satellites_processed += 1
                 continue
 
-            # Get alt/az for points in FOV
+            # Get alt/az for points in FOV. Use visible_mask, not in_fov_mask,
+            # so that when illuminated_only is set the non-illuminated points
+            # are actually dropped from the results rather than only gating the
+            # early-exit check above. When illuminated_only is false,
+            # visible_mask == in_fov_mask, so behavior is unchanged.
             alt, az, distance = topocentric.altaz()
-            fov_indices = np.where(in_fov_mask)[0]
+            fov_indices = np.where(visible_mask)[0]
 
             # Vectorized creation of results
             positions = topocentricn[:, fov_indices]
