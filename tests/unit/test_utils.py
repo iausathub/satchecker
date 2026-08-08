@@ -170,6 +170,79 @@ def test_tle_to_icrf_state_invalid_tle():
         coordinate_systems.tle_to_icrf_state(tle_line_1, tle_line_2, jd)
 
 
+def test_skyfield_strategy_matches_astropy_reference():
+    # End-to-end cross-check of the production SkyfieldPropagationStrategy
+    # against an independent astropy pipeline (TEME -> ITRS -> GCRS) built from
+    # the same SGP4 propagation.
+    #
+    # The tolerances reflect the physics of a TLE, not slack: a TEME position is
+    # only frame-defined to ~1 km / a few tens of arcsec (the TEME-to-J2000
+    # convention differs slightly between libraries), so the geocentric range is
+    # checked to 50 m and the geocentric direction to 90". That ~1 km offset is
+    # amplified in the topocentric direction as the satellite nears the
+    # observer's zenith, so the returned topocentric RA/Dec is checked only
+    # coarsely (0.1 deg). Even that coarse bound catches gross frame errors: a
+    # missing precession/nutation term is ~0.36 deg, and unit or axis mistakes
+    # are far larger.
+    from astropy.coordinates import (
+        GCRS,
+        ITRS,
+        TEME,
+        CartesianRepresentation,
+        EarthLocation,
+    )
+    from sgp4.api import Satrec
+
+    # ISS -- the same TLE used by the tle_to_icrf_state tests above.
+    tle_line_1 = "1 25544U 98067A   20333.54791667  .00016717  00000-0  10270-3 0  9000"
+    tle_line_2 = "2 25544  51.6442  21.4611 0001363  85.7861  74.4771 15.49180547  1000"
+    lat, lon, elevation = 32.0, -111.0, 2000.0
+    location = EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=elevation * u.m)
+
+    satrec = Satrec.twoline2rv(tle_line_1, tle_line_2)
+    tle = _tle_from_lines(tle_line_1, tle_line_2)
+    strategy = SkyfieldPropagationStrategy()
+
+    def separation_arcsec(ra1, dec1, ra2, dec2):
+        a, b, c, d = np.radians([ra1, dec1, ra2, dec2])
+        cos_sep = np.sin(b) * np.sin(d) + np.cos(b) * np.cos(d) * np.cos(a - c)
+        return np.degrees(np.arccos(np.clip(cos_sep, -1.0, 1.0))) * 3600.0
+
+    for minutes in (0.0, 30.0, 60.0, 90.0):
+        day_fraction = satrec.jdsatepochF + minutes / 1440.0
+        jd = satrec.jdsatepoch + day_fraction
+        position = strategy.propagate([jd], tle, lat, lon, elevation)[0]
+
+        error, teme_km, _ = satrec.sgp4(satrec.jdsatepoch, day_fraction)
+        assert error == 0
+        obstime = Time(jd, format="jd", scale="ut1")
+        sat_itrs = TEME(
+            CartesianRepresentation(np.array(teme_km) * u.km), obstime=obstime
+        ).transform_to(ITRS(obstime=obstime))
+
+        # Geocentric position: tight (isolates propagation + TEME->GCRS).
+        ref_gcrs = (
+            sat_itrs.transform_to(GCRS(obstime=obstime)).cartesian.xyz.to(u.km).value
+        )
+        got_gcrs = np.array(position.satellite_gcrs)
+        assert abs(np.linalg.norm(got_gcrs) - np.linalg.norm(ref_gcrs)) < 0.05
+        cos_dir = np.dot(got_gcrs, ref_gcrs) / (
+            np.linalg.norm(got_gcrs) * np.linalg.norm(ref_gcrs)
+        )
+        assert np.degrees(np.arccos(np.clip(cos_dir, -1.0, 1.0))) * 3600.0 < 90.0
+
+        # Topocentric RA/Dec (the endpoint's headline output): coarse.
+        topocentric = ITRS(
+            sat_itrs.cartesian - location.get_itrs(obstime).cartesian, obstime=obstime
+        ).transform_to(GCRS(obstime=obstime))
+        assert (
+            separation_arcsec(
+                position.ra, position.dec, topocentric.ra.deg, topocentric.dec.deg
+            )
+            < 360.0
+        )
+
+
 def test_process_satellite_batch():
     # Use the same TLE values from the passing FOV tests (FENGYUN 1C DEB)
     # Create proper satellite and TLE objects like in the FOV tests
