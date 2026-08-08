@@ -151,7 +151,7 @@ ruff==0.14.0
 s3transfer==0.16.0
 scipy==1.15.1
 seaborn==0.13.2
-setuptools==82.0.1
+setuptools==83.0.0
 sgp4==2.22
 six==1.16.0
 skyfield==1.53
