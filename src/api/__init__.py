@@ -158,7 +158,7 @@ if "pytest" not in sys.modules:
                 scheduler.start()
                 app.logger.info("Cache refresh scheduler started")
 
-            refresh_success = initial_refresh_func()
+            refresh_success = initial_refresh_func(app)
             if not refresh_success:
                 app.logger.warning("Initial TLE cache refresh was not successful")
         except Exception as e:

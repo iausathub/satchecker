@@ -557,9 +557,10 @@ def initialize_cache_refresh_scheduler(hours=3):
         except Exception as e:
             logger.error(f"Failed to schedule cache refresh job: {e}")
 
-    # Don't perform immediate refresh here, as it might not have app context
-    def perform_initial_refresh():
-        """Performs the initial cache refresh with proper app context"""
+    # Don't perform the refresh here; the caller passes in the Flask app so this
+    # doesn't depend on an active app context or the current_app proxy.
+    def perform_initial_refresh(app):
+        """Perform the initial cache refresh for the given Flask app."""
         global _initial_cache_refresh_done
 
         # Prevent duplicate initial refresh
@@ -568,23 +569,12 @@ def initialize_cache_refresh_scheduler(hours=3):
             return True
 
         try:
-            from flask import current_app
-
-            # Check if we're in an application context
-            if not current_app:
-                logger.warning(
-                    "No Flask app context available for initial cache refresh"
-                )
-                return False
-
-            app_obj = current_app._get_current_object()
-
             # If Redis is already up (the common case), warm the cache now. Only
             # one worker per pod actually does the work - the pod-local lock
             # inside _warm_cache_once handles that.
             if _redis_is_ready():
                 logger.info("Performing initial cache data refresh")
-                if _warm_cache_once(app_obj):
+                if _warm_cache_once(app):
                     _initial_cache_refresh_done = True
                     check_redis_memory()
                     return True
@@ -596,7 +586,7 @@ def initialize_cache_refresh_scheduler(hours=3):
                 "Redis not ready during startup; deferring cache warmup "
                 "to the background"
             )
-            _start_background_cache_warmup(app_obj)
+            _start_background_cache_warmup(app)
             return False
 
         except Exception as e:
