@@ -452,8 +452,8 @@ def get_satellite_passes_in_fov(
 
                     if pos.ra is not None and pos.dec is not None:
                         # Calculate angular distance from FOV center
-                        angular_distance = np.sqrt(
-                            (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
+                        angular_distance = coordinate_systems.angular_separation(
+                            pos.ra, pos.dec, ra, dec
                         )
                         if angular_distance <= fov_radius * 1.2:  # add 20% margin
                             # Create new satellite_position_fov with updated values
