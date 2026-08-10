@@ -3,8 +3,8 @@ from datetime import timedelta, timezone
 
 import factory
 from faker import Faker
-from src.api.domain.models.tdm_prediction import TdmPrediction
 
+from api.domain.models.tdm_prediction import TdmPrediction
 from api.domain.models.tdm_prediction_point import TdmPredictionPoint
 from tests.factories.satellite_factory import SatelliteFactory
 

@@ -630,6 +630,37 @@ def is_in_fov(
     return result
 
 
+def angular_separation(ra1: float, dec1: float, ra2: float, dec2: float) -> float:
+    """Great-circle angular separation between two points on the sky.
+
+    Uses the haversine formula, so the result stays correct at high
+    declination and across the RA 0/360 degree boundary. A flat-sky
+    sqrt((ra1 - ra2)**2 + (dec1 - dec2)**2) does neither: it ignores the
+    cos(dec) foreshortening in right ascension and blows up when the two
+    points straddle RA = 0.
+
+    Args:
+        ra1 (float): Right ascension of the first point in degrees.
+        dec1 (float): Declination of the first point in degrees.
+        ra2 (float): Right ascension of the second point in degrees.
+        dec2 (float): Declination of the second point in degrees.
+
+    Returns:
+        float: The angular separation in degrees.
+    """
+    ra1_rad = np.radians(ra1)
+    dec1_rad = np.radians(dec1)
+    ra2_rad = np.radians(ra2)
+    dec2_rad = np.radians(dec2)
+    dra = ra1_rad - ra2_rad
+    ddec = dec1_rad - dec2_rad
+    a = (
+        np.sin(ddec / 2) ** 2
+        + np.cos(dec1_rad) * np.cos(dec2_rad) * np.sin(dra / 2) ** 2
+    )
+    return float(np.degrees(2 * np.arcsin(np.sqrt(np.clip(a, 0, 1)))))
+
+
 def calculate_satellite_observer_relative(
     satellite_position_gcrs: np.ndarray,
     observer_latitude: float,

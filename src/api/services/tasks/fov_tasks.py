@@ -14,10 +14,9 @@ import logging
 import time as python_time
 from typing import Any
 
-import numpy as np
-
 from api.celery_app import celery
 from api.entrypoints.v1.routes import api_source, api_version
+from api.utils import coordinate_systems
 from api.utils.orbital_data_utils import deserialize_orbital_data_batch
 from api.utils.output_utils import fov_data_to_json
 from api.utils.propagation_strategies import (
@@ -230,8 +229,8 @@ def refine_with_ephemeris_task(
 
                     if pos.ra is not None and pos.dec is not None:
                         # Calculate angular distance from FOV center
-                        angular_distance = np.sqrt(
-                            (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
+                        angular_distance = coordinate_systems.angular_separation(
+                            pos.ra, pos.dec, ra, dec
                         )
                         if angular_distance <= fov_radius * 1.2:  # add 20% margin
                             # Create new satellite_position_fov with updated values
