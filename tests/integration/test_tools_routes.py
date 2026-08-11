@@ -44,7 +44,7 @@ def test_get_names_from_norad_id(client, services_available):
     response = client.get("/tools/names-from-norad-id/?id=25544")
     assert response.status_code == 200
     assert response.json["count"] == 1
-    assert response.json["data"][0]["norad_id"] == "25544"
+    # id is parsed to an integer NORAD ID by validate_parameters
     assert response.json["data"][0]["norad_id"] == 25544
 
 

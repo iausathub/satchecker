@@ -3,16 +3,19 @@ import io
 import logging
 import zipfile
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from api.adapters.repositories.orbital_elements_repository import (
     AbstractOrbitalElementsRepository,
 )
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.domain.models.orbital_elements import OrbitalElements
+from api.domain.models.tle import TLE
 from api.utils.output_utils import format_date, satellite_data_to_json
 
 logger = logging.getLogger(__name__)
+OrbitalDataRepository = AbstractTLERepository | AbstractOrbitalElementsRepository
 
 
 def get_orbital_data(
@@ -61,6 +64,7 @@ def get_orbital_data(
     logger.info(f"Date range: {start_date} to {end_date}")
     logger.info(f"Format: {format}")
 
+    repo: OrbitalDataRepository
     if format == "tle":
         repo = tle_repo
         format_name = "TLE"
@@ -86,27 +90,27 @@ def get_orbital_data(
         if format == "tle":
             orbital_data_result = [
                 {
-                    "satellite_name": orbital_data.satellite.sat_name,
-                    "satellite_id": orbital_data.satellite.sat_number,
-                    "tle_line1": orbital_data.tle_line1,
-                    "tle_line2": orbital_data.tle_line2,
-                    "epoch": format_date(orbital_data.epoch),
-                    "date_collected": format_date(orbital_data.date_collected),
-                    "data_source": orbital_data.data_source,
+                    "satellite_name": tle.satellite.sat_name,
+                    "satellite_id": tle.satellite.sat_number,
+                    "tle_line1": tle.tle_line1,
+                    "tle_line2": tle.tle_line2,
+                    "epoch": format_date(tle.epoch),
+                    "date_collected": format_date(tle.date_collected),
+                    "data_source": tle.data_source,
                 }
-                for orbital_data in orbital_data_set
+                for tle in cast(list[TLE], orbital_data_set)
             ]
         else:
             orbital_data_result = [
                 {
-                    "satellite_name": orbital_data.satellite.sat_name,
-                    "satellite_id": orbital_data.satellite.sat_number,
-                    "orbital_elements": orbital_data.to_omm_dict(),
-                    "epoch": format_date(orbital_data.epoch),
-                    "date_collected": format_date(orbital_data.date_collected),
-                    "data_source": orbital_data.data_source,
+                    "satellite_name": omm.satellite.sat_name,
+                    "satellite_id": omm.satellite.sat_number,
+                    "orbital_elements": omm.to_omm_dict(),
+                    "epoch": format_date(omm.epoch),
+                    "date_collected": format_date(omm.date_collected),
+                    "data_source": omm.data_source,
                 }
-                for orbital_data in orbital_data_set
+                for omm in cast(list[OrbitalElements], orbital_data_set)
             ]
         logger.info(
             f"Successfully formatted {len(orbital_data_set)} {format_name} records"
@@ -158,6 +162,7 @@ def get_orbital_data_around_epoch_results(
     Returns:
         List[dict]: A list of dictionaries containing the orbital data.
     """
+    repo: OrbitalDataRepository
     if format == "tle":
         repo = tle_repo
         format_name = "TLE"
@@ -174,7 +179,7 @@ def get_orbital_data_around_epoch_results(
     )
 
     try:
-        orbital_data_result = repo.get_orbital_data_around_epoch(
+        raw_result: Any = repo.get_orbital_data_around_epoch(
             id, id_type, epoch, count_before, count_after
         )
         logger.info(f"Successfully retrieved {format_name}s from repository")
@@ -185,49 +190,50 @@ def get_orbital_data_around_epoch_results(
         )
         raise
 
-    # Ensure tles is a list to avoid iteration errors
-    if orbital_data_result is None:
+    # Ensure the result is a list to avoid iteration errors
+    orbital_data_set: list[TLE] | list[OrbitalElements]
+    if raw_result is None:
         orbital_data_set = []
-    elif isinstance(orbital_data_result, list):
-        orbital_data_set = orbital_data_result
+    elif isinstance(raw_result, list):
+        orbital_data_set = raw_result
     else:
-        orbital_data_set = [orbital_data_result]
+        orbital_data_set = [raw_result]
     logger.info(f"Processing {len(orbital_data_set)} {format_name} records")
 
     try:
-        orbital_data_result = []
+        formatted_data: list[dict[str, Any]] = []
         if format == "tle":
             # Extract the TLE data from the result set
-            orbital_data_result.extend(
+            formatted_data.extend(
                 [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "tle_line1": orbital_data.tle_line1,
-                        "tle_line2": orbital_data.tle_line2,
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
                     }
-                    for orbital_data in orbital_data_set
+                    for tle in cast(list[TLE], orbital_data_set)
                 ]
             )
         else:
-            orbital_data_result.extend(
+            formatted_data.extend(
                 [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "orbital_elements": orbital_data.to_omm_dict(),
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
                     }
-                    for orbital_data in orbital_data_set
+                    for omm in cast(list[OrbitalElements], orbital_data_set)
                 ]
             )
         logger.info(
-            f"Successfully formatted {len(orbital_data_result)} {format_name} records"
+            f"Successfully formatted {len(formatted_data)} {format_name} records"
         )
     except Exception as e:
         logger.error(f"Failed to format TLE data: {str(e)}", exc_info=True)
@@ -235,7 +241,7 @@ def get_orbital_data_around_epoch_results(
 
     return [
         {
-            "orbital_data": orbital_data_result,
+            "orbital_data": formatted_data,
             "source": api_source,
             "version": api_version,
         }
@@ -283,6 +289,7 @@ def get_nearest_orbital_data_result(
         f"Fetching nearest orbital data to epoch {epoch} for {id_type} ID: {id}"
     )
 
+    repo: OrbitalDataRepository
     if format == "tle":
         repo = tle_repo
         format_name = "TLE"
@@ -303,26 +310,28 @@ def get_nearest_orbital_data_result(
         if orbital_data is not None:
             logger.info(f"Found nearest {format_name} with epoch: {orbital_data.epoch}")
             if format == "tle":
+                tle = cast(TLE, orbital_data)
                 orbital_data_result = [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "tle_line1": orbital_data.tle_line1,
-                        "tle_line2": orbital_data.tle_line2,
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
                     }
                 ]
             else:
+                omm = cast(OrbitalElements, orbital_data)
                 orbital_data_result = [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "orbital_elements": orbital_data.to_omm_dict(),
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
                     }
                 ]
         else:
@@ -376,6 +385,7 @@ def get_adjacent_orbital_data_results(
             - For TXT format: A BytesIO object containing the formatted orbital data
             text
     """
+    repo: OrbitalDataRepository
     if data_format == "tle":
         repo = tle_repo
         format_name = "TLE"
@@ -402,11 +412,11 @@ def get_adjacent_orbital_data_results(
 
     if format == "txt" and data_format == "tle":
         try:
-            orbital_data_result: list[str] = [
-                f"{orbital_data.satellite.sat_name}\n{orbital_data.tle_line1}\n{orbital_data.tle_line2}\n"
-                for orbital_data in orbital_data_set
+            text_lines: list[str] = [
+                f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
+                for tle in cast(list[TLE], orbital_data_set)
             ]
-            text_content = "".join(orbital_data_result)
+            text_content = "".join(text_lines)
             logger.info(f"Successfully formatted {format_name} data as text")
             return io.BytesIO(text_content.encode())
         except Exception as e:
@@ -420,27 +430,27 @@ def get_adjacent_orbital_data_results(
             if data_format == "tle":
                 orbital_json_data = [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "tle_line1": orbital_data.tle_line1,
-                        "tle_line2": orbital_data.tle_line2,
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
                     }
-                    for orbital_data in orbital_data_set
+                    for tle in cast(list[TLE], orbital_data_set)
                 ]
             else:
                 orbital_json_data = [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "orbital_elements": orbital_data.to_omm_dict(),
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
                     }
-                    for orbital_data in orbital_data_set
+                    for omm in cast(list[OrbitalElements], orbital_data_set)
                 ]
             logger.info(f"Successfully formatted {format_name} data as JSON")
             return [
@@ -656,8 +666,8 @@ def search_all_satellites(
 
 
 def get_all_orbital_data_at_epoch_formatted(
-    tle_repo: AbstractTLERepository,
-    orbital_elements_repo: AbstractOrbitalElementsRepository,
+    tle_repo: AbstractTLERepository | None,
+    orbital_elements_repo: AbstractOrbitalElementsRepository | None,
     data_format: str,
     epoch_date: datetime,
     format: str = "json",
@@ -687,11 +697,13 @@ def get_all_orbital_data_at_epoch_formatted(
         and pagination info (JSON) or a BytesIO object containing formatted orbital data
         (TXT/ZIP).
     """
+    # Callers pass only the repository matching data_format; the other is None.
+    repo: OrbitalDataRepository
     if data_format == "tle":
-        repo = tle_repo
+        repo = cast(AbstractTLERepository, tle_repo)
         format_name = "TLE"
     elif data_format == "omm":
-        repo = orbital_elements_repo
+        repo = cast(AbstractOrbitalElementsRepository, orbital_elements_repo)
         format_name = "OMM"
     else:
         raise ValueError(f"Invalid data format: {data_format}")
@@ -719,11 +731,11 @@ def get_all_orbital_data_at_epoch_formatted(
 
     if format == "txt" and data_format == "tle":
         try:
-            orbital_data: list[str] = [
+            text_lines: list[str] = [
                 f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
-                for tle in orbital_data_set
+                for tle in cast(list[TLE], orbital_data_set)
             ]
-            text_content = "".join(orbital_data)
+            text_content = "".join(text_lines)
             logger.info(f"Successfully formatted {format_name} data as text")
             return io.BytesIO(text_content.encode())
         except Exception as e:
@@ -751,16 +763,16 @@ def get_all_orbital_data_at_epoch_formatted(
                     ]
                 )
 
-                for orbital_data in orbital_data_set:
+                for tle in cast(list[TLE], orbital_data_set):
                     csv_writer.writerow(
                         [
-                            orbital_data.satellite.sat_name,
-                            orbital_data.satellite.sat_number,
-                            orbital_data.tle_line1,
-                            orbital_data.tle_line2,
-                            format_date(orbital_data.epoch),
-                            format_date(orbital_data.date_collected),
-                            orbital_data.data_source,
+                            tle.satellite.sat_name,
+                            tle.satellite.sat_number,
+                            tle.tle_line1,
+                            tle.tle_line2,
+                            format_date(tle.epoch),
+                            format_date(tle.date_collected),
+                            tle.data_source,
                         ]
                     )
             else:
@@ -790,12 +802,12 @@ def get_all_orbital_data_at_epoch_formatted(
                     ]
                 )
 
-                for orbital_data in orbital_data_set:
+                for omm in cast(list[OrbitalElements], orbital_data_set):
                     csv_writer.writerow(
                         [
-                            *orbital_data.to_omm_dict().values(),
-                            format_date(orbital_data.date_collected),
-                            orbital_data.data_source,
+                            *omm.to_omm_dict().values(),
+                            format_date(omm.date_collected),
+                            omm.data_source,
                         ]
                     )
 
@@ -815,28 +827,28 @@ def get_all_orbital_data_at_epoch_formatted(
             if data_format == "tle":
                 orbital_json_data = [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "tle_line1": orbital_data.tle_line1,
-                        "tle_line2": orbital_data.tle_line2,
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
                     }
-                    for orbital_data in orbital_data_set
+                    for tle in cast(list[TLE], orbital_data_set)
                 ]
 
             else:
                 orbital_json_data = [
                     {
-                        "satellite_name": orbital_data.satellite.sat_name,
-                        "satellite_id": orbital_data.satellite.sat_number,
-                        "orbital_elements": orbital_data.to_omm_dict(),
-                        "epoch": format_date(orbital_data.epoch),
-                        "date_collected": format_date(orbital_data.date_collected),
-                        "data_source": orbital_data.data_source,
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
                     }
-                    for orbital_data in orbital_data_set
+                    for omm in cast(list[OrbitalElements], orbital_data_set)
                 ]
 
             logger.info(f"Successfully formatted {format_name} data as JSON")
