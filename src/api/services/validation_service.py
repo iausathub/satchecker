@@ -41,6 +41,33 @@ def extract_parameters(request, parameter_list):
     return parameters
 
 
+def _parse_norad_id(value: Any, param_name: str = "id") -> int:
+    """Validate and convert a NORAD ID parameter to an integer.
+
+    NORAD catalog numbers are integers (the ``sat_number`` column is an integer
+    type), so non-integer values must be rejected at the boundary with a 400 rather
+    than being allowed to fail downstream as a database or conversion error.
+
+    Parameters:
+        value: The raw parameter value (typically a string from the query args).
+        param_name (str): The parameter name, used in the error message.
+
+    Returns:
+        int: The value converted to an integer.
+
+    Raises:
+        ValidationError: 400 if the value is not a valid integer.
+    """
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError) as e:
+        raise ValidationError(
+            400,
+            error_messages.INVALID_PARAMETER
+            + f" - {param_name} must be an integer NORAD ID",
+        ) from e
+
+
 def validate_parameters(
     request: Any, parameter_list: list[str], required_parameters: list[str]
 ) -> dict[str, Any]:
@@ -68,6 +95,17 @@ def validate_parameters(
     for param in required_parameters:
         if param not in parameters.keys() or parameters[param] is None:
             raise ValidationError(400, f"Missing parameter: {param}")
+
+    # For catalog/NORAD ID lookups the id must be an integer NORAD ID. Validate and
+    # convert it here so bad values return a 400 instead of failing downstream as a
+    # database error (sat_number is an integer column). This covers the
+    # id_type="catalog" endpoints and names-from-norad-id, which always takes a
+    # NORAD ID and sends no id_type.
+    if "id" in parameters.keys() and parameters["id"] is not None:
+        if parameters.get("id_type") == "catalog" or request.path.endswith(
+            "/names-from-norad-id/"
+        ):
+            parameters["id"] = _parse_norad_id(parameters["id"], "id")
 
     # Check if site is provide first, so that if it and other location parameters
     # are provided, an error can be thrown
@@ -537,7 +575,7 @@ def validate_parameters(
         raise ValidationError(500, error_messages.INVALID_JD, e) from e
 
     if "norad_id" in parameters.keys() and parameters["norad_id"] is not None:
-        parameters["norad_id"] = int(parameters["norad_id"])
+        parameters["norad_id"] = _parse_norad_id(parameters["norad_id"], "norad_id")
 
     if "object_id" in parameters.keys() and parameters["object_id"] is not None:
         parameters["object_id"] = str(parameters["object_id"]).upper()
