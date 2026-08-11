@@ -462,16 +462,16 @@ def test_get_all_tles_at_epoch_formatted():
 
 
 def test_get_all_omms_at_epoch_formatted():
-    oe_repo = FakeOrbitalElementsRepository([])
-    oe_1 = OrbitalElementsFactory(
+    omm_repo = FakeOrbitalElementsRepository([])
+    omm_1 = OrbitalElementsFactory(
         satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now()
     )
-    oe_2 = OrbitalElementsFactory(
+    omm_2 = OrbitalElementsFactory(
         satellite=SatelliteFactory(sat_name="ISS"), epoch=datetime.now()
     )
-    oe_repo = FakeOrbitalElementsRepository([oe_1, oe_2])
+    omm_repo = FakeOrbitalElementsRepository([omm_1, omm_2])
     results = get_all_orbital_data_at_epoch_formatted(
-        None, oe_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
+        None, omm_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
     )
 
     # Results should be a list with one dictionary
@@ -514,7 +514,7 @@ def test_get_all_omms_at_epoch_formatted():
 
     # OMM data supports the zip (CSV) format rather than txt
     results = get_all_orbital_data_at_epoch_formatted(
-        None, oe_repo, "omm", datetime.now(), "zip", 1, 100, "test", "1.0"
+        None, omm_repo, "omm", datetime.now(), "zip", 1, 100, "test", "1.0"
     )
     zip_file = zipfile.ZipFile(results)
     assert "omm_data.csv" in zip_file.namelist()
@@ -817,27 +817,27 @@ def test_get_all_tles_at_epoch_formatting_exceptions():
 
 
 def test_get_all_omms_at_epoch_repository_exception():
-    oe_repo = FakeOrbitalElementsRepository([], TimeoutError("Query timeout"))
+    omm_repo = FakeOrbitalElementsRepository([], TimeoutError("Query timeout"))
 
     with pytest.raises(TimeoutError, match="Query timeout"):
         get_all_orbital_data_at_epoch_formatted(
-            None, oe_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
+            None, omm_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
         )
 
 
 def test_get_all_omms_at_epoch_formatting_exceptions():
     # Test element attribute exception
-    oe_repo = FakeOrbitalElementsRepository([BrokenOMM("mean_motion")])
+    omm_repo = FakeOrbitalElementsRepository([BrokenOMM("mean_motion")])
     with pytest.raises(AttributeError, match="Broken attribute: mean_motion"):
         get_all_orbital_data_at_epoch_formatted(
-            None, oe_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
+            None, omm_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
         )
 
     # Test satellite attribute exception
-    oe_repo = FakeOrbitalElementsRepository([BrokenOMM("sat_number")])
+    omm_repo = FakeOrbitalElementsRepository([BrokenOMM("sat_number")])
     with pytest.raises(AttributeError, match="Broken satellite attribute: sat_number"):
         get_all_orbital_data_at_epoch_formatted(
-            None, oe_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
+            None, omm_repo, "omm", datetime.now(), "json", 1, 100, "test", "1.0"
         )
 
 
@@ -849,3 +849,302 @@ def test_satellite_name_id_repository_exceptions():
     sat_repo = FakeSatelliteRepository([], LookupError("ID not found"))
     with pytest.raises(LookupError, match="ID not found"):
         get_names_for_satellite_id(sat_repo, 25544, "test", "1.0")
+
+
+def test_get_omm_data():
+    satellite = SatelliteFactory(sat_name="ISS")
+    omm_1 = OrbitalElementsFactory(satellite=satellite)
+    omm_2 = OrbitalElementsFactory(satellite=satellite)
+    omm_repo = FakeOrbitalElementsRepository([omm_1, omm_2])
+
+    results = get_orbital_data(
+        None, omm_repo, "omm", "ISS", "name", None, None, "test", "1.0"
+    )
+    assert results["count"] == 2
+    assert results["data"][0]["satellite_name"] == "ISS"
+    assert results["data"][1]["satellite_name"] == "ISS"
+    assert results["data"][0]["satellite_id"] == satellite.sat_number
+    # OMM records nest the CCSDS elements rather than TLE lines
+    for record in results["data"]:
+        assert record["orbital_elements"]["OBJECT_NAME"] == "ISS"
+        assert record["orbital_elements"]["NORAD_CAT_ID"] == satellite.sat_number
+    epochs = {r["epoch"] for r in results["data"]}
+    assert format_date(omm_1.epoch) in epochs
+    assert format_date(omm_2.epoch) in epochs
+
+    # No match by name
+    results = get_orbital_data(
+        None, omm_repo, "omm", "not_found", "name", None, None, "test", "1.0"
+    )
+    assert results["count"] == 0
+
+    # Match by catalog number
+    results = get_orbital_data(
+        None,
+        omm_repo,
+        "omm",
+        satellite.sat_number,
+        "catalog",
+        None,
+        None,
+        "test",
+        "1.0",
+    )
+    assert results["count"] == 2
+
+    # Date range filtering
+    omm_1.epoch = datetime(2021, 1, 1)
+    omm_2.epoch = datetime(2022, 1, 2)
+    results = get_orbital_data(
+        None,
+        omm_repo,
+        "omm",
+        "ISS",
+        "name",
+        datetime(2020, 1, 1),
+        datetime(2021, 1, 2),
+        "test",
+        "1.0",
+    )
+    assert results["count"] == 1
+
+
+def test_get_omm_data_invalid_format():
+    omm_repo = FakeOrbitalElementsRepository([])
+    with pytest.raises(ValueError, match="Invalid format: xml"):
+        get_orbital_data(
+            None, omm_repo, "xml", "ISS", "name", None, None, "test", "1.0"
+        )
+
+
+def test_get_omm_data_repository_exception():
+    omm_repo = FakeOrbitalElementsRepository([], RuntimeError("Database error"))
+    with pytest.raises(RuntimeError, match="Database error"):
+        get_orbital_data(
+            None, omm_repo, "omm", 25544, "catalog", None, None, "test", "1.0"
+        )
+
+
+def test_get_omm_data_formatting_exception():
+    omm_repo = FakeOrbitalElementsRepository(
+        [BrokenOMM("mean_motion", sat_number=25544)]
+    )
+    with pytest.raises(AttributeError, match="Broken attribute: mean_motion"):
+        get_orbital_data(
+            None, omm_repo, "omm", 25544, "catalog", None, None, "test", "1.0"
+        )
+
+
+def test_get_nearest_omm():
+    epoch = datetime.now()
+    omm_1 = OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch - timedelta(days=1)
+    )
+    omm_2 = OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=3)
+    )
+    omm_repo = FakeOrbitalElementsRepository([omm_1, omm_2])
+
+    results = get_nearest_orbital_data_result(
+        None, omm_repo, "omm", 25544, "catalog", epoch, "test", "1.0"
+    )
+    assert len(results[0]["orbital_data"]) == 1
+    assert results[0]["orbital_data"][0]["orbital_elements"]["NORAD_CAT_ID"] == 25544
+
+    results = get_nearest_orbital_data_result(
+        None, omm_repo, "omm", 1, "catalog", epoch, "test", "1.0"
+    )
+    assert len(results[0]["orbital_data"]) == 0
+
+
+def test_get_nearest_omm_invalid_format():
+    omm_repo = FakeOrbitalElementsRepository([])
+    with pytest.raises(ValueError, match="Invalid format: xml"):
+        get_nearest_orbital_data_result(
+            None, omm_repo, "xml", 25544, "catalog", datetime.now(), "test", "1.0"
+        )
+
+
+def test_get_nearest_omm_repository_exception():
+    omm_repo = FakeOrbitalElementsRepository([], OSError("OMM not found"))
+    with pytest.raises(OSError, match="OMM not found"):
+        get_nearest_orbital_data_result(
+            None, omm_repo, "omm", 25544, "catalog", datetime.now(), "test", "1.0"
+        )
+
+
+def test_get_nearest_omm_formatting_exception():
+    omm_repo = FakeOrbitalElementsRepository(
+        [BrokenOMM("eccentricity", sat_number=25544)]
+    )
+    with pytest.raises(AttributeError, match="Broken attribute: eccentricity"):
+        get_nearest_orbital_data_result(
+            None, omm_repo, "omm", 25544, "catalog", datetime.now(), "test", "1.0"
+        )
+
+
+def test_get_adjacent_omms():
+    epoch = datetime.now()
+    omm_1 = OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_number=25544),
+        epoch=epoch - timedelta(days=1),
+    )
+    omm_2 = OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_number=25544),
+        epoch=epoch + timedelta(days=1),
+    )
+    omm_repo = FakeOrbitalElementsRepository([omm_1, omm_2])
+    epoch_jd = Time(epoch).jd
+
+    results = get_adjacent_orbital_data_results(
+        None, omm_repo, "omm", 25544, "catalog", epoch_jd, "test", "1.0"
+    )
+    assert len(results[0]["orbital_data"]) == 2
+    assert results[0]["orbital_data"][0]["satellite_id"] == 25544
+    assert "orbital_elements" in results[0]["orbital_data"][0]
+
+    results = get_adjacent_orbital_data_results(
+        None, omm_repo, "omm", 1, "catalog", epoch_jd, "test", "1.0"
+    )
+    assert len(results[0]["orbital_data"]) == 0
+
+
+def test_get_adjacent_omms_invalid_format():
+    omm_repo = FakeOrbitalElementsRepository([])
+    with pytest.raises(ValueError, match="Invalid data format: xml"):
+        get_adjacent_orbital_data_results(
+            None, omm_repo, "xml", 25544, "catalog", datetime.now(), "test", "1.0"
+        )
+
+
+def test_get_adjacent_omms_repository_exception():
+    omm_repo = FakeOrbitalElementsRepository([], MemoryError("Out of memory"))
+    with pytest.raises(MemoryError, match="Out of memory"):
+        get_adjacent_orbital_data_results(
+            None, omm_repo, "omm", 25544, "catalog", datetime.now(), "test", "1.0"
+        )
+
+
+def test_get_adjacent_omms_formatting_exception():
+    omm_repo = FakeOrbitalElementsRepository(
+        [BrokenOMM("inclination", sat_number=25544)]
+    )
+    with pytest.raises(AttributeError, match="Broken attribute: inclination"):
+        get_adjacent_orbital_data_results(
+            None, omm_repo, "omm", 25544, "catalog", datetime.now(), "test", "1.0"
+        )
+
+
+def test_get_adjacent_tles_txt_format():
+    """The txt path is only valid for TLE data and returns a BytesIO stream."""
+    tle_1 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544),
+        epoch=datetime.now() - timedelta(days=1),
+    )
+    tle_2 = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544),
+        epoch=datetime.now() + timedelta(days=1),
+    )
+    tle_repo = FakeTLERepository([tle_1, tle_2])
+
+    results = get_adjacent_orbital_data_results(
+        tle_repo, None, "tle", 25544, "catalog", datetime.now(), "test", "1.0", "txt"
+    )
+    text_content = results.getvalue().decode("utf-8")
+    assert tle_1.tle_line1 in text_content
+    assert tle_1.tle_line2 in text_content
+    assert tle_2.tle_line1 in text_content
+    assert tle_2.tle_line2 in text_content
+
+
+def test_get_omms_around_epoch():
+    epoch = datetime.now()
+    omm_1 = OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch - timedelta(days=1)
+    )
+    omm_2 = OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=3)
+    )
+    omm_3 = OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_number=25544), epoch=epoch + timedelta(days=5)
+    )
+    omm_repo = FakeOrbitalElementsRepository([omm_1, omm_2, omm_3])
+
+    results = get_orbital_data_around_epoch_results(
+        None, omm_repo, "omm", 25544, "catalog", epoch, 2, 2, "test", "1.0"
+    )
+    assert len(results[0]["orbital_data"]) == 3
+    assert "orbital_elements" in results[0]["orbital_data"][0]
+
+    results = get_orbital_data_around_epoch_results(
+        None, omm_repo, "omm", 25544, "catalog", epoch, 1, 1, "test", "1.0"
+    )
+    assert len(results[0]["orbital_data"]) == 2
+
+
+def test_get_omms_around_epoch_repository_exception():
+    omm_repo = FakeOrbitalElementsRepository([], ConnectionError("Connection timeout"))
+    with pytest.raises(ConnectionError, match="Connection timeout"):
+        get_orbital_data_around_epoch_results(
+            None, omm_repo, "omm", 25544, "catalog", datetime.now(), 1, 1, "test", "1.0"
+        )
+
+
+def test_get_omms_around_epoch_formatting_exception():
+    omm_repo = FakeOrbitalElementsRepository(
+        [BrokenOMM("mean_anomaly", sat_number=25544)]
+    )
+    with pytest.raises(AttributeError, match="Broken attribute: mean_anomaly"):
+        get_orbital_data_around_epoch_results(
+            None, omm_repo, "omm", 25544, "catalog", datetime.now(), 1, 1, "test", "1.0"
+        )
+
+
+def test_get_omms_around_epoch_invalid_format():
+    omm_repo = FakeOrbitalElementsRepository([])
+    with pytest.raises(ValueError, match="Invalid format: xml"):
+        get_orbital_data_around_epoch_results(
+            None, omm_repo, "xml", 25544, "catalog", datetime.now(), 1, 1, "test", "1.0"
+        )
+
+
+class _StubAroundEpochRepo:
+    """Minimal repo returning a fixed value from get_orbital_data_around_epoch.
+
+    Exercises the result-normalization branches (None and single-object) that
+    the list-returning fakes never hit.
+    """
+
+    def __init__(self, result):
+        self._result = result
+
+    def get_orbital_data_around_epoch(
+        self, id, id_type, epoch, count_before, count_after
+    ):
+        return self._result
+
+
+def test_get_omms_around_epoch_none_result_normalized():
+    repo = _StubAroundEpochRepo(None)
+    results = get_orbital_data_around_epoch_results(
+        None, repo, "omm", 25544, "catalog", datetime.now(), 1, 1, "test", "1.0"
+    )
+    assert results[0]["orbital_data"] == []
+
+
+def test_get_omms_around_epoch_single_object_normalized():
+    single = OrbitalElementsFactory(satellite=SatelliteFactory(sat_number=25544))
+    repo = _StubAroundEpochRepo(single)
+    results = get_orbital_data_around_epoch_results(
+        None, repo, "omm", 25544, "catalog", datetime.now(), 1, 1, "test", "1.0"
+    )
+    assert len(results[0]["orbital_data"]) == 1
+    assert results[0]["orbital_data"][0]["satellite_id"] == 25544
+
+
+def test_get_all_orbital_data_at_epoch_formatted_invalid_format():
+    omm_repo = FakeOrbitalElementsRepository([])
+    with pytest.raises(ValueError, match="Invalid data format: xml"):
+        get_all_orbital_data_at_epoch_formatted(
+            None, omm_repo, "xml", datetime.now(), "json", 1, 100, "test", "1.0"
+        )

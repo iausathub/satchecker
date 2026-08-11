@@ -45,6 +45,7 @@ def test_get_names_from_norad_id(client, services_available):
     assert response.status_code == 200
     assert response.json["count"] == 1
     assert response.json["data"][0]["norad_id"] == "25544"
+    assert response.json["data"][0]["norad_id"] == 25544
 
 
 def test_get_names_from_norad_id_no_match(client, services_available):
@@ -838,3 +839,249 @@ def test_search_satellites_validation_error(client, services_available):
     assert response.status_code != 200
     assert "message" in response.json
     assert "Invalid Julian Date" in response.json["message"]
+
+
+def test_get_omm_data(client, session, services_available):
+    satellite = SatelliteFactory(sat_name="ISS")
+    omm = OrbitalElementsFactory(satellite=satellite)
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    session.commit()
+
+    response = client.get("/tools/get-omm-data/?id=ISS&id_type=name")
+    assert response.status_code == 200
+    assert response.json["count"] == 1
+    assert response.json["data"][0]["orbital_elements"]["OBJECT_NAME"] == "ISS"
+
+
+def test_get_omm_data_no_match(client, services_available):
+    response = client.get("/tools/get-omm-data/?id=ISS&id_type=name")
+    assert response.status_code == 200
+    assert response.json["count"] == 0
+
+
+def test_get_nearest_omm(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_number="25544", decay_date=None, has_current_sat_number=True
+    )
+    epoch = datetime.now()
+    omm = OrbitalElementsFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
+    omm2 = OrbitalElementsFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    omm_repo.add(omm2)
+    session.commit()
+
+    epoch_jd = Time(epoch).jd
+    response = client.get(
+        f"/tools/get-nearest-omm/?id=25544&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 1
+    assert "orbital_elements" in response.json[0]["orbital_data"][0]
+
+
+def test_get_nearest_omm_nonexistent_satellite(client, session, services_available):
+    epoch_jd = Time(datetime.now()).jd
+    response = client.get(
+        f"/tools/get-nearest-omm/?id=99999&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 0
+
+
+@pytest.mark.parametrize(
+    "params,status_code,expected_message,expected_error_type",
+    [
+        (
+            {"id": "25544", "id_type": "invalid", "epoch": "2460000.5"},
+            400,
+            "Error",
+            None,
+        ),
+        ({"id_type": "catalog", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        ({"id": "25544", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        ({"id": "25544", "id_type": "catalog"}, 400, "Missing parameter", None),
+        (
+            {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
+            500,
+            None,
+            "ValidationError",
+        ),
+    ],
+)
+def test_get_nearest_omm_errors(
+    client,
+    session,
+    params,
+    status_code,
+    expected_message,
+    expected_error_type,
+    services_available,
+):
+    query_string = "&".join([f"{key}={value}" for key, value in params.items()])
+    response = client.get(f"/tools/get-nearest-omm/?{query_string}")
+    assert response.status_code == status_code
+    if expected_message:
+        assert expected_message in response.json["message"]
+    if expected_error_type:
+        assert expected_error_type in response.json["error_type"]
+
+
+def test_get_adjacent_omms(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_number="25544", decay_date=None, has_current_sat_number=True
+    )
+    epoch = datetime.now()
+    omm = OrbitalElementsFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
+    omm2 = OrbitalElementsFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    omm_repo.add(omm2)
+    session.commit()
+
+    epoch_jd = Time(epoch).jd
+    response = client.get(
+        f"/tools/get-adjacent-omms/?id=25544&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 2
+    assert "orbital_elements" in response.json[0]["orbital_data"][0]
+
+
+def test_get_adjacent_omms_nonexistent_satellite(client, session, services_available):
+    epoch_jd = Time(datetime.now()).jd
+    response = client.get(
+        f"/tools/get-adjacent-omms/?id=99999&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 0
+
+
+def test_get_adjacent_omms_errors(client, session, services_available):
+    epoch_jd = Time(datetime.now()).jd
+
+    # Invalid id_type
+    response = client.get(
+        f"/tools/get-adjacent-omms/?id=25544&id_type=invalid&epoch={epoch_jd}"
+    )
+    assert response.status_code == 400
+    assert "Error" in response.json["message"]
+
+    # Missing id parameter
+    response = client.get("/tools/get-adjacent-omms/?id_type=catalog&epoch=2460000.5")
+    assert response.status_code == 400
+    assert "Missing parameter" in response.json["message"]
+
+    # Missing epoch parameter
+    response = client.get("/tools/get-adjacent-omms/?id=25544&id_type=catalog")
+    assert response.status_code == 400
+    assert "Missing parameter" in response.json["message"]
+
+    # Non-numeric epoch
+    response = client.get(
+        "/tools/get-adjacent-omms/?id=25544&id_type=catalog&epoch=10-01-2024"
+    )
+    assert response.status_code == 500
+    assert "ValidationError" in response.json["error_type"]
+
+
+def test_get_omms_around_epoch(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_number="25544", decay_date=None, has_current_sat_number=True
+    )
+    epoch = datetime.now()
+    omm = OrbitalElementsFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
+    omm2 = OrbitalElementsFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
+    omm_repo.add(omm2)
+    session.commit()
+
+    epoch_jd = Time(epoch).jd
+    response = client.get(
+        f"/tools/get-omms-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 2
+
+
+def test_get_omms_around_epoch_nonexistent_satellite(
+    client, session, services_available
+):
+    epoch_jd = Time(datetime.now()).jd
+    response = client.get(
+        f"/tools/get-omms-around-epoch/?id=99999&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 0
+
+
+def test_get_omms_around_epoch_custom_counts(client, session, services_available):
+    satellite = SatelliteFactory(
+        sat_number="25544", decay_date=None, has_current_sat_number=True
+    )
+    epoch = datetime.now()
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    for i in range(1, 6):
+        omm_repo.add(
+            OrbitalElementsFactory(satellite=satellite, epoch=epoch - timedelta(days=i))
+        )
+        omm_repo.add(
+            OrbitalElementsFactory(satellite=satellite, epoch=epoch + timedelta(days=i))
+        )
+    session.commit()
+
+    epoch_jd = Time(epoch).jd
+
+    # Default counts (2 before, 2 after)
+    response = client.get(
+        f"/tools/get-omms-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 4
+
+    # Custom counts (3 before, 1 after)
+    response = client.get(
+        f"/tools/get-omms-around-epoch/?id=25544&id_type=catalog&epoch={epoch_jd}&count_before=3&count_after=1"
+    )
+    assert response.status_code == 200
+    assert len(response.json[0]["orbital_data"]) == 4
+
+
+@pytest.mark.parametrize(
+    "params,status_code,expected_message,expected_error_type",
+    [
+        (
+            {"id": "25544", "id_type": "invalid", "epoch": "2460000.5"},
+            400,
+            "Error",
+            None,
+        ),
+        ({"id_type": "catalog", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        ({"id": "25544", "epoch": "2460000.5"}, 400, "Missing parameter", None),
+        ({"id": "25544", "id_type": "catalog"}, 400, "Missing parameter", None),
+        (
+            {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
+            500,
+            None,
+            "ValidationError",
+        ),
+    ],
+)
+def test_get_omms_around_epoch_errors(
+    client,
+    session,
+    params,
+    status_code,
+    expected_message,
+    expected_error_type,
+    services_available,
+):
+    query_string = "&".join([f"{key}={value}" for key, value in params.items()])
+    response = client.get(f"/tools/get-omms-around-epoch/?{query_string}")
+    assert response.status_code == status_code
+    if expected_message:
+        assert expected_message in response.json["message"]
+    if expected_error_type:
+        assert expected_error_type in response.json["error_type"]
