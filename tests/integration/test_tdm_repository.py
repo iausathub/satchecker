@@ -2,15 +2,16 @@
 
 from datetime import datetime, timedelta, timezone
 
-from src.api.adapters.database_orm import TdmPredictionDb, TdmPredictionPointDb
-from src.api.adapters.repositories.satellite_repository import (
-    SqlAlchemySatelliteRepository,
-)
-from src.api.adapters.repositories.tdm_repository import (
-    SqlAlchemyTdmPredictionRepository,
-)
 from tests.factories import SatelliteFactory
 from tests.factories.tdm_prediction_factory import TdmPredictionFactory
+
+from api.adapters.database_orm import TdmPredictionDb, TdmPredictionPointDb
+from api.adapters.repositories.satellite_repository import (
+    SqlAlchemySatelliteRepository,
+)
+from api.adapters.repositories.tdm_repository import (
+    SqlAlchemyTdmPredictionRepository,
+)
 
 
 def test_add_tdm_prediction(session, services_available):

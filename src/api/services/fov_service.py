@@ -452,8 +452,8 @@ def get_satellite_passes_in_fov(
 
                     if pos.ra is not None and pos.dec is not None:
                         # Calculate angular distance from FOV center
-                        angular_distance = np.sqrt(
-                            (pos.ra - ra) ** 2 + (pos.dec - dec) ** 2
+                        angular_distance = coordinate_systems.angular_separation(
+                            pos.ra, pos.dec, ra, dec
                         )
                         if angular_distance <= fov_radius * 1.2:  # add 20% margin
                             # Create new satellite_position_fov with updated values
@@ -697,14 +697,12 @@ def get_satellites_above_horizon(
     data_start = python_time.time()
     orbital_data: list[TLE] | list[OrbitalElements]
     if time_jd < ORBITAL_ELEMENTS_CUTOFF:
-        orbital_data, count, _ = tle_repo.get_all_tles_at_epoch(
+        orbital_data, count, _ = tle_repo.get_all_orbital_data_at_epoch(
             astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
         )
     else:
-        orbital_data, count, _ = (
-            orbital_elements_repo.get_all_orbital_elements_at_epoch(
-                astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
-            )
+        orbital_data, count, _ = orbital_elements_repo.get_all_orbital_data_at_epoch(
+            astropy_time_to_datetime_utc(time_jd), 1, 10000, "zip", constellation
         )
     data_retrieval_time = python_time.time() - data_start
 
@@ -814,7 +812,7 @@ def _get_tle_data(
     logger.debug(f"Fetching TLEs for epoch: {astropy_time_to_datetime_utc(time_jd)}")
 
     try:
-        tles, count, _ = tle_repo.get_all_tles_at_epoch(
+        tles, count, _ = tle_repo.get_all_orbital_data_at_epoch(
             astropy_time_to_datetime_utc(time_jd),
             1,
             10000,
@@ -849,7 +847,7 @@ def _get_orbital_elements_data(
 
     try:
         orbital_elements, count, _ = (
-            orbital_elements_repo.get_all_orbital_elements_at_epoch(
+            orbital_elements_repo.get_all_orbital_data_at_epoch(
                 astropy_time_to_datetime_utc(time_jd),
                 1,
                 10000,

@@ -4,6 +4,8 @@ name: Run tests
 
 on:
   push:
+    branches: [main, develop]
+  pull_request:
   workflow_call:
     inputs:
       run_only_lint:
@@ -21,7 +23,7 @@ permissions:
 
 jobs:
   lint:
-    if: ${{ github.event_name == 'push' || inputs.run_only_lint == true || inputs.run_only_tests != true }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || inputs.run_only_lint == true || inputs.run_only_tests != true }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -45,7 +47,7 @@ jobs:
 
 
   test:
-    if: ${{ github.event_name == 'push' || inputs.run_only_tests == true || inputs.run_only_lint != true }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || inputs.run_only_tests == true || inputs.run_only_lint != true }}
     runs-on: ubuntu-latest
 
     services:

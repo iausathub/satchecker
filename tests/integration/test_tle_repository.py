@@ -4,16 +4,17 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from src.api.adapters.database_orm import TLEDb
-from src.api.adapters.repositories.satellite_repository import (
+from tests.factories import SatelliteFactory, TLEFactory
+
+from api.adapters.database_orm import TLEDb
+from api.adapters.repositories.satellite_repository import (
     SqlAlchemySatelliteRepository,
 )
-from src.api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
-from src.api.services.cache_service import (
+from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
+from api.services.cache_service import (
     RECENT_TLES_CACHE_KEY,
     set_cached_data,
 )
-from tests.factories import SatelliteFactory, TLEFactory
 
 
 def test_add_tle(session, services_available):
@@ -299,7 +300,7 @@ def test_get_all_tles_at_epoch(session, services_available):
     tle_repository.add(tle_2)
     session.commit()
 
-    results = tle_repository.get_all_tles_at_epoch(
+    results = tle_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc), 1, 10, "zip"
     )
     assert len(results[0]) == 1
@@ -310,7 +311,7 @@ def test_get_all_tles_at_epoch(session, services_available):
     tle_repository.add(tle_3)
     session.commit()
 
-    results = tle_repository.get_all_tles_at_epoch(
+    results = tle_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc), 1, 10, "zip"
     )
     assert len(results[0]) == 2
@@ -540,7 +541,7 @@ def test_get_all_tles_at_epoch_cache(session, app, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
 
     # Empty cache, no TLEs added yet
-    results = tle_repository.get_all_tles_at_epoch(
+    results = tle_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc), 1, 10, "zip"
     )
     assert len(results[0]) == 0
@@ -577,7 +578,7 @@ def test_get_all_tles_at_epoch_cache(session, app, services_available):
 
     # Check that TLEs are returned from cache
     try:
-        results = tle_repository.get_all_tles_at_epoch(
+        results = tle_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert len(results[0]) == 1
@@ -587,14 +588,14 @@ def test_get_all_tles_at_epoch_cache(session, app, services_available):
         raise e
 
     # Check that TLEs are returned from database for an older date
-    results = tle_repository.get_all_tles_at_epoch(
+    results = tle_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc) - timedelta(days=0.5), 1, 10, "zip"
     )
     assert len(results[0]) == 1
     assert results[2] == "database"
 
     # Check that TLEs are returned from cache for a future date
-    results = tle_repository.get_all_tles_at_epoch(
+    results = tle_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc) + timedelta(days=1), 1, 10, "zip"
     )
     assert len(results[0]) == 1
@@ -612,26 +613,26 @@ def test_get_all_tles_at_epoch_cache(session, app, services_available):
         success = set_cached_data(RECENT_TLES_CACHE_KEY, cache_data, ttl=5)
         assert success
 
-        results = tle_repository.get_all_tles_at_epoch(
+        results = tle_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert results[2] == "cache"
 
         # wait for cache to expire
         time.sleep(6)
-        results = tle_repository.get_all_tles_at_epoch(
+        results = tle_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert results[2] == "database"
 
     # test that the TLEs load from the database if there are issues with the cache
     with app.app_context():
-        cache_results = tle_repository.get_all_tles_at_epoch(
+        cache_results = tle_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         tle_repository.cache_enabled = False
 
-        db_results = tle_repository.get_all_tles_at_epoch(
+        db_results = tle_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert db_results[2] == "database"
@@ -668,21 +669,21 @@ def test_get_all_tles_at_epoch_with_constellation(session, services_available):
     session.commit()
 
     # Test filtering by starlink constellation
-    starlink_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+    starlink_tles, count, _ = tle_repository.get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", "starlink"
     )
     assert len(starlink_tles) == 1
     assert starlink_tles[0].satellite.constellation == "starlink"
 
     # Test filtering by oneweb constellation
-    oneweb_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+    oneweb_tles, count, _ = tle_repository.get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", "oneweb"
     )
     assert len(oneweb_tles) == 1
     assert oneweb_tles[0].satellite.constellation == "oneweb"
 
     # Test with no constellation filter
-    all_tles, count, _ = tle_repository.get_all_tles_at_epoch(
+    all_tles, count, _ = tle_repository.get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", None
     )
     assert len(all_tles) == 2
@@ -773,21 +774,21 @@ def test_get_all_tles_at_epoch_experimental_with_data_source(
     session.commit()
 
     # Test filtering by spacetrack data source
-    spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+    spacetrack_tles, count, _ = tle_repository._get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", data_source_limit="spacetrack"
     )
     assert len(spacetrack_tles) == 1
     assert spacetrack_tles[0].data_source == "spacetrack"
 
     # Test filtering by celestrak data source
-    celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+    celestrak_tles, count, _ = tle_repository._get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", data_source_limit="celestrak"
     )
     assert len(celestrak_tles) == 1
     assert celestrak_tles[0].data_source == "celestrak"
 
     # Test filtering by any data source
-    all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+    all_tles, count, _ = tle_repository._get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", data_source_limit="any"
     )
     assert len(all_tles) == 2
@@ -826,21 +827,21 @@ def test_get_all_tles_at_epoch_with_data_source(session, services_available):
     session.commit()
 
     # Test filtering by spacetrack data source
-    spacetrack_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+    spacetrack_tles, count, _ = tle_repository._get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", data_source_limit="spacetrack"
     )
     assert len(spacetrack_tles) == 1
     assert spacetrack_tles[0].data_source == "spacetrack"
 
     # Test filtering by celestrak data source
-    celestrak_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+    celestrak_tles, count, _ = tle_repository._get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", data_source_limit="celestrak"
     )
     assert len(celestrak_tles) == 1
     assert celestrak_tles[0].data_source == "celestrak"
 
     # Test filtering by any data source
-    all_tles, count, _ = tle_repository._get_all_tles_at_epoch(
+    all_tles, count, _ = tle_repository._get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", data_source_limit="any"
     )
     assert len(all_tles) == 2
@@ -859,6 +860,21 @@ def test_batch_serialize_tles_with_factory_data():
     assert "tle_line1" in result[0]
     assert "satellite" in result[0]
     assert "sat_name" in result[0]["satellite"]
+    assert result[0]["satellite"]["object_id"] == satellite.object_id
+
+
+def test_batch_serialize_deserialize_tles_preserves_object_id():
+    """Ephemeris responses get international_designator from deserialized satellite."""
+    satellite = SatelliteFactory(object_id="2026-128A")
+    tle = TLEFactory(satellite=satellite)
+
+    serialized = SqlAlchemyTLERepository.batch_serialize_tles([tle])
+    deserialized = SqlAlchemyTLERepository.deserialize_tles(serialized)
+
+    assert len(deserialized) == 1
+    assert deserialized[0].satellite.object_id == "2026-128A"
+    assert deserialized[0].satellite.sat_name == satellite.sat_name
+    assert deserialized[0].satellite.sat_number == satellite.sat_number
 
 
 def test_batch_serialize_tles_missing_satellite_attribute(mocker):

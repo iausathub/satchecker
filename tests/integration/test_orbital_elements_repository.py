@@ -4,15 +4,15 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from src.api.adapters.database_orm import OrbitalElementsDb
-from src.api.adapters.repositories.orbital_elements_repository import (
-    SqlAlchemyOrbitalElementsRepository,
-)
-from src.api.adapters.repositories.satellite_repository import (
-    SqlAlchemySatelliteRepository,
-)
 from tests.factories import OrbitalElementsFactory, SatelliteFactory
 
+from api.adapters.database_orm import OrbitalElementsDb
+from api.adapters.repositories.orbital_elements_repository import (
+    SqlAlchemyOrbitalElementsRepository,
+)
+from api.adapters.repositories.satellite_repository import (
+    SqlAlchemySatelliteRepository,
+)
 from api.services.cache_service import (
     RECENT_ORBITAL_ELEMENTS_CACHE_KEY,
     set_cached_data,
@@ -228,7 +228,7 @@ def test_get_all_orbital_elements_at_epoch(session, services_available):
     orbital_elements_repository.add(data_set2)
     session.commit()
 
-    results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+    results = orbital_elements_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc), 1, 10, "zip"
     )
     assert len(results[0]) == 1
@@ -239,7 +239,7 @@ def test_get_all_orbital_elements_at_epoch(session, services_available):
     orbital_elements_repository.add(data_set3)
     session.commit()
 
-    results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+    results = orbital_elements_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc), 1, 10, "zip"
     )
     assert len(results[0]) == 2
@@ -593,7 +593,7 @@ def test_get_all_orbital_elements_at_epoch_cache(session, app, services_availabl
     orbital_elements_repository = SqlAlchemyOrbitalElementsRepository(session)
 
     # Empty cache, no orbital elements added yet
-    results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+    results = orbital_elements_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc), 1, 10, "zip"
     )
     assert len(results[0]) == 0
@@ -634,7 +634,7 @@ def test_get_all_orbital_elements_at_epoch_cache(session, app, services_availabl
 
     # Check that orbital elements are returned from cache
     try:
-        results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+        results = orbital_elements_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert len(results[0]) == 1
@@ -644,14 +644,14 @@ def test_get_all_orbital_elements_at_epoch_cache(session, app, services_availabl
         raise e
 
     # Check that orbital elements are returned from database for an older date
-    results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+    results = orbital_elements_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc) - timedelta(days=0.5), 1, 10, "zip"
     )
     assert len(results[0]) == 1
     assert results[2] == "database"
 
     # Check that orbital elements are returned from cache for a future date
-    results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+    results = orbital_elements_repository.get_all_orbital_data_at_epoch(
         datetime.now(timezone.utc) + timedelta(days=1), 1, 10, "zip"
     )
     assert len(results[0]) == 1
@@ -669,26 +669,26 @@ def test_get_all_orbital_elements_at_epoch_cache(session, app, services_availabl
         success = set_cached_data(RECENT_ORBITAL_ELEMENTS_CACHE_KEY, cache_data, ttl=5)
         assert success
 
-        results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+        results = orbital_elements_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert results[2] == "cache"
 
         # wait for cache to expire
         time.sleep(6)
-        results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+        results = orbital_elements_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert results[2] == "database"
 
     # test that the TLEs load from the database if there are issues with the cache
     with app.app_context():
-        cache_results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+        cache_results = orbital_elements_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         orbital_elements_repository.cache_enabled = False
 
-        db_results = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+        db_results = orbital_elements_repository.get_all_orbital_data_at_epoch(
             datetime.now(timezone.utc), 1, 10, "zip"
         )
         assert db_results[2] == "database"
@@ -727,25 +727,21 @@ def test_get_all_orbital_elements_at_epoch_with_constellation(
     session.commit()
 
     # Test filtering by starlink constellation
-    starlink_tles, count, _ = (
-        orbital_elements_repository.get_all_orbital_elements_at_epoch(
-            epoch, 1, 10000, "zip", "starlink"
-        )
+    starlink_tles, count, _ = orbital_elements_repository.get_all_orbital_data_at_epoch(
+        epoch, 1, 10000, "zip", "starlink"
     )
     assert len(starlink_tles) == 1
     assert starlink_tles[0].satellite.constellation == "starlink"
 
     # Test filtering by oneweb constellation
-    oneweb_data, count, _ = (
-        orbital_elements_repository.get_all_orbital_elements_at_epoch(
-            epoch, 1, 10000, "zip", "oneweb"
-        )
+    oneweb_data, count, _ = orbital_elements_repository.get_all_orbital_data_at_epoch(
+        epoch, 1, 10000, "zip", "oneweb"
     )
     assert len(oneweb_data) == 1
     assert oneweb_data[0].satellite.constellation == "oneweb"
 
     # Test with no constellation filter
-    all_data, count, _ = orbital_elements_repository.get_all_orbital_elements_at_epoch(
+    all_data, count, _ = orbital_elements_repository.get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", None
     )
     assert len(all_data) == 2
@@ -784,7 +780,7 @@ def test_get_all_orbital_elements_at_epoch_with_data_source(
 
     # Test filtering by spacetrack data source
     spacetrack_data, count, _ = (
-        orbital_elements_repository._get_all_orbital_elements_at_epoch(
+        orbital_elements_repository._get_all_orbital_data_at_epoch(
             epoch, 1, 10000, "zip", data_source_limit="spacetrack"
         )
     )
@@ -793,7 +789,7 @@ def test_get_all_orbital_elements_at_epoch_with_data_source(
 
     # Test filtering by celestrak data source
     celestrak_data, count, _ = (
-        orbital_elements_repository._get_all_orbital_elements_at_epoch(
+        orbital_elements_repository._get_all_orbital_data_at_epoch(
             epoch, 1, 10000, "zip", data_source_limit="celestrak"
         )
     )
@@ -801,7 +797,7 @@ def test_get_all_orbital_elements_at_epoch_with_data_source(
     assert celestrak_data[0].data_source == "celestrak"
 
     # Test filtering by any data source
-    all_data, count, _ = orbital_elements_repository._get_all_orbital_elements_at_epoch(
+    all_data, count, _ = orbital_elements_repository._get_all_orbital_data_at_epoch(
         epoch, 1, 10000, "zip", data_source_limit="any"
     )
     assert len(all_data) == 2
@@ -838,6 +834,25 @@ def test_batch_serialize_orbital_elements_with_factory_data():
     assert "date_collected" in result[0]
     assert "data_source" in result[0]
     assert "satellite" in result[0]
+    assert result[0]["satellite"]["object_id"] == satellite.object_id
+
+
+def test_batch_serialize_deserialize_orbital_elements_preserves_object_id():
+    """Ephemeris responses get international_designator from deserialized satellite."""
+    satellite = SatelliteFactory(object_id="2026-128A")
+    data_set = OrbitalElementsFactory(satellite=satellite)
+
+    serialized = SqlAlchemyOrbitalElementsRepository.batch_serialize_orbital_elements(
+        [data_set]
+    )
+    deserialized = SqlAlchemyOrbitalElementsRepository.deserialize_orbital_elements(
+        serialized
+    )
+
+    assert len(deserialized) == 1
+    assert deserialized[0].satellite.object_id == "2026-128A"
+    assert deserialized[0].satellite.sat_name == satellite.sat_name
+    assert deserialized[0].satellite.sat_number == satellite.sat_number
 
 
 def test_batch_serialize_orbital_elements_missing_satellite_attribute(mocker):

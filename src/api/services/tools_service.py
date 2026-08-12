@@ -3,17 +3,25 @@ import io
 import logging
 import zipfile
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
+from api.adapters.repositories.orbital_elements_repository import (
+    AbstractOrbitalElementsRepository,
+)
 from api.adapters.repositories.satellite_repository import AbstractSatelliteRepository
 from api.adapters.repositories.tle_repository import AbstractTLERepository
+from api.domain.models.orbital_elements import OrbitalElements
+from api.domain.models.tle import TLE
 from api.utils.output_utils import format_date, satellite_data_to_json
 
 logger = logging.getLogger(__name__)
+OrbitalDataRepository = AbstractTLERepository | AbstractOrbitalElementsRepository
 
 
-def get_tle_data(
+def get_orbital_data(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
+    format: str,
     id: str,
     id_type: str,
     start_date: datetime,
@@ -22,70 +30,98 @@ def get_tle_data(
     api_version: str,
 ):
     """
-    Fetches Two-Line Element set (TLE) data for a given satellite.
+    Fetches orbital data for a given satellite.
 
-    This function retrieves TLE data from either the NORAD ID or satellite name
-    provided. It allows for a date range to be specified for the TLE data, and if
-    not provided, it will return all TLE data for the satellite.
+    This function retrieves either TLE or OMM data from either the NORAD ID or
+    satellite name provided. It allows for a date range to be specified for the
+    orbital data, and if not provided, it will return all orbital data for the
+    satellite.
 
     Parameters:
         tle_repo (AbstractTLERepository):
             The repository instance used to fetch TLE data.
+        orbital_elements_repo (AbstractOrbitalElementsRepository):
+            The repository instance used to fetch OMM data.
+        format (str):
+            The format of the orbital data, either 'tle' or 'omm'.
         id (str):
             The identifier for the satellite.
         id_type (str):
             The type of the ID, either 'catalog' (NORAD ID) or 'name'.
         start_date (datetime):
-            The start date of the date range for the TLE data.
+            The start date of the date range for the orbital data.
         end_date (datetime):
-            The end date of the date range for the TLE data.
+            The end date of the date range for the orbital data.
 
     Returns:
         List[dict]:
-            A list containing the TLE data for the specified
+            A list containing the orbital data for the specified
             satellite and date range. Each data point includes the satellite
-            name, satellite ID, TLE lines, epoch, date collected, and data source.
+            name, satellite ID, orbital data (tle lines or orbital elements), epoch,
+            date collected, and data source.
     """
     logger.info(f"Fetching TLE data for {id_type} ID: {id}")
     logger.info(f"Date range: {start_date} to {end_date}")
+    logger.info(f"Format: {format}")
+
+    repo: OrbitalDataRepository
+    if format == "tle":
+        repo = tle_repo
+        format_name = "TLE"
+    elif format == "omm":
+        repo = orbital_elements_repo
+        format_name = "OMM"
+    else:
+        raise ValueError(f"Invalid format: {format}")
 
     try:
-        tles = (
-            tle_repo.get_all_for_date_range_by_satellite_number(
-                id, start_date, end_date
-            )
+        orbital_data_set = (
+            repo.get_all_for_date_range_by_satellite_number(id, start_date, end_date)
             if id_type == "catalog"
-            else tle_repo.get_all_for_date_range_by_satellite_name(
-                id, start_date, end_date
-            )
+            else repo.get_all_for_date_range_by_satellite_name(id, start_date, end_date)
         )
-        logger.info(f"Retrieved {len(tles)} TLEs")
+        logger.info(f"Retrieved {len(orbital_data_set)} {format_name}s")
     except Exception as e:
-        logger.error(f"Failed to retrieve TLEs: {str(e)}", exc_info=True)
+        logger.error(f"Failed to retrieve {format_name}s: {str(e)}", exc_info=True)
         raise
 
-    # Extract the TLE data from the result set
+    # Extract the orbita data from the result set
     try:
-        tle_data = [
-            {
-                "satellite_name": tle.satellite.sat_name,
-                "satellite_id": tle.satellite.sat_number,
-                "tle_line1": tle.tle_line1,
-                "tle_line2": tle.tle_line2,
-                "epoch": format_date(tle.epoch),
-                "date_collected": format_date(tle.date_collected),
-                "data_source": tle.data_source,
-            }
-            for tle in tles
-        ]
-        logger.info(f"Successfully formatted {len(tle_data)} TLE records")
+        if format == "tle":
+            orbital_data_result = [
+                {
+                    "satellite_name": tle.satellite.sat_name,
+                    "satellite_id": tle.satellite.sat_number,
+                    "tle_line1": tle.tle_line1,
+                    "tle_line2": tle.tle_line2,
+                    "epoch": format_date(tle.epoch),
+                    "date_collected": format_date(tle.date_collected),
+                    "data_source": tle.data_source,
+                }
+                for tle in cast(list[TLE], orbital_data_set)
+            ]
+        else:
+            orbital_data_result = [
+                {
+                    "satellite_name": omm.satellite.sat_name,
+                    "satellite_id": omm.satellite.sat_number,
+                    "orbital_elements": omm.to_omm_dict(),
+                    "epoch": format_date(omm.epoch),
+                    "date_collected": format_date(omm.date_collected),
+                    "data_source": omm.data_source,
+                }
+                for omm in cast(list[OrbitalElements], orbital_data_set)
+            ]
+        logger.info(
+            f"Successfully formatted {len(orbital_data_set)} {format_name} records"
+        )
     except Exception as e:
-        logger.error(f"Failed to format TLE data: {str(e)}", exc_info=True)
+        logger.error(f"Failed to format {format_name} data: {str(e)}", exc_info=True)
         raise
 
     results = {
-        "count": len(tle_data),
-        "data": tle_data,
+        "count": len(orbital_data_result),
+        "data": orbital_data_result,
         "source": api_source,
         "version": api_version,
     }
@@ -93,8 +129,10 @@ def get_tle_data(
     return results
 
 
-def get_tles_around_epoch_results(
+def get_orbital_data_around_epoch_results(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
+    format: str,
     id: str,
     id_type: str,
     epoch: datetime,
@@ -104,77 +142,116 @@ def get_tles_around_epoch_results(
     api_version: str,
 ):
     """
-    Fetches TLEs around a specific epoch date.
+    Fetches orbital data around a specific epoch date.
 
-    This function retrieves TLEs from the repository that are around the specified
-    epoch date. It allows for a count of TLEs to be specified before and after
-    the epoch date.
+    This function retrieves either TLE or OMM data from the repository that are around
+    the specified epoch date. It allows for a count of orbital data to be specified
+    before and after the epoch date.
 
     Parameters:
         tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        orbital_elements_repo (AbstractOrbitalElementsRepository): The repository to
+            fetch OMM data from.
+        format (str): The format of the orbital data, either "tle" or "omm".
         id (str): The ID of the satellite.
         id_type (str): The type of the ID, either "catalog" or "name".
-        epoch (datetime): The epoch date to fetch TLEs around.
-        count_before (int): The number of TLEs to fetch before the epoch date.
-        count_after (int): The number of TLEs to fetch after the epoch date.
+        epoch (datetime): The epoch date to fetch TLE or OMM data around.
+        count_before (int): The number of orbital data to fetch before the epoch date.
+        count_after (int): The number of orbital data to fetch after the epoch date.
 
     Returns:
-        List[dict]: A list of dictionaries containing the TLE data.
+        List[dict]: A list of dictionaries containing the orbital data.
     """
-    logger.info(f"Fetching TLEs around epoch {epoch} for {id_type} ID: {id}")
+    repo: OrbitalDataRepository
+    if format == "tle":
+        repo = tle_repo
+        format_name = "TLE"
+    elif format == "omm":
+        repo = orbital_elements_repo
+        format_name = "OMM"
+    else:
+        raise ValueError(f"Invalid format: {format}")
+
+    logger.info(f"Fetching {format} data around epoch {epoch} for {id_type} ID: {id}")
     logger.info(
-        f"Requesting {count_before} TLEs before and {count_after} TLEs after epoch"
+        f"Requesting {count_before} {format_name}s before and "
+        f"{count_after} {format_name}s after epoch"
     )
 
     try:
-        tles_result = tle_repo.get_tles_around_epoch(
+        raw_result: Any = repo.get_orbital_data_around_epoch(
             id, id_type, epoch, count_before, count_after
         )
-        logger.info("Successfully retrieved TLEs from repository")
+        logger.info(f"Successfully retrieved {format_name}s from repository")
     except Exception as e:
         logger.error(
-            f"Failed to retrieve TLEs from repository: {str(e)}", exc_info=True
+            f"Failed to retrieve {format_name}s from repository: {str(e)}",
+            exc_info=True,
         )
         raise
 
-    # Ensure tles is a list to avoid iteration errors
-    tles = (
-        []
-        if tles_result is None
-        else tles_result if isinstance(tles_result, list) else [tles_result]
-    )
-    logger.info(f"Processing {len(tles)} TLE records")
+    # Ensure the result is a list to avoid iteration errors
+    orbital_data_set: list[TLE] | list[OrbitalElements]
+    if raw_result is None:
+        orbital_data_set = []
+    elif isinstance(raw_result, list):
+        orbital_data_set = raw_result
+    else:
+        orbital_data_set = [raw_result]
+    logger.info(f"Processing {len(orbital_data_set)} {format_name} records")
 
     try:
-        # Extract the TLE data from the result set
-        tle_data = [
-            {
-                "satellite_name": tle.satellite.sat_name,
-                "satellite_id": tle.satellite.sat_number,
-                "tle_line1": tle.tle_line1,
-                "tle_line2": tle.tle_line2,
-                "epoch": format_date(tle.epoch),
-                "date_collected": format_date(tle.date_collected),
-                "data_source": tle.data_source,
-            }
-            for tle in tles
-        ]
-        logger.info(f"Successfully formatted {len(tle_data)} TLE records")
+        formatted_data: list[dict[str, Any]] = []
+        if format == "tle":
+            # Extract the TLE data from the result set
+            formatted_data.extend(
+                [
+                    {
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
+                    }
+                    for tle in cast(list[TLE], orbital_data_set)
+                ]
+            )
+        else:
+            formatted_data.extend(
+                [
+                    {
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
+                    }
+                    for omm in cast(list[OrbitalElements], orbital_data_set)
+                ]
+            )
+        logger.info(
+            f"Successfully formatted {len(formatted_data)} {format_name} records"
+        )
     except Exception as e:
         logger.error(f"Failed to format TLE data: {str(e)}", exc_info=True)
         raise
 
     return [
         {
-            "orbital_data": tle_data,
+            "orbital_data": formatted_data,
             "source": api_source,
             "version": api_version,
         }
     ]
 
 
-def get_nearest_tle_result(
+def get_nearest_orbital_data_result(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
+    format: str,
     id: str,
     id_type: str,
     epoch: datetime,
@@ -182,75 +259,104 @@ def get_nearest_tle_result(
     api_version: str,
 ) -> list[dict[str, list[dict[str, Any]] | str]]:
     """
-    Fetches the nearest TLE to a specific epoch date.
-
-    This function retrieves the TLE from the repository that is closest to the
-    specified epoch date.
+    Fetches the nearest orbital data (OMM or TLE) to a specific epoch date.
 
     Parameters:
         tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        orbital_elements_repo (AbstractOrbitalElementsRepository): The repository to
+            fetch OMM data from.
+        format (str): The format of the orbital data, either "tle" or "omm".
         id (str): The ID of the satellite.
         id_type (str): The type of the ID, either "catalog" or "name".
-        epoch (datetime): The epoch date to fetch the nearest TLE to.
+        epoch (datetime): The epoch date to fetch the nearest orbital data to.
         api_source (str): The source of the API request.
         api_version (str): The version of the API request.
 
     Returns:
         list[dict[str, list[dict[str, Any]] | str]]: A single-item list
         containing a dictionary with:
-        - tle_data: List of dictionaries, each containing:
+        - orbital_data: List of dictionaries, each containing:
             - satellite_name (str): Name of the satellite
             - satellite_id (int): NORAD catalog number
-            - tle_line1 (str): First line of the TLE
-            - tle_line2 (str): Second line of the TLE
             - epoch (str): Epoch of the TLE in 'YYYY-MM-DD HH:MM:SS TZ' format
             - date_collected (str): Date TLE was collected
             - data_source (str): Source of the TLE data
+            - either the TLE lines or the OMM elements
         - source (str): API source identifier
         - version (str): API version identifier
     """
-    logger.info(f"Fetching nearest TLE to epoch {epoch} for {id_type} ID: {id}")
+    logger.info(
+        f"Fetching nearest orbital data to epoch {epoch} for {id_type} ID: {id}"
+    )
+
+    repo: OrbitalDataRepository
+    if format == "tle":
+        repo = tle_repo
+        format_name = "TLE"
+    elif format == "omm":
+        repo = orbital_elements_repo
+        format_name = "OMM"
+    else:
+        raise ValueError(f"Invalid format: {format}")
 
     try:
-        tle = tle_repo.get_nearest_tle(id, id_type, epoch)
+        orbital_data = repo.get_nearest_orbital_data(id, id_type, epoch)
     except Exception as e:
         logger.error(f"Failed to retrieve nearest TLE: {str(e)}", exc_info=True)
         raise
 
     # Extract the TLE data from the result set
     try:
-        if tle is not None:
-            logger.info(f"Found nearest TLE with epoch: {tle.epoch}")
-            tle_data = [
-                {
-                    "satellite_name": tle.satellite.sat_name,
-                    "satellite_id": tle.satellite.sat_number,
-                    "tle_line1": tle.tle_line1,
-                    "tle_line2": tle.tle_line2,
-                    "epoch": format_date(tle.epoch),
-                    "date_collected": format_date(tle.date_collected),
-                    "data_source": tle.data_source,
-                }
-            ]
+        if orbital_data is not None:
+            logger.info(f"Found nearest {format_name} with epoch: {orbital_data.epoch}")
+            if format == "tle":
+                tle = cast(TLE, orbital_data)
+                orbital_data_result = [
+                    {
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
+                    }
+                ]
+            else:
+                omm = cast(OrbitalElements, orbital_data)
+                orbital_data_result = [
+                    {
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
+                    }
+                ]
         else:
-            tle_data = []
-            logger.warning(f"No TLE found for {id_type} ID: {id} near epoch {epoch}")
-        logger.info("Successfully formatted TLE data")
+            orbital_data_result = []
+            logger.warning(
+                f"No {format_name} found for {id_type} ID: {id} near epoch {epoch}"
+            )
+        logger.info(f"Successfully formatted {format_name} data")
     except Exception as e:
-        logger.error(f"Failed to format TLE data: {str(e)}", exc_info=True)
+        logger.error(f"Failed to format {format_name} data: {str(e)}", exc_info=True)
         raise
 
     return [
         {
-            "orbital_data": tle_data,
+            "orbital_data": orbital_data_result,
             "source": api_source,
             "version": api_version,
         }
     ]
 
 
-def get_adjacent_tle_results(
+def get_adjacent_orbital_data_results(
     tle_repo: AbstractTLERepository,
+    orbital_elements_repo: AbstractOrbitalElementsRepository,
+    data_format: str,
     id: str,
     id_type: str,
     epoch: datetime,
@@ -259,67 +365,106 @@ def get_adjacent_tle_results(
     format: str = "json",
 ) -> list[dict[str, list[dict[str, Any]] | str]] | io.BytesIO:
     """
-    Fetches the adjacent TLEs to a specific epoch date - one TLE before and one after.
+    Fetches the adjacent orbital data (OMM or TLE) to a specific epoch date -
+    one before and one after.
 
     Parameters:
         tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
+        orbital_elements_repo (AbstractOrbitalElementsRepository): The repository to
+            fetch OMM data from.
+        data_format (str): The format of the orbital data, either "tle" or "omm".
         id (str): The ID of the satellite.
         id_type (str): The type of the ID, either "catalog" or "name".
-        epoch (datetime): The epoch date to fetch the adjacent TLEs to.
+        epoch (datetime): The epoch date to fetch the adjacent orbital data to.
         api_source (str): The source of the API request.
         api_version (str): The version of the API request.
         format (str): The format of the response, either "json" or "txt".
     Returns:
         Union[list[dict[str, list[dict[str, Any]] | str]], io.BytesIO]:
-            - For JSON format: A list containing a dictionary with TLE data
-            - For TXT format: A BytesIO object containing the formatted TLE text
+            - For JSON format: A list containing a dictionary with orbital data
+            - For TXT format: A BytesIO object containing the formatted orbital data
+            text
     """
-    logger.info(f"Fetching adjacent TLEs for {id_type} ID: {id} at epoch {epoch}")
+    repo: OrbitalDataRepository
+    if data_format == "tle":
+        repo = tle_repo
+        format_name = "TLE"
+    elif data_format == "omm":
+        repo = orbital_elements_repo
+        format_name = "OMM"
+    else:
+        raise ValueError(f"Invalid data format: {data_format}")
+
+    logger.info(
+        f"Fetching adjacent {format_name} data for {id_type} ID: {id} at epoch {epoch}"
+    )
     logger.info(f"Requested format: {format}")
 
     try:
-        tles = tle_repo.get_adjacent_tles(id, id_type, epoch)
-        logger.info(f"Retrieved {len(tles)} adjacent TLEs")
+        orbital_data_set = repo.get_adjacent_orbital_data(id, id_type, epoch)
+        logger.info(f"Retrieved {len(orbital_data_set)} adjacent {format_name}s")
     except Exception as e:
-        logger.error(f"Failed to retrieve adjacent TLEs: {str(e)}", exc_info=True)
+        logger.error(
+            f"Failed to retrieve adjacent {format_name}s: {str(e)}",
+            exc_info=True,
+        )
         raise
 
-    if format == "txt":
+    if format == "txt" and data_format == "tle":
         try:
-            tle_data: list[str] = [
+            text_lines: list[str] = [
                 f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
-                for tle in tles
+                for tle in cast(list[TLE], orbital_data_set)
             ]
-            text_content = "".join(tle_data)
-            logger.info("Successfully formatted TLE data as text")
+            text_content = "".join(text_lines)
+            logger.info(f"Successfully formatted {format_name} data as text")
             return io.BytesIO(text_content.encode())
         except Exception as e:
-            logger.error(f"Failed to format TLE data as text: {str(e)}", exc_info=True)
+            logger.error(
+                f"Failed to format {format_name} data as text: {str(e)}",
+                exc_info=True,
+            )
             raise
     else:
         try:
-            tle_json_data = [
-                {
-                    "satellite_name": tle.satellite.sat_name,
-                    "satellite_id": tle.satellite.sat_number,
-                    "tle_line1": tle.tle_line1,
-                    "tle_line2": tle.tle_line2,
-                    "epoch": format_date(tle.epoch),
-                    "date_collected": format_date(tle.date_collected),
-                    "data_source": tle.data_source,
-                }
-                for tle in tles
-            ]
-            logger.info("Successfully formatted TLE data as JSON")
+            if data_format == "tle":
+                orbital_json_data = [
+                    {
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
+                    }
+                    for tle in cast(list[TLE], orbital_data_set)
+                ]
+            else:
+                orbital_json_data = [
+                    {
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
+                    }
+                    for omm in cast(list[OrbitalElements], orbital_data_set)
+                ]
+            logger.info(f"Successfully formatted {format_name} data as JSON")
             return [
                 {
-                    "orbital_data": tle_json_data,
+                    "orbital_data": orbital_json_data,
                     "source": api_source,
                     "version": api_version,
                 }
             ]
         except Exception as e:
-            logger.error(f"Failed to format TLE data as JSON: {str(e)}", exc_info=True)
+            logger.error(
+                f"Failed to format {format_name} data as JSON: {str(e)}",
+                exc_info=True,
+            )
             raise
 
 
@@ -520,8 +665,10 @@ def search_all_satellites(
     return satellite_json
 
 
-def get_all_tles_at_epoch_formatted(
-    tle_repo: AbstractTLERepository,
+def get_all_orbital_data_at_epoch_formatted(
+    tle_repo: AbstractTLERepository | None,
+    orbital_elements_repo: AbstractOrbitalElementsRepository | None,
+    data_format: str,
     epoch_date: datetime,
     format: str = "json",
     page: int = 1,
@@ -530,11 +677,15 @@ def get_all_tles_at_epoch_formatted(
     api_version: str = "",
 ) -> list[dict[str, Any]] | io.BytesIO:
     """
-    Fetches all TLEs at a specific epoch date with support for different output formats.
+    Fetches all orbital data (TLEs or OMMs) at a specific epoch date with support for
+    different output formats.
 
     Parameters:
         tle_repo (AbstractTLERepository): The repository to fetch TLE data from.
-        epoch_date (datetime): The epoch date for the TLE data.
+        orbital_elements_repo (AbstractOrbitalElementsRepository): The repository to
+            fetch OMM data from.
+        data_format (str): The format of the orbital data, either "tle" or "omm".
+        epoch_date (datetime): The epoch date for the orbital data.
         format (str): Output format - either "json", "txt", or "zip".
         page (int): The page number for pagination (used for JSON format).
         per_page (int): The number of results per page (used for JSON format).
@@ -542,11 +693,24 @@ def get_all_tles_at_epoch_formatted(
         api_version (str): The version of the API request.
 
     Returns:
-        list[dict[str, Any]] | io.BytesIO: Either a list containing TLE data
-        and pagination info (JSON) or a BytesIO object containing formatted TLE data
+        list[dict[str, Any]] | io.BytesIO: Either a list containing orbital data
+        and pagination info (JSON) or a BytesIO object containing formatted orbital data
         (TXT/ZIP).
     """
-    logger.info(f"Fetching all TLEs at epoch {epoch_date} in {format} format")
+    # Callers pass only the repository matching data_format; the other is None.
+    repo: OrbitalDataRepository
+    if data_format == "tle":
+        repo = cast(AbstractTLERepository, tle_repo)
+        format_name = "TLE"
+    elif data_format == "omm":
+        repo = cast(AbstractOrbitalElementsRepository, orbital_elements_repo)
+        format_name = "OMM"
+    else:
+        raise ValueError(f"Invalid data format: {data_format}")
+
+    logger.info(
+        f"Fetching all {format_name} data at epoch {epoch_date} in {format} format"
+    )
     logger.info(f"Pagination: page {page}, {per_page} items per page")
 
     # For text format, get all records
@@ -554,25 +718,31 @@ def get_all_tles_at_epoch_formatted(
     actual_page = 1 if format == "txt" else page
 
     try:
-        tles, total_count, _ = tle_repo.get_all_tles_at_epoch(
+        orbital_data_set, total_count, _ = repo.get_all_orbital_data_at_epoch(
             epoch_date, actual_page, actual_per_page, format
         )
-        logger.info(f"Retrieved {len(tles)} TLEs out of {total_count} total")
+        logger.info(
+            f"Retrieved {len(orbital_data_set)} {format_name}s out of "
+            f"{total_count} total"
+        )
     except Exception as e:
-        logger.error(f"Failed to retrieve TLEs: {str(e)}", exc_info=True)
+        logger.error(f"Failed to retrieve {format_name}s: {str(e)}", exc_info=True)
         raise
 
-    if format == "txt":
+    if format == "txt" and data_format == "tle":
         try:
-            tle_data: list[str] = [
+            text_lines: list[str] = [
                 f"{tle.satellite.sat_name}\n{tle.tle_line1}\n{tle.tle_line2}\n"
-                for tle in tles
+                for tle in cast(list[TLE], orbital_data_set)
             ]
-            text_content = "".join(tle_data)
-            logger.info("Successfully formatted TLE data as text")
+            text_content = "".join(text_lines)
+            logger.info(f"Successfully formatted {format_name} data as text")
             return io.BytesIO(text_content.encode())
         except Exception as e:
-            logger.error(f"Failed to format TLE data as text: {str(e)}", exc_info=True)
+            logger.error(
+                f"Failed to format {format_name} data as text: {str(e)}",
+                exc_info=True,
+            )
             raise
 
     elif format == "zip":
@@ -580,37 +750,73 @@ def get_all_tles_at_epoch_formatted(
             csv_buffer = io.StringIO()
             csv_writer = csv.writer(csv_buffer)
 
-            csv_writer.writerow(
-                [
-                    "satellite_name",
-                    "satellite_id",
-                    "tle_line1",
-                    "tle_line2",
-                    "epoch",
-                    "date_collected",
-                    "data_source",
-                ]
-            )
-
-            for tle in tles:
+            if data_format == "tle":
                 csv_writer.writerow(
                     [
-                        tle.satellite.sat_name,
-                        tle.satellite.sat_number,
-                        tle.tle_line1,
-                        tle.tle_line2,
-                        format_date(tle.epoch),
-                        format_date(tle.date_collected),
-                        tle.data_source,
+                        "satellite_name",
+                        "satellite_id",
+                        "tle_line1",
+                        "tle_line2",
+                        "epoch",
+                        "date_collected",
+                        "data_source",
                     ]
                 )
 
+                for tle in cast(list[TLE], orbital_data_set):
+                    csv_writer.writerow(
+                        [
+                            tle.satellite.sat_name,
+                            tle.satellite.sat_number,
+                            tle.tle_line1,
+                            tle.tle_line2,
+                            format_date(tle.epoch),
+                            format_date(tle.date_collected),
+                            tle.data_source,
+                        ]
+                    )
+            else:
+                # Flat CSV using the CCSDS OMM field names (to_omm_dict) plus the
+                # SatChecker metadata columns; keep header in sync with row order.
+                csv_writer.writerow(
+                    [
+                        "OBJECT_NAME",
+                        "OBJECT_ID",
+                        "EPOCH",
+                        "MEAN_MOTION",
+                        "ECCENTRICITY",
+                        "INCLINATION",
+                        "RA_OF_ASC_NODE",
+                        "ARG_OF_PERICENTER",
+                        "MEAN_ANOMALY",
+                        "EPHEMERIS_TYPE",
+                        "CLASSIFICATION_TYPE",
+                        "NORAD_CAT_ID",
+                        "ELEMENT_SET_NO",
+                        "REV_AT_EPOCH",
+                        "BSTAR",
+                        "MEAN_MOTION_DOT",
+                        "MEAN_MOTION_DDOT",
+                        "date_collected",
+                        "data_source",
+                    ]
+                )
+
+                for omm in cast(list[OrbitalElements], orbital_data_set):
+                    csv_writer.writerow(
+                        [
+                            *omm.to_omm_dict().values(),
+                            format_date(omm.date_collected),
+                            omm.data_source,
+                        ]
+                    )
+
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                zip_file.writestr("tle_data.csv", csv_buffer.getvalue())
+                zip_file.writestr(f"{data_format}_data.csv", csv_buffer.getvalue())
 
             zip_buffer.seek(0)
-            logger.info("Successfully created ZIP file with TLE data")
+            logger.info(f"Successfully created ZIP file with {format_name} data")
             return zip_buffer
         except Exception as e:
             logger.error(f"Failed to create ZIP file: {str(e)}", exc_info=True)
@@ -618,31 +824,49 @@ def get_all_tles_at_epoch_formatted(
 
     else:
         try:
-            tle_json_data = [
-                {
-                    "satellite_name": tle.satellite.sat_name,
-                    "satellite_id": tle.satellite.sat_number,
-                    "tle_line1": tle.tle_line1,
-                    "tle_line2": tle.tle_line2,
-                    "epoch": format_date(tle.epoch),
-                    "date_collected": format_date(tle.date_collected),
-                    "data_source": tle.data_source,
-                }
-                for tle in tles
-            ]
-            logger.info("Successfully formatted TLE data as JSON")
+            if data_format == "tle":
+                orbital_json_data = [
+                    {
+                        "satellite_name": tle.satellite.sat_name,
+                        "satellite_id": tle.satellite.sat_number,
+                        "tle_line1": tle.tle_line1,
+                        "tle_line2": tle.tle_line2,
+                        "epoch": format_date(tle.epoch),
+                        "date_collected": format_date(tle.date_collected),
+                        "data_source": tle.data_source,
+                    }
+                    for tle in cast(list[TLE], orbital_data_set)
+                ]
+
+            else:
+                orbital_json_data = [
+                    {
+                        "satellite_name": omm.satellite.sat_name,
+                        "satellite_id": omm.satellite.sat_number,
+                        "orbital_elements": omm.to_omm_dict(),
+                        "epoch": format_date(omm.epoch),
+                        "date_collected": format_date(omm.date_collected),
+                        "data_source": omm.data_source,
+                    }
+                    for omm in cast(list[OrbitalElements], orbital_data_set)
+                ]
+
+            logger.info(f"Successfully formatted {format_name} data as JSON")
             return [
                 {
                     "per_page": per_page,
                     "page": page,
                     "total_results": total_count,
-                    "data": tle_json_data,
+                    "data": orbital_json_data,
                     "source": api_source,
                     "version": api_version,
                 }
             ]
         except Exception as e:
-            logger.error(f"Failed to format TLE data as JSON: {str(e)}", exc_info=True)
+            logger.error(
+                f"Failed to format {format_name} data as JSON: {str(e)}",
+                exc_info=True,
+            )
             raise
 
 

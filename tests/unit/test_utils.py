@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import numpy as np
 import pytest
 from astropy import units as u
-from astropy.coordinates import EarthLocation
+from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 from skyfield.api import wgs84
 from tests.factories.satellite_factory import SatelliteFactory
@@ -170,6 +170,79 @@ def test_tle_to_icrf_state_invalid_tle():
         coordinate_systems.tle_to_icrf_state(tle_line_1, tle_line_2, jd)
 
 
+def test_skyfield_strategy_matches_astropy_reference():
+    # End-to-end cross-check of the production SkyfieldPropagationStrategy
+    # against an independent astropy pipeline (TEME -> ITRS -> GCRS) built from
+    # the same SGP4 propagation.
+    #
+    # The tolerances reflect the physics of a TLE, not slack: a TEME position is
+    # only frame-defined to ~1 km / a few tens of arcsec (the TEME-to-J2000
+    # convention differs slightly between libraries), so the geocentric range is
+    # checked to 50 m and the geocentric direction to 90". That ~1 km offset is
+    # amplified in the topocentric direction as the satellite nears the
+    # observer's zenith, so the returned topocentric RA/Dec is checked only
+    # coarsely (0.1 deg). Even that coarse bound catches gross frame errors: a
+    # missing precession/nutation term is ~0.36 deg, and unit or axis mistakes
+    # are far larger.
+    from astropy.coordinates import (
+        GCRS,
+        ITRS,
+        TEME,
+        CartesianRepresentation,
+        EarthLocation,
+    )
+    from sgp4.api import Satrec
+
+    # ISS -- the same TLE used by the tle_to_icrf_state tests above.
+    tle_line_1 = "1 25544U 98067A   20333.54791667  .00016717  00000-0  10270-3 0  9000"
+    tle_line_2 = "2 25544  51.6442  21.4611 0001363  85.7861  74.4771 15.49180547  1000"
+    lat, lon, elevation = 32.0, -111.0, 2000.0
+    location = EarthLocation(lat=lat * u.deg, lon=lon * u.deg, height=elevation * u.m)
+
+    satrec = Satrec.twoline2rv(tle_line_1, tle_line_2)
+    tle = _tle_from_lines(tle_line_1, tle_line_2)
+    strategy = SkyfieldPropagationStrategy()
+
+    def separation_arcsec(ra1, dec1, ra2, dec2):
+        a, b, c, d = np.radians([ra1, dec1, ra2, dec2])
+        cos_sep = np.sin(b) * np.sin(d) + np.cos(b) * np.cos(d) * np.cos(a - c)
+        return np.degrees(np.arccos(np.clip(cos_sep, -1.0, 1.0))) * 3600.0
+
+    for minutes in (0.0, 30.0, 60.0, 90.0):
+        day_fraction = satrec.jdsatepochF + minutes / 1440.0
+        jd = satrec.jdsatepoch + day_fraction
+        position = strategy.propagate([jd], tle, lat, lon, elevation)[0]
+
+        error, teme_km, _ = satrec.sgp4(satrec.jdsatepoch, day_fraction)
+        assert error == 0
+        obstime = Time(jd, format="jd", scale="ut1")
+        sat_itrs = TEME(
+            CartesianRepresentation(np.array(teme_km) * u.km), obstime=obstime
+        ).transform_to(ITRS(obstime=obstime))
+
+        # Geocentric position: tight (isolates propagation + TEME->GCRS).
+        ref_gcrs = (
+            sat_itrs.transform_to(GCRS(obstime=obstime)).cartesian.xyz.to(u.km).value
+        )
+        got_gcrs = np.array(position.satellite_gcrs)
+        assert abs(np.linalg.norm(got_gcrs) - np.linalg.norm(ref_gcrs)) < 0.05
+        cos_dir = np.dot(got_gcrs, ref_gcrs) / (
+            np.linalg.norm(got_gcrs) * np.linalg.norm(ref_gcrs)
+        )
+        assert np.degrees(np.arccos(np.clip(cos_dir, -1.0, 1.0))) * 3600.0 < 90.0
+
+        # Topocentric RA/Dec (the endpoint's headline output): coarse.
+        topocentric = ITRS(
+            sat_itrs.cartesian - location.get_itrs(obstime).cartesian, obstime=obstime
+        ).transform_to(GCRS(obstime=obstime))
+        assert (
+            separation_arcsec(
+                position.ra, position.dec, topocentric.ra.deg, topocentric.dec.deg
+            )
+            < 360.0
+        )
+
+
 def test_process_satellite_batch():
     # Use the same TLE values from the passing FOV tests (FENGYUN 1C DEB)
     # Create proper satellite and TLE objects like in the FOV tests
@@ -228,6 +301,70 @@ def test_process_satellite_batch():
 
     assert result[0][0]["ra"] == pytest.approx(23.95167273, rel=1e-9)
     assert result[0][0]["dec"] == pytest.approx(75.60577991, rel=1e-9)
+
+
+def test_process_satellite_batch_illuminated_only_filters_results(mocker):
+    # Regression test: with illuminated_only=True, only the timesteps the
+    # illumination model marks as lit may be returned. The results used to be
+    # indexed by in_fov_mask rather than visible_mask, so non-illuminated
+    # points leaked through whenever the satellite had any illuminated point
+    # in the window.
+    from api.utils import propagation_strategies as ps
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    tle = TLEFactory(
+        satellite=satellite,
+        tle_line1="1 31746U 99025CEV 24275.73908890  .00035853  00000-0  86550-2 0  9990",  # noqa: E501
+        tle_line2="2 31746  98.5847  13.2387 0030132 143.9377 216.3858 14.52723026906685",  # noqa: E501
+    )
+
+    # An 11-second window at 1 s cadence over which this object stays inside the
+    # 2-degree FOV at every step, so both illuminated and dark steps below are
+    # in-FOV and the filter's effect is observable.
+    t0 = Time("2024-10-01T18:19:13", format="isot", scale="utc").jd
+    n = 11
+    half = (n - 1) // 2
+    julian_dates = [t0 + (k - half) / 86400.0 for k in range(n)]
+    jd_arr = np.array(julian_dates)
+
+    base_args = (
+        [tle],
+        julian_dates,
+        43.1929,
+        -81.3256,
+        300,
+        (24.797270, 75.774139),
+        2.0,
+        True,  # include_orbital_data
+    )
+
+    def indices_of(results):
+        return sorted(
+            int(np.argmin(np.abs(jd_arr - r["julian_date"]))) for r in results
+        )
+
+    # Baseline (no illumination filter) establishes which steps are in the FOV.
+    all_results, _, _ = process_satellite_batch((*base_args, False))
+    base_indices = indices_of(all_results)
+    # The test is only meaningful if the FOV window spans both an illuminated
+    # (even index) and a dark (odd index) step.
+    assert any(i % 2 == 0 for i in base_indices)
+    assert any(i % 2 == 1 for i in base_indices)
+
+    # Mark only even-indexed timesteps as illuminated.
+    illuminated = np.array([i % 2 == 0 for i in range(n)])
+    mocker.patch.object(ps, "is_illuminated_vectorized", return_value=illuminated)
+
+    results, _, _ = process_satellite_batch((*base_args, True))
+
+    # Only the illuminated in-FOV steps come back — no dark points leak through.
+    expected = [i for i in base_indices if illuminated[i]]
+    assert indices_of(results) == expected
 
 
 def test_batch_executor_raises_without_serializer():
@@ -832,3 +969,36 @@ def test_ensure_datetime():
 
     with pytest.raises(ValueError):
         time_utils.ensure_datetime(1.0)
+
+
+def test_angular_separation():
+    # Identical points -> zero separation.
+    assert coordinate_systems.angular_separation(
+        10.0, 20.0, 10.0, 20.0
+    ) == pytest.approx(0.0, abs=1e-9)
+
+    # A range of cases checked against astropy's spherical separation, including
+    # ones where a flat-sky sqrt((dra)**2 + (ddec)**2) is wrong: high
+    # declination (cos(dec) foreshortening) and the RA 0/360 wraparound.
+    cases = [
+        (10.0, 20.0, 11.0, 20.0),  # 1 deg of RA near the equator
+        (10.0, 85.0, 20.0, 85.0),  # 10 deg of RA at high declination
+        (359.5, 0.0, 0.5, 0.0),  # straddles RA = 0
+        (359.0, 88.0, 1.0, 89.0),  # wrap and high declination together
+        (123.4, -45.6, 200.0, 60.0),  # widely separated points
+    ]
+    for ra1, dec1, ra2, dec2 in cases:
+        expected = (
+            SkyCoord(ra1 * u.deg, dec1 * u.deg)
+            .separation(SkyCoord(ra2 * u.deg, dec2 * u.deg))
+            .deg
+        )
+        result = coordinate_systems.angular_separation(ra1, dec1, ra2, dec2)
+        assert result == pytest.approx(expected, abs=1e-6)
+
+    # The two cases the old flat-sky formula got wrong should have small true
+    # separations, not the large values sqrt((dra)**2 + (ddec)**2) would give.
+    assert coordinate_systems.angular_separation(10.0, 85.0, 20.0, 85.0) < 1.0
+    assert coordinate_systems.angular_separation(359.5, 0.0, 0.5, 0.0) == pytest.approx(
+        1.0, abs=1e-6
+    )

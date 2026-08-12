@@ -1,20 +1,112 @@
 import json
 import logging
+import threading
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import LockError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from api.entrypoints.extensions import db, redis_client, scheduler
 
 # Use the application's centralized logging configuration
 logger = logging.getLogger(__name__)
 
+# Errors that indicate Redis is simply unreachable (e.g. the sidecar isn't
+# ready yet after a pod restart). These are transient and self-heal once the
+# connection pool reconnects, so they're logged quietly and without a traceback
+# to avoid spamming logs during startup windows.
+REDIS_UNAVAILABLE_ERRORS = (RedisConnectionError, RedisTimeoutError)
+
 DEFAULT_CACHE_TTL = 3600  # 1 hour in seconds
 RECENT_TLES_CACHE_KEY = "recent_tles"
 RECENT_TDM_PREDICTIONS_CACHE_KEY = "recent_tdm_predictions"
 RECENT_ORBITAL_ELEMENTS_CACHE_KEY = "recent_orbital_elements"
+
+# Pod-local lock so only one gunicorn worker per pod runs the (heavy) cache
+# refresh. Each pod has its own Redis sidecar, so this lock naturally scopes to
+# the workers in the same pod - every pod still warms its own cache once.
+CACHE_REFRESH_LOCK_KEY = "cache_refresh_lock"
+CACHE_REFRESH_LOCK_TTL = 300  # seconds; auto-expires if a holder crashes
+
+
+def _acquire_refresh_lock(ttl: int = CACHE_REFRESH_LOCK_TTL) -> tuple[Any, bool]:
+    """Try to acquire the pod-local cache-refresh lock.
+
+    Uses redis-py's built-in ``Lock`` (SET NX + a unique token, released with an
+    atomic compare-and-delete)
+
+    Returns a ``(lock, redis_reachable)`` tuple:
+      * ``(lock, True)``  - we acquired the lock; pass ``lock`` to
+        :func:`_release_refresh_lock` when done.
+      * ``(None, True)``  - Redis is up but another worker holds the lock; skip
+        the refresh (that worker is warming this pod's shared cache).
+      * ``(None, False)`` - Redis is unreachable; the caller decides whether to
+        retry (this is the pod-restart / sidecar-not-ready case).
+    """
+    if not redis_client:
+        return None, False
+    lock = redis_client.lock(CACHE_REFRESH_LOCK_KEY, timeout=ttl)
+    try:
+        acquired = lock.acquire(blocking=False)
+        return (lock, True) if acquired else (None, True)
+    except REDIS_UNAVAILABLE_ERRORS:
+        return None, False
+    except Exception as e:
+        logger.debug(f"Could not acquire cache refresh lock: {e}")
+        return None, False
+
+
+def _release_refresh_lock(lock: Any) -> None:
+    """Release the pod-local cache-refresh lock if we still own it."""
+    if lock is None:
+        return
+    try:
+        lock.release()
+    except LockError:
+        # The lock already expired or was taken over by another worker; there's
+        # nothing of ours left to release.
+        pass
+    except Exception as e:
+        logger.debug(f"Could not release cache refresh lock: {e}")
+
+
+def _redis_is_ready() -> bool:
+    """Return True if Redis is reachable (responds to a ping)."""
+    if not redis_client:
+        return False
+    try:
+        return bool(redis_client.ping())
+    except Exception:
+        return False
+
+
+def _warm_cache_once(app) -> bool:
+    """Warm the pod's cache once, guarded by the pod-local lock.
+
+    Returns True if the cache is warm afterward - either because we refreshed it
+    or because another worker in this pod already holds the lock and is doing so.
+    Returns False if Redis was unreachable or the refresh failed.
+
+    Args:
+        app: The Flask application object to push an app context with.
+    """
+    lock, redis_reachable = _acquire_refresh_lock()
+    if lock is None:
+        # (None, True)  -> another worker is warming the shared cache: done.
+        # (None, False) -> Redis unreachable: not warm.
+        return redis_reachable
+    try:
+        with app.app_context():
+            tle_ok = refresh_tle_cache()
+            orbital_elements_ok = refresh_orbital_elements_cache()
+        return bool(tle_ok and orbital_elements_ok)
+    finally:
+        _release_refresh_lock(lock)
 
 
 def create_fov_cache_key(
@@ -66,6 +158,11 @@ def get_cached_data(key: str, default: Any = None) -> Any:
             return default
         # Cast to str to ensure mypy knows this is a string for json.loads
         return json.loads(str(data))
+    except REDIS_UNAVAILABLE_ERRORS as e:
+        # Redis is temporarily unreachable (e.g. still starting up after a pod
+        # restart); fall back to the default without noisy logging.
+        logger.debug(f"Redis unavailable for cache retrieval of key {key}: {e}")
+        return default
     except Exception as e:
         logger.warning(f"Cache retrieval error for key {key}: {e}")
         return default
@@ -160,6 +257,11 @@ def set_cached_data(key: str, data: Any, ttl: int = DEFAULT_CACHE_TTL) -> bool:
             return False
 
         return True
+    except REDIS_UNAVAILABLE_ERRORS as e:
+        # Redis is temporarily unreachable (e.g. still starting up after a pod
+        # restart); skip caching without noisy logging or a traceback.
+        logger.debug(f"Redis unavailable for cache set of key {key}: {e}")
+        return False
     except Exception as e:
         logger.warning(f"Cache set error for key {key}: {e}", exc_info=True)
         return False
@@ -196,7 +298,9 @@ def refresh_tle_cache(session=None):
 
         # Perform full TLE retrieval
         logger.info("Retrieving TLEs from database...")
-        tles, count, _ = tle_repo._get_all_tles_at_epoch(epoch_date, 1, 100000, "json")
+        tles, count, _ = tle_repo._get_all_orbital_data_at_epoch(
+            epoch_date, 1, 100000, "json"
+        )
         logger.info(f"Retrieved {count} TLEs from database")
 
         # Serialize TLEs for JSON storage
@@ -226,7 +330,7 @@ def refresh_tle_cache(session=None):
         else:
             logger.warning("TLE data retrieved but caching failed")
 
-        return True
+        return cache_result
 
     except Exception as e:
         logger.error(f"Error refreshing TLE cache: {e}", exc_info=True)
@@ -272,7 +376,7 @@ def refresh_orbital_elements_cache(session=None):
         # Perform full orbital elements retrieval
         logger.info("Retrieving TLEs from database...")
         orbital_elements, count, _ = (
-            orbital_elements_repo._get_all_orbital_elements_at_epoch(
+            orbital_elements_repo._get_all_orbital_data_at_epoch(
                 epoch_date, 1, 100000, "json"
             )
         )
@@ -317,7 +421,7 @@ def refresh_orbital_elements_cache(session=None):
         else:
             logger.warning("TLE data retrieved but caching failed")
 
-        return True
+        return cache_result
 
     except Exception as e:
         logger.error(f"Error refreshing TLE cache: {e}", exc_info=True)
@@ -331,8 +435,16 @@ def refresh_orbital_elements_cache(session=None):
 def scheduled_cache_refresh_job():
     """Global function for the scheduler job to refresh the cache"""
     try:
-        # Access the Flask app directly through the scheduler
+        # This job fires in every gunicorn worker's scheduler; the pod-local
+        # lock ensures only one worker per pod actually runs the refresh. If the
+        # lock isn't acquired (another worker has it, or Redis is unreachable),
+        # skip - the holder warms the shared cache, or the next interval retries.
+        lock, _ = _acquire_refresh_lock()
+        if not lock:
+            logger.debug("Scheduled cache refresh skipped; lock not acquired")
+            return
 
+        # Access the Flask app directly through the scheduler
         app = scheduler.app
 
         logger.info(
@@ -340,16 +452,70 @@ def scheduled_cache_refresh_job():
         )
 
         # Execute refresh_tle_cache within the app context
-        with app.app_context():
-            logger.info("Running scheduled refresh with app context")
-            refresh_tle_cache()
-            refresh_orbital_elements_cache()
+        try:
+            with app.app_context():
+                logger.info("Running scheduled refresh with app context")
+                refresh_tle_cache()
+                refresh_orbital_elements_cache()
+        finally:
+            _release_refresh_lock(lock)
     except Exception as e:
         logger.error(f"Error in scheduled cachedata refresh: {e}", exc_info=True)
 
 
 # Global flag to track if the initial refresh has been done
 _initial_cache_refresh_done = False
+
+# Guards against spawning more than one background warmup thread per worker.
+_cache_warmup_thread_started = False
+_cache_warmup_lock = threading.Lock()
+
+
+def _start_background_cache_warmup(app, interval: int = 5, max_wait: int = 600) -> None:
+    """Warm the cache in the background once Redis becomes ready.
+
+    Spawned only when Redis isn't reachable at startup. Runs in a daemon thread
+    so it never blocks worker startup or shutdown: it pings Redis every
+    ``interval`` seconds until it's ready (or ``max_wait`` elapses), then warms
+    the cache once.
+
+    Args:
+        app: The Flask application object (not a proxy) to push a context with.
+        interval: Seconds to wait between readiness pings.
+        max_wait: Maximum total seconds to wait for Redis before giving up.
+    """
+    global _cache_warmup_thread_started
+
+    with _cache_warmup_lock:
+        if _cache_warmup_thread_started:
+            return
+        _cache_warmup_thread_started = True
+
+    def _run() -> None:
+        global _initial_cache_refresh_done, _cache_warmup_thread_started
+        deadline = time.monotonic() + max_wait
+        try:
+            # Wait for Redis to come up (e.g. the sidecar finishing its restart).
+            while not _redis_is_ready():
+                if time.monotonic() >= deadline:
+                    logger.warning(
+                        f"Cache warmup gave up after {max_wait}s; Redis not ready"
+                    )
+                    return
+                time.sleep(interval)
+
+            if _warm_cache_once(app):
+                _initial_cache_refresh_done = True
+                logger.info("Cache warmed once Redis became available")
+            else:
+                logger.warning("Cache warmup ran but the refresh did not complete")
+        finally:
+            # Allow a future attempt to spawn a new thread if this one exited
+            # without warming the cache.
+            with _cache_warmup_lock:
+                _cache_warmup_thread_started = False
+
+    threading.Thread(target=_run, name="cache-warmup", daemon=True).start()
 
 
 def initialize_cache_refresh_scheduler(hours=3):
@@ -393,9 +559,10 @@ def initialize_cache_refresh_scheduler(hours=3):
         except Exception as e:
             logger.error(f"Failed to schedule cache refresh job: {e}")
 
-    # Don't perform immediate refresh here, as it might not have app context
-    def perform_initial_refresh():
-        """Performs the initial cache refresh with proper app context"""
+    # Don't perform the refresh here; the caller passes in the Flask app so this
+    # doesn't depend on an active app context or the current_app proxy.
+    def perform_initial_refresh(app):
+        """Perform the initial cache refresh for the given Flask app."""
         global _initial_cache_refresh_done
 
         # Prevent duplicate initial refresh
@@ -404,25 +571,25 @@ def initialize_cache_refresh_scheduler(hours=3):
             return True
 
         try:
-            from flask import current_app
+            # If Redis is already up (the common case), warm the cache now. Only
+            # one worker per pod actually does the work - the pod-local lock
+            # inside _warm_cache_once handles that.
+            if _redis_is_ready():
+                logger.info("Performing initial cache data refresh")
+                if _warm_cache_once(app):
+                    _initial_cache_refresh_done = True
+                    check_redis_memory()
+                    return True
 
-            # Check if we're in an application context
-            if not current_app:
-                logger.warning(
-                    "No Flask app context available for initial cache refresh"
-                )
-                return False
-
-            # Since we're already in an app context, we can use it directly
-            logger.info("Performing initial cache data refresh")
-            session = db.session
-            tle_result = refresh_tle_cache(session=session)
-            orbital_elements_result = refresh_orbital_elements_cache(session=session)
-            _initial_cache_refresh_done = True
-
-            check_redis_memory()
-
-            return tle_result and orbital_elements_result
+            # Redis wasn't reachable during startup (e.g. the sidecar is still
+            # coming up after a pod restart). Warm in the background once it's
+            # ready, without blocking or failing worker startup.
+            logger.warning(
+                "Redis not ready during startup; deferring cache warmup "
+                "to the background"
+            )
+            _start_background_cache_warmup(app)
+            return False
 
         except Exception as e:
             logger.error(f"Error during initial cache data refresh: {e}", exc_info=True)
@@ -469,5 +636,7 @@ def check_redis_memory() -> None:
             f"Redis expired keys: {expired_keys}, evicted keys: {evicted_keys}"
         )
 
+    except REDIS_UNAVAILABLE_ERRORS as e:
+        logger.debug(f"Redis unavailable for memory check: {e}")
     except Exception as e:
         logger.error(f"Failed to get Redis memory info: {e}")
