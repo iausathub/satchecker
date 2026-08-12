@@ -1,1 +1,0 @@
-Fix data caching on container startup so the recent-data cache populates reliably, prevent the scheduler from starting multiple times, and pass the Flask app (not the `current_app` proxy) to the initial cache refresh.

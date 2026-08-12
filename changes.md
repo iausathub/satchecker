@@ -4,6 +4,33 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
+# 1.7.0 (2026-08-12)
+
+### Bugfixes
+
+- Fix for FOV endpoing not returning results in chronological order for default group_by=time. ([#173](https://github.com/iausathub/satchecker/pull/173))
+- Fix the angular distance from the FOV center reported for ephemeris-refined satellite positions. It was computed with a flat-sky `sqrt((ra1 - ra2)**2 + (dec1 - dec2)**2)`, which ignores cos(dec) foreshortening in right ascension and breaks across the RA 0/360 degree boundary. It now uses a haversine great-circle separation, so positions at high declination and near RA = 0 are placed in or out of the field of view correctly. ([#239](https://github.com/iausathub/satchecker/pull/239))
+- Fix the `illuminated_only` filter in FOV searches. The illumination status was computed and used to decide whether a satellite had any visible point, but the returned points were then selected by field-of-view membership alone, so non-illuminated (eclipsed) positions were still included whenever the satellite had at least one illuminated point in the window. Illuminated and dark points are now selected consistently, so `illuminated_only=true` returns only illuminated positions. ([#241](https://github.com/iausathub/satchecker/pull/241))
+- Return HTTP 400 instead of 500 when an invalid observatory `site` name is supplied, and resolve site names from a bundled sites.json so lookups work without runtime network access. ([#245](https://github.com/iausathub/satchecker/pull/245))
+- Return HTTP 400 instead of a 500 database error when a non-integer NORAD ID is supplied to the tools or ephemeris endpoints (`id` with `id_type=catalog`, the names-from-norad-id endpoint, and the `norad_id` parameter). ([#245](https://github.com/iausathub/satchecker/pull/245))
+- Fix data caching on container startup so the recent-data cache populates reliably, prevent the scheduler from starting multiple times, and pass the Flask app (not the `current_app` proxy) to the initial cache refresh.
+- Return correct HTTP status codes from the ephemeris endpoints for TLE issues: 404 when no TLE is found and 422 when the requested date is outside the range of available TLE data, instead of 500.
+
+### Features
+
+- Use operator-provided ephemeris data to interpolate satellite positions when available. This is only available for Starlink satellites. Covariance info for uncertainties will be included in the response in the future. ([#173](https://github.com/iausathub/satchecker/pull/173))
+- Use orbital elements in OMM format from both Celestrak and Space-Track since Celestrak won't be using the alpha-5 notation for NORAD IDs to support the orginal TLE format.
+
+  TLEs for dates before 2026-07-12 will continue to be used as is with no changes to any of the related endpoints, but OMM will be used for everything going forward.
+
+  References to `tle_data` in API responses will be replaced with `orbital_data`. The ability to see which orbital data was used will be added in the future for the OMM format. ([#225](https://github.com/iausathub/satchecker/pull/225))
+- Add OMM (Orbital Mean-Element Message) data access. New tools endpoints (get-omm-data, get-nearest-omm, get-adjacent-omms, get-omms-around-epoch, and omms-at-epoch) mirror the existing TLE endpoints, and OMM data is now included in FOV results at parity with TLE (TLE is used for epochs before the orbital-elements cutoff, OMM after). The `object_id` field is included in the satellite data returned for both TLE and OMM results. ([#245](https://github.com/iausathub/satchecker/pull/245))
+
+### Changes
+
+- Add a 20% margin to the FOV radius when selecting satellites, so objects just outside the requested field of view are still returned to account for satellite position uncertainties. ([#173](https://github.com/iausathub/satchecker/pull/173))
+
+
 # 1.6.0 (2026-01-29)
 
 ## Features
