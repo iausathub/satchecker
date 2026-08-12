@@ -468,10 +468,11 @@ def test_validate_parameters_site_invalid(app):
         parameter_list = ["site"]
         required_parameters = []
 
-        with pytest.raises(ValidationError, match="Invalid site"):
+        with pytest.raises(ValidationError, match="Invalid site") as exc_info:
             parameters = validate_parameters(  # noqa: F841
                 request, parameter_list, required_parameters
             )
+        assert exc_info.value.status_code == 400
 
 
 def test_validate_parameters_site_and_location(app):
@@ -560,3 +561,63 @@ def test_validate_parameters_fov_radius(app):
             parameters = validate_parameters(  # noqa: F841
                 request, parameter_list, required_parameters
             )
+
+
+@pytest.mark.parametrize(
+    "path,parameter_list,required,key,expected",
+    [
+        # catalog lookups convert id to an integer NORAD ID...
+        (
+            "/tools/get-tle-data/?id=25544&id_type=catalog",
+            ["id", "id_type"],
+            ["id", "id_type"],
+            "id",
+            25544,
+        ),
+        # ...but id_type=name is a satellite name and must stay a string
+        (
+            "/tools/get-tle-data/?id=ISS&id_type=name",
+            ["id", "id_type"],
+            ["id", "id_type"],
+            "id",
+            "ISS",
+        ),
+        # names-from-norad-id takes a NORAD ID with no id_type
+        (
+            "/tools/names-from-norad-id/?id=25544",
+            ["id"],
+            ["id"],
+            "id",
+            25544,
+        ),
+        # norad_id is always an integer NORAD ID
+        ("/?norad_id=25544", ["norad_id"], [], "norad_id", 25544),
+    ],
+    ids=["catalog_id", "name_id", "names_from_norad_id", "norad_id"],
+)
+def test_validate_parameters_norad_id_conversion(
+    app, path, parameter_list, required, key, expected
+):
+    with app.test_request_context(path):
+        parameters = validate_parameters(request, parameter_list, required)
+        assert parameters[key] == expected
+
+
+@pytest.mark.parametrize(
+    "path,parameter_list,required",
+    [
+        (
+            "/tools/get-tle-data/?id=test&id_type=catalog",
+            ["id", "id_type"],
+            ["id", "id_type"],
+        ),
+        ("/tools/names-from-norad-id/?id=test", ["id"], ["id"]),
+        ("/?norad_id=test", ["norad_id"], []),
+    ],
+    ids=["catalog_id", "names_from_norad_id", "norad_id"],
+)
+def test_validate_parameters_norad_id_non_integer(app, path, parameter_list, required):
+    with app.test_request_context(path):
+        with pytest.raises(ValidationError, match="must be an integer NORAD ID") as exc:
+            validate_parameters(request, parameter_list, required)
+        assert exc.value.status_code == 400

@@ -19,6 +19,7 @@ from skyfield.nutationlib import iau2000b
 from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
 from api.domain.models.orbital_data import OrbitalData
+from api.domain.models.orbital_elements import OrbitalElements
 from api.domain.models.tle import TLE
 from api.utils import coordinate_systems, output_utils
 from api.utils.coordinate_systems import (
@@ -792,6 +793,23 @@ def process_satellite_batch(
                         "source": orbital_data.data_source,
                     }
 
+                if include_orbital_data and isinstance(orbital_data, OrbitalElements):
+                    result["orbital_data"] = {
+                        "mean_motion": orbital_data.mean_motion,
+                        "eccentricity": orbital_data.eccentricity,
+                        "inclination": orbital_data.inclination,
+                        "ra_of_ascending_node": orbital_data.ra_of_ascending_node,
+                        "arg_of_pericenter": orbital_data.arg_of_pericenter,
+                        "mean_anomaly": orbital_data.mean_anomaly,
+                        "ephemeris_type": orbital_data.ephemeris_type,
+                        "classification_type": orbital_data.classification_type,
+                        "element_set_no": orbital_data.element_set_no,
+                        "rev_at_epoch": orbital_data.rev_at_epoch,
+                        "bstar": orbital_data.bstar,
+                        "mean_motion_dot": orbital_data.mean_motion_dot,
+                        "epoch": output_utils.format_date(orbital_data.epoch),
+                        "source": orbital_data.data_source,
+                    }
                 result_entries.append(result)
 
             batch_results.extend(result_entries)

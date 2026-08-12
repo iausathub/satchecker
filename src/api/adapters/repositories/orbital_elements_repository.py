@@ -65,7 +65,7 @@ class AbstractOrbitalElementsRepository(abc.ABC):
             satellite_name, start_date, end_date
         )
 
-    def get_all_orbital_elements_at_epoch(
+    def get_all_orbital_data_at_epoch(
         self,
         epoch_date: datetime,
         page: int,
@@ -75,7 +75,7 @@ class AbstractOrbitalElementsRepository(abc.ABC):
         data_source_limit: str | None = None,
         use_generated_tles: bool = False,
     ) -> tuple[list[OrbitalElements], int, str]:
-        return self._get_all_orbital_elements_at_epoch(
+        return self._get_all_orbital_data_at_epoch(
             epoch_date,
             page,
             per_page,
@@ -104,6 +104,28 @@ class AbstractOrbitalElementsRepository(abc.ABC):
         count_after: int,
     ) -> list[OrbitalElements]:
         return self._get_orbital_elements_around_epoch(
+            id, id_type, epoch, count_before, count_after
+        )
+
+    def get_nearest_orbital_data(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> OrbitalElements | None:
+        return self.get_nearest_orbital_elements(id, id_type, epoch)
+
+    def get_adjacent_orbital_data(
+        self, id: str, id_type: str, epoch: datetime
+    ) -> list[OrbitalElements]:
+        return self.get_adjacent_orbital_elements(id, id_type, epoch)
+
+    def get_orbital_data_around_epoch(
+        self,
+        id: str,
+        id_type: str,
+        epoch: datetime,
+        count_before: int,
+        count_after: int,
+    ) -> list[OrbitalElements]:
+        return self.get_orbital_elements_around_epoch(
             id, id_type, epoch, count_before, count_after
         )
 
@@ -138,7 +160,7 @@ class AbstractOrbitalElementsRepository(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_all_orbital_elements_at_epoch(
+    def _get_all_orbital_data_at_epoch(
         self,
         epoch_date: datetime,
         page: int,
@@ -298,6 +320,7 @@ class SqlAlchemyOrbitalElementsRepository(
                     "sat_name": satellite.sat_name,
                     "sat_number": satellite.sat_number,
                     "decay_date": decay_date.isoformat() if decay_date else None,
+                    "object_id": getattr(satellite, "object_id", None),
                     "has_current_sat_number": getattr(
                         satellite, "has_current_sat_number", True
                     ),
@@ -343,6 +366,7 @@ class SqlAlchemyOrbitalElementsRepository(
                     sat_name=sat_data.get("sat_name", ""),
                     sat_number=sat_data.get("sat_number", ""),
                     decay_date=decay_date,
+                    object_id=sat_data.get("object_id"),
                     has_current_sat_number=sat_data.get("has_current_sat_number", True),
                     constellation=sat_data.get("constellation", ""),
                 )
@@ -419,7 +443,7 @@ class SqlAlchemyOrbitalElementsRepository(
             satellite_name, start_date, end_date
         )
 
-    def _get_all_orbital_elements_at_epoch(
+    def _get_all_orbital_data_at_epoch(
         self,
         epoch_date: datetime,
         page: int,

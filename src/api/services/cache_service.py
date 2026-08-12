@@ -298,7 +298,9 @@ def refresh_tle_cache(session=None):
 
         # Perform full TLE retrieval
         logger.info("Retrieving TLEs from database...")
-        tles, count, _ = tle_repo._get_all_tles_at_epoch(epoch_date, 1, 100000, "json")
+        tles, count, _ = tle_repo._get_all_orbital_data_at_epoch(
+            epoch_date, 1, 100000, "json"
+        )
         logger.info(f"Retrieved {count} TLEs from database")
 
         # Serialize TLEs for JSON storage
@@ -374,7 +376,7 @@ def refresh_orbital_elements_cache(session=None):
         # Perform full orbital elements retrieval
         logger.info("Retrieving TLEs from database...")
         orbital_elements, count, _ = (
-            orbital_elements_repo._get_all_orbital_elements_at_epoch(
+            orbital_elements_repo._get_all_orbital_data_at_epoch(
                 epoch_date, 1, 100000, "json"
             )
         )

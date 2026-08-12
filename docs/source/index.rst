@@ -52,7 +52,7 @@ or email questions to `sathub@cps.iau.org <mailto:sathub@cps.iau.org>`_.
    :hidden:
 
    tools_satellites
-   tools_tle
+   tools_data_access
 
 .. toctree::
    :caption: FOV API

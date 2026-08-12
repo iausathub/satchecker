@@ -30,9 +30,9 @@ Satellite passes Through FOV
    :query dec: (*required*) -- Declination of FOV center in degrees
    :query fov_radius: (*required*) -- Radius of circular FOV in degrees
    :query group_by: (*optional*) -- How to group results ("satellite" or "time"). Default is "time" for chronological order
-   :query include_orbital_data: (*optional*) -- If True, include TLE data used to calculate the passes in the response. Default is False.
+   :query include_orbital_data: (*optional*) -- If True, include the orbital data used to calculate the passes in the response - TLE data for epochs before the orbital-elements cutoff date, OMM data on or after it. Default is False.
    :query constellation: (*optional*) -- Constellation name (e.g. 'starlink') - if provided, only satellites from this constellation will be returned.
-   :query data_source: (*optional*) -- Data source to use for TLEs ("celestrak", "spacetrack", or "any"). Default is "any".
+   :query data_source: (*optional*) -- Data source to use for orbital data ("celestrak", "spacetrack", or "any"). Default is "any".
    :query illuminated_only: (*optional*) -- If True, only return satellites that are illuminated. Default is False.
    :query async: (*optional*) -- If True (or omitted), return a task ID for polling status and retrieving results. If False, return immediate results. Default is True.
 

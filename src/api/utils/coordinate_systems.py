@@ -19,7 +19,8 @@ cache_dir = Path(
     os.environ.get("ASTROPY_CACHE_DIR", "/tmp/astropy_cache")  # noqa: S108
 )
 cache_dir.mkdir(parents=True, exist_ok=True)
-set_temp_cache(cache_dir)
+if set_temp_cache._temp_path is None:
+    set_temp_cache(cache_dir).__enter__()
 
 
 # TODO: Verify if teme_to_ecef is correct

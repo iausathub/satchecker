@@ -6,21 +6,24 @@ from flask import current_app as app
 from flask import jsonify, request, send_file
 from werkzeug.exceptions import abort
 
+from api.adapters.repositories.orbital_elements_repository import (
+    SqlAlchemyOrbitalElementsRepository,
+)
 from api.adapters.repositories.satellite_repository import SqlAlchemySatelliteRepository
 from api.adapters.repositories.tle_repository import SqlAlchemyTLERepository
 from api.common.exceptions import ValidationError
 from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
     get_active_satellites,
-    get_adjacent_tle_results,
-    get_all_tles_at_epoch_formatted,
+    get_adjacent_orbital_data_results,
+    get_all_orbital_data_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
-    get_nearest_tle_result,
+    get_nearest_orbital_data_result,
+    get_orbital_data,
+    get_orbital_data_around_epoch_results,
     get_satellite_data,
     get_starlink_generations,
-    get_tle_data,
-    get_tles_around_epoch_results,
     search_all_satellites,
 )
 from api.services.validation_service import validate_parameters
@@ -339,13 +342,16 @@ def get_tles():
     """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
 
     parameter_list = ["id", "id_type", "start_date_jd", "end_date_jd"]
     required_parameters = ["id", "id_type"]
     parameters = validate_parameters(request, parameter_list, required_parameters)
 
-    tle_data = get_tle_data(
+    tle_data = get_orbital_data(
         tle_repo,
+        orbital_elements_repo,
+        "tle",
         parameters["id"],
         parameters["id_type"],
         parameters["start_date_jd"],
@@ -634,8 +640,10 @@ def get_tles_at_epoch():
     page = int(parameters.get("page", 1) or 1)
     per_page = int(parameters.get("per_page") or 100)
 
-    result = get_all_tles_at_epoch_formatted(
+    result = get_all_orbital_data_at_epoch_formatted(
         tle_repo,
+        None,  # orbital_elements_repo
+        "tle",
         epoch_date,
         format=format,
         page=page,
@@ -775,12 +783,15 @@ def get_nearest_tle():
     """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
     parameter_list = ["id", "id_type", "epoch"]
     required_parameters = ["id", "id_type", "epoch"]
     parameters = validate_parameters(request, parameter_list, required_parameters)
 
-    tle_data = get_nearest_tle_result(
+    tle_data = get_nearest_orbital_data_result(
         tle_repo,
+        orbital_elements_repo,
+        "tle",
         parameters["id"],
         parameters["id_type"],
         parameters["epoch"],
@@ -877,12 +888,15 @@ def get_adjacent_tles():
     """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
     parameter_list = ["id", "id_type", "epoch"]
     required_parameters = ["id", "id_type", "epoch"]
     parameters = validate_parameters(request, parameter_list, required_parameters)
 
-    tle_data = get_adjacent_tle_results(
+    tle_data = get_adjacent_orbital_data_results(
         tle_repo,
+        orbital_elements_repo,
+        "tle",
         parameters["id"],
         parameters["id_type"],
         parameters["epoch"],
@@ -977,12 +991,15 @@ def get_tles_around_epoch():
     """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
     parameter_list = ["id", "id_type", "epoch", "count_before", "count_after"]
     required_parameters = ["id", "id_type", "epoch"]
     parameters = validate_parameters(request, parameter_list, required_parameters)
 
-    tle_data = get_tles_around_epoch_results(
+    tle_data = get_orbital_data_around_epoch_results(
         tle_repo,
+        orbital_elements_repo,
+        "tle",
         parameters["id"],
         parameters["id_type"],
         parameters["epoch"],
@@ -992,3 +1009,750 @@ def get_tles_around_epoch():
         api_version,
     )
     return jsonify(tle_data)
+
+
+@api_v1.route("/tools/get-omm-data/")
+@api_main.route("/tools/get-omm-data/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_omms():
+    """Get Orbital Mean-Element Message (OMM) data for a satellite.
+    ---
+    tags:
+      - Tools
+    summary: Get OMM data for a satellite
+    description: Fetches Orbital Mean-Element Message (OMM) data for a given satellite within an optional date range
+    parameters:
+      - name: id
+        in: query
+        type: string
+        required: true
+        description: The ID of the satellite (NORAD ID or name)
+        example: "25544"
+      - name: id_type
+        in: query
+        type: string
+        required: true
+        description: The type of ID provided
+        enum: ["catalog", "name"]
+        example: "catalog"
+      - name: start_date_jd
+        in: query
+        type: number
+        format: float
+        required: false
+        description: Start date of the date range in Julian Date format
+        example: 2459000.5
+      - name: end_date_jd
+        in: query
+        type: number
+        format: float
+        required: false
+        description: End date of the date range in Julian Date format
+        example: 2459100.5
+    responses:
+      200:
+        description: OMM data for the specified satellite
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                omms:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      satellite_name:
+                        type: string
+                        example: "ISS (ZARYA)"
+                      satellite_id:
+                        type: integer
+                        example: 25544
+                      orbital_elements:
+                        type: object
+                        properties:
+                          OBJECT_NAME:
+                            type: string
+                          OBJECT_ID:
+                            type: integer
+                          EPOCH:
+                            type: string
+                          MEAN_MOTION:
+                            type: number
+                            format: float
+                          ECCENTRICITY:
+                            type: number
+                            format: float
+                          ARG_OF_PERICENTER:
+                            type: number
+                            format: float
+                          MEAN_ANOMALY:
+                            type: number
+                            format: float
+                          EPHEMERIS_TYPE:
+                            type: number
+                            format: integer
+                          CLASSIFICATION_TYPE:
+                            type: string
+                            format: string
+                          NORAD_CAT_ID:
+                            type: integer
+                            format: integer
+                          ELEMENT_SET_NO:
+                            type: integer
+                            format: integer
+                          REV_AT_EPOCH:
+                            type: integer
+                            format: integer
+                          BSTAR:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DOT:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DDOT:
+                            type: number
+                            format: float
+                      epoch:
+                        type: number
+                        format: float
+                        example: 2459851.10868672
+                      date_collected:
+                        type: string
+                        format: date-time
+                        example: "2022-09-30T14:36:31Z"
+                      data_source:
+                        type: string
+                        example: "celestrak"
+                source:
+                  type: string
+                version:
+                  type: string
+      400:
+        description: Bad request due to missing or invalid parameters
+      404:
+        description: No OMM data found
+      500:
+        description: Internal server error
+    """
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
+
+    parameter_list = ["id", "id_type", "start_date_jd", "end_date_jd"]
+    required_parameters = ["id", "id_type"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    omm_data = get_orbital_data(
+        tle_repo,
+        orbital_elements_repo,
+        "omm",
+        parameters["id"],
+        parameters["id_type"],
+        parameters["start_date_jd"],
+        parameters["end_date_jd"],
+        api_source,
+        api_version,
+    )
+
+    return jsonify(omm_data)
+
+
+@api_v1.route("/tools/get-nearest-omm/")
+@api_main.route("/tools/get-nearest-omm/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_nearest_omm():
+    """Get the OMM closest to a specific epoch.
+    ---
+    tags:
+      - Tools
+    summary: Get nearest OMM to epoch
+    description: Fetches the OMM closest in time to the given epoch for a specific satellite
+    parameters:
+      - name: id
+        in: query
+        type: string
+        required: true
+        description: The ID of the satellite (NORAD ID or name)
+        example: "25544"
+      - name: id_type
+        in: query
+        type: string
+        required: true
+        description: The type of ID provided, "catalog" for NORAD ID or "name" for satellite name
+        enum: ["catalog", "name"]
+        example: "catalog"
+      - name: epoch
+        in: query
+        type: number
+        format: float
+        required: true
+        description: The Julian Date to find the nearest OMM for
+        example: 2459000.5
+    responses:
+      200:
+        description: The OMM closest to the specified epoch
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                omm_data:
+                  type: array
+                  description: The OMM data closest to the specified epoch
+                  items:
+                    type: object
+                    properties:
+                      satellite_name:
+                        type: string
+                        example: "ISS (ZARYA)"
+                      satellite_id:
+                        type: integer
+                        example: 25544
+                      orbital_elements:
+                        type: object
+                        properties:
+                          OBJECT_NAME:
+                            type: string
+                          OBJECT_ID:
+                            type: integer
+                          EPOCH:
+                            type: string
+                          MEAN_MOTION:
+                            type: number
+                            format: float
+                          ECCENTRICITY:
+                            type: number
+                            format: float
+                          ARG_OF_PERICENTER:
+                            type: number
+                            format: float
+                          MEAN_ANOMALY:
+                            type: number
+                            format: float
+                          EPHEMERIS_TYPE:
+                            type: number
+                            format: integer
+                          CLASSIFICATION_TYPE:
+                            type: string
+                            format: string
+                          NORAD_CAT_ID:
+                            type: integer
+                            format: integer
+                          ELEMENT_SET_NO:
+                            type: integer
+                            format: integer
+                          REV_AT_EPOCH:
+                            type: integer
+                            format: integer
+                          BSTAR:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DOT:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DDOT:
+                            type: number
+                            format: float
+                      epoch:
+                        type: string
+                        description: Epoch date of the OMM
+                        example: "2024-01-30 02:26:07 UTC"
+                      date_collected:
+                        type: string
+                        format: date-time
+                        description: Date when the OMM was collected
+                        example: "2024-06-04 19:16:53 UTC"
+                      data_source:
+                        type: string
+                        description: Source of the OMM data
+                        example: "spacetrack"
+                source:
+                  type: string
+                  description: API source
+                  example: "IAU CPS SatChecker"
+                version:
+                  type: string
+                  description: The version of the API
+                  example: "1.X.x"
+      400:
+        description: Bad request due to missing or invalid parameters
+      404:
+        description: No matching OMM found
+      500:
+        description: Internal server error
+    """
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
+    parameter_list = ["id", "id_type", "epoch"]
+    required_parameters = ["id", "id_type", "epoch"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    omm_data = get_nearest_orbital_data_result(
+        tle_repo,
+        orbital_elements_repo,
+        "omm",
+        parameters["id"],
+        parameters["id_type"],
+        parameters["epoch"],
+        api_source,
+        api_version,
+    )
+    return jsonify(omm_data)
+
+
+@api_v1.route("/tools/get-adjacent-omms/")
+@api_main.route("/tools/get-adjacent-omms/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_adjacent_omms():
+    """Get OMMs immediately before and after a specific epoch.
+    ---
+    tags:
+      - Tools
+    summary: Get adjacent OMMs around epoch
+    description: Fetches the OMMs immediately before and after the given epoch for a specific satellite
+    parameters:
+      - name: id
+        in: query
+        type: string
+        required: true
+        description: The ID of the satellite (NORAD ID or name)
+        example: "25544"
+      - name: id_type
+        in: query
+        type: string
+        required: true
+        description: The type of ID provided, "catalog" for NORAD ID or "name" for satellite name
+        enum: ["catalog", "name"]
+        example: "catalog"
+      - name: epoch
+        in: query
+        type: number
+        format: float
+        required: true
+        description: The Julian Date to bracket with OMMs
+        example: 2459000.5
+    responses:
+      200:
+        description: OMMs immediately before and after the specified epoch
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source:
+                  type: string
+                  description: API source
+                  example: "IAU CPS SatChecker"
+                tle_data:
+                  type: array
+                  description: Array containing the OMMs before and after the specified epoch
+                  items:
+                    type: object
+                    properties:
+                      satellite_name:
+                        type: string
+                        example: "ISS (ZARYA)"
+                      satellite_id:
+                        type: integer
+                        example: 25544
+                      orbital_elements:
+                        type: object
+                        properties:
+                          OBJECT_NAME:
+                            type: string
+                          OBJECT_ID:
+                            type: integer
+                          EPOCH:
+                            type: string
+                          MEAN_MOTION:
+                            type: number
+                            format: float
+                          ECCENTRICITY:
+                            type: number
+                            format: float
+                          ARG_OF_PERICENTER:
+                            type: number
+                            format: float
+                          MEAN_ANOMALY:
+                            type: number
+                            format: float
+                          EPHEMERIS_TYPE:
+                            type: number
+                            format: integer
+                          CLASSIFICATION_TYPE:
+                            type: string
+                            format: string
+                          NORAD_CAT_ID:
+                            type: integer
+                            format: integer
+                          ELEMENT_SET_NO:
+                            type: integer
+                            format: integer
+                          REV_AT_EPOCH:
+                            type: integer
+                            format: integer
+                          BSTAR:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DOT:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DDOT:
+                            type: number
+                            format: float
+                      epoch:
+                        type: string
+                        description: Epoch date of the OMM
+                        example: "2019-06-30 20:27:51 UTC"
+                      date_collected:
+                        type: string
+                        format: date-time
+                        description: Date when the OMM was collected
+                        example: "2024-06-04 19:16:53 UTC"
+                      data_source:
+                        type: string
+                        description: Source of the OMM data
+                        example: "spacetrack"
+                version:
+                  type: string
+                  description: The version of the API
+                  example: "1.X.x"
+      400:
+        description: Bad request due to missing or invalid parameters
+      404:
+        description: No adjacent OMMs found
+      500:
+        description: Internal server error
+    """
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
+    parameter_list = ["id", "id_type", "epoch"]
+    required_parameters = ["id", "id_type", "epoch"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    omm_data = get_adjacent_orbital_data_results(
+        tle_repo,
+        orbital_elements_repo,
+        "omm",
+        parameters["id"],
+        parameters["id_type"],
+        parameters["epoch"],
+        api_source,
+        api_version,
+    )
+    return jsonify(omm_data)
+
+
+@api_v1.route("/tools/get-omms-around-epoch/")
+@api_main.route("/tools/get-omms-around-epoch/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_omms_around_epoch():
+    """Get multiple OMMs before and after a specific epoch.
+    ---
+    tags:
+      - Tools
+    summary: Get multiple OMMs around epoch
+    description: Fetches a specified number of OMMs before and after a given epoch for a specific satellite
+    parameters:
+      - name: id
+        in: query
+        type: string
+        required: true
+        description: The ID of the satellite (NORAD ID or name)
+        example: "25544"
+      - name: id_type
+        in: query
+        type: string
+        required: true
+        description: The type of ID provided, "catalog" for NORAD ID or "name" for satellite name
+        enum: ["catalog", "name"]
+        example: "catalog"
+      - name: epoch
+        in: query
+        type: number
+        format: float
+        required: true
+        description: The Julian Date to center the OMM search around
+        example: 2459000.5
+      - name: count_before
+        in: query
+        type: integer
+        required: false
+        description: Number of OMMs to fetch before the epoch (default is 2)
+        example: 2
+      - name: count_after
+        in: query
+        type: integer
+        required: false
+        description: Number of OMMs to fetch after the epoch (default is 2)
+        example: 2
+    responses:
+      200:
+        description: OMMs before and after the specified epoch
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                omms:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      orbital_elements:
+                        type: object
+                        properties:
+                          OBJECT_NAME:
+                            type: string
+                          OBJECT_ID:
+                            type: integer
+                          EPOCH:
+                            type: string
+                          MEAN_MOTION:
+                            type: number
+                            format: float
+                          ECCENTRICITY:
+                            type: number
+                            format: float
+                          ARG_OF_PERICENTER:
+                            type: number
+                            format: float
+                          MEAN_ANOMALY:
+                            type: number
+                            format: float
+                          EPHEMERIS_TYPE:
+                            type: number
+                            format: integer
+                          CLASSIFICATION_TYPE:
+                            type: string
+                            format: string
+                          NORAD_CAT_ID:
+                            type: integer
+                            format: integer
+                          ELEMENT_SET_NO:
+                            type: integer
+                            format: integer
+                          REV_AT_EPOCH:
+                            type: integer
+                            format: integer
+                          BSTAR:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DOT:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DDOT:
+                            type: number
+                            format: float
+                      date_collected:
+                        format: date-time
+                      data_source:
+                        type: string
+                source:
+                  type: string
+                version:
+                  type: string
+      400:
+        description: Bad request due to missing or invalid parameters
+      404:
+        description: No OMMs found around the specified epoch
+      500:
+        description: Internal server error
+    """
+    session = db.session
+    tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
+    parameter_list = ["id", "id_type", "epoch", "count_before", "count_after"]
+    required_parameters = ["id", "id_type", "epoch"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    omm_data = get_orbital_data_around_epoch_results(
+        tle_repo,
+        orbital_elements_repo,
+        "omm",
+        parameters["id"],
+        parameters["id_type"],
+        parameters["epoch"],
+        parameters.get("count_before", 2),
+        parameters.get("count_after", 2),
+        api_source,
+        api_version,
+    )
+    return jsonify(omm_data)
+
+
+@api_v1.route("/tools/omms-at-epoch/")
+@api_main.route("/tools/omms-at-epoch/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_omms_at_epoch():
+    """Get all OMMs at a specific epoch date.
+    ---
+    tags:
+      - Tools
+    summary: Get OMMs at a specific epoch
+    description: Fetches all OMMs at a specific epoch date with pagination support
+    parameters:
+      - name: epoch
+        in: query
+        type: string
+        required: false
+        description: The epoch date in Julian Date format (defaults to current time if not provided)
+        example: "2459000.5"
+      - name: page
+        in: query
+        type: integer
+        required: false
+        description: The page number for pagination (starts at 1)
+        example: 1
+      - name: per_page
+        in: query
+        type: integer
+        required: false
+        description: Number of results per page (defaults to 100)
+        example: 100
+      - name: format
+        in: query
+        type: string
+        required: false
+        description: Output format for OMM data; zip contains a CSV file
+        enum: ["json", "zip"]
+        example: "json"
+    responses:
+      200:
+        description: OMMs matching the specified epoch
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                count:
+                  type: integer
+                  description: The number of OMMs returned
+                data:
+                  type: array
+                  description: List of OMMs
+                  items:
+                    type: object
+                    properties:
+                      satellite_name:
+                        type: string
+                        example: "ISS (ZARYA)"
+                      satellite_id:
+                        type: integer
+                        example: 25544
+                      orbital_elements:
+                        type: object
+                        description: CCSDS OMM element set
+                        properties:
+                          OBJECT_NAME:
+                            type: string
+                          OBJECT_ID:
+                            type: string
+                          EPOCH:
+                            type: string
+                          MEAN_MOTION:
+                            type: number
+                            format: float
+                          ECCENTRICITY:
+                            type: number
+                            format: float
+                          INCLINATION:
+                            type: number
+                            format: float
+                          RA_OF_ASC_NODE:
+                            type: number
+                            format: float
+                          ARG_OF_PERICENTER:
+                            type: number
+                            format: float
+                          MEAN_ANOMALY:
+                            type: number
+                            format: float
+                          EPHEMERIS_TYPE:
+                            type: integer
+                          CLASSIFICATION_TYPE:
+                            type: string
+                          NORAD_CAT_ID:
+                            type: integer
+                          ELEMENT_SET_NO:
+                            type: integer
+                          REV_AT_EPOCH:
+                            type: integer
+                          BSTAR:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DOT:
+                            type: number
+                            format: float
+                          MEAN_MOTION_DDOT:
+                            type: number
+                            format: float
+                      epoch:
+                        type: string
+                      date_collected:
+                        type: string
+                        format: date-time
+                      data_source:
+                        type: string
+                page:
+                  type: integer
+                per_page:
+                  type: integer
+                total_results:
+                  type: integer
+                source:
+                  type: string
+                version:
+                  type: string
+          application/zip:
+            schema:
+              type: string
+              format: binary
+              description: Zipped OMM data (when format=zip)
+      400:
+        description: Bad request due to invalid parameters
+      500:
+        description: Internal server error
+    """
+    session = db.session
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
+
+    parameter_list = ["epoch", "page", "per_page", "format"]
+    parameters = validate_parameters(request, parameter_list, [])
+
+    epoch_date = parameters.get("epoch")
+    if not epoch_date:
+        epoch_date = datetime.now(timezone.utc)
+
+    # paginated results by default
+    format = parameters.get("format")
+    if not format:
+        format = "json"
+
+    page = int(parameters.get("page", 1) or 1)
+    per_page = int(parameters.get("per_page") or 100)
+
+    result = get_all_orbital_data_at_epoch_formatted(
+        None,  # tle_repo
+        orbital_elements_repo,
+        "omm",
+        epoch_date,
+        format=format,
+        page=page,
+        per_page=per_page,
+        api_source=api_source,
+        api_version=api_version,
+    )
+
+    if format == "zip" and isinstance(result, io.BytesIO):
+        return send_file(
+            result,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="omm_data.zip",
+        )
+    else:
+        return jsonify(result)

@@ -34,7 +34,7 @@ def test_get_fov_task_status_pending(app, mocker):
 def test_fov_endpoint_async_integration(client, session, services_available):
     """Test the async endpoint returns a task and the status endpoint is queryable."""
     # Satellite must have launch_date <= epoch and decay_date None or > epoch
-    # for get_all_tles_at_epoch to include it
+    # for get_all_orbital_data_at_epoch to include it
     satellite = SatelliteFactory(
         sat_name="ISS",
         sat_number=25544,

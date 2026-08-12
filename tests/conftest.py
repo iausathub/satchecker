@@ -418,7 +418,7 @@ class FakeTLERepository(AbstractTLERepository):
             default=None,
         )
 
-    def _get_all_tles_at_epoch(
+    def _get_all_orbital_data_at_epoch(
         self,
         epoch_date,
         page,
@@ -535,7 +535,7 @@ class FakeOrbitalElementsRepository(AbstractOrbitalElementsRepository):
             default=None,
         )
 
-    def _get_all_orbital_elements_at_epoch(
+    def _get_all_orbital_data_at_epoch(
         self,
         epoch_date,
         page,
