@@ -13,6 +13,11 @@ from api.domain.models.satellite import Satellite
 from api.domain.models.tle import TLE
 from api.utils.location_utils import get_location_from_astropy_site
 
+# Earliest meaningful epoch for an ephemeris request (Sputnik 1)
+# (1957-10-04). Also keeps pre-year-1 dates (e.g. JD 0) from
+# reaching Time.to_datetime(), which raises "year -4713 is out of range".
+SPACE_AGE_JD = 2436115.5
+
 
 def extract_parameters(request, parameter_list):
     """
@@ -202,6 +207,14 @@ def validate_parameters(
                 raise ValidationError(
                     500, error_messages.INVALID_JD + " - 'startjd' or 'stopjd'", e
                 ) from e
+
+    # Reject dates before satellites were even launched
+    if "julian_dates" in parameters.keys():
+        for jd_time in parameters["julian_dates"]:
+            if jd_time.jd < SPACE_AGE_JD:
+                raise ValidationError(
+                    400, error_messages.INVALID_JD + " - 'julian_date'"
+                )
 
     if "data_source" in parameters.keys():
         parameters["data_source"] = (
