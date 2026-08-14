@@ -621,3 +621,21 @@ def test_validate_parameters_norad_id_non_integer(app, path, parameter_list, req
         with pytest.raises(ValidationError, match="must be an integer NORAD ID") as exc:
             validate_parameters(request, parameter_list, required)
         assert exc.value.status_code == 400
+
+
+def test_validate_parameters_search_invalid_date_returns_400(app):
+    # A calendar-style date (not Julian Date) on search-satellites must 400, not 500
+    with app.test_request_context(
+        "/tools/search-satellites/?launch_date_start=2024-01-01"
+    ):
+        with pytest.raises(ValidationError, match="Julian Date") as exc:
+            validate_parameters(request, ["launch_date_start"], [])
+        assert exc.value.status_code == 400
+
+
+def test_validate_parameters_search_valid_jd_date(app):
+    with app.test_request_context(
+        "/tools/search-satellites/?decay_date_start=2451571.517396"
+    ):
+        parameters = validate_parameters(request, ["decay_date_start"], [])
+        assert parameters["decay_date_start"] is not None

@@ -585,7 +585,12 @@ def validate_parameters(
                 .replace(tzinfo=timezone.utc)
             )
     except Exception as e:
-        raise ValidationError(500, error_messages.INVALID_JD, e) from e
+        raise ValidationError(
+            400,
+            error_messages.INVALID_JD
+            + " - launch_date and decay_date parameters must be in Julian Date format",
+            e,
+        ) from e
 
     if "norad_id" in parameters.keys() and parameters["norad_id"] is not None:
         parameters["norad_id"] = _parse_norad_id(parameters["norad_id"], "norad_id")
