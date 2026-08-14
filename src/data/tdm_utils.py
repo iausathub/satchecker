@@ -147,8 +147,10 @@ def parse_tdm_file(file_content: bytes) -> list[dict]:
         - first_timestamp: First timestamp in this block
         - last_timestamp: Last timestamp in this block
 
-    Raises:
-        ValueError: If required fields are missing
+    Note:
+        Returns an empty list for a file with no data blocks (e.g. a
+        header-only stub) rather than raising, so callers can skip it without
+        aborting the surrounding batch.
     """
     text_content = file_content.decode("utf-8")
     lines = text_content.splitlines()
@@ -240,7 +242,10 @@ def parse_tdm_file(file_content: bytes) -> list[dict]:
             i += 1
 
     if not blocks:
-        raise ValueError("No valid data blocks found in TDM file")
+        # Header-only / blockless exports carry no data to ingest. Return empty
+        # so the caller skips the file instead of aborting the whole batch.
+        logger.warning("No data blocks found in TDM file; treating as empty")
+        return []
 
     logger.info(f"Parsed {len(blocks)} data block(s) from TDM file")
     return blocks
@@ -291,7 +296,11 @@ def process_zip_file(
                     parsed_blocks = parse_tdm_file(file_content)
                     # parsed_blocks is a list of blocks of position data,
                     # each with its own metadata, since a file can contain multiple
-                    # blocks like these
+                    # blocks like these. An empty list means a header-only/blockless
+                    # file (nothing to ingest); skip it and keep processing.
+                    if not parsed_blocks:
+                        logger.warning(f"    Skipping empty TDM {file_name}")
+                        continue
 
                     point_rows: list[tuple[int, str, float, float, float | None]] = []
                     date_added = datetime.now(timezone.utc)
