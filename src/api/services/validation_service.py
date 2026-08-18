@@ -112,6 +112,11 @@ def validate_parameters(
         ):
             parameters["id"] = _parse_norad_id(parameters["id"], "id")
 
+    # The catalog-number endpoints pass the NORAD ID as the "catalog" parameter
+    # rather than "id", so validate it here for the same reason as above.
+    if "catalog" in parameters.keys() and parameters["catalog"] is not None:
+        parameters["catalog"] = _parse_norad_id(parameters["catalog"], "catalog")
+
     # Check if site is provide first, so that if it and other location parameters
     # are provided, an error can be thrown
     if "site" in parameters.keys() and parameters["site"] is not None:

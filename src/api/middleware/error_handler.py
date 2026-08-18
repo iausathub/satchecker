@@ -10,11 +10,14 @@ def handle_error(error):
     Global error handler for consistent error logging and responses
     """
 
-    # Determine status code and message
-    if hasattr(error, "code"):
+    # Determine status code and message. Only treat code/status_code as an HTTP
+    # status when it is actually an int -- some exceptions (e.g. SQLAlchemy errors)
+    # carry a non-integer "code" attribute (a docs slug like "9h9h"), which would
+    # otherwise break the comparison below and mask the real error as a bare 500.
+    if hasattr(error, "code") and isinstance(error.code, int):
         code = error.code
         message = getattr(error, "description", str(error))
-    elif hasattr(error, "status_code"):
+    elif hasattr(error, "status_code") and isinstance(error.status_code, int):
         code = error.status_code
         message = getattr(error, "message", str(error))
     else:

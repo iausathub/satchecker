@@ -59,3 +59,17 @@ def test_error_with_custom_status_code(app):
         response, status_code = handle_error(error)
         assert status_code == 429
         assert response.json["message"] == "Rate limit exceeded"
+
+
+def test_handle_exception_with_non_integer_code(app):
+    # SQLAlchemy errors carry a "code" attribute that is a docs slug string
+    # (e.g. "9h9h"), not an HTTP status. It must not be treated as a status code.
+    class FakeSQLAlchemyError(Exception):
+        code = "9h9h"
+
+    with app.test_request_context("/test"):
+        error = FakeSQLAlchemyError("invalid input syntax for type integer")
+        response, status_code = handle_error(error)
+        assert status_code == 500
+        assert response.json["message"] == "Internal server error"
+        assert response.json["error_type"] == "FakeSQLAlchemyError"

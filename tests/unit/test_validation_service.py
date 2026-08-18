@@ -592,8 +592,16 @@ def test_validate_parameters_fov_radius(app):
         ),
         # norad_id is always an integer NORAD ID
         ("/?norad_id=25544", ["norad_id"], [], "norad_id", 25544),
+        # the catalog-number endpoints pass the NORAD ID as "catalog"
+        (
+            "/ephemeris/catalog-number/?catalog=25544",
+            ["catalog"],
+            ["catalog"],
+            "catalog",
+            25544,
+        ),
     ],
-    ids=["catalog_id", "name_id", "names_from_norad_id", "norad_id"],
+    ids=["catalog_id", "name_id", "names_from_norad_id", "norad_id", "catalog"],
 )
 def test_validate_parameters_norad_id_conversion(
     app, path, parameter_list, required, key, expected
@@ -613,8 +621,13 @@ def test_validate_parameters_norad_id_conversion(
         ),
         ("/tools/names-from-norad-id/?id=test", ["id"], ["id"]),
         ("/?norad_id=test", ["norad_id"], []),
+        (
+            "/ephemeris/catalog-number/?catalog=test",
+            ["catalog"],
+            ["catalog"],
+        ),
     ],
-    ids=["catalog_id", "names_from_norad_id", "norad_id"],
+    ids=["catalog_id", "names_from_norad_id", "norad_id", "catalog"],
 )
 def test_validate_parameters_norad_id_non_integer(app, path, parameter_list, required):
     with app.test_request_context(path):
