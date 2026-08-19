@@ -12,6 +12,7 @@ import numpy as np
 from astropy import units as u
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
+from sgp4 import exporter
 from sgp4.api import Satrec
 from skyfield.api import wgs84
 from skyfield.nutationlib import iau2000b
@@ -702,6 +703,7 @@ def process_satellite_batch(
         fov_center,
         fov_radius,
         include_orbital_data,
+        convert_omm_to_tle,
         illuminated_only,
     ) = args
 
@@ -793,7 +795,21 @@ def process_satellite_batch(
                         "source": orbital_data.data_source,
                     }
 
-                if include_orbital_data and isinstance(orbital_data, OrbitalElements):
+                elif (
+                    include_orbital_data
+                    and convert_omm_to_tle
+                    and isinstance(orbital_data, OrbitalElements)
+                ):
+                    # export_tle expects the sgp4 Satrec, which skyfield stores
+                    # on EarthSatellite.model.
+                    line1, line2 = exporter.export_tle(satellite.model)
+                    result["orbital_data"] = {
+                        "tle_line1": line1,
+                        "tle_line2": line2,
+                        "source": orbital_data.data_source,
+                    }
+
+                elif include_orbital_data and isinstance(orbital_data, OrbitalElements):
                     result["orbital_data"] = {
                         "mean_motion": orbital_data.mean_motion,
                         "eccentricity": orbital_data.eccentricity,
@@ -878,6 +894,7 @@ class FOVParallelPropagationStrategy:
         batch_size=1000,
         max_workers=None,
         include_orbital_data=True,
+        convert_omm_to_tle=False,
         illuminated_only=False,
         progress_callback=None,
         *,
@@ -896,6 +913,8 @@ class FOVParallelPropagationStrategy:
             batch_size: Number of satellites to process in each batch
             max_workers: Maximum number of workers (in-process mode only)
             include_orbital_data: Whether to include TLE data in results
+            convert_omm_to_tle: Whether to return OMM orbital elements as an
+                equivalent TLE in the results
             illuminated_only: Whether to only include illuminated satellites
             progress_callback: Optional callback for progress updates
             batch_executor: Callable(serialized_batches, common_args) -> list of
@@ -938,6 +957,7 @@ class FOVParallelPropagationStrategy:
                 "fov_center": fov_center,
                 "fov_radius": fov_radius,
                 "include_orbital_data": include_orbital_data,
+                "convert_omm_to_tle": convert_omm_to_tle,
                 "illuminated_only": illuminated_only,
             }
             batch_results = batch_executor(serialized_batches, common_args)
@@ -960,6 +980,7 @@ class FOVParallelPropagationStrategy:
                     fov_center,
                     fov_radius,
                     include_orbital_data,
+                    convert_omm_to_tle,
                     illuminated_only,
                 )
                 for batch in satellite_batches

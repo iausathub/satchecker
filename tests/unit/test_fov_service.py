@@ -1,10 +1,12 @@
 # ruff: noqa: S101
 import logging
 from datetime import datetime, timedelta, timezone
+from math import pi
 
 import pytest
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
+from sgp4.api import Satrec
 from skyfield.api import EarthSatellite, load
 from tests.conftest import (
     FakeEphemerisRepository,
@@ -348,6 +350,91 @@ def test_satellite_in_fov_orbital_elements_include_orbital_data(test_location):
     for key, value in expected_orbital_data.items():
         assert orbital_data[key] == value
     assert orbital_data["epoch"] is not None
+
+
+def test_convert_omm_to_tle_returns_valid_tle(test_location):
+    """convert_omm_to_tle=True returns a TLE that reproduces the OMM orbit.
+
+    For epochs served from orbital elements (OMM), setting convert_omm_to_tle
+    makes the FOV response carry the equivalent TLE lines in orbital_data
+    instead of the raw mean-element fields. "Reasonable output" means: the
+    satellite still appears in the FOV results, and its two TLE lines parse
+    back into the same physical orbit (same inclination / eccentricity /
+    mean motion) as the source OMM.
+
+    Reuses the known-in-FOV FENGYUN geometry from the orbital-elements tests
+    above and drives the full public service path so the plumbing from the
+    service through the propagation strategy to the batch worker is exercised.
+    """
+    omm_time = Time("2026-08-01T18:19:13", format="isot", scale="utc")
+
+    satellite = SatelliteFactory(
+        sat_name="FENGYUN 1C DEB",
+        sat_number=31746,
+        decay_date=None,
+        has_current_sat_number=True,
+    )
+    orbital_elements = _fengyun_orbital_elements(
+        satellite, omm_time.to_datetime(timezone.utc)
+    )
+
+    tle_repo = FakeTLERepository([])
+    orbital_elements_repo = FakeOrbitalElementsRepository([orbital_elements])
+    ephemeris_repo = FakeEphemerisRepository([])
+
+    result = get_satellite_passes_in_fov(
+        tle_repo,
+        orbital_elements_repo,
+        ephemeris_repo,
+        location=test_location,
+        mid_obs_time_jd=omm_time,
+        start_time_jd=None,
+        duration=30,
+        ra=353.68,
+        dec=-22.18,
+        fov_radius=1.0,
+        group_by="time",
+        include_orbital_data=True,
+        skip_cache=True,
+        constellation=None,
+        data_source="any",
+        illuminated_only=False,
+        tle_only=False,
+        use_generated_tles=False,
+        convert_omm_to_tle=True,
+        api_source="test",
+        api_version="1.0",
+    )
+
+    # The satellite must not be silently dropped from the FOV results.
+    assert result["data"], "convert_omm_to_tle produced no FOV results"
+
+    first_point = result["data"][0]
+    assert first_point["orbital_data_source"] == "omm"
+
+    orbital_data = first_point["orbital_data"]
+    # With convert_omm_to_tle the payload is TLE lines, not OMM element fields.
+    assert "tle_line1" in orbital_data
+    assert "tle_line2" in orbital_data
+    assert "mean_motion" not in orbital_data
+
+    line1 = orbital_data["tle_line1"]
+    line2 = orbital_data["tle_line2"]
+
+    # The lines must be a real, parseable TLE for this satellite.
+    assert line1.startswith("1 31746")
+    assert line2.startswith("2 31746")
+
+    satrec = Satrec.twoline2rv(line1, line2)
+
+    # And the parsed TLE must describe the same orbit as the source OMM.
+    inclination_deg = satrec.inclo * 180 / pi
+    mean_motion_rev_per_day = satrec.no_kozai * 1440 / (2 * pi)
+    assert inclination_deg == pytest.approx(orbital_elements.inclination, abs=1e-3)
+    assert satrec.ecco == pytest.approx(orbital_elements.eccentricity, abs=1e-6)
+    assert mean_motion_rev_per_day == pytest.approx(
+        orbital_elements.mean_motion, abs=1e-5
+    )
 
 
 def test_tle_and_orbital_elements_propagation_match(test_location, test_time):

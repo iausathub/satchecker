@@ -151,6 +151,12 @@ def get_satellite_passes():
         required: false
         description: Whether to include only TLE data in the response. If true, ephemeris data will not be used.
         example: true
+      - name: convert_omm_to_tle
+        in: query
+        type: boolean
+        required: false
+        description: For epochs served from OMM orbital elements, return the equivalent TLE lines in the orbital_data payload. Default is false.
+        example: true
     responses:
       200:
         description: Successful response. Returns either immediate satellite pass data (synchronous) or task information (asynchronous) based on the async parameter.
@@ -302,6 +308,7 @@ def get_satellite_passes():
         "async",
         "tle_only",
         "use_generated_tles",
+        "convert_omm_to_tle",
     ]
 
     if "site" not in request.args:
@@ -326,6 +333,9 @@ def get_satellite_passes():
 
     if validated_parameters["use_generated_tles"] is None:
         validated_parameters["use_generated_tles"] = False
+
+    if validated_parameters["convert_omm_to_tle"] is None:
+        validated_parameters["convert_omm_to_tle"] = False
 
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
@@ -382,6 +392,7 @@ def get_satellite_passes():
                 validated_parameters["use_generated_tles"],
                 api_source,
                 api_version,
+                convert_omm_to_tle=validated_parameters["convert_omm_to_tle"],
             )
             return jsonify(task_response)
         else:
@@ -406,6 +417,7 @@ def get_satellite_passes():
                 validated_parameters["use_generated_tles"],
                 api_source,
                 api_version,
+                convert_omm_to_tle=validated_parameters["convert_omm_to_tle"],
             )
             if not satellite_passes:
                 return {
