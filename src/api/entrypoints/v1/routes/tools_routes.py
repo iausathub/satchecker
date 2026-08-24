@@ -624,6 +624,7 @@ def get_tles_at_epoch():
     """
     session = db.session
     tle_repo = SqlAlchemyTLERepository(session)
+    orbital_elements_repo = SqlAlchemyOrbitalElementsRepository(session)
 
     parameter_list = ["epoch", "page", "per_page", "format"]
     parameters = validate_parameters(request, parameter_list, [])
@@ -642,7 +643,7 @@ def get_tles_at_epoch():
 
     result = get_all_orbital_data_at_epoch_formatted(
         tle_repo,
-        None,  # orbital_elements_repo
+        orbital_elements_repo,
         "tle",
         epoch_date,
         format=format,

@@ -12,7 +12,6 @@ import numpy as np
 from astropy import units as u
 from astropy.coordinates import EarthLocation
 from astropy.time import Time, TimeDelta
-from sgp4 import exporter
 from sgp4.api import Satrec
 from skyfield.api import wgs84
 from skyfield.nutationlib import iau2000b
@@ -45,6 +44,7 @@ from api.utils.interpolation_utils import (
     interpolate_sigma_pointsKI,
     reconstruct_covariance_at_time,
 )
+from api.utils.orbital_data_utils import omm_to_tle_lines
 from api.utils.skyfield_loader import load
 from api.utils.time_utils import jd_to_gst
 
@@ -800,9 +800,7 @@ def process_satellite_batch(
                     and convert_omm_to_tle
                     and isinstance(orbital_data, OrbitalElements)
                 ):
-                    # export_tle expects the sgp4 Satrec, which skyfield stores
-                    # on EarthSatellite.model.
-                    line1, line2 = exporter.export_tle(satellite.model)
+                    line1, line2 = omm_to_tle_lines(orbital_data)
                     result["orbital_data"] = {
                         "tle_line1": line1,
                         "tle_line2": line2,

@@ -15,6 +15,11 @@ from api.adapters.repositories import (
 )
 from api.entrypoints.extensions import db
 
+# A fixed epoch before ORBITAL_ELEMENTS_CUTOFF (2026-07-13) so these TLE-store
+# tests stay deterministic; without it, `datetime.now()` has drifted past the
+# cutoff and the endpoints correctly source from the (empty) OMM store instead.
+PRE_CUTOFF_EPOCH = datetime(2026, 6, 1)
+
 
 def test_get_tle_data(client, session, services_available):
     satellite = SatelliteFactory(sat_name="ISS")
@@ -138,31 +143,43 @@ def test_get_tles_at_epoch_pagination(client, session, services_available):
 
 
 def test_get_tles_at_epoch_optional_epoch_date(client, session, services_available):
+    # With no epoch provided the endpoint defaults to "now", which is after the
+    # orbital-elements cutoff, so the data comes from the OMM store and is
+    # converted to TLE format transparently.
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
-    # get current date for TLE epoch
-    epoch_date = datetime.now()
-    tle = TLEFactory(
+    omm = OrbitalElementsFactory(
         satellite=satellite,
-        epoch=epoch_date,
+        epoch=datetime.now(),
+        mean_motion=15.5,
+        eccentricity=0.0001,
+        inclination=51.6,
+        ra_of_ascending_node=100.0,
+        arg_of_pericenter=90.0,
+        mean_anomaly=270.0,
+        bstar=0.0001,
+        mean_motion_dot=0.0,
+        mean_motion_ddot=0.0,
     )
-    tle_repo = tle_repository.SqlAlchemyTLERepository(session)
-    tle_repo.add(tle)
+    omm_repo = orbital_elements_repository.SqlAlchemyOrbitalElementsRepository(session)
+    omm_repo.add(omm)
     session.commit()
     response = client.get("/tools/tles-at-epoch/")
     tles = response.json[0]["data"]
     assert response.status_code == 200
     assert len(response.json) > 0
     assert tles[0]["satellite_name"] == "ISS"
+    assert "tle_line1" in tles[0]
+    assert "tle_line2" in tles[0]
 
 
 def test_get_tles_at_epoch_zipped(client, session, services_available):
     satellite = SatelliteFactory(
         sat_name="ISS", decay_date=None, has_current_sat_number=True
     )
-    # get current date for TLE epoch
-    epoch_date = datetime.now()
+    # Pre-cutoff epoch so the TLE store (not the OMM store) serves the request.
+    epoch_date = PRE_CUTOFF_EPOCH
     tle = TLEFactory(
         satellite=satellite,
         epoch=epoch_date,
@@ -170,7 +187,8 @@ def test_get_tles_at_epoch_zipped(client, session, services_available):
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
     session.commit()
-    response = client.get("/tools/tles-at-epoch/?format=zip")
+    epoch_jd = Time(epoch_date).jd
+    response = client.get(f"/tools/tles-at-epoch/?epoch={epoch_jd}&format=zip")
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/zip"
     assert (
@@ -269,7 +287,7 @@ def test_get_adjacent_tles(client, session, services_available):
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
     )
-    epoch = datetime.now()
+    epoch = PRE_CUTOFF_EPOCH
     tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
     tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
@@ -341,7 +359,7 @@ def test_get_nearest_tle(client, session, services_available):
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
     )
-    epoch = datetime.now()
+    epoch = PRE_CUTOFF_EPOCH
     tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
     tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
@@ -437,7 +455,7 @@ def test_get_nearest_tle_name_id_type(client, session, services_available):
     satellite = SatelliteFactory(
         sat_name="TEST_SAT", decay_date=None, has_current_sat_number=True
     )
-    epoch = datetime.now()
+    epoch = PRE_CUTOFF_EPOCH
     tle = TLEFactory(satellite=satellite, epoch=epoch)
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
     tle_repo.add(tle)
@@ -457,7 +475,7 @@ def test_get_tles_around_epoch(client, session, services_available):
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
     )
-    epoch = datetime.now()
+    epoch = PRE_CUTOFF_EPOCH
     tle = TLEFactory(satellite=satellite, epoch=epoch - timedelta(days=1))
     tle2 = TLEFactory(satellite=satellite, epoch=epoch + timedelta(days=1))
     tle_repo = tle_repository.SqlAlchemyTLERepository(session)
@@ -552,7 +570,7 @@ def test_get_tles_around_epoch_custom_counts(client, session, services_available
     satellite = SatelliteFactory(
         sat_number="25544", decay_date=None, has_current_sat_number=True
     )
-    epoch = datetime.now()
+    epoch = PRE_CUTOFF_EPOCH
 
     # Create 5 TLEs before and 5 TLEs after the epoch
     tles_before = []

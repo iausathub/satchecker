@@ -353,19 +353,8 @@ def test_satellite_in_fov_orbital_elements_include_orbital_data(test_location):
 
 
 def test_convert_omm_to_tle_returns_valid_tle(test_location):
-    """convert_omm_to_tle=True returns a TLE that reproduces the OMM orbit.
+    """convert_omm_to_tle=True returns a TLE that reproduces the OMM orbit."""
 
-    For epochs served from orbital elements (OMM), setting convert_omm_to_tle
-    makes the FOV response carry the equivalent TLE lines in orbital_data
-    instead of the raw mean-element fields. "Reasonable output" means: the
-    satellite still appears in the FOV results, and its two TLE lines parse
-    back into the same physical orbit (same inclination / eccentricity /
-    mean motion) as the source OMM.
-
-    Reuses the known-in-FOV FENGYUN geometry from the orbital-elements tests
-    above and drives the full public service path so the plumbing from the
-    service through the propagation strategy to the batch worker is exercised.
-    """
     omm_time = Time("2026-08-01T18:19:13", format="isot", scale="utc")
 
     satellite = SatelliteFactory(
@@ -406,14 +395,15 @@ def test_convert_omm_to_tle_returns_valid_tle(test_location):
         api_version="1.0",
     )
 
-    # The satellite must not be silently dropped from the FOV results.
+    # The satellite must not be dropped from the FOV results.
     assert result["data"], "convert_omm_to_tle produced no FOV results"
 
     first_point = result["data"][0]
     assert first_point["orbital_data_source"] == "omm"
 
     orbital_data = first_point["orbital_data"]
-    # With convert_omm_to_tle the payload is TLE lines, not OMM element fields.
+
+    # With convert_omm_to_tle the orbital_data is TLE lines instead of OMM fields
     assert "tle_line1" in orbital_data
     assert "tle_line2" in orbital_data
     assert "mean_motion" not in orbital_data
@@ -427,7 +417,7 @@ def test_convert_omm_to_tle_returns_valid_tle(test_location):
 
     satrec = Satrec.twoline2rv(line1, line2)
 
-    # And the parsed TLE must describe the same orbit as the source OMM.
+    # TLE must describe the same orbit as the source OMM.
     inclination_deg = satrec.inclo * 180 / pi
     mean_motion_rev_per_day = satrec.no_kozai * 1440 / (2 * pi)
     assert inclination_deg == pytest.approx(orbital_elements.inclination, abs=1e-3)
