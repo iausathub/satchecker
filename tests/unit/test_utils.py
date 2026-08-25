@@ -267,6 +267,7 @@ def test_process_satellite_batch():
     fov_center = (24.797270, 75.774139)
     fov_radius = 2.0
     include_orbital_data = True
+    convert_omm_to_tle = False
     illuminated_only = False
 
     args = (
@@ -278,6 +279,7 @@ def test_process_satellite_batch():
         fov_center,
         fov_radius,
         include_orbital_data,
+        convert_omm_to_tle,
         illuminated_only,
     )
     result = process_satellite_batch(args)
@@ -295,6 +297,7 @@ def test_process_satellite_batch():
         fov_center,
         fov_radius,
         include_orbital_data,
+        convert_omm_to_tle,
         illuminated_only,
     )
     result = process_satellite_batch(args)
@@ -341,6 +344,7 @@ def test_process_satellite_batch_illuminated_only_filters_results(mocker):
         (24.797270, 75.774139),
         2.0,
         True,  # include_orbital_data
+        False,  # convert_omm_to_tle
     )
 
     def indices_of(results):

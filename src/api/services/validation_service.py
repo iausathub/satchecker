@@ -461,6 +461,21 @@ def validate_parameters(
             parameters["use_generated_tles"].lower() == "true"
         )
 
+    if (
+        "convert_omm_to_tle" in parameters.keys()
+        and parameters["convert_omm_to_tle"] is not None
+    ):
+        if parameters["convert_omm_to_tle"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " convert_omm_to_tle must be 'true' or 'false'",
+            )
+
+        parameters["convert_omm_to_tle"] = (
+            parameters["convert_omm_to_tle"].lower() == "true"
+        )
+
     if "skip_cache" in parameters.keys() and parameters["skip_cache"] is not None:
         if parameters["skip_cache"].lower() not in ["true", "false"]:
             raise ValidationError(

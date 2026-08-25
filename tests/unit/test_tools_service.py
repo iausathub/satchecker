@@ -1,9 +1,10 @@
 # ruff: noqa: S101
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from astropy.time import Time
+from sgp4.api import Satrec
 from tests.conftest import (
     FakeOrbitalElementsRepository,
     FakeSatelliteRepository,
@@ -459,6 +460,119 @@ def test_get_all_tles_at_epoch_formatted():
     assert tle_1.tle_line2 in text_content
     assert tle_2.tle_line1 in text_content
     assert tle_2.tle_line2 in text_content
+
+
+# Epoch after ORBITAL_ELEMENTS_CUTOFF (2026-07-13), where data is stored as OMM
+# and the TLE endpoints must transparently convert it.
+POST_CUTOFF_EPOCH = datetime(2026, 8, 1, tzinfo=timezone.utc)
+
+
+def _post_cutoff_omm(sat_number, sat_name="FENGYUN 1C DEB"):
+    """OMM record with realistic elements for a post-cutoff epoch."""
+    return OrbitalElementsFactory(
+        satellite=SatelliteFactory(sat_name=sat_name, sat_number=sat_number),
+        epoch=POST_CUTOFF_EPOCH,
+        date_collected=POST_CUTOFF_EPOCH,
+        data_source="celestrak",
+        classification_type="U",
+        mean_motion=14.52723026,
+        eccentricity=0.0030132,
+        inclination=98.5847,
+        ra_of_ascending_node=13.2387,
+        arg_of_pericenter=143.9377,
+        mean_anomaly=216.3858,
+        bstar=0.86550e-2,
+        mean_motion_dot=0.00035853,
+        mean_motion_ddot=0.0,
+        rev_at_epoch=90668,
+        ephemeris_type=0,
+        element_set_no=999,
+    )
+
+
+def test_get_nearest_tle_after_cutoff_converts_omm():
+    """After the cutoff, get-nearest-tle sources from the OMM store and returns
+    the equivalent TLE lines, so the endpoint behaves the same as before it."""
+    omm = _post_cutoff_omm(25544)
+    tle_repo = FakeTLERepository([])
+    omm_repo = FakeOrbitalElementsRepository([omm])
+
+    results = get_nearest_orbital_data_result(
+        tle_repo, omm_repo, "tle", 25544, "catalog", POST_CUTOFF_EPOCH, "test", "1.0"
+    )
+
+    orbital_data = results[0]["orbital_data"]
+    assert len(orbital_data) == 1
+    record = orbital_data[0]
+    # TLE-shaped response, not the OMM element dict.
+    assert "tle_line1" in record
+    assert "tle_line2" in record
+    assert "orbital_elements" not in record
+    assert record["satellite_id"] == 25544
+
+    # The converted lines parse back into the source orbit.
+    satrec = Satrec.twoline2rv(record["tle_line1"], record["tle_line2"])
+    assert satrec.inclo * 180 / 3.141592653589793 == pytest.approx(
+        omm.inclination, abs=1e-3
+    )
+
+
+def test_get_all_tles_at_epoch_after_cutoff_converts_omm():
+    """tles-at-epoch returns converted OMM records (json + txt) after cutoff."""
+    tle_repo = FakeTLERepository([])
+    omm_repo = FakeOrbitalElementsRepository(
+        [_post_cutoff_omm(25544, "ISS"), _post_cutoff_omm(33591, "NOAA 19")]
+    )
+
+    results = get_all_orbital_data_at_epoch_formatted(
+        tle_repo, omm_repo, "tle", POST_CUTOFF_EPOCH, "json", 1, 100, "test", "1.0"
+    )
+    data = results[0]["data"]
+    assert len(data) == 2
+    for record in data:
+        assert "tle_line1" in record
+        assert "tle_line2" in record
+        assert "orbital_elements" not in record
+
+    # txt format is a valid, non-empty TLE listing.
+    txt = get_all_orbital_data_at_epoch_formatted(
+        tle_repo, omm_repo, "tle", POST_CUTOFF_EPOCH, "txt", 1, 100, "test", "1.0"
+    )
+    text_content = txt.getvalue().decode("utf-8")
+    assert "1 25544" in text_content
+    assert "2 25544" in text_content
+
+
+def test_get_tle_data_range_spanning_cutoff_merges_stores():
+    """get-tle-data over a range spanning the cutoff returns a single continuous
+    series: stored TLEs before the cutoff and converted OMM after it."""
+    pre_cutoff_epoch = datetime(2026, 6, 1, tzinfo=timezone.utc)
+    tle = TLEFactory(
+        satellite=SatelliteFactory(sat_number=25544),
+        epoch=pre_cutoff_epoch,
+    )
+    tle_repo = FakeTLERepository([tle])
+    omm_repo = FakeOrbitalElementsRepository([_post_cutoff_omm(25544)])
+
+    results = get_orbital_data(
+        tle_repo,
+        omm_repo,
+        "tle",
+        25544,
+        "catalog",
+        datetime(2026, 5, 1, tzinfo=timezone.utc),
+        datetime(2026, 9, 1, tzinfo=timezone.utc),
+        "test",
+        "1.0",
+    )
+
+    assert results["count"] == 2
+    # Sorted by epoch: stored TLE first, converted OMM second.
+    assert results["data"][0]["tle_line1"] == tle.tle_line1
+    assert results["data"][1]["tle_line1"].startswith("1 25544")
+    for record in results["data"]:
+        assert "tle_line1" in record
+        assert "tle_line2" in record
 
 
 def test_get_all_omms_at_epoch_formatted():
