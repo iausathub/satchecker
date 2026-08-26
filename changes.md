@@ -9,7 +9,7 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 ### Bugfixes
 
 - Return HTTP 400 instead of 500 when a `launch_date` or `decay_date` search parameter on the search-satellites endpoint is not a valid Julian Date (for example a calendar date like `2024-01-01`). ([#250](https://github.com/iausathub/satchecker/pull/250))
-- Return HTTP 400 instead of 500 when the `catalog` parameter on the ephemeris catalog-number endpoints is not a valid integer NORAD ID, and made the global error handler resilient to exceptions (such as SQLAlchemy errors) whose `code` attribute is not an HTTP status code. ([#253](https://github.com/iausathub/satchecker/pull/253))
+- Return HTTP 400 instead of 500 when the `catalog` parameter on the ephemeris catalog-number endpoints is not a valid integer NORAD ID, and made the global error handler resilient to exceptions (such as SQLAlchemy errors) whose `code` attribute is not an HTTP status code. ([#254](https://github.com/iausathub/satchecker/pull/253))
 
 ### Features
 
