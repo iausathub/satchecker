@@ -112,6 +112,11 @@ def validate_parameters(
         ):
             parameters["id"] = _parse_norad_id(parameters["id"], "id")
 
+    # The catalog-number endpoints pass the NORAD ID as the "catalog" parameter
+    # rather than "id", so validate it here for the same reason as above.
+    if "catalog" in parameters.keys() and parameters["catalog"] is not None:
+        parameters["catalog"] = _parse_norad_id(parameters["catalog"], "catalog")
+
     # Check if site is provide first, so that if it and other location parameters
     # are provided, an error can be thrown
     if "site" in parameters.keys() and parameters["site"] is not None:
@@ -454,6 +459,21 @@ def validate_parameters(
 
         parameters["use_generated_tles"] = (
             parameters["use_generated_tles"].lower() == "true"
+        )
+
+    if (
+        "convert_omm_to_tle" in parameters.keys()
+        and parameters["convert_omm_to_tle"] is not None
+    ):
+        if parameters["convert_omm_to_tle"].lower() not in ["true", "false"]:
+            raise ValidationError(
+                400,
+                error_messages.INVALID_PARAMETER
+                + " convert_omm_to_tle must be 'true' or 'false'",
+            )
+
+        parameters["convert_omm_to_tle"] = (
+            parameters["convert_omm_to_tle"].lower() == "true"
         )
 
     if "skip_cache" in parameters.keys() and parameters["skip_cache"] is not None:

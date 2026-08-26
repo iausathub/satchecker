@@ -67,6 +67,7 @@ def get_satellite_passes_in_fov_async(
     use_generated_tles: bool,
     api_source: str,
     api_version: str,
+    convert_omm_to_tle: bool = False,
 ) -> dict[str, Any]:
 
     start_time = python_time.time()
@@ -166,6 +167,7 @@ def get_satellite_passes_in_fov_async(
         "fov_center": (float(ra), float(dec)),
         "fov_radius": float(fov_radius),
         "include_orbital_data": include_orbital_data,
+        "convert_omm_to_tle": convert_omm_to_tle,
         "illuminated_only": illuminated_only,
     }
 
@@ -239,6 +241,7 @@ def get_satellite_passes_in_fov(
     use_generated_tles: bool,
     api_source: str,
     api_version: str,
+    convert_omm_to_tle: bool = False,
 ) -> dict[str, Any]:
     """
     Get all satellite passes in the field of view.
@@ -260,8 +263,11 @@ def get_satellite_passes_in_fov(
         data_source: Data source for TLEs
         illuminated_only: Whether to include only illuminated satellites
         tle_only: Whether to include only TLE data in the response
+        use_generated_tles: Whether to use generated TLEs for propagation
         api_source: Source of the API call
         api_version: Version of the API
+        convert_omm_to_tle: For epochs served from orbital elements (OMM),
+            return the equivalent TLE lines in the orbital_data payload
 
     Returns:
         dict: Formatted results either grouped by satellite or chronologically
@@ -358,6 +364,7 @@ def get_satellite_passes_in_fov(
                 fov_radius=fov_radius,
                 batch_size=250,
                 include_orbital_data=include_orbital_data,
+                convert_omm_to_tle=convert_omm_to_tle,
                 illuminated_only=illuminated_only,
             )
 

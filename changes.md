@@ -4,6 +4,19 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
+# 1.8.0 (2026-08-26)
+
+### Bugfixes
+
+- Return HTTP 400 instead of 500 when a `launch_date` or `decay_date` search parameter on the search-satellites endpoint is not a valid Julian Date (for example a calendar date like `2024-01-01`). ([#250](https://github.com/iausathub/satchecker/pull/250))
+- Return HTTP 400 instead of 500 when the `catalog` parameter on the ephemeris catalog-number endpoints is not a valid integer NORAD ID, and made the global error handler resilient to exceptions (such as SQLAlchemy errors) whose `code` attribute is not an HTTP status code. ([#254](https://github.com/iausathub/satchecker/pull/253))
+
+### Features
+
+- Added a `convert_omm_to_tle` parameter to the FOV endpoint that returns the equivalent TLE lines for satellites served from OMM orbital elements. ([#252](https://github.com/iausathub/satchecker/pull/252))
+- TLE retrieval endpoints now transparently convert OMM orbital elements to TLE format for epochs after the orbital-elements cutoff, so they return data consistently before and after the cutoff. ([#252](https://github.com/iausathub/satchecker/pull/252))
+
+
 # 1.7.0 (2026-08-12)
 
 ### Bugfixes
