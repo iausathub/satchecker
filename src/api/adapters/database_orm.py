@@ -59,6 +59,7 @@ class SatelliteDb(Base):
         ),
         Index("idx_satellites_has_current_sat_number", has_current_sat_number),
         Index("idx_satellites_sat_number_sat_name", sat_number, sat_name),
+        Index("idx_satellites_object_id", object_id),
     )
 
 

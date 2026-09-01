@@ -8,6 +8,12 @@ from connections import get_spacetrack_login
 from psycopg2.extras import execute_values
 from skyfield.api import EarthSatellite, load
 
+# Highest catalog number a real NORAD id can hold (alpha-5 ceiling: "Z9999").
+# Celestrak publishes freshly launched objects under temporary placeholder ids
+# above this range until they are officially cataloged; those are not real ids
+# and must not remain the current designation once the real id arrives.
+MAX_VALID_NORAD = 339999
+
 
 def _parse_omm_float(value):
     if value is None:
@@ -130,6 +136,22 @@ def insert_record(
         sat_number = int(sat_number)
 
     current_date_time = datetime.datetime.now(datetime.timezone.utc)
+
+    # A temporary-id row must never claim the current designation when the real
+    # (valid) id already owns this object. This handles the out-of-order case
+    # where the real id is seen before this object's temp id is first inserted;
+    # the normal temp-then-real order is handled by the demotion below.
+    effective_current = is_current_number
+    if effective_current and object_id and sat_number > MAX_VALID_NORAD:
+        cursor.execute(
+            "SELECT 1 FROM satellites "
+            "WHERE object_id = %s AND sat_number <= %s AND has_current_sat_number "
+            "LIMIT 1",
+            (object_id, MAX_VALID_NORAD),
+        )
+        if cursor.fetchone() is not None:
+            effective_current = False
+
     # add satellite to database if it doesn't already exist
     sat_to_insert = (
         sat_number,
@@ -142,7 +164,7 @@ def insert_record(
         decay_date,
         object_id,
         object_type,
-        is_current_number,
+        effective_current,
         str(sat_number),
         name,
     )
@@ -194,6 +216,25 @@ def insert_record(
 
     params = (current_date_time, sat_number, sat_id)
     cursor.execute(update_query, params)
+
+    # A satellite first appears under a Celestrak temporary NORAD id and is later
+    # reissued under its real catalog number. Same idea as a real name replacing
+    # "TBA - TO BE ASSIGNED", but the id changes, so the demotion above (keyed on
+    # sat_number) misses it. When a valid id is ingested for this object, demote
+    # any temporary-id row(s) for the same object so the real id becomes primary.
+    if object_id and sat_number <= MAX_VALID_NORAD:
+        demote_temp_query = """
+            UPDATE satellites
+            SET HAS_CURRENT_SAT_NUMBER = FALSE,
+                DATE_MODIFIED = %s
+            WHERE OBJECT_ID = %s
+            AND SAT_NUMBER > %s
+            AND id != %s
+            """
+        cursor.execute(
+            demote_temp_query,
+            (current_date_time, object_id, MAX_VALID_NORAD, sat_id),
+        )
 
     # make sure this satellite has the correct has_current_sat_number value
     # only allow data from space-track to update this value, celestrak has
@@ -531,6 +572,18 @@ def add_archival_spacetrack_tles_to_db(
         WHERE id = %s
         """
 
+            # Demote temporary-id rows for the same object when a valid id is
+            # ingested (see insert_record for the rationale). Keyed on object_id
+            # because the id itself changes across the temp -> real transition.
+            demote_temp_query = """
+        UPDATE satellites
+        SET HAS_CURRENT_SAT_NUMBER = FALSE,
+            DATE_MODIFIED = %s
+        WHERE OBJECT_ID = %s
+        AND SAT_NUMBER > %s
+        AND id != %s
+        """
+
             step = "update has_current_sat_number"
             if new_sat_keys:
                 log_time = datetime.datetime.now(datetime.UTC).strftime(
@@ -547,6 +600,19 @@ def add_archival_spacetrack_tles_to_db(
                     false_params.append((current_date_time, sat_key[0], sat_id))
 
                 cursor.executemany(update_false_query, false_params)
+
+                demote_temp_params = [
+                    (
+                        current_date_time,
+                        sats_to_insert[sat_key][8],  # object_id
+                        MAX_VALID_NORAD,
+                        sat_id_by_key[sat_key],
+                    )
+                    for sat_key in new_sat_keys
+                    if sats_to_insert[sat_key][8] and sat_key[0] <= MAX_VALID_NORAD
+                ]
+                if demote_temp_params:
+                    cursor.executemany(demote_temp_query, demote_temp_params)
 
                 # make sure this satellite has the correct has_current_sat_number value
                 # only allow data from space-track to update this value, celestrak has
