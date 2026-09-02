@@ -93,7 +93,7 @@ matplotlib-inline==0.1.6
 mccabe==0.7.0
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
-mistune==3.3.0
+mistune==3.3.3
 mypy==1.15.0
 mypy-extensions==1.0.0
 myst-parser==4.0.1
@@ -177,7 +177,7 @@ stack-data==0.6.2
 tenacity==9.0.0
 tinycss2==1.1.1
 tomlkit==0.12.1
-tornado==6.5.7
+tornado==6.5.8
 towncrier==25.8.0
 traitlets==5.14.3
 types-setuptools==80.3.0.20250505
