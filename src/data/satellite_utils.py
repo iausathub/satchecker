@@ -72,9 +72,12 @@ def get_starlink_satellites(cursor: psycopg2.extensions.cursor) -> list[tuple]:
         cursor: Database cursor
 
     Returns:
-        List of satellite tuples
+        List of satellite tuples: (id, sat_number, sat_name, object_id).
     """
-    cursor.execute("SELECT * FROM satellites WHERE sat_name LIKE '%STARLINK%'")
+    cursor.execute(
+        "SELECT id, sat_number, sat_name, object_id "
+        "FROM satellites WHERE sat_name LIKE '%STARLINK%'"
+    )
     return cursor.fetchall()
 
 
@@ -295,10 +298,11 @@ def get_starlink_generations(cursor, connection):
     """
     current_starlink_satellites = get_starlink_satellites(cursor)
 
-    # Prepare satellite data for matching
+    # Prepare satellite data for matching. Columns come from the explicit SELECT
+    # in get_starlink_satellites: (id, sat_number, sat_name, object_id).
     sat_id_number_and_launch = []
     for satellite in current_starlink_satellites:
-        launch_number = extract_launch_number(satellite[10])
+        launch_number = extract_launch_number(satellite[3])
         sat_id_number_and_launch.append(
             (satellite[0], satellite[1], satellite[2], launch_number)
         )
@@ -322,3 +326,9 @@ def get_starlink_generations(cursor, connection):
     logging.info(
         f"Updated generation information for {total_matched} Starlink satellites"
     )
+    unmatched = len(current_starlink_satellites) - total_matched
+    if unmatched > 0:
+        logging.warning(
+            f"{unmatched} of {len(current_starlink_satellites)} Starlink satellites "
+            "were not matched to a generation"
+        )
