@@ -6,6 +6,9 @@ from flask import current_app as app
 from flask import jsonify, request, send_file
 from werkzeug.exceptions import abort
 
+from api.adapters.repositories.ephemeris_repository import (
+    SqlAlchemyEphemerisRepository,
+)
 from api.adapters.repositories.orbital_elements_repository import (
     SqlAlchemyOrbitalElementsRepository,
 )
@@ -16,6 +19,7 @@ from api.entrypoints.extensions import db, limiter
 from api.services.tools_service import (
     get_active_satellites,
     get_adjacent_orbital_data_results,
+    get_all_ephemeris_data_at_epoch_formatted,
     get_all_orbital_data_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
@@ -1757,3 +1761,106 @@ def get_omms_at_epoch():
         )
     else:
         return jsonify(result)
+
+
+@api_v1.route("/tools/ephemeris-data-at-epoch/")
+@api_main.route("/tools/ephemeris-data-at-epoch/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_ephemeris_data_at_epoch():
+    """Get all ephemeris data at a specific epoch date. This is currently limited to Starlink satellites
+    since that is the only operator-provided data source at the moment.
+    ---
+    tags:
+      - Tools
+    summary: Get ephemeris data at a specific epoch
+    description: >-
+      Fetches all ephemeris data at a specific epoch date - currently limited to
+      Starlink satellites since that is the only operator-provided data source at
+      the moment. For each satellite with coverage at the epoch, the closest
+      ephemeris record (its full set of stored points) is returned as saved,
+      preserving the original operator-provided values. This is a much larger data
+      set than the TLE or OMM formats, so it is not returned as JSON - it is
+      served as a binary Parquet file (default) or a zip archive of per-satellite
+      CSV files.
+    parameters:
+      - name: epoch
+        in: query
+        type: string
+        required: false
+        description: The epoch date in Julian Date format (defaults to current time if not provided)
+        example: "2459000.5"
+      - name: ephemeris_format
+        in: query
+        type: string
+        required: false
+        description: >-
+          Output format for the ephemeris data. "parquet" (default) returns a
+          single Parquet file containing all matching ephemeris points; "zip"
+          returns a zip archive with one CSV file per satellite. Both carry the
+          same columns.
+        enum: ["parquet", "zip"]
+        default: "parquet"
+        example: "parquet"
+    responses:
+      200:
+        description: >-
+          Ephemeris points for every satellite with coverage at the specified
+          epoch, returned as a binary file. Each row is a single stored ephemeris
+          point with the following columns: satellite_name, satellite_id (NORAD
+          id), timestamp (UTC), position (x, y, z in km), velocity (x, y, z in
+          km/s), covariance (6x6 state covariance, row-major), frame, epoch (the
+          ephemeris generation time), and data_source. This endpoint never returns
+          JSON.
+        content:
+          application/vnd.apache.parquet:
+            schema:
+              type: string
+              format: binary
+            description: >-
+              Parquet file containing all matching ephemeris points (returned when
+              ephemeris_format=parquet, the default).
+          application/zip:
+            schema:
+              type: string
+              format: binary
+            description: >-
+              Zip archive containing one CSV file per satellite, each holding that
+              satellite's ephemeris points with the columns described above
+              (returned when ephemeris_format=zip).
+      400:
+        description: Bad request due to invalid parameters
+      500:
+        description: Internal server error
+    """
+    session = db.session
+    ephemeris_repo = SqlAlchemyEphemerisRepository(session)
+
+    parameter_list = ["epoch", "ephemeris_format"]
+    parameters = validate_parameters(request, parameter_list, [])
+
+    epoch_date = parameters.get("epoch")
+    if not epoch_date:
+        epoch_date = datetime.now(timezone.utc)
+
+    ephemeris_format = parameters.get("ephemeris_format") or "parquet"
+
+    result = get_all_ephemeris_data_at_epoch_formatted(
+        ephemeris_repo,
+        epoch_date,
+        format=ephemeris_format,
+    )
+
+    if ephemeris_format == "zip":
+        return send_file(
+            result,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="ephemeris_data.zip",
+        )
+    else:
+        return send_file(
+            result,
+            mimetype="application/vnd.apache.parquet",
+            as_attachment=True,
+            download_name="ephemeris_data.parquet",
+        )

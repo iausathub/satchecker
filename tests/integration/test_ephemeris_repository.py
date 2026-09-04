@@ -501,3 +501,59 @@ def test_get_closest_by_satellite_numbers(session):
         repo_ephemeris[int(satellite.sat_number)].generated_at == ephemeris.generated_at
     )
     assert repo_ephemeris[int(satellite.sat_number)].data_source == data_source
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_get_all_closest_at_epoch(session):
+    ephemeris_repository = SqlAlchemyEphemerisRepository(session)
+    epoch = datetime.now(timezone.utc)
+
+    # No ephemeris yet.
+    assert ephemeris_repository.get_all_closest_at_epoch(epoch) == []
+
+    # Add a satellite with a record covering the epoch.
+    satellite = SatelliteFactory()
+    db_satellite = SatelliteDb(
+        sat_number=satellite.sat_number,
+        sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
+        has_current_sat_number=satellite.has_current_sat_number,
+    )
+    session.add(db_satellite)
+    session.commit()
+
+    # A record generated far from the epoch and a closer one - the closer one wins.
+    far_ephemeris = InterpolableEphemerisFactory(
+        satellite=satellite,
+        generated_at=epoch - timedelta(hours=12),
+        ephemeris_start=epoch - timedelta(hours=13),
+        ephemeris_stop=epoch + timedelta(hours=13),
+    )
+    close_ephemeris = InterpolableEphemerisFactory(
+        satellite=satellite,
+        generated_at=epoch - timedelta(hours=1),
+        ephemeris_start=epoch - timedelta(hours=1),
+        ephemeris_stop=epoch + timedelta(hours=1),
+    )
+    ephemeris_repository.add(far_ephemeris)
+    ephemeris_repository.add(close_ephemeris)
+    session.commit()
+
+    records = ephemeris_repository.get_all_closest_at_epoch(epoch)
+    assert len(records) == 1
+    assert records[0].generated_at == close_ephemeris.generated_at
+
+    # A record whose window does not cover the epoch is excluded.
+    uncovered = ephemeris_repository.get_all_closest_at_epoch(
+        epoch + timedelta(days=30)
+    )
+    assert uncovered == []

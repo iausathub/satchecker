@@ -590,6 +590,7 @@ class FakeOrbitalElementsRepository(AbstractOrbitalElementsRepository):
 
 class FakeEphemerisRepository(AbstractEphemerisRepository):
     def __init__(self, ephemeris):
+        super().__init__()
         self._ephemeris = ephemeris
 
     def _add(self, ephemeris):
@@ -641,7 +642,7 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
         )
 
     def _get_satellites_with_ephemeris(
-        self, start_time: datetime, end_time: datetime
+        self, start_time: datetime, end_time: datetime | None = None
     ) -> list[Satellite]:
         return [ephemeris.satellite for ephemeris in self._ephemeris]
 
@@ -687,6 +688,15 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
                 if data_source is None or closest_ephemeris.data_source == data_source:
                     results[int(satellite_number)] = closest_ephemeris
         return results
+
+    def _get_all_closest_at_epoch(
+        self, epoch: datetime, data_source: str | None = None
+    ) -> list[InterpolableEphemeris]:
+        ephemerides = []
+        for ephemeris in self._ephemeris:
+            if data_source is None or ephemeris.data_source == data_source:
+                ephemerides.append(ephemeris)
+        return ephemerides
 
 
 class FakeTdmPredictionRepository(AbstractTdmPredictionRepository):

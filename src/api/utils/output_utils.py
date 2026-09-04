@@ -1,8 +1,16 @@
+import csv
+import io
+import zipfile
+from collections.abc import Iterator
 from datetime import timezone
 from typing import Any
 
 import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
 from astropy.time import Time
+
+from api.domain.models.interpolable_ephemeris import InterpolableEphemeris
 
 
 def position_data_to_json(
@@ -354,3 +362,123 @@ def satellite_data_to_json(satellites: list, api_source: str, api_version: str) 
         "source": api_source,
         "version": api_version,
     }
+
+
+# Column order for the flattened CSV output (one row per point) - separate
+# from the Parquet schema because CSV can't hold list-valued cells cleanly
+EPHEMERIS_CSV_COLUMNS: list[str] = [
+    "satellite_name",
+    "satellite_id",
+    "ephemeris_id",
+    "data_source",
+    "frame",
+    "generated_at",
+    "timestamp",
+    "x_km",
+    "y_km",
+    "z_km",
+    "vx_km_per_s",
+    "vy_km_per_s",
+    "vz_km_per_s",
+] + [f"cov_{i}_{j}" for i in range(6) for j in range(6)]
+
+# Column order for the Parquet output. This mirrors the on-disk S3 schema
+# (position/velocity/covariance as list<double>, native timestamps) so the file
+# stays compact - list columns are ~50% smaller than the flattened form - and
+# consistent with the stored shards, plus a few satellite identifier columns so
+# the file is self-describing outside the database.
+EPHEMERIS_PARQUET_COLUMNS: list[str] = [
+    "ephemeris_id",
+    "satellite_id",
+    "satellite_name",
+    "data_source",
+    "frame",
+    "generated_at",
+    "timestamp",
+    "position",
+    "velocity",
+    "covariance",
+]
+
+
+def _ephemeris_csv_rows(
+    records: list[InterpolableEphemeris],
+) -> Iterator[dict[str, Any]]:
+    """Yield one flattened row per stored ephemeris point across the given records."""
+    for ephemeris in records:
+        sat = ephemeris.satellite
+        generated_at = format_date(ephemeris.generated_at)
+        for point in ephemeris.points:
+            pos = np.asarray(point.position, dtype=float).reshape(-1)
+            vel = np.asarray(point.velocity, dtype=float).reshape(-1)
+            cov = np.asarray(point.covariance, dtype=float).reshape(6, 6)
+            row: dict[str, Any] = {
+                "satellite_name": sat.sat_name,
+                "satellite_id": sat.sat_number,
+                "ephemeris_id": ephemeris.id,
+                "data_source": ephemeris.data_source,
+                "frame": ephemeris.frame,
+                "generated_at": generated_at,
+                "timestamp": format_date(point.timestamp),
+                "x_km": pos[0],
+                "y_km": pos[1],
+                "z_km": pos[2],
+                "vx_km_per_s": vel[0],
+                "vy_km_per_s": vel[1],
+                "vz_km_per_s": vel[2],
+            }
+            for i in range(6):
+                for j in range(6):
+                    row[f"cov_{i}_{j}"] = cov[i, j]
+            yield row
+
+
+def ephemeris_data_to_parquet(records: list[InterpolableEphemeris]) -> io.BytesIO:
+    """Serialize ephemeris points into a single zstd-compressed Parquet file.
+
+    Uses the compact S3-aligned schema: position, velocity, and covariance stay as
+    ``list<double>`` columns and timestamps keep their native type.
+    """
+    columns: dict[str, list[Any]] = {name: [] for name in EPHEMERIS_PARQUET_COLUMNS}
+    for ephemeris in records:
+        sat = ephemeris.satellite
+        for point in ephemeris.points:
+            columns["ephemeris_id"].append(ephemeris.id)
+            columns["satellite_id"].append(sat.sat_number)
+            columns["satellite_name"].append(sat.sat_name)
+            columns["data_source"].append(ephemeris.data_source)
+            columns["frame"].append(ephemeris.frame)
+            columns["generated_at"].append(ephemeris.generated_at)
+            columns["timestamp"].append(point.timestamp)
+            columns["position"].append(
+                np.asarray(point.position, dtype=float).reshape(-1).tolist()
+            )
+            columns["velocity"].append(
+                np.asarray(point.velocity, dtype=float).reshape(-1).tolist()
+            )
+            columns["covariance"].append(
+                np.asarray(point.covariance, dtype=float).reshape(-1).tolist()
+            )
+
+    table = pa.table(columns)
+    buffer = io.BytesIO()
+    pq.write_table(table, buffer, compression="zstd")
+    buffer.seek(0)
+    return buffer
+
+
+def ephemeris_data_to_zip(records: list[InterpolableEphemeris]) -> io.BytesIO:
+    """Serialize ephemeris points into a zip archive with one CSV per satellite."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for ephemeris in records:
+            csv_buffer = io.StringIO()
+            writer = csv.writer(csv_buffer)
+            writer.writerow(EPHEMERIS_CSV_COLUMNS)
+            for row in _ephemeris_csv_rows([ephemeris]):
+                writer.writerow([row[name] for name in EPHEMERIS_CSV_COLUMNS])
+            zip_file.writestr(
+                f"{ephemeris.satellite.sat_number}.csv", csv_buffer.getvalue()
+            )
+    zip_buffer.seek(0)
+    return zip_buffer

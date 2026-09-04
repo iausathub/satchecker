@@ -178,7 +178,7 @@ class AbstractEphemerisRepository(abc.ABC):
         return ephemeris
 
     def get_satellites_with_ephemeris(
-        self, start_time: datetime, end_time: datetime
+        self, start_time: datetime, end_time: datetime | None = None
     ) -> list[int]:
         return self._get_satellites_with_ephemeris(start_time, end_time)
 
@@ -203,6 +203,14 @@ class AbstractEphemerisRepository(abc.ABC):
         return self._get_closest_by_satellite_numbers(
             satellite_numbers, epoch, data_source
         )
+
+    def get_all_closest_at_epoch(
+        self, epoch: datetime, data_source: str | None = None
+    ) -> list[InterpolableEphemeris]:
+        ephemerides = self._get_all_closest_at_epoch(epoch, data_source)
+        for ephemeris in ephemerides:
+            self.seen.add(ephemeris)
+        return ephemerides
 
     @abc.abstractmethod
     def _add(self, ephemeris: InterpolableEphemeris):
@@ -240,7 +248,7 @@ class AbstractEphemerisRepository(abc.ABC):
 
     @abc.abstractmethod
     def _get_satellites_with_ephemeris(
-        self, start_time: datetime, end_time: datetime
+        self, start_time: datetime, end_time: datetime | None = None
     ) -> list[int]:
         raise NotImplementedError  # pragma: no cover
 
@@ -267,6 +275,12 @@ class AbstractEphemerisRepository(abc.ABC):
         epoch: datetime,
         data_source: str | None = None,
     ) -> dict[int, InterpolableEphemeris]:
+        raise NotImplementedError  # pragma: no cover
+
+    @abc.abstractmethod
+    def _get_all_closest_at_epoch(
+        self, epoch: datetime, data_source: str | None = None
+    ) -> list[InterpolableEphemeris]:
         raise NotImplementedError  # pragma: no cover
 
 
@@ -573,12 +587,14 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         return None
 
     def _get_satellites_with_ephemeris(
-        self, start_time: datetime, end_time: datetime
+        self, start_time: datetime, end_time: datetime | None = None
     ) -> list[int]:
         try:
-            # Ensure epoch is a datetime object with timezone info
+            # Ensure epoch is a datetime object with timezone info. For a single
+            # epoch, callers pass only start_time and the window collapses to that
+            # instant.
             start_time = ensure_datetime(start_time)
-            end_time = ensure_datetime(end_time)
+            end_time = start_time if end_time is None else ensure_datetime(end_time)
 
             # Get satellites that have ephemeris data valid for the epoch
             # (epoch must be within the ephemeris time range and generated
@@ -648,3 +664,38 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
                 results[sat_number] = self._to_domain(orm_ephemeris, self.session)
 
         return results
+
+    def _get_all_closest_at_epoch(
+        self, epoch: datetime, data_source: str | None = None
+    ) -> list[InterpolableEphemeris]:
+        """Closest covering ephemeris record per satellite at a single epoch.
+
+        One query does the whole job: DISTINCT ON (satellite) keeps, for each
+        satellite whose window covers the epoch, the record whose generated_at is
+        nearest the epoch. Postgres requires the DISTINCT ON column to lead the
+        ORDER BY, which it does here.
+        """
+        epoch = ensure_datetime(epoch)
+        epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
+
+        query = (
+            self.session.query(InterpolableEphemerisDb)
+            .join(InterpolableEphemerisDb.satellite_ref)
+            .filter(
+                InterpolableEphemerisDb.ephemeris_start <= epoch,
+                InterpolableEphemerisDb.ephemeris_stop >= epoch,
+            )
+            .distinct(SatelliteDb.sat_number)
+            .order_by(
+                SatelliteDb.sat_number,
+                func.abs(
+                    func.extract("epoch", InterpolableEphemerisDb.generated_at)
+                    - func.extract("epoch", epoch_param)
+                ),
+            )
+        )
+
+        if data_source:
+            query = query.filter(InterpolableEphemerisDb.data_source == data_source)
+
+        return [self._to_domain(orm, self.session) for orm in query.all()]

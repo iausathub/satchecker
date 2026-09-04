@@ -417,6 +417,15 @@ def validate_parameters(
         if parameters["format"] not in ["json", "zip", "txt"]:
             raise ValidationError(500, error_messages.INVALID_FORMAT)
 
+    if (
+        "ephemeris_format" in parameters.keys()
+        and parameters["ephemeris_format"] is not None
+    ):
+        parameters["ephemeris_format"] = parameters["ephemeris_format"].lower()
+
+        if parameters["ephemeris_format"] not in ["parquet", "zip"]:
+            raise ValidationError(500, error_messages.INVALID_FORMAT)
+
     if "group_by" in parameters.keys() and parameters["group_by"] is not None:
         parameters["group_by"] = (
             parameters["group_by"].lower()
