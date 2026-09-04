@@ -1,19 +1,26 @@
 # ruff: noqa: E501, S101, F841
+import io
 import time
-from datetime import datetime, timedelta
+import zipfile
+from datetime import datetime, timedelta, timezone
 
+import pyarrow.parquet as pq
 import pytest
 from astropy.time import Time
+from tests.factories.ephemeris_factory import InterpolableEphemerisFactory
 from tests.factories.orbital_elements_factory import OrbitalElementsFactory
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
 
+from api.adapters.database_orm import SatelliteDb
 from api.adapters.repositories import (
+    ephemeris_repository,
     orbital_elements_repository,
     satellite_repository,
     tle_repository,
 )
 from api.entrypoints.extensions import db
+from api.utils.output_utils import EPHEMERIS_PARQUET_COLUMNS
 
 # A fixed epoch before ORBITAL_ELEMENTS_CUTOFF (2026-07-13) so these TLE-store
 # tests stay deterministic; without it, `datetime.now()` has drifted past the
@@ -194,6 +201,157 @@ def test_get_tles_at_epoch_zipped(client, session, services_available):
     assert (
         response.headers["Content-Disposition"] == "attachment; filename=tle_data.zip"
     )
+
+
+# A fixed epoch for the ephemeris endpoint; the ephemeris window is built tz-aware
+# around it below.
+EPHEMERIS_EPOCH = datetime(2026, 7, 1)
+
+
+def _add_covering_ephemeris(session, epoch_dt, sat_number=88888):
+    """Persist a satellite and one ephemeris record whose window covers epoch_dt."""
+    satellite = SatelliteFactory(
+        sat_name="STARLINK-TEST",
+        sat_number=sat_number,
+        decay_date=None,
+        has_current_sat_number=True,
+        launch_date=datetime.strptime("2020-01-01", "%Y-%m-%d"),
+    )
+    db_satellite = SatelliteDb(
+        sat_number=satellite.sat_number,
+        sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
+        has_current_sat_number=satellite.has_current_sat_number,
+    )
+    session.add(db_satellite)
+    session.commit()
+
+    ephemeris = InterpolableEphemerisFactory(
+        satellite=satellite,
+        generated_at=(epoch_dt - timedelta(minutes=30)).replace(tzinfo=timezone.utc),
+        ephemeris_start=(epoch_dt - timedelta(hours=1)).replace(tzinfo=timezone.utc),
+        ephemeris_stop=(epoch_dt + timedelta(hours=1)).replace(tzinfo=timezone.utc),
+    )
+    ephemeris_repository.SqlAlchemyEphemerisRepository(session).add(ephemeris)
+    session.commit()
+    return ephemeris
+
+
+def test_get_ephemeris_data_at_epoch_parquet(client, session, services_available):
+    ephemeris = _add_covering_ephemeris(session, EPHEMERIS_EPOCH)
+    epoch_jd = Time(EPHEMERIS_EPOCH).jd
+
+    # No ephemeris_format -> defaults to Parquet.
+    response = client.get(f"/tools/ephemeris-data-at-epoch/?epoch={epoch_jd}")
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/vnd.apache.parquet"
+    assert (
+        response.headers["Content-Disposition"]
+        == "attachment; filename=ephemeris_data.parquet"
+    )
+    table = pq.read_table(io.BytesIO(response.data))
+    assert table.schema.names == EPHEMERIS_PARQUET_COLUMNS
+    assert table.num_rows == len(ephemeris.points)
+    assert 88888 in table.column("satellite_id").to_pylist()
+
+
+def test_get_ephemeris_data_at_epoch_zip(client, session, services_available):
+    _add_covering_ephemeris(session, EPHEMERIS_EPOCH)
+    epoch_jd = Time(EPHEMERIS_EPOCH).jd
+
+    response = client.get(
+        f"/tools/ephemeris-data-at-epoch/?epoch={epoch_jd}&ephemeris_format=zip"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/zip"
+    assert (
+        response.headers["Content-Disposition"]
+        == "attachment; filename=ephemeris_data.zip"
+    )
+    with zipfile.ZipFile(io.BytesIO(response.data)) as zip_file:
+        assert zip_file.namelist() == ["88888.csv"]
+
+
+def test_get_ephemeris_data_at_epoch_invalid_format(client, services_available):
+    response = client.get("/tools/ephemeris-data-at-epoch/?ephemeris_format=xml")
+    assert response.status_code == 500
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_parquet(
+    client, session, services_available
+):
+    ephemeris = _add_covering_ephemeris(session, EPHEMERIS_EPOCH)
+    epoch_jd = Time(EPHEMERIS_EPOCH).jd
+
+    response = client.get(
+        f"/tools/ephemeris-data-for-satellite-at-epoch/?id=88888&id_type=catalog&epoch={epoch_jd}"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/vnd.apache.parquet"
+    assert (
+        response.headers["Content-Disposition"]
+        == "attachment; filename=ephemeris_data_88888.parquet"
+    )
+    table = pq.read_table(io.BytesIO(response.data))
+    assert table.schema.names == EPHEMERIS_PARQUET_COLUMNS
+    assert table.num_rows == len(ephemeris.points)
+    assert set(table.column("satellite_id").to_pylist()) == {88888}
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_by_name(
+    client, session, services_available
+):
+    ephemeris = _add_covering_ephemeris(session, EPHEMERIS_EPOCH)
+    epoch_jd = Time(EPHEMERIS_EPOCH).jd
+
+    response = client.get(
+        f"/tools/ephemeris-data-for-satellite-at-epoch/?id=STARLINK-TEST&id_type=name&epoch={epoch_jd}"
+    )
+
+    assert response.status_code == 200
+    table = pq.read_table(io.BytesIO(response.data))
+    assert table.num_rows == len(ephemeris.points)
+    assert set(table.column("satellite_id").to_pylist()) == {88888}
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_zip(
+    client, session, services_available
+):
+    _add_covering_ephemeris(session, EPHEMERIS_EPOCH)
+    epoch_jd = Time(EPHEMERIS_EPOCH).jd
+
+    response = client.get(
+        f"/tools/ephemeris-data-for-satellite-at-epoch/?id=88888&id_type=catalog&epoch={epoch_jd}&ephemeris_format=zip"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/zip"
+    assert (
+        response.headers["Content-Disposition"]
+        == "attachment; filename=ephemeris_data_88888.zip"
+    )
+    with zipfile.ZipFile(io.BytesIO(response.data)) as zip_file:
+        assert zip_file.namelist() == ["88888.csv"]
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_requires_id_and_type(
+    client, services_available
+):
+    # id and id_type are required parameters.
+    response = client.get("/tools/ephemeris-data-for-satellite-at-epoch/")
+    assert response.status_code != 200
+
+    response = client.get("/tools/ephemeris-data-for-satellite-at-epoch/?id=88888")
+    assert response.status_code != 200
 
 
 def test_get_omms_at_epoch(client, session, services_available):
