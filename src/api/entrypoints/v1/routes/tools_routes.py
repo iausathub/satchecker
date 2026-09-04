@@ -21,6 +21,7 @@ from api.services.tools_service import (
     get_adjacent_orbital_data_results,
     get_all_ephemeris_data_at_epoch_formatted,
     get_all_orbital_data_at_epoch_formatted,
+    get_ephemeris_data_for_satellite_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_nearest_orbital_data_result,
@@ -1795,9 +1796,11 @@ def get_ephemeris_data_at_epoch():
         required: false
         description: >-
           Output format for the ephemeris data. "parquet" (default) returns a
-          single Parquet file containing all matching ephemeris points; "zip"
-          returns a zip archive with one CSV file per satellite. Both carry the
-          same columns.
+          single Parquet file containing all matching ephemeris points, with
+          position, velocity, and covariance kept as list-valued columns; "zip"
+          returns a zip archive with one CSV file per satellite, with those
+          vectors flattened into individual scalar columns (x_km, y_km, ...,
+          cov_0_0 ... cov_5_5). Both contain the same underlying fields.
         enum: ["parquet", "zip"]
         default: "parquet"
         example: "parquet"
@@ -1806,11 +1809,13 @@ def get_ephemeris_data_at_epoch():
         description: >-
           Ephemeris points for every satellite with coverage at the specified
           epoch, returned as a binary file. Each row is a single stored ephemeris
-          point with the following columns: satellite_name, satellite_id (NORAD
-          id), timestamp (UTC), position (x, y, z in km), velocity (x, y, z in
-          km/s), covariance (6x6 state covariance, row-major), frame, epoch (the
-          ephemeris generation time), and data_source. This endpoint never returns
-          JSON.
+          point with the following fields: ephemeris_id, satellite_id (NORAD id),
+          satellite_name, data_source, frame, generated_at (the ephemeris
+          generation time, UTC), timestamp (the point time, UTC), position
+          (x, y, z in km), velocity (x, y, z in km/s), and covariance (6x6 state
+          covariance, row-major). See the ephemeris_format parameter for how
+          position, velocity, and covariance are represented in each format. This
+          endpoint never returns JSON.
         content:
           application/vnd.apache.parquet:
             schema:
@@ -1863,4 +1868,126 @@ def get_ephemeris_data_at_epoch():
             mimetype="application/vnd.apache.parquet",
             as_attachment=True,
             download_name="ephemeris_data.parquet",
+        )
+
+
+@api_v1.route("/tools/ephemeris-data-for-satellite-at-epoch/")
+@api_main.route("/tools/ephemeris-data-for-satellite-at-epoch/")
+@limiter.limit("100 per second, 2000 per minute")
+def get_ephemeris_data_for_satellite_at_epoch():
+    """Get ephemeris data for a single satellite at a specific epoch date. This is currently limited to Starlink satellites
+    since that is the only operator-provided data source at the moment.
+    ---
+    tags:
+      - Tools
+    summary: Get ephemeris data for one satellite at a specific epoch
+    description: >-
+      Fetches the closest ephemeris record (its full set of stored points) for a
+      single satellite at a specific epoch date - currently limited to Starlink
+      satellites since that is the only operator-provided data source at the
+      moment. The record is returned as saved, preserving the original
+      operator-provided values. Like the all-satellite endpoint it is served as a
+      binary Parquet file (default) or a zip with one CSV file for the satellite
+      requested.
+    parameters:
+      - name: id
+        in: query
+        type: string
+        required: true
+        description: The ID of the satellite (NORAD ID or name)
+        example: "25544"
+      - name: id_type
+        in: query
+        type: string
+        required: true
+        description: The type of ID provided
+        enum: ["catalog", "name"]
+        example: "catalog"
+      - name: epoch
+        in: query
+        type: string
+        required: false
+        description: The epoch date in Julian Date format (defaults to current time if not provided)
+        example: "2459000.5"
+      - name: ephemeris_format
+        in: query
+        type: string
+        required: false
+        description: >-
+          Output format for the ephemeris data. "parquet" (default) returns a
+          single Parquet file containing the satellite's ephemeris points, with
+          position, velocity, and covariance kept as list-valued columns; "zip"
+          returns a zip archive with one CSV file for the satellite, with those
+          vectors flattened into individual scalar columns (x_km, y_km, ...,
+          cov_0_0 ... cov_5_5). Both contain the same underlying fields.
+        enum: ["parquet", "zip"]
+        default: "parquet"
+        example: "parquet"
+    responses:
+      200:
+        description: >-
+          The closest ephemeris record's points for the requested satellite at the
+          specified epoch, returned as a binary file. Each row is a single stored
+          ephemeris point with the following fields: ephemeris_id, satellite_id
+          (NORAD id), satellite_name, data_source, frame, generated_at (the
+          ephemeris generation time, UTC), timestamp (the point time, UTC),
+          position (x, y, z in km), velocity (x, y, z in km/s), and covariance
+          (6x6 state covariance, row-major). See the ephemeris_format parameter for
+          how position, velocity, and covariance are represented in each format. An
+          empty file is returned if the satellite has no record covering the epoch.
+          This endpoint never returns JSON.
+        content:
+          application/vnd.apache.parquet:
+            schema:
+              type: string
+              format: binary
+            description: >-
+              Parquet file containing the satellite's ephemeris points (returned
+              when ephemeris_format=parquet, the default).
+          application/zip:
+            schema:
+              type: string
+              format: binary
+            description: >-
+              Zip archive containing one CSV file for the satellite with the
+              columns described above (returned when ephemeris_format=zip).
+      400:
+        description: Bad request due to missing or invalid parameters
+      500:
+        description: Internal server error
+    """
+    session = db.session
+    ephemeris_repo = SqlAlchemyEphemerisRepository(session)
+
+    parameter_list = ["id", "id_type", "epoch", "ephemeris_format"]
+    required_parameters = ["id", "id_type"]
+    parameters = validate_parameters(request, parameter_list, required_parameters)
+
+    epoch_date = parameters.get("epoch")
+    if not epoch_date:
+        epoch_date = datetime.now(timezone.utc)
+
+    ephemeris_format = parameters.get("ephemeris_format") or "parquet"
+
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        ephemeris_repo,
+        parameters["id"],
+        parameters["id_type"],
+        epoch_date,
+        format=ephemeris_format,
+    )
+
+    if ephemeris_format == "zip":
+        return send_file(
+            result,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"ephemeris_data_{parameters['id']}.zip",
+        )
+    else:
+        return send_file(
+            result,
+            mimetype="application/vnd.apache.parquet",
+            as_attachment=True,
+            download_name=f"ephemeris_data_{parameters['id']}.parquet",
         )

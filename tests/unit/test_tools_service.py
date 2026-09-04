@@ -23,6 +23,7 @@ from api.services.tools_service import (
     get_adjacent_orbital_data_results,
     get_all_ephemeris_data_at_epoch_formatted,
     get_all_orbital_data_at_epoch_formatted,
+    get_ephemeris_data_for_satellite_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_nearest_orbital_data_result,
@@ -1329,6 +1330,59 @@ def test_get_all_ephemeris_data_at_epoch_empty():
 
     result = get_all_ephemeris_data_at_epoch_formatted(
         repo, datetime.now(timezone.utc), format="parquet"
+    )
+
+    parquet_file = pq.ParquetFile(result)
+    assert parquet_file.metadata.num_rows == 0
+    assert parquet_file.schema_arrow.names == EPHEMERIS_PARQUET_COLUMNS
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_parquet():
+    repo, e1, _ = _ephemeris_repo_with_two_satellites()
+
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "11111", "catalog", datetime.now(timezone.utc), format="parquet"
+    )
+
+    parquet_file = pq.ParquetFile(result)
+    # Only the requested satellite's points, nothing from the other record.
+    assert parquet_file.metadata.num_rows == len(e1.points)
+    table = parquet_file.read()
+    assert set(table.column("satellite_id").to_pylist()) == {11111}
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_by_name():
+    repo, e1, _ = _ephemeris_repo_with_two_satellites()
+
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "STARLINK-A", "name", datetime.now(timezone.utc), format="parquet"
+    )
+
+    table = pq.ParquetFile(result).read()
+    assert table.num_rows == len(e1.points)
+    assert set(table.column("satellite_id").to_pylist()) == {11111}
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_zip():
+    repo, e1, _ = _ephemeris_repo_with_two_satellites()
+
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "11111", "catalog", datetime.now(timezone.utc), format="zip"
+    )
+
+    with zipfile.ZipFile(result) as zip_file:
+        assert zip_file.namelist() == ["11111.csv"]
+        lines = zip_file.read("11111.csv").decode().splitlines()
+    assert lines[0].split(",") == EPHEMERIS_CSV_COLUMNS
+    assert len(lines) == len(e1.points) + 1
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_not_found():
+    repo, _, _ = _ephemeris_repo_with_two_satellites()
+
+    # A satellite with no record -> empty file, not an error.
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "99999", "catalog", datetime.now(timezone.utc), format="parquet"
     )
 
     parquet_file = pq.ParquetFile(result)

@@ -557,3 +557,52 @@ def test_get_all_closest_at_epoch(session):
         epoch + timedelta(days=30)
     )
     assert uncovered == []
+
+
+@pytest.mark.skipif(
+    cannot_connect_to_services(),
+    reason="Services not available",
+)
+def test_closest_by_number_and_name_agree_when_generated_after_epoch(session):
+    # Regression: a covering record generated *after* the epoch must be returned
+    # by both the catalog (number) and name lookups. These previously disagreed
+    # because the name query additionally required generated_at <= epoch.
+    ephemeris_repository = SqlAlchemyEphemerisRepository(session)
+    epoch = datetime.now(timezone.utc)
+
+    satellite = SatelliteFactory()
+    db_satellite = SatelliteDb(
+        sat_number=satellite.sat_number,
+        sat_name=satellite.sat_name,
+        constellation=satellite.constellation,
+        generation=satellite.generation,
+        rcs_size=satellite.rcs_size,
+        launch_date=satellite.launch_date,
+        decay_date=satellite.decay_date,
+        object_id=satellite.object_id,
+        object_type=satellite.object_type,
+        has_current_sat_number=satellite.has_current_sat_number,
+    )
+    session.add(db_satellite)
+    session.commit()
+
+    ephemeris = InterpolableEphemerisFactory(
+        satellite=satellite,
+        generated_at=epoch + timedelta(hours=1),  # generated after the epoch
+        ephemeris_start=epoch - timedelta(hours=1),
+        ephemeris_stop=epoch + timedelta(hours=1),
+    )
+    ephemeris_repository.add(ephemeris)
+    session.commit()
+
+    by_number = ephemeris_repository.get_closest_by_satellite_number(
+        str(satellite.sat_number), epoch
+    )
+    by_name = ephemeris_repository.get_closest_by_satellite_name(
+        satellite.sat_name, epoch
+    )
+
+    assert by_number is not None
+    assert by_name is not None
+    assert by_number.generated_at == ephemeris.generated_at
+    assert by_name.generated_at == by_number.generated_at

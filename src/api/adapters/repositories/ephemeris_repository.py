@@ -517,14 +517,14 @@ class SqlAlchemyEphemerisRepository(AbstractEphemerisRepository):
         epoch = ensure_datetime(epoch)
         epoch_param = bindparam("epoch", epoch, type_=DateTime(timezone=True))
 
-        # First find the ephemeris entry with the closest generated_at time that
-        # is before or equal to the requested epoch
+        # Find any ephemeris that covers the epoch, then get the one whose
+        # generated_at is closest to it. Matches _get_closest_by_satellite_number
+        # so a catalog and a name lookup return the same record.
         query = (
             self.session.query(InterpolableEphemerisDb)
             .join(InterpolableEphemerisDb.satellite_ref)
             .filter(
                 SatelliteDb.sat_name == satellite_name,
-                InterpolableEphemerisDb.generated_at <= epoch,
                 InterpolableEphemerisDb.ephemeris_start <= epoch,
                 InterpolableEphemerisDb.ephemeris_stop >= epoch,
             )

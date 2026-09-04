@@ -946,6 +946,58 @@ def get_all_ephemeris_data_at_epoch_formatted(
     return ephemeris_data_to_zip(records)
 
 
+def get_ephemeris_data_for_satellite_at_epoch_formatted(
+    ephemeris_repo: AbstractEphemerisRepository,
+    id: str,
+    id_type: str,
+    epoch_date: datetime,
+    format: str = "parquet",
+) -> io.BytesIO:
+    """Fetch the closest raw ephemeris record for one satellite at an epoch.
+
+    Returns the single ephemeris record (its full set of stored points) whose
+    generated_at is nearest the epoch among the records covering it, exactly as
+    saved. Like the all-satellite endpoint it is served as a binary file: a
+    Parquet file (default) or a zip of per-satellite CSVs. If the satellite has no
+    record covering the epoch, an empty file is returned.
+
+    Args:
+        ephemeris_repo: Repository used to look up ephemeris records.
+        id: The satellite identifier (NORAD id or name).
+        id_type: The type of ``id``, either ``"catalog"`` (NORAD id) or ``"name"``.
+        epoch_date: The epoch as a tz-aware datetime (the route converts the
+            Julian Date query param before calling this service).
+        format: Output format, either ``"parquet"`` (default) or ``"zip"``.
+
+    Returns:
+        io.BytesIO: The serialized ephemeris data, ready to stream to the client.
+    """
+    logger.info(
+        "Fetching ephemeris data for %s %s at epoch %s in %s format",
+        id_type,
+        id,
+        epoch_date,
+        format,
+    )
+
+    if id_type == "catalog":
+        ephemeris = ephemeris_repo.get_closest_by_satellite_number(id, epoch_date)
+    else:
+        ephemeris = ephemeris_repo.get_closest_by_satellite_name(id, epoch_date)
+    records = [ephemeris] if ephemeris is not None else []
+    logger.info(
+        "Retrieved %d ephemeris record(s) for %s %s at epoch %s",
+        len(records),
+        id_type,
+        id,
+        epoch_date,
+    )
+
+    if format == "parquet":
+        return ephemeris_data_to_parquet(records)
+    return ephemeris_data_to_zip(records)
+
+
 def get_ids_for_satellite_name(
     sat_repo: AbstractSatelliteRepository,
     satellite_name: str,
