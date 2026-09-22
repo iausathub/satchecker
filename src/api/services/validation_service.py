@@ -332,8 +332,10 @@ def validate_parameters(
             )
         except Exception as e:
             raise ValidationError(
-                500,
-                error_messages.INVALID_JD + " - 'mid_obs_time_jd' or 'start_time_jd'",
+                400,
+                error_messages.INVALID_JD
+                + " - 'mid_obs_time_jd' or 'start_time_jd' must be in Julian Date"
+                + " format",
                 e,
             ) from e
 
@@ -346,7 +348,10 @@ def validate_parameters(
             )
         except Exception as e:
             raise ValidationError(
-                500, error_messages.INVALID_JD + " - 'epoch'", e
+                400,
+                error_messages.INVALID_JD
+                + " - 'epoch' parameter must be in Julian Date format",
+                e,
             ) from e
 
     if "ra" in parameters.keys() and parameters["ra"] is not None:
