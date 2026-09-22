@@ -590,29 +590,34 @@ class FakeOrbitalElementsRepository(AbstractOrbitalElementsRepository):
 
 class FakeEphemerisRepository(AbstractEphemerisRepository):
     def __init__(self, ephemeris):
+        super().__init__()
         self._ephemeris = ephemeris
 
     def _add(self, ephemeris):
         self._ephemeris.add(ephemeris)
 
-    def _get_closest_by_satellite_number(self, satellite_number, epoch):
+    def _get_closest_by_satellite_number(
+        self, satellite_number, epoch, data_source=None
+    ):
         satellite_number_int = int(satellite_number)
         return min(
             (
                 ephemeris
                 for ephemeris in self._ephemeris
                 if ephemeris.satellite.sat_number == satellite_number_int
+                and (data_source is None or ephemeris.data_source == data_source)
             ),
             key=lambda ephemeris: abs(ephemeris.generated_at - epoch),
             default=None,
         )
 
-    def _get_closest_by_satellite_name(self, satellite_name, epoch):
+    def _get_closest_by_satellite_name(self, satellite_name, epoch, data_source=None):
         return min(
             (
                 ephemeris
                 for ephemeris in self._ephemeris
                 if ephemeris.satellite.sat_name == satellite_name
+                and (data_source is None or ephemeris.data_source == data_source)
             ),
             key=lambda ephemeris: abs(ephemeris.generated_at - epoch),
             default=None,
@@ -641,7 +646,7 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
         )
 
     def _get_satellites_with_ephemeris(
-        self, start_time: datetime, end_time: datetime
+        self, start_time: datetime, end_time: datetime | None = None
     ) -> list[Satellite]:
         return [ephemeris.satellite for ephemeris in self._ephemeris]
 
@@ -687,6 +692,15 @@ class FakeEphemerisRepository(AbstractEphemerisRepository):
                 if data_source is None or closest_ephemeris.data_source == data_source:
                     results[int(satellite_number)] = closest_ephemeris
         return results
+
+    def _get_all_closest_at_epoch(
+        self, epoch: datetime, data_source: str | None = None
+    ) -> list[InterpolableEphemeris]:
+        ephemerides = []
+        for ephemeris in self._ephemeris:
+            if data_source is None or ephemeris.data_source == data_source:
+                ephemerides.append(ephemeris)
+        return ephemerides
 
 
 class FakeTdmPredictionRepository(AbstractTdmPredictionRepository):

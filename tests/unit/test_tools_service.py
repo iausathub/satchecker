@@ -1,15 +1,19 @@
 # ruff: noqa: S101
+import io
 import zipfile
 from datetime import datetime, timedelta, timezone
 
+import pyarrow.parquet as pq
 import pytest
 from astropy.time import Time
 from sgp4.api import Satrec
 from tests.conftest import (
+    FakeEphemerisRepository,
     FakeOrbitalElementsRepository,
     FakeSatelliteRepository,
     FakeTLERepository,
 )
+from tests.factories.ephemeris_factory import InterpolableEphemerisFactory
 from tests.factories.orbital_elements_factory import OrbitalElementsFactory
 from tests.factories.satellite_factory import SatelliteFactory
 from tests.factories.tle_factory import TLEFactory
@@ -17,7 +21,9 @@ from tests.factories.tle_factory import TLEFactory
 from api.services.tools_service import (
     get_active_satellites,
     get_adjacent_orbital_data_results,
+    get_all_ephemeris_data_at_epoch_formatted,
     get_all_orbital_data_at_epoch_formatted,
+    get_ephemeris_data_for_satellite_at_epoch_formatted,
     get_ids_for_satellite_name,
     get_names_for_satellite_id,
     get_nearest_orbital_data_result,
@@ -26,7 +32,11 @@ from api.services.tools_service import (
     get_satellite_data,
     get_starlink_generations,
 )
-from api.utils.output_utils import format_date
+from api.utils.output_utils import (
+    EPHEMERIS_CSV_COLUMNS,
+    EPHEMERIS_PARQUET_COLUMNS,
+    format_date,
+)
 
 
 class BrokenTLE:
@@ -1262,3 +1272,119 @@ def test_get_all_orbital_data_at_epoch_formatted_invalid_format():
         get_all_orbital_data_at_epoch_formatted(
             None, omm_repo, "xml", datetime.now(), "json", 1, 100, "test", "1.0"
         )
+
+
+def _ephemeris_repo_with_two_satellites():
+    """Fake ephemeris repo holding one record each for two satellites."""
+    e1 = InterpolableEphemerisFactory(
+        satellite=SatelliteFactory(sat_number=11111, sat_name="STARLINK-A")
+    )
+    e2 = InterpolableEphemerisFactory(
+        satellite=SatelliteFactory(sat_number=22222, sat_name="STARLINK-B")
+    )
+    return FakeEphemerisRepository([e1, e2]), e1, e2
+
+
+def test_get_all_ephemeris_data_at_epoch_parquet():
+    repo, e1, e2 = _ephemeris_repo_with_two_satellites()
+
+    result = get_all_ephemeris_data_at_epoch_formatted(
+        repo, datetime.now(timezone.utc), format="parquet"
+    )
+
+    assert isinstance(result, io.BytesIO)
+    parquet_file = pq.ParquetFile(result)
+    # One row per stored point across both records.
+    assert parquet_file.metadata.num_rows == len(e1.points) + len(e2.points)
+    # S3-aligned schema: exact columns, list<double> vectors, native timestamps.
+    schema = parquet_file.schema_arrow
+    assert schema.names == EPHEMERIS_PARQUET_COLUMNS
+    assert str(schema.field("position").type) == "list<element: double>"
+    assert str(schema.field("covariance").type) == "list<element: double>"
+    assert "timestamp[us, tz=UTC]" in str(schema.field("timestamp").type)
+    table = parquet_file.read()
+    assert set(table.column("satellite_id").to_pylist()) == {11111, 22222}
+    # Covariance stored flattened as 36 values (6x6, row-major).
+    assert len(table.column("covariance").to_pylist()[0]) == 36
+
+
+def test_get_all_ephemeris_data_at_epoch_zip():
+    repo, e1, e2 = _ephemeris_repo_with_two_satellites()
+
+    result = get_all_ephemeris_data_at_epoch_formatted(
+        repo, datetime.now(timezone.utc), format="zip"
+    )
+
+    assert isinstance(result, io.BytesIO)
+    with zipfile.ZipFile(result) as zip_file:
+        # One CSV per satellite, named by satellite number.
+        assert set(zip_file.namelist()) == {"11111.csv", "22222.csv"}
+        lines = zip_file.read("11111.csv").decode().splitlines()
+    # Flattened CSV header plus one row per point.
+    assert lines[0].split(",") == EPHEMERIS_CSV_COLUMNS
+    assert len(lines) == len(e1.points) + 1
+
+
+def test_get_all_ephemeris_data_at_epoch_empty():
+    repo = FakeEphemerisRepository([])
+
+    result = get_all_ephemeris_data_at_epoch_formatted(
+        repo, datetime.now(timezone.utc), format="parquet"
+    )
+
+    parquet_file = pq.ParquetFile(result)
+    assert parquet_file.metadata.num_rows == 0
+    assert parquet_file.schema_arrow.names == EPHEMERIS_PARQUET_COLUMNS
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_parquet():
+    repo, e1, _ = _ephemeris_repo_with_two_satellites()
+
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "11111", "catalog", datetime.now(timezone.utc), format="parquet"
+    )
+
+    parquet_file = pq.ParquetFile(result)
+    # Only the requested satellite's points, nothing from the other record.
+    assert parquet_file.metadata.num_rows == len(e1.points)
+    table = parquet_file.read()
+    assert set(table.column("satellite_id").to_pylist()) == {11111}
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_by_name():
+    repo, e1, _ = _ephemeris_repo_with_two_satellites()
+
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "STARLINK-A", "name", datetime.now(timezone.utc), format="parquet"
+    )
+
+    table = pq.ParquetFile(result).read()
+    assert table.num_rows == len(e1.points)
+    assert set(table.column("satellite_id").to_pylist()) == {11111}
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_zip():
+    repo, e1, _ = _ephemeris_repo_with_two_satellites()
+
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "11111", "catalog", datetime.now(timezone.utc), format="zip"
+    )
+
+    with zipfile.ZipFile(result) as zip_file:
+        assert zip_file.namelist() == ["11111.csv"]
+        lines = zip_file.read("11111.csv").decode().splitlines()
+    assert lines[0].split(",") == EPHEMERIS_CSV_COLUMNS
+    assert len(lines) == len(e1.points) + 1
+
+
+def test_get_ephemeris_data_for_satellite_at_epoch_not_found():
+    repo, _, _ = _ephemeris_repo_with_two_satellites()
+
+    # A satellite with no record -> empty file, not an error.
+    result = get_ephemeris_data_for_satellite_at_epoch_formatted(
+        repo, "99999", "catalog", datetime.now(timezone.utc), format="parquet"
+    )
+
+    parquet_file = pq.ParquetFile(result)
+    assert parquet_file.metadata.num_rows == 0
+    assert parquet_file.schema_arrow.names == EPHEMERIS_PARQUET_COLUMNS

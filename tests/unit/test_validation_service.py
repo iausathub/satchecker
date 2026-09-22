@@ -652,3 +652,33 @@ def test_validate_parameters_search_valid_jd_date(app):
     ):
         parameters = validate_parameters(request, ["decay_date_start"], [])
         assert parameters["decay_date_start"] is not None
+
+
+def test_validate_parameters_epoch_invalid_jd_returns_400(app):
+    # A calendar-style date (not Julian Date) on the epoch parameter must 400,
+    # not 500 -- it is invalid client input, not a server error.
+    with app.test_request_context("/tools/get-nearest-omm/?epoch=2024-01-01"):
+        with pytest.raises(ValidationError, match="Julian Date") as exc:
+            validate_parameters(request, ["epoch"], [])
+        assert exc.value.status_code == 400
+
+
+def test_validate_parameters_epoch_valid_jd(app):
+    with app.test_request_context("/tools/get-nearest-omm/?epoch=2451571.517396"):
+        parameters = validate_parameters(request, ["epoch"], [])
+        assert parameters["epoch"] is not None
+
+
+def test_validate_parameters_obs_time_invalid_jd_returns_400(app):
+    # A calendar-style date (not Julian Date) on mid_obs_time_jd/start_time_jd
+    # must 400, not 500 -- it is invalid client input, not a server error.
+    with app.test_request_context("/tools/fov/?mid_obs_time_jd=2024-01-01"):
+        with pytest.raises(ValidationError, match="Julian Date") as exc:
+            validate_parameters(request, ["mid_obs_time_jd"], [])
+        assert exc.value.status_code == 400
+
+
+def test_validate_parameters_obs_time_valid_jd(app):
+    with app.test_request_context("/tools/fov/?mid_obs_time_jd=2451571.517396"):
+        parameters = validate_parameters(request, ["mid_obs_time_jd"], [])
+        assert parameters["mid_obs_time_jd"] is not None
