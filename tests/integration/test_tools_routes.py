@@ -509,7 +509,7 @@ def test_get_adjacent_tles_errors(client, session, services_available):
     response = client.get(
         "/tools/get-adjacent-tles/?id=25544&id_type=catalog&epoch=10-01-2024"
     )
-    assert response.status_code == 500
+    assert response.status_code == 400
     assert "ValidationError" in response.json["error_type"]
 
 
@@ -576,7 +576,7 @@ def test_get_nearest_tle_nonexistent_satellite(client, session, services_availab
         # Non-numeric epoch
         (
             {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
-            500,
+            400,
             None,
             "ValidationError",
         ),
@@ -685,7 +685,7 @@ def test_get_tles_around_epoch_nonexistent_satellite(
         # Non-numeric epoch
         (
             {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
-            500,
+            400,
             None,
             "ValidationError",
         ),
@@ -1080,7 +1080,7 @@ def test_get_nearest_omm_nonexistent_satellite(client, session, services_availab
         ({"id": "25544", "id_type": "catalog"}, 400, "Missing parameter", None),
         (
             {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
-            500,
+            400,
             None,
             "ValidationError",
         ),
@@ -1158,7 +1158,7 @@ def test_get_adjacent_omms_errors(client, session, services_available):
     response = client.get(
         "/tools/get-adjacent-omms/?id=25544&id_type=catalog&epoch=10-01-2024"
     )
-    assert response.status_code == 500
+    assert response.status_code == 400
     assert "ValidationError" in response.json["error_type"]
 
 
@@ -1239,7 +1239,7 @@ def test_get_omms_around_epoch_custom_counts(client, session, services_available
         ({"id": "25544", "id_type": "catalog"}, 400, "Missing parameter", None),
         (
             {"id": "25544", "id_type": "catalog", "epoch": "10-01-2024"},
-            500,
+            400,
             None,
             "ValidationError",
         ),
