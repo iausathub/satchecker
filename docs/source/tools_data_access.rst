@@ -906,3 +906,152 @@ It currently only supports searching by NORAD ID.
     The response has the same structure as :http:get:`/tools/get-adjacent-omms/`, with the
     number of records before and after the epoch controlled by ``count_before`` and
     ``count_after``.
+
+Ephemeris Data Access
+---------------------
+
+These endpoints return the raw operator-provided ephemeris (position, velocity, and
+covariance) at a given epoch, as saved, preserving the original operator-provided values.
+This is a much larger data set than the TLE or OMM formats, so it is **not** returned as
+JSON - it is served as a binary file.
+
+.. note::
+    Ephemeris data is currently limited to Starlink satellites, since that is the only
+    operator-provided data source at the moment.
+
+**Output formats**
+
+Both endpoints accept an ``ephemeris_format`` query parameter that selects how the data is
+returned:
+
+* ``parquet`` (default) -- a single Parquet file containing all matching ephemeris points,
+  with ``position``, ``velocity``, and ``covariance`` kept as list-valued columns.
+* ``zip`` -- a zip archive with one CSV file per satellite, with those vectors flattened
+  into individual scalar columns (``x_km``, ``y_km``, ... , ``cov_0_0`` ... ``cov_5_5``).
+
+Both contain the same underlying fields. Each row is a single stored ephemeris point with
+the following fields: ``ephemeris_id``, ``satellite_id`` (NORAD id), ``satellite_name``,
+``data_source``, ``frame``, ``generated_at`` (the ephemeris generation time, UTC),
+``timestamp`` (the point time, UTC), ``position`` (x, y, z in km), ``velocity``
+(x, y, z in km/s), and ``covariance`` (6x6 state covariance, row-major).
+
+Get ephemeris data at epoch
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This endpoint fetches all ephemeris data at a specific epoch date. For each satellite with
+coverage at the epoch, the closest ephemeris record (its full set of stored points) is
+returned. If the epoch date is not provided, it defaults to the current time.
+
+**Endpoint**
+
+.. http:get:: /tools/ephemeris-data-at-epoch/
+
+    **Parameters**
+
+    :query epoch: (*optional*) -- The epoch date for the ephemeris data, in Julian Date format. Defaults to the current time if not provided.
+    :query ephemeris_format: (*optional*) -- The output format. Valid values are "parquet" (default) or "zip". See the "Output formats" note under `Ephemeris Data Access`_ above.
+
+    **Example Request**
+
+    .. tabs::
+
+        .. tab:: Browser
+
+            https://satchecker.cps.iau.org/tools/ephemeris-data-at-epoch/?epoch=2459000.5&ephemeris_format=parquet
+
+        .. tab:: Python
+
+            .. code-tab:: Python
+
+                import requests
+
+                url = 'https://satchecker.cps.iau.org/tools/ephemeris-data-at-epoch/'
+                params = {'epoch': '2459000.5',
+                          'ephemeris_format': 'parquet'
+                        }
+
+                r = requests.get(url, params=params)
+                with open('ephemeris_data.parquet', 'wb') as f:
+                    f.write(r.content)
+
+        .. tab:: Bash
+
+            .. code-tab:: Bash
+
+                curl -X GET "https://satchecker.cps.iau.org/tools/ephemeris-data-at-epoch/?epoch=2459000.5&ephemeris_format=parquet" -o ephemeris_data.parquet
+
+        .. tab:: Powershell
+
+            .. code-tab:: Powershell
+
+                curl.exe -X GET "https://satchecker.cps.iau.org/tools/ephemeris-data-at-epoch/?epoch=2459000.5&ephemeris_format=parquet" -o ephemeris_data.parquet
+
+    **Example Response**
+
+    A binary file (Parquet by default, or a zip archive of per-satellite CSV files when
+    ``ephemeris_format=zip``) containing the ephemeris points for every satellite with
+    coverage at the specified epoch. This endpoint never returns JSON. See
+    `Ephemeris Data Access`_ for the fields in each row.
+
+Get ephemeris data for a satellite at epoch
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This endpoint fetches the closest ephemeris record (its full set of stored points) for a
+single satellite at a specific epoch date. If the epoch date is not provided, it defaults
+to the current time. An empty file is returned if the satellite has no record covering the
+epoch.
+
+**Endpoint**
+
+.. http:get:: /tools/ephemeris-data-for-satellite-at-epoch/
+
+    **Parameters**
+
+    :query id: (*required*) -- The identifier of the satellite (NORAD ID or name).
+    :query id_type: (*required*) -- The type of identifier: valid values are "name" or "catalog".
+    :query epoch: (*optional*) -- The epoch date for the ephemeris data, in Julian Date format. Defaults to the current time if not provided.
+    :query ephemeris_format: (*optional*) -- The output format. Valid values are "parquet" (default) or "zip". See the "Output formats" note under `Ephemeris Data Access`_ above.
+
+    **Example Request**
+
+    .. tabs::
+
+        .. tab:: Browser
+
+            https://satchecker.cps.iau.org/tools/ephemeris-data-for-satellite-at-epoch/?id=44713&id_type=catalog&epoch=2459000.5&ephemeris_format=parquet
+
+        .. tab:: Python
+
+            .. code-tab:: Python
+
+                import requests
+
+                url = 'https://satchecker.cps.iau.org/tools/ephemeris-data-for-satellite-at-epoch/'
+                params = {'id': '44713',
+                          'id_type': 'catalog',
+                          'epoch': '2459000.5',
+                          'ephemeris_format': 'parquet'
+                        }
+
+                r = requests.get(url, params=params)
+                with open('ephemeris_data_44713.parquet', 'wb') as f:
+                    f.write(r.content)
+
+        .. tab:: Bash
+
+            .. code-tab:: Bash
+
+                curl -X GET "https://satchecker.cps.iau.org/tools/ephemeris-data-for-satellite-at-epoch/?id=44713&id_type=catalog&epoch=2459000.5&ephemeris_format=parquet" -o ephemeris_data_44713.parquet
+
+        .. tab:: Powershell
+
+            .. code-tab:: Powershell
+
+                curl.exe -X GET "https://satchecker.cps.iau.org/tools/ephemeris-data-for-satellite-at-epoch/?id=44713&id_type=catalog&epoch=2459000.5&ephemeris_format=parquet" -o ephemeris_data_44713.parquet
+
+    **Example Response**
+
+    A binary file (Parquet by default, or a zip archive with one CSV file for the requested
+    satellite when ``ephemeris_format=zip``) containing the closest ephemeris record's
+    points for the requested satellite at the specified epoch. This endpoint never returns
+    JSON. See `Ephemeris Data Access`_ for the fields in each row.

@@ -332,8 +332,10 @@ def validate_parameters(
             )
         except Exception as e:
             raise ValidationError(
-                500,
-                error_messages.INVALID_JD + " - 'mid_obs_time_jd' or 'start_time_jd'",
+                400,
+                error_messages.INVALID_JD
+                + " - 'mid_obs_time_jd' or 'start_time_jd' must be in Julian Date"
+                + " format",
                 e,
             ) from e
 
@@ -346,7 +348,10 @@ def validate_parameters(
             )
         except Exception as e:
             raise ValidationError(
-                500, error_messages.INVALID_JD + " - 'epoch'", e
+                400,
+                error_messages.INVALID_JD
+                + " - 'epoch' parameter must be in Julian Date format",
+                e,
             ) from e
 
     if "ra" in parameters.keys() and parameters["ra"] is not None:
@@ -415,6 +420,15 @@ def validate_parameters(
         parameters["format"] = parameters["format"].lower()
 
         if parameters["format"] not in ["json", "zip", "txt"]:
+            raise ValidationError(500, error_messages.INVALID_FORMAT)
+
+    if (
+        "ephemeris_format" in parameters.keys()
+        and parameters["ephemeris_format"] is not None
+    ):
+        parameters["ephemeris_format"] = parameters["ephemeris_format"].lower()
+
+        if parameters["ephemeris_format"] not in ["parquet", "zip"]:
             raise ValidationError(500, error_messages.INVALID_FORMAT)
 
     if "group_by" in parameters.keys() and parameters["group_by"] is not None:

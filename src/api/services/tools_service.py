@@ -5,6 +5,7 @@ import zipfile
 from datetime import datetime, timezone
 from typing import Any, cast
 
+from api.adapters.repositories.ephemeris_repository import AbstractEphemerisRepository
 from api.adapters.repositories.orbital_elements_repository import (
     AbstractOrbitalElementsRepository,
 )
@@ -13,7 +14,12 @@ from api.adapters.repositories.tle_repository import AbstractTLERepository
 from api.domain.models.orbital_elements import OrbitalElements
 from api.domain.models.tle import TLE
 from api.utils.orbital_data_utils import ORBITAL_ELEMENTS_CUTOFF, omm_to_tle_lines
-from api.utils.output_utils import format_date, satellite_data_to_json
+from api.utils.output_utils import (
+    ephemeris_data_to_parquet,
+    ephemeris_data_to_zip,
+    format_date,
+    satellite_data_to_json,
+)
 
 logger = logging.getLogger(__name__)
 OrbitalDataRepository = AbstractTLERepository | AbstractOrbitalElementsRepository
@@ -901,6 +907,95 @@ def get_all_orbital_data_at_epoch_formatted(
                 exc_info=True,
             )
             raise
+
+
+def get_all_ephemeris_data_at_epoch_formatted(
+    ephemeris_repo: AbstractEphemerisRepository,
+    epoch_date: datetime,
+    format: str = "parquet",
+) -> io.BytesIO:
+    """Fetch all raw ephemeris data valid at an epoch, serialized as a binary file.
+
+    For every satellite whose ephemeris window covers ``epoch_date``, the closest
+    record (its full set of stored points) is returned exactly as saved. Because
+    this is a much larger data set than TLE/OMM output, it is only served as a
+    binary file: a single Parquet file (default) or a zip of per-satellite CSVs.
+
+    Args:
+        ephemeris_repo: Repository used to look up ephemeris records.
+        epoch_date: The epoch as a tz-aware datetime (the route converts the
+            Julian Date query param before calling this service).
+        format: Output format, either ``"parquet"`` (default) or ``"zip"``.
+
+    Returns:
+        io.BytesIO: The serialized ephemeris data, ready to stream to the client.
+    """
+    logger.info(
+        "Fetching all ephemeris data at epoch %s in %s format", epoch_date, format
+    )
+
+    # Closest covering ephemeris record per satellite at the epoch, in one query.
+    # Points are loaded from the DB or S3/Parquet by the repository.
+    records = ephemeris_repo.get_all_closest_at_epoch(epoch_date)
+    logger.info(
+        "Retrieved ephemeris for %d satellites at epoch %s", len(records), epoch_date
+    )
+
+    if format == "parquet":
+        return ephemeris_data_to_parquet(records)
+    return ephemeris_data_to_zip(records)
+
+
+def get_ephemeris_data_for_satellite_at_epoch_formatted(
+    ephemeris_repo: AbstractEphemerisRepository,
+    id: str,
+    id_type: str,
+    epoch_date: datetime,
+    format: str = "parquet",
+) -> io.BytesIO:
+    """Fetch the closest raw ephemeris record for one satellite at an epoch.
+
+    Returns the single ephemeris record (its full set of stored points) whose
+    generated_at is nearest the epoch among the records covering it, exactly as
+    saved. Like the all-satellite endpoint it is served as a binary file: a
+    Parquet file (default) or a zip of per-satellite CSVs. If the satellite has no
+    record covering the epoch, an empty file is returned.
+
+    Args:
+        ephemeris_repo: Repository used to look up ephemeris records.
+        id: The satellite identifier (NORAD id or name).
+        id_type: The type of ``id``, either ``"catalog"`` (NORAD id) or ``"name"``.
+        epoch_date: The epoch as a tz-aware datetime (the route converts the
+            Julian Date query param before calling this service).
+        format: Output format, either ``"parquet"`` (default) or ``"zip"``.
+
+    Returns:
+        io.BytesIO: The serialized ephemeris data, ready to stream to the client.
+    """
+    logger.info(
+        "Fetching ephemeris data for %s %s at epoch %s in %s format",
+        id_type,
+        id,
+        epoch_date,
+        format,
+    )
+
+    if id_type == "catalog":
+        ephemeris = ephemeris_repo.get_closest_by_satellite_number(id, epoch_date)
+    else:
+        ephemeris = ephemeris_repo.get_closest_by_satellite_name(id, epoch_date)
+    records = [ephemeris] if ephemeris is not None else []
+    logger.info(
+        "Retrieved %d ephemeris record(s) for %s %s at epoch %s",
+        len(records),
+        id_type,
+        id,
+        epoch_date,
+    )
+
+    if format == "parquet":
+        return ephemeris_data_to_parquet(records)
+    return ephemeris_data_to_zip(records)
 
 
 def get_ids_for_satellite_name(
