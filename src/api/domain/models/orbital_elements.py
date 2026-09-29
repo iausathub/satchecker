@@ -5,6 +5,16 @@ from skyfield.api import EarthSatellite, Timescale
 from api.domain.models.orbital_data import OrbitalData
 from api.domain.models.satellite import Satellite
 
+# Alpha-5 can encode catalog numbers up to 339999 ("Z9999"). Recently launched
+# objects can have orbital data published under temporary placeholder ids above that
+# range until they are officially cataloged; those ids don't fit the 5-character
+# TLE catalog-number field, so sgp4's Alpha-5 encoder rejects them. When we hand
+# such a record to sgp4 (for propagation or TLE export) we substitute a dummy
+# catalog number so encoding succeeds. The real temporary id is unaffected here
+# and is still carried in the OMM dict / API response metadata.
+MAX_ALPHA5_NORAD = 339999
+TEMP_ID_TLE_PLACEHOLDER = 99999
+
 
 class OrbitalElements(OrbitalData):
     def __init__(
@@ -117,7 +127,13 @@ class OrbitalElements(OrbitalData):
         }
 
     def to_earth_satellite(self, ts: Timescale) -> EarthSatellite:
-        return EarthSatellite.from_omm(ts=ts, element_dict=self.to_omm_dict())
+        element_dict = self.to_omm_dict()
+        if int(element_dict["NORAD_CAT_ID"]) > MAX_ALPHA5_NORAD:
+            # Temporary placeholder id that won't fit the 5-char TLE field; use a
+            # temporary dummy so sgp4's Alpha-5 encoding doesn't reject it. Propagation
+            # ignores the catalog number, and the real id stays in the metadata.
+            element_dict = {**element_dict, "NORAD_CAT_ID": TEMP_ID_TLE_PLACEHOLDER}
+        return EarthSatellite.from_omm(ts=ts, element_dict=element_dict)
 
     @property
     def is_supplemental(self) -> bool:
