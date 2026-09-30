@@ -280,6 +280,20 @@ def test_get_ephemeris_data_at_epoch_zip(client, session, services_available):
         assert zip_file.namelist() == ["88888.csv"]
 
 
+def test_get_ephemeris_data_at_epoch_defaults_to_current_time(
+    client, session, services_available
+):
+    # No epoch -> defaults to the current time.
+    ephemeris = _add_covering_ephemeris(session, datetime.now(timezone.utc))
+
+    response = client.get("/tools/ephemeris-data-at-epoch/")
+
+    assert response.status_code == 200
+    table = pq.read_table(io.BytesIO(response.data))
+    assert table.num_rows == len(ephemeris.points)
+    assert 88888 in table.column("satellite_id").to_pylist()
+
+
 def test_get_ephemeris_data_at_epoch_invalid_format(client, services_available):
     response = client.get("/tools/ephemeris-data-at-epoch/?ephemeris_format=xml")
     assert response.status_code == 500

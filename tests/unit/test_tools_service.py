@@ -527,6 +527,33 @@ def test_get_nearest_tle_after_cutoff_converts_omm():
     )
 
 
+def test_get_nearest_tle_temp_id_uses_placeholder_catalog_number():
+    """A freshly launched object has a temporary placeholder id above the
+    Alpha-5 ceiling (339999) that can't fit the 5-char TLE catalog field.
+    Conversion must succeed using a placeholder catalog number while the real
+    temp id is still returned in the response metadata."""
+    temp_id = 799501648
+    omm = _post_cutoff_omm(temp_id, "STARLINK-40083")
+    tle_repo = FakeTLERepository([])
+    omm_repo = FakeOrbitalElementsRepository([omm])
+
+    results = get_nearest_orbital_data_result(
+        tle_repo, omm_repo, "tle", temp_id, "catalog", POST_CUTOFF_EPOCH, "test", "1.0"
+    )
+
+    record = results[0]["orbital_data"][0]
+    # The TLE lines carry the 99999 placeholder, not the (unencodable) temp id.
+    assert record["tle_line1"].startswith("1 99999")
+    assert record["tle_line2"].startswith("2 99999")
+    # The real temporary id is preserved in the response metadata.
+    assert record["satellite_id"] == temp_id
+    # The converted lines still parse back into the source orbit.
+    satrec = Satrec.twoline2rv(record["tle_line1"], record["tle_line2"])
+    assert satrec.inclo * 180 / 3.141592653589793 == pytest.approx(
+        omm.inclination, abs=1e-3
+    )
+
+
 def test_get_all_tles_at_epoch_after_cutoff_converts_omm():
     """tles-at-epoch returns converted OMM records (json + txt) after cutoff."""
     tle_repo = FakeTLERepository([])
