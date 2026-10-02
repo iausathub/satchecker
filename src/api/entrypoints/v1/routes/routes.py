@@ -1,5 +1,5 @@
 import requests
-from flask import abort, redirect
+from flask import abort, redirect, request
 
 from api.entrypoints.extensions import limiter
 
@@ -59,6 +59,38 @@ def root():
         description: Redirects to the API documentation URL
     """
     return redirect("https://satchecker.readthedocs.io/en/latest/")
+
+
+@api_v1.route("/debug/whoami")
+@api_main.route("/debug/whoami")
+@limiter.exempt
+def whoami():
+    """Report the client-identifying values the app actually receives.
+    ---
+    tags:
+      - System
+    summary: Diagnostic for client IP / forwarding headers
+    description: >
+      Returns the socket peer address and the forwarding headers the
+      application sees, so we can determine which value (if any) carries the
+      real client IP behind the load balancer. Exempt from rate limiting so it
+      stays reachable while the shared limit is saturated. Temporary diagnostic.
+    responses:
+      200:
+        description: The client-identifying values seen by the application
+        content:
+          application/json:
+            schema:
+              type: object
+    """
+    return {
+        "remote_addr": request.remote_addr,
+        "x_forwarded_for": request.headers.get("X-Forwarded-For"),
+        "x_real_ip": request.headers.get("X-Real-IP"),
+        "cloudfront_viewer_address": request.headers.get("CloudFront-Viewer-Address"),
+        "true_client_ip": request.headers.get("True-Client-IP"),
+        "forwarded": request.headers.get("Forwarded"),
+    }
 
 
 @api_v1.route("/health")
