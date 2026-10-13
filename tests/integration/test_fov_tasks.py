@@ -508,3 +508,127 @@ def test_fov_ephemeris_refinement_end_to_end_real_values(
     #    p["orbital_data_epoch"] == format_date(ephemeris.generated_at)
     #    for p in refined_positions
     # )
+
+
+def test_fov_task_store_roundtrip_success(app):
+    """store_success then get_result returns the formatted payload (shared store)."""
+    from api.services import fov_task_store
+
+    with app.app_context():
+        task_id = "shared-store-success-id"
+        fov_task_store.create_pending(task_id)
+
+        pending = fov_task_store.get_result(task_id)
+        assert pending["status"] == "PENDING"
+        assert pending["task_id"] == task_id
+
+        payload = {
+            "status": "SUCCESS",
+            "message": "FOV calculation completed successfully",
+            "data": {"satellites": {}},
+        }
+        fov_task_store.store_success(task_id, payload)
+
+        result = fov_task_store.get_result(task_id)
+        assert result["status"] == "SUCCESS"
+        assert result["task_id"] == task_id
+        assert result["data"] == {"satellites": {}}
+
+
+def test_fov_task_store_failure(app):
+    """store_failure is surfaced by get_result as a FAILURE status."""
+    from api.services import fov_task_store
+
+    with app.app_context():
+        task_id = "shared-store-failure-id"
+        fov_task_store.create_pending(task_id)
+        fov_task_store.store_failure(task_id, "boom")
+
+        result = fov_task_store.get_result(task_id)
+        assert result["status"] == "FAILURE"
+        assert result["task_id"] == task_id
+        assert result["error"] == "boom"
+
+
+def test_get_fov_task_status_reads_db_when_result_elsewhere(app, mocker):
+    """Polling returns the DB-stored result without touching the Redis backend.
+
+    Simulates the multi-replica case: the task ran on another pod, so
+    ``AsyncResult`` on this pod would report PENDING, but the shared Postgres
+    store has the SUCCESS payload and must be used instead.
+    """
+    from api.services import fov_task_store
+
+    with app.app_context():
+        task_id = "cross-pod-success-id"
+        payload = {
+            "status": "SUCCESS",
+            "message": "FOV calculation completed successfully",
+            "data": {"satellites": {}},
+        }
+        fov_task_store.store_success(task_id, payload)
+
+        mock_async = mocker.patch(
+            "api.services.tasks.fov_tasks.celery.AsyncResult",
+        )
+
+        status = get_fov_task_status(task_id)
+
+        assert status["status"] == "SUCCESS"
+        assert status["task_id"] == task_id
+        # The shared store answered; the per-pod Redis backend was not consulted.
+        mock_async.assert_not_called()
+
+
+def test_delete_expired_prunes_old_rows(app):
+    """delete_expired removes rows past the retention window, keeps fresh ones."""
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy.orm import Session as SASession
+
+    from api.adapters.database_orm import FovTaskResultDb
+    from api.entrypoints.extensions import db
+    from api.services import fov_task_store
+
+    with app.app_context():
+        now = datetime.now(timezone.utc)
+        with SASession(db.engine) as setup:
+            setup.add(
+                FovTaskResultDb(
+                    task_id="expired-row",
+                    status="SUCCESS",
+                    result={"status": "SUCCESS", "data": {}},
+                    created_at=now - timedelta(hours=48),
+                )
+            )
+            setup.add(
+                FovTaskResultDb(
+                    task_id="fresh-row",
+                    status="SUCCESS",
+                    result={"status": "SUCCESS", "data": {}},
+                    created_at=now - timedelta(hours=1),
+                )
+            )
+            setup.commit()
+
+        deleted = fov_task_store.delete_expired(retention_hours=24)
+
+        assert deleted == 1
+        assert fov_task_store.get_result("expired-row") is None
+        assert fov_task_store.get_result("fresh-row")["status"] == "SUCCESS"
+
+
+def test_store_failure_does_not_clobber_success(app):
+    """A late error callback must not overwrite an already-stored SUCCESS."""
+    from api.services import fov_task_store
+
+    with app.app_context():
+        task_id = "success-then-late-failure"
+        fov_task_store.store_success(
+            task_id, {"status": "SUCCESS", "data": {"satellites": {}}}
+        )
+
+        fov_task_store.store_failure(task_id, "late error")
+
+        result = fov_task_store.get_result(task_id)
+        assert result["status"] == "SUCCESS"
