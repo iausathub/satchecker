@@ -18,6 +18,10 @@ from api.utils.location_utils import get_location_from_astropy_site
 # reaching Time.to_datetime(), which raises "year -4713 is out of range".
 SPACE_AGE_JD = 2436115.5
 
+# Maximum prediction horizon into the future (14 days = 2 weeks)
+# TLE accuracy degrades significantly beyond this point.
+MAX_FUTURE_DAYS = 14.0
+
 
 def extract_parameters(request, parameter_list):
     """
@@ -213,12 +217,17 @@ def validate_parameters(
                     500, error_messages.INVALID_JD + " - 'startjd' or 'stopjd'", e
                 ) from e
 
-    # Reject dates before satellites were even launched
+    # Reject dates before satellites were even launched or > 2 weeks into the future
     if "julian_dates" in parameters.keys():
+        max_future_jd = Time(datetime.now(timezone.utc)).jd + MAX_FUTURE_DAYS
         for jd_time in parameters["julian_dates"]:
             if jd_time.jd < SPACE_AGE_JD:
                 raise ValidationError(
                     400, error_messages.INVALID_JD + " - 'julian_date'"
+                )
+            if jd_time.jd > max_future_jd:
+                raise ValidationError(
+                    400, error_messages.DATE_TOO_FAR_IN_FUTURE
                 )
 
     if "data_source" in parameters.keys():
@@ -338,6 +347,16 @@ def validate_parameters(
                 + " format",
                 e,
             ) from e
+
+        if parameters[time_param].jd < SPACE_AGE_JD:
+            raise ValidationError(
+                400, error_messages.INVALID_JD + f" - '{time_param}'"
+            )
+        max_future_jd = Time(datetime.now(timezone.utc)).jd + MAX_FUTURE_DAYS
+        if parameters[time_param].jd > max_future_jd:
+            raise ValidationError(
+                400, error_messages.DATE_TOO_FAR_IN_FUTURE
+            )
 
     if "epoch" in parameters.keys() and parameters["epoch"] is not None:
         try:

@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 
 import pytest
+from astropy.time import Time
 from flask import request
 
 from api.common.exceptions import ValidationError
@@ -682,3 +683,72 @@ def test_validate_parameters_obs_time_valid_jd(app):
     with app.test_request_context("/tools/fov/?mid_obs_time_jd=2451571.517396"):
         parameters = validate_parameters(request, ["mid_obs_time_jd"], [])
         assert parameters["mid_obs_time_jd"] is not None
+
+
+def test_validate_parameters_future_date_rejected(app):
+    current_jd = Time(datetime.now(timezone.utc)).jd
+    future_jd = current_jd + 15.0  # > 2 weeks in future
+    with app.test_request_context(
+        f"/?latitude=1&longitude=2&elevation=3&julian_date={future_jd}"
+    ):
+        parameter_list = ["latitude", "longitude", "elevation", "julian_date"]
+        required_parameters = ["latitude", "longitude", "elevation", "julian_date"]
+
+        with pytest.raises(ValidationError, match="Date too far in future") as exc:
+            validate_parameters(request, parameter_list, required_parameters)
+        assert exc.value.status_code == 400
+
+
+def test_validate_parameters_future_date_within_limit_allowed(app):
+    current_jd = Time(datetime.now(timezone.utc)).jd
+    future_jd = current_jd + 5.0  # within 2 weeks in future
+    with app.test_request_context(
+        f"/?latitude=1&longitude=2&elevation=3&julian_date={future_jd}"
+    ):
+        parameter_list = ["latitude", "longitude", "elevation", "julian_date"]
+        required_parameters = ["latitude", "longitude", "elevation", "julian_date"]
+
+        parameters = validate_parameters(request, parameter_list, required_parameters)
+        assert len(parameters["julian_dates"]) == 1
+
+
+def test_validate_parameters_future_range_rejected(app):
+    current_jd = Time(datetime.now(timezone.utc)).jd
+    start_jd = current_jd + 1.0
+    stop_jd = current_jd + 15.0  # > 2 weeks in future
+    with app.test_request_context(
+        f"/?latitude=1&longitude=2&elevation=3&startjd={start_jd}&stopjd={stop_jd}&stepjd=1.0"
+    ):
+        parameter_list = [
+            "latitude",
+            "longitude",
+            "elevation",
+            "startjd",
+            "stopjd",
+            "stepjd",
+        ]
+        required_parameters = [
+            "latitude",
+            "longitude",
+            "elevation",
+            "startjd",
+            "stopjd",
+        ]
+
+        with pytest.raises(ValidationError, match="Date too far in future") as exc:
+            validate_parameters(request, parameter_list, required_parameters)
+        assert exc.value.status_code == 400
+
+
+def test_validate_parameters_fov_future_date_rejected(app):
+    current_jd = Time(datetime.now(timezone.utc)).jd
+    future_jd = current_jd + 15.0  # > 2 weeks in future
+    with app.test_request_context(f"/tools/fov/?mid_obs_time_jd={future_jd}"):
+        with pytest.raises(ValidationError, match="Date too far in future") as exc:
+            validate_parameters(request, ["mid_obs_time_jd"], [])
+        assert exc.value.status_code == 400
+
+    with app.test_request_context(f"/tools/fov/?start_time_jd={future_jd}"):
+        with pytest.raises(ValidationError, match="Date too far in future") as exc:
+            validate_parameters(request, ["start_time_jd"], [])
+        assert exc.value.status_code == 400

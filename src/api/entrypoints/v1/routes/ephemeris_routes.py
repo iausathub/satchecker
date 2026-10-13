@@ -66,7 +66,7 @@ def get_ephemeris_by_name():
         type: number
         format: float
         required: true
-        description: UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+        description: UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch. Dates more than 2 weeks in the future are not supported.
         example: 2459000.5
       - name: min_altitude
         in: query
@@ -255,7 +255,7 @@ def get_ephemeris_by_name_jdstep():
         type: number
         format: float
         required: true
-        description: End time of the ephemeris calculation in Julian date
+        description: End time of the ephemeris calculation in Julian date (maximum 2 weeks into the future)
         example: 2459001.0
       - name: stepjd
         in: query
@@ -445,7 +445,7 @@ def get_ephemeris_by_catalog_number():
         type: number
         format: float
         required: true
-        description: UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch.
+        description: UT1 Universal Time Julian Date. An input of 0 will use the TLE epoch. Dates more than 2 weeks in the future are not supported.
         example: 2459000.5
       - name: min_altitude
         in: query
@@ -819,7 +819,7 @@ def get_ephemeris_by_tle():
         type: number
         format: float
         required: true
-        description: UT1 Universal Time Julian Date (use 0 to use the TLE epoch)
+        description: UT1 Universal Time Julian Date (use 0 to use the TLE epoch). Dates more than 2 weeks in the future are not supported.
         example: 2459000.5
       - name: min_altitude
         in: query
