@@ -707,8 +707,11 @@ def process_satellite_batch(
         illuminated_only,
     ) = args
 
+    import os as _os
+
     logger.info(
-        "process_satellite_batch: START (%d satellites, illuminated_only=%s)",
+        "process_satellite_batch: START pid=%d (%d satellites, illuminated_only=%s)",
+        _os.getpid(),
         len(orbital_data_batch),
         illuminated_only,
     )
@@ -719,8 +722,16 @@ def process_satellite_batch(
     if not isinstance(julian_dates, np.ndarray):
         julian_dates = np.array(julian_dates)
 
+    import threading
+
+    logger.info(
+        "process_satellite_batch: active_threads=%d, calling get_timescale()",
+        threading.active_count(),
+    )
     ts = get_timescale()
+    logger.info("process_satellite_batch: get_timescale() done, calling ut1_jd()")
     t = ts.ut1_jd(julian_dates)
+    logger.info("process_satellite_batch: ut1_jd() done")
 
     # Set up observer and FOV vectors
     curr_pos = wgs84.latlon(lat, lon, elev)  # do here because of serialization
@@ -732,6 +743,7 @@ def process_satellite_batch(
     logger.info("process_satellite_batch: setup done, entering propagation loop")
 
     for _idx, orbital_data in enumerate(orbital_data_batch):
+        _trace = _idx < 2  # full sub-step trace for the first couple satellites
         if _idx % 200 == 0:
             logger.info(
                 "process_satellite_batch: propagating satellite %d/%d",
@@ -740,10 +752,16 @@ def process_satellite_batch(
             )
         try:
             # Create satellite
+            if _trace:
+                logger.info("batch sat %d: to_earth_satellite()...", _idx)
             satellite = orbital_data.to_earth_satellite(ts)
 
+            if _trace:
+                logger.info("batch sat %d: difference.at(t) [SGP4 propagate]...", _idx)
             difference = satellite - curr_pos
             topocentric = difference.at(t)
+            if _trace:
+                logger.info("batch sat %d: .at(t) done, computing angles...", _idx)
             topocentricn = topocentric.position.km / np.linalg.norm(
                 topocentric.position.km, axis=0, keepdims=True
             )
@@ -754,6 +772,8 @@ def process_satellite_batch(
                 np.degrees(sat_fov_angles) < fov_radius * 1.2
             )  # add 20% margin
             if illuminated_only:
+                if _trace:
+                    logger.info("batch sat %d: illumination check...", _idx)
                 # only show points that are illuminated
                 sat_gcrs = satellite.at(t).position.km
 
@@ -766,7 +786,12 @@ def process_satellite_batch(
 
             if not np.any(visible_mask):
                 satellites_processed += 1
+                if _trace:
+                    logger.info("batch sat %d: not visible, continue", _idx)
                 continue
+
+            if _trace:
+                logger.info("batch sat %d: altaz()...", _idx)
 
             # Get alt/az for points in FOV. Use visible_mask, not in_fov_mask,
             # so that when illuminated_only is set the non-illuminated points
@@ -774,6 +799,8 @@ def process_satellite_batch(
             # early-exit check above. When illuminated_only is false,
             # visible_mask == in_fov_mask, so behavior is unchanged.
             alt, az, distance = topocentric.altaz()
+            if _trace:
+                logger.info("batch sat %d: altaz() done, building results", _idx)
             fov_indices = np.where(visible_mask)[0]
 
             # Vectorized creation of results
