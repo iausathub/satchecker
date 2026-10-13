@@ -641,6 +641,10 @@ def test_satellite_outside_fov(test_location, test_time):
 
     assert len(result["data"]["satellites"]) == 0
     assert result["data"]["total_position_results"] == 0
+    # The satellite was still propagated even though it never entered the FOV,
+    # so satellites_processed must reflect that (regression: it used to report 0
+    # when nothing landed in the FOV).
+    assert result["performance"]["satellites_processed"] == 1
 
 
 def test_fov_service_uses_ephemeris(starlink_ephemeris):

@@ -393,12 +393,12 @@ def get_satellite_passes_in_fov(
                 convert_omm_to_tle=convert_omm_to_tle,
                 illuminated_only=illuminated_only,
             )
+            satellites_processed += non_starlink_processed
 
             # Add all valid results to the final output
             if results:
                 all_results.extend(results)
                 points_in_fov += len(results)
-                satellites_processed += non_starlink_processed
                 logger.info(
                     f"Found {len(results)} points in FOV for non-Starlink satellites"
                 )

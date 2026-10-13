@@ -177,14 +177,14 @@ stack-data==0.6.2
 tenacity==9.0.0
 tinycss2==1.1.1
 tomlkit==0.12.1
-tornado==6.5.8
+tornado==6.5.9
 towncrier==25.8.0
 traitlets==5.14.3
 types-setuptools==80.3.0.20250505
 typing_extensions==4.7.1
 tzdata==2024.1
 tzlocal==5.2
-urllib3==2.7.0
+urllib3==2.8.0
 vine==5.1.0
 virtualenv==21.2.0
 wcwidth==0.2.6
