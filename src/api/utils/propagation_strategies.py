@@ -729,7 +729,15 @@ def process_satellite_batch(
     batch_results = []
     satellites_processed = 0
 
-    for orbital_data in orbital_data_batch:
+    logger.info("process_satellite_batch: setup done, entering propagation loop")
+
+    for _idx, orbital_data in enumerate(orbital_data_batch):
+        if _idx % 200 == 0:
+            logger.info(
+                "process_satellite_batch: propagating satellite %d/%d",
+                _idx,
+                len(orbital_data_batch),
+            )
         try:
             # Create satellite
             satellite = orbital_data.to_earth_satellite(ts)
