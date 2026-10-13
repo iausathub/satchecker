@@ -707,6 +707,12 @@ def process_satellite_batch(
         illuminated_only,
     ) = args
 
+    logger.info(
+        "process_satellite_batch: START (%d satellites, illuminated_only=%s)",
+        len(orbital_data_batch),
+        illuminated_only,
+    )
+
     # Convert single date to list for consistent handling
     if isinstance(julian_dates, (float, int)):
         julian_dates = [julian_dates]
@@ -836,6 +842,12 @@ def process_satellite_batch(
             satellites_processed += 1
 
     execution_time = time.time() - batch_start
+    logger.info(
+        "process_satellite_batch: DONE (%d processed, %d results, %.2fs)",
+        satellites_processed,
+        len(batch_results),
+        execution_time,
+    )
     return batch_results, satellites_processed, execution_time
 
 
