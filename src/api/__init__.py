@@ -50,6 +50,12 @@ def create_app(test_config=None):
             "use_native_hstore": False,
         }
 
+    # Verify a pooled connection is still alive before handing it out, so a
+    # stale connection (DB restart, idle timeout, or one left over across a
+    # Celery fork) is transparently replaced instead of erroring on first use.
+    engine_options = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
+    engine_options["pool_pre_ping"] = True
+
     # Get Redis URL from environment variables
     from api.utils.redis_config import get_redis_url
 
