@@ -1,5 +1,19 @@
 import os
 
+# Store FOV async task status/results in Postgres (shared across all replicas)
+# alongside the Celery/Redis result backend. Each pod has its own Redis sidecar,
+# so a task submitted on pod A is invisible to AsyncResult on pod B - without
+# this, a status poll load-balanced to a different pod reports PENDING forever.
+# Once a single shared Redis backend is available to every replica, set this to
+# False (or export FOV_RESULT_STORE_IN_DB=false) to go back to the Redis-only
+# polling path; that's the only change needed.
+FOV_RESULT_STORE_IN_DB = os.getenv("FOV_RESULT_STORE_IN_DB", "true").lower() == "true"
+
+# How long to keep async FOV task rows before the scheduled cleanup job prunes
+# them. Matches the Celery/Redis ``result_expires`` default (24h) the per-pod
+# result backend used before results moved to Postgres.
+FOV_RESULT_RETENTION_HOURS = int(os.getenv("FOV_RESULT_RETENTION_HOURS", "24"))
+
 
 def get_db_login():
     """

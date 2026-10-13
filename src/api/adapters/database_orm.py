@@ -15,7 +15,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
-from sqlalchemy.dialects.postgresql import TIMESTAMP
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -279,3 +279,32 @@ class OrbitalElementsDb(Base):
             data_source.asc(),
         ),
     )
+
+
+class FovTaskResultDb(Base):
+    """Shared store for async FOV task status/results.
+
+    Celery uses a per-pod Redis sidecar as its result backend, so a task's
+    state is only visible on the pod that ran it. This table persists the
+    terminal status and the fully-formatted response payload in the shared
+    Postgres database, keyed by the job id returned to the client, so that the
+    status endpoint can answer regardless of which replica handles the poll.
+    """
+
+    __tablename__ = "fov_task_results"
+
+    task_id = Column(Text, primary_key=True)
+    status = Column(Text, nullable=False)  # PENDING | SUCCESS | FAILURE
+    result = Column(JSONB)  # fully-formatted FOV response (when SUCCESS)
+    error = Column(Text)  # error message (when FAILURE)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (Index("idx_fov_task_results_created_at", created_at),)
