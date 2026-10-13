@@ -30,8 +30,9 @@ jobs:
       - uses: psf/black@stable
         with:
           options: "--check --verbose"
-      - uses: chartboost/ruff-action@v1
+      - uses: astral-sh/ruff-action@v3
         with:
+          version: "0.14.11"
           args: "check --output-format=github"
       - name: Set up Python 3.11
         uses: actions/setup-python@v3
