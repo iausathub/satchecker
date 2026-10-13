@@ -163,3 +163,14 @@ if "pytest" not in sys.modules:
                 app.logger.warning("Initial TLE cache refresh was not successful")
         except Exception as e:
             app.logger.error(f"Error during cache initialization: {e}", exc_info=True)
+
+        # Periodically prune expired async FOV task rows: the shared Postgres
+        # store has no TTL, unlike the Redis result backend it replaces.
+        try:
+            from api.services.fov_task_store import register_fov_cleanup_job
+
+            register_fov_cleanup_job(interval_hours=1)
+        except Exception as e:
+            app.logger.error(
+                f"Error setting up FOV cleanup scheduler: {e}", exc_info=True
+            )

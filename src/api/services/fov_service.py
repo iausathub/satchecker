@@ -1,6 +1,7 @@
 # mypy: disable-error-code=unreachable
 import logging
 import time as python_time
+import uuid
 from datetime import datetime, timedelta
 from typing import Any, cast
 
@@ -30,6 +31,8 @@ from api.services.cache_service import (
 )
 from api.services.tasks.fov_tasks import (
     aggregate_fov_results_task,
+    mark_fov_failed_task,
+    persist_fov_result_task,
     process_satellite_batch_task,
     refine_with_ephemeris_task,
 )
@@ -188,6 +191,18 @@ def get_satellite_passes_in_fov_async(
             process_satellite_batch_task.s(serialized_batch, **common_args)
         )
 
+    # Shared Postgres store makes polling pod-independent: the client-facing
+    # job id is our own uuid, the terminal result is written to Postgres by the
+    # persist task, and any failure marks the job FAILURE via an error callback.
+    # See config.FOV_RESULT_STORE_IN_DB for the kill switch back to Redis-only.
+    from api.config import FOV_RESULT_STORE_IN_DB
+
+    job_id = str(uuid.uuid4())
+
+    if FOV_RESULT_STORE_IN_DB:
+        errback = mark_fov_failed_task.si(job_id=job_id)
+        batch_tasks = [t.on_error(errback) for t in batch_tasks]
+
     callback = aggregate_fov_results_task.s(
         group_by=group_by,
         orbital_data_time=orbital_data_time,
@@ -204,9 +219,20 @@ def get_satellite_passes_in_fov_async(
             fov_radius=float(fov_radius),
         )
 
+    if FOV_RESULT_STORE_IN_DB:
+        callback = callback | persist_fov_result_task.s(job_id=job_id)
+        callback = callback.on_error(errback)
+
     chord_primitive = chord(group(batch_tasks), callback)
     chord_result = chord_primitive.apply_async()
-    task_id = chord_result.id
+
+    if FOV_RESULT_STORE_IN_DB:
+        from api.services import fov_task_store
+
+        task_id = job_id
+        fov_task_store.create_pending(task_id)
+    else:
+        task_id = chord_result.id
 
     return {
         "task_id": task_id,

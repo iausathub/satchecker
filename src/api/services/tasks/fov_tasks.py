@@ -305,6 +305,69 @@ def refine_with_ephemeris_task(
     return all_results, points_in_fov, group_by, updated_metrics
 
 
+@celery.task(name="fov.persist_result")
+def persist_fov_result_task(
+    aggregate_result: tuple,
+    job_id: str,
+) -> tuple:
+    """
+    Persist the final FOV result to the shared Postgres store.
+
+    Runs as the last link in the chord chain so that the formatted response is
+    available to the status endpoint from any replica, not just the pod whose
+    Redis result backend holds the task state. Returns ``aggregate_result``
+    unchanged so the Celery result backend still sees the same payload.
+    """
+    try:
+        from api.services import fov_task_store
+
+        all_results, points_in_fov, group_by, performance_metrics = aggregate_result
+        formatted_result = fov_data_to_json(
+            all_results,
+            points_in_fov,
+            performance_metrics,
+            api_source,
+            api_version,
+            group_by,
+        )
+        formatted_result.update(
+            {
+                "status": "SUCCESS",
+                "message": "FOV calculation completed successfully",
+            }
+        )
+        fov_task_store.store_success(job_id, formatted_result)
+    except Exception as e:
+        logger.error(f"persist_fov_result_task failed for {job_id}: {e}")
+        from api.services import fov_task_store
+
+        fov_task_store.store_failure(job_id, str(e))
+    return aggregate_result
+
+
+@celery.task(name="fov.mark_failed")
+def mark_fov_failed_task(*args: Any, job_id: str | None = None, **kwargs: Any) -> None:
+    """
+    Mark a FOV job as FAILURE in the shared Postgres store.
+
+    Attached as an immutable error callback (``.si(job_id=...)``) to the batch
+    tasks and the chord callback, so a failure anywhere in the chord is visible
+    to the status endpoint from any replica instead of polling as PENDING
+    forever. ``*args``/``**kwargs`` absorb whatever Celery prepends to an error
+    callback (e.g. the failed task's id) across versions, so ``job_id`` is read
+    reliably from the immutable signature regardless of calling convention.
+    """
+    if not job_id:
+        logger.error("mark_fov_failed_task called without job_id; cannot record")
+        return
+    try:
+        from api.services import fov_task_store
+
+        fov_task_store.store_failure(job_id, "FOV calculation task failed")
+    except Exception as e:
+        logger.error(f"mark_fov_failed_task failed for {job_id}: {e}")
+
+
 def get_fov_task_status(task_id: str) -> dict[str, Any]:
     """
     Get the status of a FOV calculation task.
@@ -316,6 +379,18 @@ def get_fov_task_status(task_id: str) -> dict[str, Any]:
         dict: Task status and result if available
     """
     try:
+        # Prefer the shared Postgres store: the Celery result backend is a
+        # per-pod Redis sidecar, so AsyncResult only sees tasks that ran on the
+        # pod handling this request. See config.FOV_RESULT_STORE_IN_DB.
+        from api.config import FOV_RESULT_STORE_IN_DB
+
+        if FOV_RESULT_STORE_IN_DB:
+            from api.services import fov_task_store
+
+            stored = fov_task_store.get_result(task_id)
+            if stored is not None:
+                return stored
+
         task = celery.AsyncResult(task_id)
 
         # Check if task exists
