@@ -418,7 +418,6 @@ def get_satellite_passes_in_fov(
         points_in_fov,
         jd_times,
         count,
-        prop_time,
     )
 
     # Before returning results, log any None values
@@ -645,7 +644,6 @@ def get_satellite_passes_in_fov_tdm(
         points_in_fov,
         jd_times,
         count,
-        execution_time,
     )
 
     # convert tdm prediction points to dicts with info about points in fov
@@ -1148,7 +1146,7 @@ def _calculate_performance_metrics(
     points_in_fov: int,
     jd_times: np.ndarray,
     count: int,
-    execution_time: float,
+    execution_time: float | None = None,
 ) -> dict[str, Any]:
     """
     Calculate and log performance metrics for FOV calculations.
@@ -1156,17 +1154,19 @@ def _calculate_performance_metrics(
     Args:
         total_time: Total execution time in seconds
         retrieval_time: Time spent retrieving orbital data in seconds
-        calc_time: Time spent on propagation (or other FOV)
-        calculations in seconds
+        calc_time: Time spent on propagation (or other FOV) calculations in seconds
         satellites_processed: Number of satellites processed
         points_in_fov: Number of points found in field of view
         jd_times: List of Julian day times used in calculations
         count: Total number of satellites available
-        execution_time: Time spent on propagation execution
+        execution_time: Optional legacy alias for calc_time
 
     Returns:
         dict[str, Any]: Performance metrics dictionary
     """
+    if execution_time is not None:
+        calc_time = execution_time
+
     # Log performance metrics
     logger.debug("\nPerformance Metrics:")
     logger.debug(f"Total execution time: {total_time:.2f} seconds")
@@ -1186,7 +1186,7 @@ def _calculate_performance_metrics(
     performance_metrics = {
         "total_time": round(total_time, 3),
         "data_retrieval_time": round(retrieval_time, 3),
-        "calculation_time": round(execution_time, 3),
+        "calculation_time": round(calc_time, 3),
         "satellites_processed": satellites_processed,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),

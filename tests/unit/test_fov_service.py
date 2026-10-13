@@ -1293,3 +1293,40 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
 
     # Every variation should generate a unique key
     assert len(cache_keys) == len(param_variations) + 1
+
+
+def test_calculate_performance_metrics_calc_time():
+    """Verify calculation_time in metrics uses calc_time directly."""
+    import numpy as np
+
+    from api.services.fov_service import _calculate_performance_metrics
+
+    jd_times = np.array([2451545.0, 2451545.1])
+    # Call with 7 arguments (execution_time omitted)
+    metrics = _calculate_performance_metrics(
+        total_time=10.5432,
+        retrieval_time=2.1234,
+        calc_time=8.4198,
+        satellites_processed=50,
+        points_in_fov=5,
+        jd_times=jd_times,
+        count=100,
+    )
+    assert metrics["total_time"] == 10.543
+    assert metrics["data_retrieval_time"] == 2.123
+    assert metrics["calculation_time"] == 8.42
+    assert metrics["satellites_processed"] == 50
+    assert metrics["points_in_fov"] == 5
+
+    # Verify legacy execution_time argument still supported
+    legacy_metrics = _calculate_performance_metrics(
+        total_time=10.0,
+        retrieval_time=2.0,
+        calc_time=8.0,
+        satellites_processed=50,
+        points_in_fov=5,
+        jd_times=jd_times,
+        count=100,
+        execution_time=7.5,
+    )
+    assert legacy_metrics["calculation_time"] == 7.5
