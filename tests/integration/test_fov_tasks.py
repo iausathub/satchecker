@@ -618,6 +618,24 @@ def test_delete_expired_prunes_old_rows(app):
         assert fov_task_store.get_result("fresh-row")["status"] == "SUCCESS"
 
 
+def test_create_pending_after_success_is_noop(app):
+    """create_pending must not error or downgrade when the worker already wrote
+    SUCCESS first"""
+    from api.services import fov_task_store
+
+    with app.app_context():
+        task_id = "worker-won-the-race"
+        fov_task_store.store_success(
+            task_id, {"status": "SUCCESS", "data": {"satellites": {}}}
+        )
+
+        # Late create_pending for the same id: ON CONFLICT DO NOTHING, no raise.
+        fov_task_store.create_pending(task_id)
+
+        result = fov_task_store.get_result(task_id)
+        assert result["status"] == "SUCCESS"
+
+
 def test_store_failure_does_not_clobber_success(app):
     """A late error callback must not overwrite an already-stored SUCCESS."""
     from api.services import fov_task_store
