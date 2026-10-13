@@ -99,14 +99,14 @@ def ecef_to_enu(r_ecef: list[float], lat: float, lon: float) -> np.ndarray:
     return r_enu
 
 
-# TODO: Verify if ecef_to_itrs is correct/necessary
-# Not sure if the flattening of the Earth is necessary or not - if not this
-# function can be removed
 def ecef_to_itrs(r_ecef):
     """
     Converts coordinates from Earth-Centered, Earth-Fixed (ECEF) to International
-    Terrestrial Reference System (ITRS). The conversion takes into account the
-    flattening of the Earth.
+    Terrestrial Reference System (ITRS).
+
+    In Cartesian coordinates, WGS84 ECEF and ITRS frames are coincident to within
+    sub-decimeter accuracy (Earth flattening applies only when converting between
+    geodetic coordinates and Cartesian coordinates).
 
     Args:
         r_ecef (np.ndarray): A numpy array representing the coordinates in the
@@ -115,12 +115,10 @@ def ecef_to_itrs(r_ecef):
     Returns:
         np.ndarray: A numpy array representing the coordinates in the ITRS system.
     """
-    # Convert ECEF to ITRS
-    r_itrs = np.zeros_like(r_ecef)
-    r_itrs[0] = r_ecef[0] / (1 + 1 / 298.257223563)  # a / (1 + 1 / f)
-    r_itrs[1] = r_ecef[1]
-    r_itrs[2] = r_ecef[2]
-    return r_itrs
+    r_ecef_arr = np.asarray(r_ecef)
+    if r_ecef_arr.shape[0] < 3:
+        raise IndexError("ECEF coordinate vector must have at least 3 elements.")
+    return r_ecef_arr.copy()
 
 
 # TODO: Verify if itrs_to_gcrs is correct
