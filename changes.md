@@ -4,6 +4,18 @@ This document tracks all notable changes to SatChecker across versions. Entries 
 
 <!-- towncrier release notes start -->
 
+# 1.9.0 (2026-09-30)
+
+## Bugfixes
+
+- Return 400 instead of 500 for invalid Julian Date values in the `epoch`, `mid_obs_time_jd`, and `start_time_jd` parameters, so malformed client input is reported as a client error rather than an unhandled server error. ([#259](https://github.com/iausathub/satchecker/pull/259))
+- Fixed conversion and propagation of orbital elements for recently launched objects whose temporary catalog id exceeds the Alpha-5 ceiling (339999); a placeholder catalog number is now used in the TLE lines while the real id is preserved in the response metadata. ([#262](https://github.com/iausathub/satchecker/pull/262))
+
+## Features
+
+- Added `/tools/ephemeris-data-at-epoch/` and `/tools/ephemeris-data-for-satellite-at-epoch/` endpoints that return the raw operator-provided ephemeris (all stored points) at a given epoch - for every satellite with coverage, or for a single satellite by NORAD id or name - as a compact Parquet file or a zip of per-satellite CSV files. Currently limited to Starlink satellites. ([#258](https://github.com/iausathub/satchecker/pull/258))
+
+
 # 1.8.0 (2026-08-26)
 
 ### Bugfixes
