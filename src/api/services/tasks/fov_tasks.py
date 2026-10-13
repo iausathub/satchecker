@@ -318,6 +318,7 @@ def persist_fov_result_task(
     Redis result backend holds the task state. Returns ``aggregate_result``
     unchanged so the Celery result backend still sees the same payload.
     """
+    logger.info(f"persist_fov_result_task: running for job {job_id}")
     try:
         from api.services import fov_task_store
 
@@ -337,6 +338,7 @@ def persist_fov_result_task(
             }
         )
         fov_task_store.store_success(job_id, formatted_result)
+        logger.info(f"persist_fov_result_task: stored SUCCESS for job {job_id}")
     except Exception as e:
         logger.error(f"persist_fov_result_task failed for {job_id}: {e}")
         from api.services import fov_task_store

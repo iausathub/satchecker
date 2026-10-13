@@ -99,6 +99,7 @@ def store_success(task_id: str, result: dict[str, Any]) -> None:
             )
             session.execute(stmt)
             session.commit()
+        logger.info(f"fov_task_store.store_success committed for {task_id}")
     except Exception as e:
         logger.error(f"fov_task_store.store_success failed for {task_id}: {e}")
 
