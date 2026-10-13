@@ -1,4 +1,5 @@
 import functools
+import logging
 import os
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from api.common import error_messages
 from api.common.exceptions import ValidationError
 from api.utils.skyfield_loader import load
 from api.utils.time_utils import calculate_lst, jd_to_gst
+
+logger = logging.getLogger(__name__)
 
 # Configure Astropy cache to use /tmp to avoid consuming container writable layer
 # (ephemeral storage). In Kubernetes, /tmp is often tmpfs or has limits.
@@ -530,6 +533,23 @@ def load_earth_sun() -> tuple:
     Returns:
         tuple: A tuple containing the Earth and Sun objects from the ephemeris data.
     """
+    # Log the resolved BSP path and size on first load (once per process, via
+    # the functools.cache) so a truncated or partial ephemeris file is visible
+    # in the logs without shell access. A size other than 133853184 bytes points
+    # to a corrupt download/mount, which surfaces downstream as a cryptic
+    # jplephem "cannot reshape array of size ..." error during propagation.
+    bsp_path = os.path.join(load.directory, "de430t.bsp")
+    try:
+        size = os.path.getsize(bsp_path)
+    except OSError as e:
+        size = -1
+        logger.warning("Could not stat ephemeris file %s: %s", bsp_path, e)
+    logger.info(
+        "Loading ephemeris: path=%s size_bytes=%d (expected 133853184)",
+        bsp_path,
+        size,
+    )
+
     eph = load("de430t.bsp")
     earth = eph["Earth"]
     sun = eph["Sun"]
