@@ -19,29 +19,40 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import create_engine, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import Engine
+from sqlalchemy.pool import NullPool
 
 logger = logging.getLogger(__name__)
+
+_engine: Engine | None = None
+
+
+def _get_engine() -> Engine:
+    """Return a dedicated NullPool engine for the task store.
+
+    NullPool holds no connections at all, opening a fresh one per use and closing
+    it on return, so there is nothing to inherit across a fork or to go stale.
+    The store owns this engine so its connection lifecycle is fully self-contained.
+    """
+    global _engine
+    if _engine is None:
+        from api import app
+
+        _engine = create_engine(
+            app.config["SQLALCHEMY_DATABASE_URI"], poolclass=NullPool
+        )
+    return _engine
 
 
 @contextmanager
 def _session():
-    """Yield a SQLAlchemy session bound to the shared Postgres engine.
-
-    Mirrors the pattern used by the FOV Celery tasks so the same helper works
-    from both the web process and a Celery worker. The session and app context
-    are always torn down, even on error, so a failed commit never leaks a
-    pooled connection.
-    """
+    """Yield a session that opens and closes its own connection (NullPool)."""
     from sqlalchemy.orm import Session as SASession
 
-    from api import app
-    from api.entrypoints.extensions import db
-
-    with app.app_context():
-        with SASession(db.engine) as session:
-            yield session
+    with SASession(_get_engine()) as session:
+        yield session
 
 
 def create_pending(task_id: str) -> None:
