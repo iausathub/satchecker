@@ -19,6 +19,9 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,54 +45,77 @@ def _session():
 
 
 def create_pending(task_id: str) -> None:
-    """Record a newly submitted task as PENDING (no-op if a row exists)."""
+    """Record a newly submitted task as PENDING.
+
+    Uses INSERT ... ON CONFLICT DO NOTHING so it races safely against the
+    worker's persist step: whichever of the web request and the Celery task
+    creates the row first wins, and the other is a no-op instead of a
+    duplicate-key error.
+    """
     from api.adapters.database_orm import FovTaskResultDb
 
     try:
         with _session() as session:
-            if session.get(FovTaskResultDb, task_id) is None:
-                session.add(FovTaskResultDb(task_id=task_id, status="PENDING"))
-                session.commit()
+            stmt = (
+                pg_insert(FovTaskResultDb)
+                .values(task_id=task_id, status="PENDING")
+                .on_conflict_do_nothing(index_elements=["task_id"])
+            )
+            session.execute(stmt)
+            session.commit()
     except Exception as e:
         logger.error(f"fov_task_store.create_pending failed for {task_id}: {e}")
 
 
 def store_success(task_id: str, result: dict[str, Any]) -> None:
-    """Persist a completed task's formatted result payload."""
+    """Persist a completed task's formatted result payload (upsert)."""
     from api.adapters.database_orm import FovTaskResultDb
 
     try:
         with _session() as session:
-            row = session.get(FovTaskResultDb, task_id)
-            if row is None:
-                row = FovTaskResultDb(task_id=task_id)
-                session.add(row)
-            row.status = "SUCCESS"
-            row.result = result
-            row.error = None
+            stmt = (
+                pg_insert(FovTaskResultDb)
+                .values(task_id=task_id, status="SUCCESS", result=result, error=None)
+                .on_conflict_do_update(
+                    index_elements=["task_id"],
+                    set_={
+                        "status": "SUCCESS",
+                        "result": result,
+                        "error": None,
+                        "updated_at": func.now(),
+                    },
+                )
+            )
+            session.execute(stmt)
             session.commit()
     except Exception as e:
         logger.error(f"fov_task_store.store_success failed for {task_id}: {e}")
 
 
 def store_failure(task_id: str, error: str) -> None:
-    """Persist a failed task's error message.
+    """Persist a failed task's error message (upsert).
 
-    Never downgrades a row that already recorded SUCCESS: a late error callback
-    must not clobber a result that completed successfully.
+    The conditional ON CONFLICT never downgrades a row that already recorded
+    SUCCESS: a late error callback must not clobber a successful result.
     """
     from api.adapters.database_orm import FovTaskResultDb
 
     try:
         with _session() as session:
-            row = session.get(FovTaskResultDb, task_id)
-            if row is not None and row.status == "SUCCESS":
-                return
-            if row is None:
-                row = FovTaskResultDb(task_id=task_id)
-                session.add(row)
-            row.status = "FAILURE"
-            row.error = error
+            stmt = (
+                pg_insert(FovTaskResultDb)
+                .values(task_id=task_id, status="FAILURE", error=error)
+                .on_conflict_do_update(
+                    index_elements=["task_id"],
+                    set_={
+                        "status": "FAILURE",
+                        "error": error,
+                        "updated_at": func.now(),
+                    },
+                    where=(FovTaskResultDb.status != "SUCCESS"),
+                )
+            )
+            session.execute(stmt)
             session.commit()
     except Exception as e:
         logger.error(f"fov_task_store.store_failure failed for {task_id}: {e}")
