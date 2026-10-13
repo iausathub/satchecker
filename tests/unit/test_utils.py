@@ -661,8 +661,6 @@ def test_ecef_to_enu():
         result = coordinate_systems.ecef_to_enu(r_ecef, lat, lon)
 
 
-# This test only verifies the current implementation, and will need
-# to be updated when ecef_to_itrs is reviewed/corrected
 def test_ecef_to_itrs():
     # with zero coordinates
     r_ecef = np.array([0.0, 0.0, 0.0])
@@ -672,13 +670,13 @@ def test_ecef_to_itrs():
 
     # with one non-zero coordinate
     r_ecef = np.array([6378137.0, 0.0, 0.0])  # Earth's semi-major axis in meters
-    expected_result = np.array([6378137.0 / (1 + 1 / 298.257223563), 0.0, 0.0])
+    expected_result = np.array([6378137.0, 0.0, 0.0])
     result = coordinate_systems.ecef_to_itrs(r_ecef)
     np.testing.assert_almost_equal(result, expected_result, decimal=6)
 
     # with arbitrary coordinates
     r_ecef = np.array([1000.0, 2000.0, 3000.0])
-    expected_result = np.array([1000.0 / (1 + 1 / 298.257223563), 2000.0, 3000.0])
+    expected_result = np.array([1000.0, 2000.0, 3000.0])
     result = coordinate_systems.ecef_to_itrs(r_ecef)
     np.testing.assert_almost_equal(result, expected_result, decimal=6)
 
