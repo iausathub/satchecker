@@ -94,9 +94,34 @@ Retrieve raw TLE data for a satellite over a given time period
 Get full TLE set at epoch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This endpoint fetches all TLEs at a specific epoch date. It supports pagination to handle large result sets.
-If the epoch date is not provided, it defaults to returning the most recent TLE for every active satellite/object
-in the database (no decay date and current NORAD ID).
+This endpoint fetches a snapshot of all active TLEs at a specific epoch date using a
+"newest-before" selection rule, with pagination support to handle large result sets.
+If the epoch date is not provided, it defaults to returning the most recent TLE for every
+active satellite or object in the database.
+
+Record Selection Rule (Newest-Before vs Nearest)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For each active satellite or object in the database, this endpoint returns the most recent
+element set whose epoch is at or before the requested epoch (``epoch <= requested_epoch``),
+considering only records within a 14-day lookback window (``[requested_epoch - 14 days, requested_epoch]``).
+
+This endpoint provides a snapshot of what was current at that specific point in time:
+an element set published shortly *after* the requested epoch will not be returned even if
+it is closer in time to the target. If you need the element set closest to an epoch
+regardless of temporal direction (bidirectional nearest), use :ref:`Get nearest TLE </tools/get-nearest-tle/>`.
+
+Important Considerations:
+
+* **14-day lookback cutoff**: Objects with no TLE record in the preceding 14-day window
+  are omitted from the response entirely rather than returned with older element sets.
+* **Active objects only**: The query only includes objects whose launch date is on or
+  before the requested epoch and whose decay date is either null or after the requested epoch.
+  Objects named "TBA - TO BE ASSIGNED" are excluded.
+* **Cache behavior**: For epochs at or within 3 hours of the present, the response may be
+  served from a cache with a 3-hour TTL.
+* **Data sources**: Records from all standard data sources are included by default, or
+  optionally filtered by data source.
 
 .. note::
     For an example on how to use this endpoint to get all TLEs for the current date using Python and a Pandas DataFrame,
@@ -110,7 +135,7 @@ in the database (no decay date and current NORAD ID).
 
     **Parameters**
 
-    :query epoch: (*optional*) -- The epoch date for the TLE data, in Julian Date format. Defaults to the current date if not provided.
+    :query epoch: (*optional*) -- The target epoch date in Julian Date format. Selects the newest TLE on or before this epoch within a 14-day lookback window. Defaults to the current date if not provided.
     :query page: (*optional*) -- The page number for pagination. Defaults to 1.
     :query per_page: (*optional*) -- The number of results per page for pagination. Defaults to 100.
     :query format: (*optional*) -- The format of the response. Valid values are "json" (default), "txt", or "zip". The "zip" option will return a zip file containing a CSV file with the TLE data.
