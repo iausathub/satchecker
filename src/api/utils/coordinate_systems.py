@@ -550,7 +550,9 @@ def load_earth_sun() -> tuple:
         size,
     )
 
+    logger.info("load_earth_sun: calling load('de430t.bsp') (pid=%d)", os.getpid())
     eph = load("de430t.bsp")
+    logger.info("load_earth_sun: load() returned (pid=%d)", os.getpid())
     earth = eph["Earth"]
     sun = eph["Sun"]
     return earth, sun
