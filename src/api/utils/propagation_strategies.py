@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from astropy import units as u
@@ -32,7 +32,6 @@ from api.utils.coordinate_systems import (
     get_phase_angle,
     icrf2radec,
     is_illuminated,
-    is_illuminated_vectorized,
     itrs_to_gcrs,
     load_earth_sun,
     teme_to_ecef,
@@ -740,6 +739,15 @@ def process_satellite_batch(
     batch_results = []
     satellites_processed = 0
 
+    # Sun/Earth geometry depends only on time, so compute it once for the whole
+    # batch and reuse it for every satellite, instead of rebuilding it inside
+    # the per-satellite illumination check.
+    earthsun_norms = (
+        coordinate_systems.compute_earthsun_norms(julian_dates)
+        if illuminated_only
+        else None
+    )
+
     logger.info("process_satellite_batch: setup done, entering propagation loop")
 
     for _idx, orbital_data in enumerate(orbital_data_batch):
@@ -776,10 +784,10 @@ def process_satellite_batch(
                     logger.info("batch sat %d: illumination check...", _idx)
                 # only show points that are illuminated
                 sat_gcrs = satellite.at(t).position.km
-
-                # positions for each julian date
-                sat_gcrs_list = [sat_gcrs[:, i] for i in range(len(julian_dates))]
-                illuminated = is_illuminated_vectorized(sat_gcrs_list, julian_dates)
+                # earthsun_norms is always set when illuminated_only is True
+                illuminated = coordinate_systems.is_illuminated_precomputed(
+                    sat_gcrs, cast(np.ndarray, earthsun_norms)
+                )
                 visible_mask = np.logical_and(in_fov_mask, illuminated)
             else:
                 visible_mask = in_fov_mask

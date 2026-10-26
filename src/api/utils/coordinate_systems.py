@@ -521,6 +521,52 @@ def is_illuminated_vectorized(
     return illuminated_results.tolist()
 
 
+def compute_earthsun_norms(julian_dates: list[float] | np.ndarray) -> np.ndarray:
+    """Unit Sun->Earth vectors for each observation time.
+
+    The Earth/Sun geometry depends only on time, not on the satellite, so this
+    is computed once per batch and reused for every satellite, instead of being
+    rebuilt inside the per-satellite illumination check.
+
+    Returns:
+        np.ndarray of shape (len(julian_dates), 3).
+    """
+    norms = np.empty((len(julian_dates), 3))
+    for i, jd in enumerate(julian_dates):
+        earthp, sunp = get_earth_sun_positions(jd)
+        earthsun = sunp - earthp
+        norms[i] = earthsun / np.linalg.norm(earthsun)
+    return norms
+
+
+def is_illuminated_precomputed(
+    sat_gcrs: np.ndarray, earthsun_norms: np.ndarray
+) -> np.ndarray:
+    """Illumination per time for one satellite using precomputed Sun/Earth
+    unit vectors.
+
+    Same cylindrical-shadow model as is_illuminated_vectorized, but it takes the
+    Sun/Earth vectors as input (computed once per batch by
+    compute_earthsun_norms) so no ephemeris work happens in the per-satellite
+    loop.
+
+    Args:
+        sat_gcrs: satellite GCRS positions in km, shape (3, n_times).
+        earthsun_norms: unit Sun-Earth vectors, shape (n_times, 3), aligned to
+            the same times as sat_gcrs.
+
+    Returns:
+        Boolean np.ndarray of shape (n_times,): True where sunlit.
+    """
+    sat = sat_gcrs.T  # (n_times, 3)
+    r_parallel_lengths = np.sum(sat * earthsun_norms, axis=1)
+    r_parallel = r_parallel_lengths[:, np.newaxis] * earthsun_norms
+    r_tangential = sat - r_parallel
+    r_tangential_norms = np.linalg.norm(r_tangential, axis=1)
+    in_shadow = r_tangential_norms < 6370
+    return np.asarray(~in_shadow | (in_shadow & (r_parallel_lengths > 0)))
+
+
 @functools.cache
 def load_earth_sun() -> tuple:
     """

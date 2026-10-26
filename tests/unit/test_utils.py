@@ -312,7 +312,7 @@ def test_process_satellite_batch_illuminated_only_filters_results(mocker):
     # indexed by in_fov_mask rather than visible_mask, so non-illuminated
     # points leaked through whenever the satellite had any illuminated point
     # in the window.
-    from api.utils import propagation_strategies as ps
+    from api.utils import coordinate_systems as cs
 
     satellite = SatelliteFactory(
         sat_name="FENGYUN 1C DEB",
@@ -360,9 +360,13 @@ def test_process_satellite_batch_illuminated_only_filters_results(mocker):
     assert any(i % 2 == 0 for i in base_indices)
     assert any(i % 2 == 1 for i in base_indices)
 
-    # Mark only even-indexed timesteps as illuminated.
+    # Mark only even-indexed timesteps as illuminated. Sun/Earth geometry is
+    # precomputed once per batch (compute_earthsun_norms) and the per-satellite
+    # shadow check is is_illuminated_precomputed; mock both so the test controls
+    # illumination without loading the real ephemeris.
     illuminated = np.array([i % 2 == 0 for i in range(n)])
-    mocker.patch.object(ps, "is_illuminated_vectorized", return_value=illuminated)
+    mocker.patch.object(cs, "compute_earthsun_norms", return_value=np.zeros((n, 3)))
+    mocker.patch.object(cs, "is_illuminated_precomputed", return_value=illuminated)
 
     results, _, _ = process_satellite_batch((*base_args, True))
 
