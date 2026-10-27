@@ -126,7 +126,7 @@ py-cpuinfo==9.0.0
 pyarrow==24.0.0
 pyerfa==2.0.1.5
 Pygments==2.20.0
-pylint==3.0.1
+pylint==4.0.9
 pyparsing==3.2.0
 pyproj==3.6.1
 pyproject_hooks==1.2.0
