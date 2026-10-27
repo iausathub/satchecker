@@ -21,7 +21,7 @@ boto3==1.42.76
 botocore==1.42.76
 build==1.2.2.post1
 celery==5.3.6
-certifi==2024.7.4
+certifi==2026.10.18
 cfgv==3.4.0
 charset-normalizer==3.2.0
 click==8.1.7
