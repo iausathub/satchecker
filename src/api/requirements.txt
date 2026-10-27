@@ -39,7 +39,7 @@ decorator==5.1.1
 defusedxml==0.7.1
 Deprecated==1.2.14
 dill==0.3.7
-distlib==0.3.7
+distlib==0.4.3
 docopt==0.6.2
 docutils==0.19
 execnet==2.1.1
@@ -105,7 +105,7 @@ nest-asyncio==1.5.7
 nodeenv==1.8.0
 numpy==2.2.5
 ordered-set==4.1.0
-packaging==25.0
+packaging==26.3
 pandas==2.2.3
 pandocfilters==1.5.0
 parso==0.8.3
@@ -186,7 +186,7 @@ tzdata==2024.1
 tzlocal==5.2
 urllib3==2.8.0
 vine==5.1.0
-virtualenv==21.2.0
+virtualenv==21.14.13
 wcwidth==0.2.6
 webencodings==0.5.1
 Werkzeug==3.1.7
