@@ -29,13 +29,19 @@ visible_satellites = []
 not_visible_satellites = []
 
 for satellite in satellite_list:
-    info = requests.get(
+    response = requests.get(
         f"https://satchecker.cps.iau.org/ephemeris/name-jdstep/?name={satellite}&elevation={observer_elevation}&latitude={observer_latitude}&longitude={observer_longitude}&startjd={start_jd}&stopjd={stop_jd}&stepjd={step_jd}&min_altitude=-90",
         timeout=10,
     )
+    body = response.json()
+    # the API reports each row as a plain list alongside a "fields" list
+    # naming each column, rather than one dict per point -- zip them back
+    # together so the lookups below can use the field names directly.
+    points = [dict(zip(body["fields"], row, strict=True)) for row in body["data"]]
+
     visible = False
-    for point in info.json():
-        if point["ALTITUDE-DEG"] > 0:
+    for point in points:
+        if point["altitude_deg"] > 0:
             visible_satellites.append(point)
             visible = True
 
@@ -45,10 +51,10 @@ for satellite in satellite_list:
 print("\n")
 print("Visible Satellites: ")
 for satellite in visible_satellites:
-    print(satellite["NAME"])
-    print("Altitude (degrees): ", satellite["ALTITUDE-DEG"])
-    print("Azimuth (degrees): ", satellite["AZIMUTH-DEG"])
-    print("Time: ", satellite["JULIAN_DATE"])
+    print(satellite["name"])
+    print("Altitude (degrees): ", satellite["altitude_deg"])
+    print("Azimuth (degrees): ", satellite["azimuth_deg"])
+    print("Time: ", satellite["julian_date"])
     print("--------------------------------------")
 
 print("\n\n")
