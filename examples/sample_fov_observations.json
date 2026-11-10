@@ -1,0 +1,15 @@
+[
+  {
+    "label": "ISS self-consistency check",
+    "satellite_name": "ISS (ZARYA)",
+    "norad_id": 25544,
+    "latitude_deg": 32,
+    "longitude_deg": -110,
+    "elevation_m": 0,
+    "points": [
+      {"julian_date": 2461355.30, "ra_deg": 101.86589139, "dec_deg": -59.94877313},
+      {"julian_date": 2461355.31, "ra_deg": 338.7654974, "dec_deg": -76.67895466},
+      {"julian_date": 2461355.32, "ra_deg": 343.07304297, "dec_deg": -29.08335693}
+    ]
+  }
+]
