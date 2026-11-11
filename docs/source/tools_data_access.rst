@@ -94,8 +94,8 @@ Retrieve raw TLE data for a satellite over a given time period
 Get full TLE set at epoch
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This endpoint fetches a snapshot of all active TLEs at a specific epoch date using a
-"newest-before" selection rule, with pagination support to handle large result sets.
+This endpoint fetches all active TLEs at a specific epoch date using a "newest-before"
+selection rule based on orbital epoch, with pagination support to handle large result sets.
 If the epoch date is not provided, it defaults to returning the most recent TLE for every
 active satellite or object in the database.
 
@@ -103,13 +103,14 @@ Record Selection Rule (Newest-Before vs Nearest)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For each active satellite or object in the database, this endpoint returns the most recent
-element set whose epoch is at or before the requested epoch (``epoch <= requested_epoch``),
-considering only records within a 14-day lookback window (``[requested_epoch - 14 days, requested_epoch]``).
+element set whose orbital epoch is at or before the requested epoch
+(``epoch <= requested_epoch``), considering only records within a 14-day lookback window
+(``[requested_epoch - 14 days, requested_epoch]``).
 
-This endpoint provides a snapshot of what was current at that specific point in time:
-an element set published shortly *after* the requested epoch will not be returned even if
-it is closer in time to the target. If you need the element set closest to an epoch
-regardless of temporal direction (bidirectional nearest), use :ref:`Get nearest TLE </tools/get-nearest-tle/>`.
+An element set whose orbital epoch is after the requested epoch is not returned, even if
+it is closer in time. This selection does not impose a publication or collection-time
+cutoff. If you need the element set closest to an epoch regardless of temporal direction
+(bidirectional nearest), use :http:get:`/tools/get-nearest-tle/`.
 
 Important Considerations:
 
@@ -135,7 +136,7 @@ Important Considerations:
 
     **Parameters**
 
-    :query epoch: (*optional*) -- The target epoch date in Julian Date format. Selects the newest TLE on or before this epoch within a 14-day lookback window. Defaults to the current date if not provided.
+    :query epoch: (*optional*) -- The target epoch date in Julian Date format. Selects the newest TLE whose orbital epoch is on or before this epoch within a 14-day lookback window. Defaults to the current date if not provided.
     :query page: (*optional*) -- The page number for pagination. Defaults to 1.
     :query per_page: (*optional*) -- The number of results per page for pagination. Defaults to 100.
     :query format: (*optional*) -- The format of the response. Valid values are "json" (default), "txt", or "zip". The "zip" option will return a zip file containing a CSV file with the TLE data.

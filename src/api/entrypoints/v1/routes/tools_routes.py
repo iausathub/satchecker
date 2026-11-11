@@ -544,11 +544,12 @@ def get_tles_at_epoch():
       - Tools
     summary: Get TLEs at a specific epoch (newest-before selection)
     description: >-
-      Fetches a snapshot of all active TLEs at a specific epoch date using a
-      newest-before selection rule within a 14-day lookback window. For each active
-      object, the most recent TLE on or before the requested epoch is returned.
-      Objects with no TLE in the preceding 14 days are omitted. For closest bidirectional
-      match, use /tools/get-nearest-tle/.
+      Fetches active TLEs at a specific epoch date using a newest-before selection
+      rule based on TLE orbital epoch within a 14-day lookback window. For each active
+      object, the most recent TLE whose orbital epoch is on or before the requested
+      epoch is returned (with no publication or collection-time cutoff). Objects with
+      no TLE in the preceding 14 days are omitted. For closest bidirectional match,
+      use /tools/get-nearest-tle/.
     parameters:
       - name: epoch
         in: query
@@ -556,7 +557,8 @@ def get_tles_at_epoch():
         required: false
         description: >-
           The target epoch in Julian Date format (defaults to current time).
-          Selects the newest TLE on or before this epoch within a 14-day lookback window.
+          Selects the newest TLE whose orbital epoch is on or before this epoch within
+          a 14-day lookback window.
         example: "2459000.5"
       - name: page
         in: query
