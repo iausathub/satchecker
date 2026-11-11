@@ -538,18 +538,27 @@ def get_active_satellites_list():
 @api_main.route("/tools/tles-at-epoch/")
 @limiter.limit("100 per second, 2000 per minute")
 def get_tles_at_epoch():
-    """Get all TLEs at a specific epoch date.
+    """Get all TLEs at a specific epoch date (newest-before rule).
     ---
     tags:
       - Tools
-    summary: Get TLEs at a specific epoch
-    description: Fetches all TLEs at a specific epoch date with pagination support
+    summary: Get TLEs at a specific epoch (newest-before selection)
+    description: >-
+      Fetches active TLEs at a specific epoch date using a newest-before selection
+      rule based on TLE orbital epoch within a 14-day lookback window. For each active
+      object, the most recent TLE whose orbital epoch is on or before the requested
+      epoch is returned (with no publication or collection-time cutoff). Objects with
+      no TLE in the preceding 14 days are omitted. For closest bidirectional match,
+      use /tools/get-nearest-tle/.
     parameters:
       - name: epoch
         in: query
         type: string
         required: false
-        description: The epoch date in Julian Date format (defaults to current time if not provided)
+        description: >-
+          The target epoch in Julian Date format (defaults to current time).
+          Selects the newest TLE whose orbital epoch is on or before this epoch within
+          a 14-day lookback window.
         example: "2459000.5"
       - name: page
         in: query
