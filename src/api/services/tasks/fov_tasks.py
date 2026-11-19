@@ -76,6 +76,10 @@ def aggregate_fov_results_task(
     propagation_time is the sum of batch execution times (CPU time across
     workers; when batches run in parallel, wall clock < propagation_time).
     """
+    logger.info(
+        "aggregate_fov_results_task: START (chord callback fired, %d batch results)",
+        len(group_results),
+    )
     all_results = []
     satellites_processed = 0
     propagation_time = 0.0
@@ -121,6 +125,7 @@ def refine_with_ephemeris_task(
     Returns the same (all_results, points_in_fov, group_by, performance_metrics)
     format as aggregate_fov_results_task so get_fov_task_status needs no changes.
     """
+    logger.info("refine_with_ephemeris_task: START")
     # Defer Flask-context imports to avoid circular imports at module load time
     from sqlalchemy.orm import Session as SASession
 
