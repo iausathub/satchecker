@@ -31,7 +31,6 @@ from api.services.cache_service import (
 )
 from api.services.tasks.fov_tasks import (
     aggregate_fov_results_task,
-    mark_fov_failed_task,
     persist_fov_result_task,
     process_satellite_batch_task,
     refine_with_ephemeris_task,
@@ -192,16 +191,18 @@ def get_satellite_passes_in_fov_async(
         )
 
     # Shared Postgres store makes polling pod-independent: the client-facing
-    # job id is our own uuid, the terminal result is written to Postgres by the
-    # persist task, and any failure marks the job FAILURE via an error callback.
+    # job id is our own uuid, and the terminal result is written to Postgres by
+    # the persist task appended to the chord callback chain.
     # See config.FOV_RESULT_STORE_IN_DB for the kill switch back to Redis-only.
+    #
+    # NOTE: do not attach error callbacks (link_error) to the chord header tasks
+    # here. Doing so interferes with Celery's chord-completion bookkeeping and,
+    # under concurrent fan-out, wedges the chord so the callback never fires.
+    # Keep the chord to header + (aggregate | refine | persist), as the original
+    # working version was.
     from api.config import FOV_RESULT_STORE_IN_DB
 
     job_id = str(uuid.uuid4())
-
-    if FOV_RESULT_STORE_IN_DB:
-        errback = mark_fov_failed_task.si(job_id=job_id)
-        batch_tasks = [t.on_error(errback) for t in batch_tasks]
 
     callback = aggregate_fov_results_task.s(
         group_by=group_by,
@@ -221,7 +222,6 @@ def get_satellite_passes_in_fov_async(
 
     if FOV_RESULT_STORE_IN_DB:
         callback = callback | persist_fov_result_task.s(job_id=job_id)
-        callback = callback.on_error(errback)
 
     chord_primitive = chord(group(batch_tasks), callback)
     chord_result = chord_primitive.apply_async()
