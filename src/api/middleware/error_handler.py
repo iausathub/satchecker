@@ -27,6 +27,7 @@ def handle_error(error):
     log_extra = {
         "error_type": error.__class__.__name__,
         "status_code": code,
+        "error_message": message,
         "method": request.method,
         "path": request.path,
     }
