@@ -1,0 +1,1 @@
+Fixed Starlink generation scraping so newer generations (e.g. v3) launched on Starship are captured by scanning every Wikipedia launch table instead of only the first one, and normalized launch-number dashes so those launches match satellites.
