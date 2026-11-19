@@ -94,6 +94,9 @@ def extract_launch_number(launch_id: str | None) -> str:
     if not launch_id:
         return ""
 
+    # Normalize dash variants (Wikipedia uses en/em dashes) to a plain hyphen
+    launch_id = launch_id.replace("–", "-").replace("—", "-")
+
     # Remove any letter characters (leave numbers and punctuation)
     return re.sub(r"[a-zA-Z]", "", launch_id)
 
@@ -172,7 +175,8 @@ def clean_column_names(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_generation_name(generation: str) -> str:
     """
-    Clean generation name by removing footnote references.
+    Clean generation name by removing footnote references and parenthetical
+    annotations (e.g. "v2 mini (?)" -> "v2 mini").
 
     Args:
         generation: Raw generation name
@@ -180,7 +184,9 @@ def clean_generation_name(generation: str) -> str:
     Returns:
         Cleaned generation name
     """
-    return re.sub(r"\[\d+\]", "", generation).strip()
+    generation = re.sub(r"\[\d+\]", "", generation)
+    generation = re.sub(r"\s*\([^)]*\)", "", generation)
+    return generation.strip()
 
 
 def scrape_starlink_data(
@@ -210,35 +216,60 @@ def scrape_starlink_data(
         )
         return {"error": "Wikipedia access failed"}
 
-    # Find the table - usually "wikitable" class for Wikipedia tables
-    table = soup.find("table", {"class": "wikitable"})
-    if not table:
+    # The page has several "wikitable" tables (Falcon 9, Starshield, and
+    # Starship launches). Newer generations such as v3 only appear in the
+    # Starship table, so scan every wikitable that exposes the generation
+    # column instead of only the first one.
+    tables = soup.find_all("table", {"class": "wikitable"})
+    if not tables:
         logging.error("Failed to find wikitable on the page")
         return {"error": "Table not found"}
 
-    # Use pandas to parse the table
-    dfs = pd.read_html(str(table))
-    df = dfs[0]  # Get the first table, other two are starship and starshield
+    gen_col = "sat._ver._sat._ver."
+    launch_col = "cospar_id_cospar_id"
 
-    # Clean column names
-    df = clean_column_names(df)
-
-    # Extract generation info from table
+    # Extract generation info from every table that has the columns we need
     generation_sets = []
-    for _, row in df.iterrows():
+    for table in tables:
         try:
-            generation = row.get("sat._ver._sat._ver.", "")
+            df = clean_column_names(pd.read_html(str(table))[0])
+        except ValueError as e:
+            logging.warning(f"Skipping unparseable wikitable: {e}")
+            continue
+        if gen_col not in df.columns or launch_col not in df.columns:
+            continue
+        for _, row in df.iterrows():
+            try:
+                generation = row.get(gen_col, "")
+                launch_number = row.get(launch_col, "")
+                if pd.isna(generation) or pd.isna(launch_number):
+                    continue
 
-            # Clean up the generation string
-            generation = clean_generation_name(generation)
+                # Clean up the generation string
+                generation = clean_generation_name(str(generation))
 
-            generation_info = {
-                "launch_number": row.get("cospar_id_cospar_id", ""),
-                "generation": generation,
-            }
-            generation_sets.append(generation_info)
-        except (ValueError, AttributeError) as e:
-            logging.warning(f"Error processing row {row}: {e}")
+                # Skip mixed-manifest simulator flights (e.g. "v3,v2"); those
+                # payloads were simulators that reentered and are not tracked
+                # as Starlink satellites.
+                if "," in generation:
+                    continue
+
+                # Only accept version-like values (e.g. v1, v1.5, v2 mini, v3).
+                # Other tables (notably Starshield) put mission descriptions in
+                # this column, which must not be treated as a generation.
+                if not re.match(r"v\d", generation, re.IGNORECASE):
+                    continue
+
+                # Normalize the launch number the same way the satellite side is
+                # normalized so the two can be compared (handles dash variants
+                # and piece-letter suffixes).
+                generation_info = {
+                    "launch_number": extract_launch_number(str(launch_number)),
+                    "generation": generation,
+                }
+                generation_sets.append(generation_info)
+            except (ValueError, AttributeError) as e:
+                logging.warning(f"Error processing row {row}: {e}")
 
     # Keep a list of all generation names
     generation_names = list(
