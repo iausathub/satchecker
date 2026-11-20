@@ -34,3 +34,8 @@ INVALID_SITE = (
     "https://www.astropy.org/astropy-data/coordinates/sites.json "
     "for a list of valid sites"
 )
+DATE_TOO_FAR_IN_FUTURE = (
+    "Error: Date too far in future - predictions are not provided for dates "
+    "more than 2 weeks in the future due to TLE accuracy degradation"
+)
+
