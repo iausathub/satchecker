@@ -74,6 +74,7 @@ class AbstractOrbitalElementsRepository(abc.ABC):
         constellation: str | None = None,
         data_source_limit: str | None = None,
         use_generated_tles: bool = False,
+        before_only: bool = False,
     ) -> tuple[list[OrbitalElements], int, str]:
         return self._get_all_orbital_data_at_epoch(
             epoch_date,
@@ -83,6 +84,7 @@ class AbstractOrbitalElementsRepository(abc.ABC):
             constellation,
             data_source_limit,
             use_generated_tles,
+            before_only,
         )
 
     def get_nearest_orbital_elements(
@@ -169,6 +171,7 @@ class AbstractOrbitalElementsRepository(abc.ABC):
         constellation: str | None = None,
         data_source_limit: str | None = None,
         use_generated_tles: bool = False,
+        before_only: bool = False,
     ) -> tuple[list[OrbitalElements], int, str]:
         raise NotImplementedError
 
@@ -452,12 +455,18 @@ class SqlAlchemyOrbitalElementsRepository(
         constellation: str | None = None,
         data_source_limit: str | None = None,
         use_generated_tles: bool = False,
+        before_only: bool = False,
     ) -> tuple[list[OrbitalElements], int, str]:
         # Ensure epoch_date has a timezone if not already set
         if epoch_date.tzinfo is None:
             epoch_date = epoch_date.replace(tzinfo=timezone.utc)
 
+        # Selection window. By default we pick the record nearest the requested
+        # epoch in either direction, within +/- 2 weeks. When before_only is set
+        # we fall back to the "newest-before" snapshot rule (most recent record
+        # with epoch <= requested epoch, within the preceding 2 weeks).
         two_weeks_prior = epoch_date - timedelta(weeks=2)
+        window_end = epoch_date if before_only else epoch_date + timedelta(weeks=2)
 
         # Ensure current_time has the same timezone awareness as epoch_date
         current_time = datetime.now(timezone.utc)
@@ -548,7 +557,11 @@ class SqlAlchemyOrbitalElementsRepository(
             if data_source_limit == "any":
                 data_source_limit = None
 
-            # Then get their latest orbital elements
+            # For each satellite pick the record nearest the requested epoch,
+            # preferring the later record on an exact tie (epoch DESC). When
+            # before_only limits the window to epochs <= target, "nearest" is
+            # equivalent to "newest-before" since every candidate is already at
+            # or before the target.
             orbital_elements_sql = text("""
                 WITH latest_orbital_elements AS (
                     SELECT DISTINCT ON (sat_id)
@@ -565,7 +578,10 @@ class SqlAlchemyOrbitalElementsRepository(
                         (:use_generated_tles AND data_source = 'generated')
                         OR (NOT :use_generated_tles AND data_source != 'generated')
                     )
-                    ORDER BY sat_id, epoch DESC
+                    ORDER BY sat_id, ABS(
+                        EXTRACT(EPOCH FROM epoch)
+                        - EXTRACT(EPOCH FROM :target_epoch)
+                    ), epoch DESC
                 )
                 SELECT * FROM latest_orbital_elements
                 ORDER BY epoch DESC
@@ -582,15 +598,18 @@ class SqlAlchemyOrbitalElementsRepository(
                 return [], 0, "database"
 
             # Then get orbital elements for those satellites
+            query_params: dict[str, Any] = {
+                "start_date": two_weeks_prior,
+                "end_date": window_end,
+                "satellite_ids": list(valid_satellites.keys()),
+                "data_source_limit": data_source_limit,
+                "use_generated_tles": use_generated_tles,
+                "target_epoch": epoch_date,
+            }
+
             orbital_elements_result = self.session.execute(
                 orbital_elements_sql,
-                {
-                    "start_date": two_weeks_prior,
-                    "end_date": epoch_date,
-                    "satellite_ids": list(valid_satellites.keys()),
-                    "data_source_limit": data_source_limit,
-                    "use_generated_tles": use_generated_tles,
-                },
+                query_params,
             )
 
             # Map results to domain objects

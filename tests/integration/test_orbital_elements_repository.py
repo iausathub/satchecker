@@ -245,6 +245,45 @@ def test_get_all_orbital_elements_at_epoch(session, services_available):
     assert len(results[0]) == 2
 
 
+def test_get_all_orbital_data_at_epoch_before_only_selection(
+    session, services_available
+):
+    """Default returns the nearest record in either direction; before_only
+    restricts selection to the newest record at or before the epoch."""
+    orbital_elements_repository = SqlAlchemyOrbitalElementsRepository(session)
+    sat_repository = SqlAlchemySatelliteRepository(session)
+
+    satellite = SatelliteFactory(decay_date=None)
+    sat_repository.add(satellite)
+
+    # Use a target epoch in the past so the query hits the database rather than
+    # the recent-data cache.
+    target_epoch = datetime.now(timezone.utc) - timedelta(days=10)
+    data_before = OrbitalElementsFactory(
+        epoch=target_epoch - timedelta(days=3), satellite=satellite
+    )
+    data_after = OrbitalElementsFactory(
+        epoch=target_epoch + timedelta(days=1), satellite=satellite
+    )
+    orbital_elements_repository.add(data_before)
+    orbital_elements_repository.add(data_after)
+    session.commit()
+
+    # Default: nearest in either direction -> the record one day after.
+    results, _, _ = orbital_elements_repository.get_all_orbital_data_at_epoch(
+        target_epoch, 1, 10, "zip"
+    )
+    assert len(results) == 1
+    assert abs((results[0].epoch - data_after.epoch).total_seconds()) < 1
+
+    # before_only: newest record at or before the epoch -> the earlier record.
+    results, _, _ = orbital_elements_repository.get_all_orbital_data_at_epoch(
+        target_epoch, 1, 10, "zip", before_only=True
+    )
+    assert len(results) == 1
+    assert abs((results[0].epoch - data_before.epoch).total_seconds()) < 1
+
+
 def test_get_adjacent_orbital_elements(session, services_available):
     orbital_elements_repository = SqlAlchemyOrbitalElementsRepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)

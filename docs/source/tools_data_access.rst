@@ -98,6 +98,13 @@ This endpoint fetches all TLEs at a specific epoch date. It supports pagination 
 If the epoch date is not provided, it defaults to returning the most recent TLE for every active satellite/object
 in the database (no decay date and current NORAD ID).
 
+For each object, the TLE whose epoch is nearest the requested epoch within a 14-day
+window on either side is returned by default. Set ``before_only=true`` to instead
+return the most recent TLE at or before the requested epoch (a snapshot of what was
+current at that time), within the preceding 14 days. Objects with no TLE in the
+window are omitted from the results. To fetch the single closest record for one
+object regardless of this window, use ``get-nearest-tle`` instead.
+
 .. note::
     For an example on how to use this endpoint to get all TLEs for the current date using Python and a Pandas DataFrame,
     check out the :doc:`examples page <examples>`.
@@ -114,6 +121,7 @@ in the database (no decay date and current NORAD ID).
     :query page: (*optional*) -- The page number for pagination. Defaults to 1.
     :query per_page: (*optional*) -- The number of results per page for pagination. Defaults to 100.
     :query format: (*optional*) -- The format of the response. Valid values are "json" (default), "txt", or "zip". The "zip" option will return a zip file containing a CSV file with the TLE data.
+    :query before_only: (*optional*) -- When "true", select the newest TLE at or before the epoch for each object (within 14 days before). When "false" (default), select the TLE nearest the epoch in either direction (within 14 days before or after).
 
     **Example Request**
 
@@ -543,6 +551,13 @@ This endpoint fetches all OMMs at a specific epoch date. It supports pagination 
 If the epoch date is not provided, it defaults to returning the most recent OMM for every active satellite/object
 in the database (no decay date and current NORAD ID).
 
+For each object, the OMM whose epoch is nearest the requested epoch within a 14-day
+window on either side is returned by default. Set ``before_only=true`` to instead
+return the most recent OMM at or before the requested epoch (a snapshot of what was
+current at that time), within the preceding 14 days. Objects with no OMM in the
+window are omitted from the results. To fetch the single closest record for one
+object regardless of this window, use ``get-nearest-omm`` instead.
+
 .. note::
     If you need the OMM data in a single zip file, you can set the ``format`` query parameter to ``zip``,
     which returns a CSV using the CCSDS OMM field names plus the SatChecker metadata columns.
@@ -557,6 +572,7 @@ in the database (no decay date and current NORAD ID).
     :query page: (*optional*) -- The page number for pagination. Defaults to 1.
     :query per_page: (*optional*) -- The number of results per page for pagination. Defaults to 100.
     :query format: (*optional*) -- The format of the response. Valid values are "json" (default) or "zip". The "zip" option will return a zip file containing a CSV file with the OMM data.
+    :query before_only: (*optional*) -- When "true", select the newest OMM at or before the epoch for each object (within 14 days before). When "false" (default), select the OMM nearest the epoch in either direction (within 14 days before or after).
 
     **Example Request**
 
