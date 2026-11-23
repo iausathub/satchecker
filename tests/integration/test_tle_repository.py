@@ -317,6 +317,61 @@ def test_get_all_tles_at_epoch(session, services_available):
     assert len(results[0]) == 2
 
 
+def test_get_all_tles_at_epoch_before_only_selection(session, services_available):
+    """Default returns the nearest record in either direction; before_only
+    restricts selection to the newest record at or before the epoch."""
+    tle_repository = SqlAlchemyTLERepository(session)
+    sat_repository = SqlAlchemySatelliteRepository(session)
+
+    satellite = SatelliteFactory(decay_date=None)
+    sat_repository.add(satellite)
+
+    # Use a target epoch in the past so the query hits the database rather than
+    # the recent-data cache.
+    target_epoch = datetime.now(timezone.utc) - timedelta(days=10)
+    tle_before = TLEFactory(epoch=target_epoch - timedelta(days=3), satellite=satellite)
+    tle_after = TLEFactory(epoch=target_epoch + timedelta(days=1), satellite=satellite)
+    tle_repository.add(tle_before)
+    tle_repository.add(tle_after)
+    session.commit()
+
+    # Default: nearest in either direction -> the record one day after.
+    results, _, _ = tle_repository.get_all_orbital_data_at_epoch(
+        target_epoch, 1, 10, "zip"
+    )
+    assert len(results) == 1
+    assert abs((results[0].epoch - tle_after.epoch).total_seconds()) < 1
+
+    # before_only: newest record at or before the epoch -> the earlier record.
+    results, _, _ = tle_repository.get_all_orbital_data_at_epoch(
+        target_epoch, 1, 10, "zip", before_only=True
+    )
+    assert len(results) == 1
+    assert abs((results[0].epoch - tle_before.epoch).total_seconds()) < 1
+
+
+def test_get_all_tles_at_epoch_equidistant_prefers_later(session, services_available):
+    """On an exact tie, the record after the epoch wins (epoch DESC tiebreaker)."""
+    tle_repository = SqlAlchemyTLERepository(session)
+    sat_repository = SqlAlchemySatelliteRepository(session)
+
+    satellite = SatelliteFactory(decay_date=None)
+    sat_repository.add(satellite)
+
+    target_epoch = datetime.now(timezone.utc) - timedelta(days=10)
+    tle_before = TLEFactory(epoch=target_epoch - timedelta(days=2), satellite=satellite)
+    tle_after = TLEFactory(epoch=target_epoch + timedelta(days=2), satellite=satellite)
+    tle_repository.add(tle_before)
+    tle_repository.add(tle_after)
+    session.commit()
+
+    results, _, _ = tle_repository.get_all_orbital_data_at_epoch(
+        target_epoch, 1, 10, "zip"
+    )
+    assert len(results) == 1
+    assert abs((results[0].epoch - tle_after.epoch).total_seconds()) < 1
+
+
 def test_get_adjacent_tles(session, services_available):
     tle_repository = SqlAlchemyTLERepository(session)
     sat_repository = SqlAlchemySatelliteRepository(session)

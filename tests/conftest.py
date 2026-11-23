@@ -427,6 +427,7 @@ class FakeTLERepository(AbstractTLERepository):
         constellation=None,
         data_source=None,
         use_generated_tles=False,
+        before_only=False,
     ):
         if self.exception_to_raise:
             raise self.exception_to_raise
@@ -434,7 +435,7 @@ class FakeTLERepository(AbstractTLERepository):
             tle
             for tle in self._tles
             if (constellation is None or tle.satellite.constellation == constellation)
-            and (epoch_date is None or tle.epoch <= epoch_date)
+            and (epoch_date is None or not before_only or tle.epoch <= epoch_date)
             and (
                 data_source is None
                 or tle.data_source == data_source
@@ -544,6 +545,7 @@ class FakeOrbitalElementsRepository(AbstractOrbitalElementsRepository):
         constellation=None,
         data_source_limit=None,
         use_generated_tles=False,
+        before_only=False,
     ):
         if self.exception_to_raise:
             raise self.exception_to_raise
@@ -551,7 +553,7 @@ class FakeOrbitalElementsRepository(AbstractOrbitalElementsRepository):
             oe
             for oe in self._orbital_elements
             if (constellation is None or oe.satellite.constellation == constellation)
-            and (epoch_date is None or oe.epoch <= epoch_date)
+            and (epoch_date is None or not before_only or oe.epoch <= epoch_date)
             and (
                 data_source_limit is None
                 or oe.data_source == data_source_limit

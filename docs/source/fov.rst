@@ -35,6 +35,7 @@ Satellite passes Through FOV
    :query data_source: (*optional*) -- Data source to use for orbital data ("celestrak", "spacetrack", or "any"). Default is "any".
    :query illuminated_only: (*optional*) -- If True, only return satellites that are illuminated. Default is False.
    :query async: (*optional*) -- If True (or omitted), return a task ID for polling status and retrieving results. If False, return immediate results. Default is True.
+   :query before_only: (*optional*) -- If True, select the newest orbital data at or before the epoch for each satellite (within 14 days before). If False (default), select the orbital data nearest the epoch in either direction (within 14 days before or after).
 
 **Example Request**
     .. tabs::
@@ -330,6 +331,7 @@ Satellites above the horizon
    :query max_range: (*optional*) -- Maximum range in kilometers. Default is 1500000.
    :query illuminated_only: (*optional*) -- If True, only return satellites that are illuminated. Default is False.
    :query constellation: (*optional*) -- Constellation name (e.g. 'starlink') - if provided, only satellites from this constellation will be returned.
+   :query before_only: (*optional*) -- If True, select the newest orbital data at or before the epoch for each satellite (within 14 days before). If False (default), select the orbital data nearest the epoch in either direction (within 14 days before or after).
 
 
 **Example Request**
