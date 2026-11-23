@@ -72,6 +72,10 @@ limiter = Limiter(
     headers_enabled=True,
     strategy="moving-window",
     swallow_errors=True,
+    # Temporarily disabled: the rate limit storage is not functioning
+    # in the current deployment - need to discuss with IT for a long
+    # term solution.
+    enabled=False,
 )
 
 # Initialize Swagger for documentation
