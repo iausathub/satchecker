@@ -1293,3 +1293,41 @@ def test_fov_different_cache_keys(mocker, test_location, test_time):
 
     # Every variation should generate a unique key
     assert len(cache_keys) == len(param_variations) + 1
+
+
+def test_calculate_performance_metrics_objects_processed():
+    """Verify performance metrics outputs both objects_processed and satellites_processed."""
+    import numpy as np
+
+    from api.services.fov_service import _calculate_performance_metrics
+
+    jd_times = np.array([2451545.0, 2451545.1])
+    # Calling with positional satellites_processed
+    metrics = _calculate_performance_metrics(
+        total_time=5.0,
+        retrieval_time=1.0,
+        calc_time=4.0,
+        satellites_processed=42,
+        points_in_fov=3,
+        jd_times=jd_times,
+        count=100,
+        execution_time=4.0,
+    )
+    assert metrics["objects_processed"] == 42
+    assert metrics["satellites_processed"] == 42
+
+    # Calling with keyword objects_processed
+    metrics_obj = _calculate_performance_metrics(
+        total_time=5.0,
+        retrieval_time=1.0,
+        calc_time=4.0,
+        satellites_processed=0,
+        points_in_fov=3,
+        jd_times=jd_times,
+        count=100,
+        execution_time=4.0,
+        objects_processed=77,
+    )
+    assert metrics_obj["objects_processed"] == 77
+    assert metrics_obj["satellites_processed"] == 77
+

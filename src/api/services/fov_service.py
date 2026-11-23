@@ -1144,11 +1144,12 @@ def _calculate_performance_metrics(
     total_time: float,
     retrieval_time: float,
     calc_time: float,
-    satellites_processed: int,  # TODO change to objects processed or allow for both
+    satellites_processed: int,
     points_in_fov: int,
     jd_times: np.ndarray,
     count: int,
     execution_time: float,
+    objects_processed: int | None = None,
 ) -> dict[str, Any]:
     """
     Calculate and log performance metrics for FOV calculations.
@@ -1156,17 +1157,21 @@ def _calculate_performance_metrics(
     Args:
         total_time: Total execution time in seconds
         retrieval_time: Time spent retrieving orbital data in seconds
-        calc_time: Time spent on propagation (or other FOV)
-        calculations in seconds
-        satellites_processed: Number of satellites processed
+        calc_time: Time spent on propagation (or other FOV) calculations in seconds
+        satellites_processed: Number of satellites or objects processed
         points_in_fov: Number of points found in field of view
         jd_times: List of Julian day times used in calculations
         count: Total number of satellites available
         execution_time: Time spent on propagation execution
+        objects_processed: Optional alias for processed objects count
 
     Returns:
         dict[str, Any]: Performance metrics dictionary
     """
+    processed_count = (
+        objects_processed if objects_processed is not None else satellites_processed
+    )
+
     # Log performance metrics
     logger.debug("\nPerformance Metrics:")
     logger.debug(f"Total execution time: {total_time:.2f} seconds")
@@ -1179,7 +1184,7 @@ def _calculate_performance_metrics(
         f"({(calc_time/total_time)*100:.1f}%)"
     )
     logger.debug("\nResults Summary:")
-    logger.debug(f"Satellites processed: {satellites_processed}/{count}")
+    logger.debug(f"Objects processed: {processed_count}/{count}")
     logger.debug(f"Points in FOV: {points_in_fov}")
     logger.debug(f"End time: {datetime.now().isoformat()}")
 
@@ -1187,7 +1192,8 @@ def _calculate_performance_metrics(
         "total_time": round(total_time, 3),
         "data_retrieval_time": round(retrieval_time, 3),
         "calculation_time": round(execution_time, 3),
-        "satellites_processed": satellites_processed,
+        "objects_processed": processed_count,
+        "satellites_processed": processed_count,
         "points_in_fov": points_in_fov,
         "jd_times": jd_times.tolist(),
     }
