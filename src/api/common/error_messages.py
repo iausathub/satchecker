@@ -38,4 +38,3 @@ DATE_TOO_FAR_IN_FUTURE = (
     "Error: Date too far in future - predictions are not provided for dates "
     "more than 2 weeks in the future due to TLE accuracy degradation"
 )
-

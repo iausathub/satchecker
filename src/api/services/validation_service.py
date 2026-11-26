@@ -226,9 +226,7 @@ def validate_parameters(
                     400, error_messages.INVALID_JD + " - 'julian_date'"
                 )
             if jd_time.jd > max_future_jd:
-                raise ValidationError(
-                    400, error_messages.DATE_TOO_FAR_IN_FUTURE
-                )
+                raise ValidationError(400, error_messages.DATE_TOO_FAR_IN_FUTURE)
 
     if "data_source" in parameters.keys():
         parameters["data_source"] = (
@@ -349,14 +347,10 @@ def validate_parameters(
             ) from e
 
         if parameters[time_param].jd < SPACE_AGE_JD:
-            raise ValidationError(
-                400, error_messages.INVALID_JD + f" - '{time_param}'"
-            )
+            raise ValidationError(400, error_messages.INVALID_JD + f" - '{time_param}'")
         max_future_jd = Time(datetime.now(timezone.utc)).jd + MAX_FUTURE_DAYS
         if parameters[time_param].jd > max_future_jd:
-            raise ValidationError(
-                400, error_messages.DATE_TOO_FAR_IN_FUTURE
-            )
+            raise ValidationError(400, error_messages.DATE_TOO_FAR_IN_FUTURE)
 
     if "epoch" in parameters.keys() and parameters["epoch"] is not None:
         try:
