@@ -38,7 +38,11 @@ will be displayed in the results.
 TLE Dates
 -----------------------------------------------------------
 TLEs are only good for a maximum of two weeks as far as prediction accuracy goes, so
-using a TLE closest to the date requested gives the most accurate postion information.
+using a TLE closest to the date requested gives the most accurate position information.
+Because TLE accuracy degrades significantly beyond two weeks, SatChecker enforces a
+hard upper limit: requests for dates more than two weeks (14 days) into the future
+are rejected with an error message (HTTP 400).
+
 SatChecker will automatically select the most relevant TLE available for the requested date,
 but will still be constrained by the data_source parameter. This means that by default, Space-Track
 TLEs will be checked unless otherwise specified. This is relevant in two primary cases:
