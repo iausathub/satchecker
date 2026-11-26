@@ -1146,7 +1146,6 @@ def _calculate_performance_metrics(
     points_in_fov: int,
     jd_times: np.ndarray,
     count: int,
-    execution_time: float | None = None,
 ) -> dict[str, Any]:
     """
     Calculate and log performance metrics for FOV calculations.
@@ -1159,14 +1158,10 @@ def _calculate_performance_metrics(
         points_in_fov: Number of points found in field of view
         jd_times: List of Julian day times used in calculations
         count: Total number of satellites available
-        execution_time: Optional legacy alias for calc_time
 
     Returns:
         dict[str, Any]: Performance metrics dictionary
     """
-    if execution_time is not None:
-        calc_time = execution_time
-
     # Log performance metrics
     logger.debug("\nPerformance Metrics:")
     logger.debug(f"Total execution time: {total_time:.2f} seconds")
